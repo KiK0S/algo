@@ -1,0 +1,76 @@
+#ifndef EDULCNI_ORDERED_SET_HPP
+#define EDULCNI_ORDERED_SET_HPP
+
+namespace edulcni {
+
+template <typename Key, typename Compare = std::less<Key>>
+using OrderedSetTree =
+    __gnu_pbds::tree<Key, __gnu_pbds::null_type, Compare, __gnu_pbds::rb_tree_tag,
+                     __gnu_pbds::tree_order_statistics_node_update>;
+
+template <typename Key, typename Compare = std::less<Key>>
+class OrderedSet {
+ public:
+  using key_type = Key;
+  using tree_type = OrderedSetTree<Key, Compare>;
+  using iterator = typename tree_type::iterator;
+  using const_iterator = typename tree_type::const_iterator;
+
+  bool insert(const Key& key) { return tree_.insert(key).second; }
+
+  bool erase(const Key& key) { return tree_.erase(key) > 0; }
+
+  void clear() { tree_.clear(); }
+
+  int size() const { return static_cast<int>(tree_.size()); }
+
+  bool empty() const { return tree_.empty(); }
+
+  bool contains(const Key& key) const { return tree_.find(key) != tree_.end(); }
+
+  int order_of_key(const Key& key) const {
+    return static_cast<int>(tree_.order_of_key(key));
+  }
+
+  std::optional<Key> find_by_order(int order) const {
+    if (order < 0 || order >= size()) {
+      return std::nullopt;
+    }
+    const const_iterator it = tree_.find_by_order(order);
+    if (it == tree_.end()) {
+      return std::nullopt;
+    }
+    return *it;
+  }
+
+  iterator find(const Key& key) { return tree_.find(key); }
+
+  const_iterator find(const Key& key) const { return tree_.find(key); }
+
+  iterator lower_bound(const Key& key) { return tree_.lower_bound(key); }
+
+  const_iterator lower_bound(const Key& key) const { return tree_.lower_bound(key); }
+
+  iterator upper_bound(const Key& key) { return tree_.upper_bound(key); }
+
+  const_iterator upper_bound(const Key& key) const { return tree_.upper_bound(key); }
+
+  iterator begin() { return tree_.begin(); }
+
+  const_iterator begin() const { return tree_.begin(); }
+
+  iterator end() { return tree_.end(); }
+
+  const_iterator end() const { return tree_.end(); }
+
+  tree_type& raw() { return tree_; }
+
+  const tree_type& raw() const { return tree_; }
+
+ private:
+  tree_type tree_;
+};
+
+}  // namespace edulcni
+
+#endif  // EDULCNI_ORDERED_SET_HPP

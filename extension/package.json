@@ -1,0 +1,42 @@
+{
+  "name": "edulcni",
+  "displayName": "edulcni",
+  "description": "Insert competitive programming headers from your local library.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:edulcni.insertHeader"
+  ],
+  "main": "./out/extension.js",
+  "files": [
+    "out/**",
+    "library/**",
+    "README.md",
+    "package.json"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "edulcni.insertHeader",
+        "title": "edulcni"
+      }
+    ]
+  },
+  "scripts": {
+    "sync-library": "node ./scripts/sync-library.mjs",
+    "build": "npm run sync-library && tsc -p .",
+    "watch": "tsc -w -p .",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
+  }
+}

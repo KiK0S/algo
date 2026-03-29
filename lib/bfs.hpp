@@ -1,0 +1,108 @@
+#ifndef EDULCNI_BFS_HPP
+#define EDULCNI_BFS_HPP
+
+namespace edulcni {
+
+struct BfsResult {
+  std::vector<int> distance;
+  std::vector<int> parent;
+  std::vector<int> order;
+};
+
+inline void bfs_add_edge(std::vector<std::vector<int>>& graph, int from, int to,
+                         bool undirected = false) {
+  const int n = static_cast<int>(graph.size());
+  if (from < 0 || from >= n || to < 0 || to >= n) {
+    return;
+  }
+  graph[from].push_back(to);
+  if (undirected && from != to) {
+    graph[to].push_back(from);
+  }
+}
+
+inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
+                                  const std::vector<int>& sources) {
+  const int n = static_cast<int>(graph.size());
+  BfsResult result;
+  result.distance.assign(n, -1);
+  result.parent.assign(n, -1);
+  result.order.clear();
+
+  std::queue<int> q;
+  for (int source : sources) {
+    if (source < 0 || source >= n || result.distance[source] != -1) {
+      continue;
+    }
+    result.distance[source] = 0;
+    result.order.push_back(source);
+    q.push(source);
+  }
+
+  while (!q.empty()) {
+    const int v = q.front();
+    q.pop();
+
+    for (int to : graph[v]) {
+      if (to < 0 || to >= n || result.distance[to] != -1) {
+        continue;
+      }
+      result.distance[to] = result.distance[v] + 1;
+      result.parent[to] = v;
+      result.order.push_back(to);
+      q.push(to);
+    }
+  }
+
+  return result;
+}
+
+inline BfsResult bfs(const std::vector<std::vector<int>>& graph, int source) {
+  return bfs_multi_source(graph, std::vector<int>(1, source));
+}
+
+inline std::vector<int> bfs_restore_path(int source, int target,
+                                         const BfsResult& result) {
+  const int n = static_cast<int>(result.parent.size());
+  if (source < 0 || source >= n || target < 0 || target >= n) {
+    return {};
+  }
+
+  std::vector<int> path;
+  int current = target;
+  int steps = 0;
+  while (current != -1 && steps <= n) {
+    path.push_back(current);
+    current = result.parent[current];
+    ++steps;
+  }
+
+  if (path.empty() || path.back() != source) {
+    return {};
+  }
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
+inline std::vector<int> bfs_restore_path_to_root(int target,
+                                                 const BfsResult& result) {
+  const int n = static_cast<int>(result.parent.size());
+  if (target < 0 || target >= n || result.distance[target] == -1) {
+    return {};
+  }
+
+  std::vector<int> path;
+  int current = target;
+  int steps = 0;
+  while (current != -1 && steps <= n) {
+    path.push_back(current);
+    current = result.parent[current];
+    ++steps;
+  }
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
+}  // namespace edulcni
+
+#endif  // EDULCNI_BFS_HPP

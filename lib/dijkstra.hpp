@@ -1,0 +1,113 @@
+#ifndef EDULCNI_DIJKSTRA_HPP
+#define EDULCNI_DIJKSTRA_HPP
+
+namespace edulcni {
+
+template <typename Weight>
+struct DijkstraEdge {
+  int to;
+  Weight weight;
+
+  DijkstraEdge(int to_ = 0, const Weight& weight_ = Weight())
+      : to(to_), weight(weight_) {}
+};
+
+template <typename Weight>
+struct DijkstraResult {
+  std::vector<Weight> distance;
+  std::vector<int> parent;
+};
+
+template <typename Weight, typename WeightArg>
+void dijkstra_add_edge(std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
+                       int from, int to, const WeightArg& weight,
+                       bool undirected = false) {
+  const int n = static_cast<int>(graph.size());
+  if (from < 0 || from >= n || to < 0 || to >= n) {
+    return;
+  }
+  graph[from].push_back(DijkstraEdge<Weight>(to, static_cast<Weight>(weight)));
+  if (undirected && from != to) {
+    graph[to].push_back(DijkstraEdge<Weight>(from, static_cast<Weight>(weight)));
+  }
+}
+
+template <typename Weight>
+DijkstraResult<Weight> dijkstra_multi_source(
+    const std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
+    const std::vector<int>& sources,
+    Weight inf = std::numeric_limits<Weight>::max()) {
+  const int n = static_cast<int>(graph.size());
+  DijkstraResult<Weight> result;
+  result.distance.assign(n, inf);
+  result.parent.assign(n, -1);
+
+  using Node = std::pair<Weight, int>;
+  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pq;
+
+  for (int source : sources) {
+    if (source < 0 || source >= n || result.distance[source] == Weight(0)) {
+      continue;
+    }
+    result.distance[source] = Weight(0);
+    pq.push(Node(Weight(0), source));
+  }
+
+  while (!pq.empty()) {
+    const Weight dist = pq.top().first;
+    const int v = pq.top().second;
+    pq.pop();
+
+    if (dist != result.distance[v]) {
+      continue;
+    }
+    for (const DijkstraEdge<Weight>& edge : graph[v]) {
+      if (edge.to < 0 || edge.to >= n || edge.weight < Weight(0)) {
+        continue;
+      }
+      const Weight candidate = dist + edge.weight;
+      if (candidate < result.distance[edge.to]) {
+        result.distance[edge.to] = candidate;
+        result.parent[edge.to] = v;
+        pq.push(Node(candidate, edge.to));
+      }
+    }
+  }
+
+  return result;
+}
+
+template <typename Weight>
+DijkstraResult<Weight> dijkstra(
+    const std::vector<std::vector<DijkstraEdge<Weight>>>& graph, int source,
+    Weight inf = std::numeric_limits<Weight>::max()) {
+  return dijkstra_multi_source(graph, std::vector<int>(1, source), inf);
+}
+
+template <typename Weight>
+std::vector<int> dijkstra_restore_path(int source, int target,
+                                       const DijkstraResult<Weight>& result) {
+  const int n = static_cast<int>(result.parent.size());
+  if (source < 0 || source >= n || target < 0 || target >= n) {
+    return {};
+  }
+
+  std::vector<int> path;
+  int current = target;
+  int steps = 0;
+  while (current != -1 && steps <= n) {
+    path.push_back(current);
+    current = result.parent[current];
+    ++steps;
+  }
+
+  if (path.empty() || path.back() != source) {
+    return {};
+  }
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
+}  // namespace edulcni
+
+#endif  // EDULCNI_DIJKSTRA_HPP
