@@ -7,6 +7,7 @@ const thisDir = path.dirname(thisFile);
 const extensionRoot = path.resolve(thisDir, "..");
 const sourceRoot = path.resolve(extensionRoot, "..", "lib");
 const targetRoot = path.resolve(extensionRoot, "library");
+const bundledEntries = ["bricks", "solvers", "catalog"];
 
 async function ensureSourceExists() {
   const sourceStat = await stat(sourceRoot);
@@ -19,8 +20,13 @@ async function main() {
   await ensureSourceExists();
   await rm(targetRoot, { recursive: true, force: true });
   await mkdir(targetRoot, { recursive: true });
-  await cp(sourceRoot, targetRoot, { recursive: true, force: true });
-  console.log(`synced headers from ${sourceRoot} to ${targetRoot}`);
+  for (const entry of bundledEntries) {
+    await cp(path.join(sourceRoot, entry), path.join(targetRoot, entry), {
+      recursive: true,
+      force: true
+    });
+  }
+  console.log(`synced catalog snippets from ${sourceRoot} to ${targetRoot}`);
 }
 
 main().catch((error) => {

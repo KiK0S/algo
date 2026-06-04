@@ -1,0 +1,193 @@
+struct KuhnResult {
+  int matching_size;
+  std::vector<int> match_left;
+  std::vector<int> match_right;
+
+  KuhnResult() : matching_size(0) {}
+};
+
+class KuhnMatcher {
+ public:
+  explicit KuhnMatcher(int n_left = 0, int n_right = 0) : n_left_(0), n_right_(0) {
+    reset(n_left, n_right);
+  }
+
+  void reset(int n_left, int n_right) {
+    n_left_ = (n_left < 0 ? 0 : n_left);
+    n_right_ = (n_right < 0 ? 0 : n_right);
+    graph_.assign(n_left_, std::vector<int>());
+    used_.assign(n_left_, 0);
+    visit_token_ = 1;
+  }
+
+  int left_size() const { return n_left_; }
+
+  int right_size() const { return n_right_; }
+
+  const std::vector<std::vector<int>>& graph() const { return graph_; }
+
+  int add_edge(int left, int right) {
+    if (!left_ok(left) || !right_ok(right)) {
+      return -1;
+    }
+    graph_[left].push_back(right);
+    return static_cast<int>(graph_[left].size()) - 1;
+  }
+
+  KuhnResult maximum_matching() {
+    KuhnResult result;
+    result.match_left.assign(n_left_, -1);
+    result.match_right.assign(n_right_, -1);
+    result.matching_size = 0;
+    if (n_left_ == 0 || n_right_ == 0) {
+      return result;
+    }
+
+    for (int left = 0; left < n_left_; ++left) {
+      for (int right : graph_[left]) {
+        if (!right_ok(right) || result.match_right[right] != -1) {
+          continue;
+        }
+        result.match_left[left] = right;
+        result.match_right[right] = left;
+        ++result.matching_size;
+        break;
+      }
+    }
+
+    std::fill(used_.begin(), used_.end(), 0);
+    visit_token_ = 1;
+    for (int left = 0; left < n_left_; ++left) {
+      if (result.match_left[left] != -1) {
+        continue;
+      }
+      ++visit_token_;
+      if (visit_token_ == std::numeric_limits<int>::max()) {
+        std::fill(used_.begin(), used_.end(), 0);
+        visit_token_ = 1;
+      }
+      if (try_augment(left, result.match_left, result.match_right)) {
+        ++result.matching_size;
+      }
+    }
+    return result;
+  }
+
+ private:
+  int n_left_;
+  int n_right_;
+  std::vector<std::vector<int>> graph_;
+  std::vector<int> used_;
+  int visit_token_;
+
+  bool left_ok(int v) const { return v >= 0 && v < n_left_; }
+
+  bool right_ok(int v) const { return v >= 0 && v < n_right_; }
+
+  bool try_augment(int left, std::vector<int>& match_left, std::vector<int>& match_right) {
+    if (!left_ok(left) || used_[left] == visit_token_) {
+      return false;
+    }
+    used_[left] = visit_token_;
+
+    for (int right : graph_[left]) {
+      if (!right_ok(right)) {
+        continue;
+      }
+      const int matched_left = match_right[right];
+      if (matched_left == -1 || try_augment(matched_left, match_left, match_right)) {
+        match_left[left] = right;
+        match_right[right] = left;
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+inline KuhnResult kuhn_maximum_matching(const std::vector<std::vector<int>>& graph,
+                                        int right_size) {
+  KuhnMatcher matcher(static_cast<int>(graph.size()), right_size);
+  for (int left = 0; left < static_cast<int>(graph.size()); ++left) {
+    for (int right : graph[left]) {
+      matcher.add_edge(left, right);
+    }
+  }
+  return matcher.maximum_matching();
+}
+
+struct BipartiteVertexCover {
+  std::vector<int> left_vertices;
+  std::vector<int> right_vertices;
+
+  int size() const {
+    return static_cast<int>(left_vertices.size() + right_vertices.size());
+  }
+};
+
+inline BipartiteVertexCover minimum_vertex_cover_bipartite(
+    const std::vector<std::vector<int>>& graph, int right_size,
+    const KuhnResult& matching) {
+  const int left_size = static_cast<int>(graph.size());
+  BipartiteVertexCover cover;
+  if (left_size == 0 || right_size <= 0) {
+    return cover;
+  }
+
+  std::vector<char> visited_left(left_size, 0);
+  std::vector<char> visited_right(static_cast<std::size_t>(right_size), 0);
+  std::queue<int> q;
+
+  for (int left = 0; left < left_size; ++left) {
+    if (left < static_cast<int>(matching.match_left.size()) &&
+        matching.match_left[left] != -1) {
+      continue;
+    }
+    visited_left[left] = 1;
+    q.push(left);
+  }
+
+  while (!q.empty()) {
+    const int left = q.front();
+    q.pop();
+    for (int right : graph[left]) {
+      if (right < 0 || right >= right_size) {
+        continue;
+      }
+      if (left < static_cast<int>(matching.match_left.size()) &&
+          matching.match_left[left] == right) {
+        continue;
+      }
+      if (visited_right[right]) {
+        continue;
+      }
+      visited_right[right] = 1;
+      if (right < static_cast<int>(matching.match_right.size())) {
+        const int matched_left = matching.match_right[right];
+        if (matched_left != -1 && !visited_left[matched_left]) {
+          visited_left[matched_left] = 1;
+          q.push(matched_left);
+        }
+      }
+    }
+  }
+
+  for (int left = 0; left < left_size; ++left) {
+    if (!visited_left[left]) {
+      cover.left_vertices.push_back(left);
+    }
+  }
+  for (int right = 0; right < right_size; ++right) {
+    if (visited_right[right]) {
+      cover.right_vertices.push_back(right);
+    }
+  }
+  return cover;
+}
+
+inline BipartiteVertexCover minimum_vertex_cover_bipartite(
+    const std::vector<std::vector<int>>& graph, int right_size) {
+  const KuhnResult matching = kuhn_maximum_matching(graph, right_size);
+  return minimum_vertex_cover_bipartite(graph, right_size, matching);
+}
+

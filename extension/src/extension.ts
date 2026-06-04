@@ -1,12 +1,72 @@
 import * as path from "path";
 import * as vscode from "vscode";
+import {
+  analyzeCppDocument,
+  applyIdentifierRenames,
+  CatalogEntry,
+  collectGlobalExportedIdentifiers,
+  CompressUniqueOptions,
+  CppAnalysis,
+  defaultInsertModeForKind,
+  defaultKindForPath,
+  findGlobalInsertionOffset,
+  IdentifierRename,
+  InsertMode,
+  normalizeInsertionText,
+  planIdentifierRenames,
+  planSegmentTreeNames,
+  renderCompressUnique,
+  renderHeaderContent,
+  renderReadVector,
+  renderSegmentTree,
+  reserveIdentifier,
+  resolveCatalogOrder,
+  RenderedSnippet,
+  ReadVectorOptions,
+  SegmentAggregate,
+  SegmentTreeOptions,
+  SegmentUpdateOp,
+  sizeExpressionCandidates,
+  suggestIdentifier,
+  vectorContainerTypeForValueType,
+  SnippetKind
+} from "./core";
 
-type HeaderPickItem = vscode.QuickPickItem & {
-  uri: vscode.Uri;
+type SnippetPickItem = vscode.QuickPickItem & {
+  snippetPath: string;
+  uri?: vscode.Uri;
+  entry?: CatalogEntry;
+  snippetKind: SnippetKind;
+  insertMode: InsertMode;
 };
+
+type ValuePickItem<T extends string = string> = vscode.QuickPickItem & {
+  value: T;
+  custom?: boolean;
+};
+
+const DIRECT_COMMANDS = [
+  { command: "edulcni.segtree", snippetPath: "/solvers/segtree" },
+  { command: "edulcni.compressUnique", snippetPath: "/bricks/compress_unique" },
+  { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" }
+] as const;
 
 function toPosix(value: string): string {
   return value.replace(/\\/g, "/");
+}
+
+function stripHeaderExtension(relativePath: string): string {
+  return relativePath.endsWith(".hpp")
+    ? relativePath.slice(0, -".hpp".length)
+    : relativePath;
+}
+
+function buildDisplayPath(relativePath: string): string {
+  return `/${stripHeaderExtension(relativePath)}`;
+}
+
+function isCatalogSnippetPath(displayPath: string): boolean {
+  return displayPath.startsWith("/bricks/") || displayPath.startsWith("/solvers/");
 }
 
 async function resolveBundledLibraryRoot(
@@ -52,26 +112,539 @@ async function collectHeaders(root: vscode.Uri): Promise<vscode.Uri[]> {
   return files;
 }
 
-function buildPickItems(
-  root: vscode.Uri,
-  uris: vscode.Uri[]
-): HeaderPickItem[] {
-  return uris
-    .map((uri) => {
-      const relativePath = toPosix(path.relative(root.fsPath, uri.fsPath));
-      const directory = path.dirname(relativePath);
-      return {
-        label: path.basename(uri.fsPath),
-        description: relativePath,
-        detail: directory === "." ? "" : directory,
-        uri
-      };
-    })
-    .sort((a, b) => (a.description || "").localeCompare(b.description || ""));
+async function readUtf8(uri: vscode.Uri): Promise<string> {
+  const bytes = await vscode.workspace.fs.readFile(uri);
+  return Buffer.from(bytes).toString("utf8");
 }
 
-async function insertHeaderAtCursor(
-  context: vscode.ExtensionContext
+function normalizeCatalogEntries(value: unknown): CatalogEntry[] {
+  if (Array.isArray(value)) {
+    return value as CatalogEntry[];
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    Array.isArray((value as { entries?: unknown }).entries)
+  ) {
+    return (value as { entries: CatalogEntry[] }).entries;
+  }
+  return [];
+}
+
+async function collectCatalogEntries(root: vscode.Uri): Promise<CatalogEntry[]> {
+  const catalogRoot = vscode.Uri.joinPath(root, "catalog");
+  let entries: [string, vscode.FileType][];
+  try {
+    entries = await vscode.workspace.fs.readDirectory(catalogRoot);
+  } catch {
+    return [];
+  }
+
+  const result: CatalogEntry[] = [];
+  for (const [name, type] of entries) {
+    if (!(type & vscode.FileType.File) || !name.endsWith(".json")) {
+      continue;
+    }
+    const uri = vscode.Uri.joinPath(catalogRoot, name);
+    try {
+      const parsed = JSON.parse(await readUtf8(uri)) as unknown;
+      for (const entry of normalizeCatalogEntries(parsed)) {
+        if (entry.path?.startsWith("/")) {
+          result.push(entry);
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      vscode.window.showWarningMessage(
+        `edulcni: failed to read catalog/${name}: ${message}`
+      );
+    }
+  }
+  return result;
+}
+
+function buildPickItems(
+  root: vscode.Uri,
+  uris: vscode.Uri[],
+  catalogEntries: CatalogEntry[]
+): SnippetPickItem[] {
+  const entriesByPath = new Map(catalogEntries.map((entry) => [entry.path, entry]));
+  const headerPaths = new Set<string>();
+
+  const items: SnippetPickItem[] = [];
+  for (const uri of uris) {
+    const relativePath = toPosix(path.relative(root.fsPath, uri.fsPath));
+    const directory = path.dirname(relativePath);
+    const displayPath = buildDisplayPath(relativePath);
+    if (!isCatalogSnippetPath(displayPath)) {
+      continue;
+    }
+    headerPaths.add(displayPath);
+    const entry = entriesByPath.get(displayPath);
+    const snippetKind = entry?.kind ?? defaultKindForPath(displayPath);
+    items.push({
+      label: entry?.label ?? displayPath,
+      description: entry?.description ?? relativePath,
+      detail:
+        entry?.detail ??
+        (directory === "." ? "top-level" : `${snippetKind} / ${directory}`),
+      snippetPath: displayPath,
+      uri,
+      entry,
+      snippetKind,
+      insertMode: entry?.insertMode ?? defaultInsertModeForKind(snippetKind)
+    });
+  }
+
+  for (const entry of catalogEntries) {
+    if (!isCatalogSnippetPath(entry.path)) {
+      continue;
+    }
+    if (headerPaths.has(entry.path)) {
+      continue;
+    }
+    items.push({
+      label: entry.label ?? entry.path,
+      description: entry.description ?? "",
+      detail: entry.detail ?? entry.kind,
+      snippetPath: entry.path,
+      entry,
+      snippetKind: entry.kind,
+      insertMode: entry.insertMode ?? defaultInsertModeForKind(entry.kind)
+    });
+  }
+
+  return items.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function snippetPathToUri(
+  libraryRoot: vscode.Uri,
+  snippetPath: string,
+  entry?: CatalogEntry
+): vscode.Uri {
+  const source = entry?.source ?? `${snippetPath.slice(1)}.hpp`;
+  return vscode.Uri.joinPath(libraryRoot, ...source.split("/"));
+}
+
+function directGeneratorEntry(snippetPath: string): CatalogEntry | undefined {
+  if (snippetPath === "/solvers/segtree") {
+    return {
+      path: snippetPath,
+      kind: "solver",
+      insertMode: "global",
+      generator: "segtree",
+      label: "/solvers/segtree",
+      description: "interactive inline segment tree generator",
+      detail: "interactive / solver"
+    };
+  }
+  if (snippetPath === "/bricks/compress_unique") {
+    return {
+      path: snippetPath,
+      kind: "brick",
+      insertMode: "cursor",
+      generator: "compress_unique",
+      label: "/bricks/compress_unique",
+      description: "interactive coordinate compression snippet",
+      detail: "interactive / brick"
+    };
+  }
+  if (snippetPath === "/bricks/read_vector") {
+    return {
+      path: snippetPath,
+      kind: "brick",
+      insertMode: "cursor",
+      generator: "read_vector",
+      label: "/bricks/read_vector",
+      description: "interactive vector declaration and input snippet",
+      detail: "interactive / brick"
+    };
+  }
+  return undefined;
+}
+
+async function renderSnippetPath(
+  libraryRoot: vscode.Uri,
+  snippetPath: string,
+  catalogByPath: Map<string, CatalogEntry>,
+  analysis: CppAnalysis
+): Promise<RenderedSnippet> {
+  const orderedPaths = resolveCatalogOrder(snippetPath, catalogByPath);
+  const chunks: string[] = [];
+  const exportedNames: string[] = [];
+
+  for (const currentPath of orderedPaths) {
+    const entry = catalogByPath.get(currentPath);
+    if (entry?.generator) {
+      if (currentPath === snippetPath) {
+        continue;
+      }
+      throw new Error(`generator dependencies are not supported yet: ${currentPath}`);
+    }
+    const uri = snippetPathToUri(libraryRoot, currentPath, entry);
+    const kind = entry?.kind ?? defaultKindForPath(currentPath);
+    const rendered = renderHeaderContent(await readUtf8(uri), kind);
+    chunks.push(rendered.trim());
+    if (entry?.exports) {
+      exportedNames.push(...entry.exports);
+    } else if (kind === "solver") {
+      exportedNames.push(...collectGlobalExportedIdentifiers(rendered));
+    }
+  }
+
+  const content = `${chunks.join("\n\n")}\n`;
+  const renames = planIdentifierRenames(analysis, exportedNames);
+  return {
+    content: applyIdentifierRenames(content, renames),
+    renames,
+    exports: exportedNames
+  };
+}
+
+function positionAtOffset(editor: vscode.TextEditor, offset: number): vscode.Position {
+  return editor.document.positionAt(offset);
+}
+
+async function insertContent(
+  editor: vscode.TextEditor,
+  insertMode: InsertMode,
+  content: string
+): Promise<boolean> {
+  const documentText = editor.document.getText();
+  const offset =
+    insertMode === "global"
+      ? findGlobalInsertionOffset(documentText)
+      : editor.document.offsetAt(editor.selection.active);
+  const text =
+    insertMode === "global"
+      ? normalizeInsertionText(documentText, offset, content)
+      : content;
+  const position = positionAtOffset(editor, offset);
+  return editor.edit((editBuilder) => {
+    editBuilder.insert(position, text);
+  });
+}
+
+function validateIdentifier(value: string): string | undefined {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value.trim())) {
+    return "Use a valid C++ identifier.";
+  }
+  return undefined;
+}
+
+async function pickStringWithCustom(
+  title: string,
+  placeHolder: string,
+  values: string[],
+  customPrompt: string
+): Promise<string | undefined> {
+  const items: ValuePickItem[] = values.map((value) => ({ label: value, value }));
+  items.push({ label: "Custom...", value: "", custom: true });
+  const picked = await vscode.window.showQuickPick(items, {
+    title,
+    placeHolder,
+    ignoreFocusOut: true
+  });
+  if (!picked) {
+    return undefined;
+  }
+  if (!picked.custom) {
+    return picked.value;
+  }
+  return vscode.window.showInputBox({
+    title,
+    prompt: customPrompt,
+    ignoreFocusOut: true
+  });
+}
+
+async function promptSegmentTreeOptions(
+  editor: vscode.TextEditor
+): Promise<SegmentTreeOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const initialNames = planSegmentTreeNames(analysis);
+  const storageInput = await vscode.window.showInputBox({
+    title: "edulcni: segment tree",
+    prompt: "Storage variable name",
+    value: initialNames.storageName,
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (storageInput === undefined) {
+    return undefined;
+  }
+
+  const names = planSegmentTreeNames(analysis, storageInput);
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: segment tree",
+    "Size expression",
+    sizeExpressionCandidates(analysis),
+    "Expression you expect to pass to init_segtree, for example n or MAXN"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: segment tree",
+    "Value type",
+    ["int", "ll", "long long"],
+    "C++ value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const aggregatePick = await vscode.window.showQuickPick<ValuePickItem<SegmentAggregate>>(
+    [
+      { label: "sum", value: "sum" },
+      { label: "min", value: "min" },
+      { label: "max", value: "max" },
+      { label: "custom Node", value: "custom" }
+    ],
+    {
+      title: "edulcni: segment tree",
+      placeHolder: "Aggregate operation",
+      ignoreFocusOut: true
+    }
+  );
+  if (!aggregatePick) {
+    return undefined;
+  }
+
+  const updateItems: ValuePickItem<SegmentUpdateOp>[] = [
+    { label: "point set", value: "point_set", picked: true },
+    { label: "point add", value: "point_add" },
+    { label: "range add lazy", value: "range_add" },
+    { label: "range assign lazy", value: "range_assign" }
+  ];
+  const updatePicks = await vscode.window.showQuickPick(updateItems, {
+    title: "edulcni: segment tree",
+    placeHolder: "Update operations to generate",
+    canPickMany: true,
+    ignoreFocusOut: true
+  });
+  if (!updatePicks) {
+    return undefined;
+  }
+
+  const updates = updatePicks.map((item) => item.value);
+  if (aggregatePick.value !== "custom") {
+    return {
+      sizeExpression: sizeExpression.trim(),
+      valueType: valueType.trim(),
+      aggregate: aggregatePick.value,
+      updates,
+      names
+    };
+  }
+
+  const nodeType = await vscode.window.showInputBox({
+    title: "edulcni: segment tree",
+    prompt: "Custom node type name",
+    value: "Node",
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (nodeType === undefined) {
+    return undefined;
+  }
+
+  const leafTarget = await vscode.window.showInputBox({
+    title: "edulcni: segment tree",
+    prompt: "Leaf initialization target",
+    value: "node.x",
+    ignoreFocusOut: true
+  });
+  if (leafTarget === undefined) {
+    return undefined;
+  }
+
+  const leafExpression = await vscode.window.showInputBox({
+    title: "edulcni: segment tree",
+    prompt: "Leaf initialization expression",
+    value: "value",
+    ignoreFocusOut: true
+  });
+  if (leafExpression === undefined) {
+    return undefined;
+  }
+
+  const updateTarget =
+    updates.length === 0
+      ? leafTarget
+      : await vscode.window.showInputBox({
+          title: "edulcni: segment tree",
+          prompt: "Field/expression changed by generated updates",
+          value: leafTarget,
+          ignoreFocusOut: true
+        });
+  if (updateTarget === undefined) {
+    return undefined;
+  }
+
+  return {
+    sizeExpression: sizeExpression.trim(),
+    valueType: valueType.trim(),
+    aggregate: "custom",
+    updates,
+    names,
+    custom: {
+      nodeType: nodeType.trim(),
+      leafTarget: leafTarget.trim(),
+      leafExpression: leafExpression.trim(),
+      updateTarget: updateTarget.trim()
+    }
+  };
+}
+
+async function promptVectorName(
+  title: string,
+  placeHolder: string,
+  values: { name: string; type?: string }[],
+  customPrompt: string
+): Promise<string | undefined> {
+  const seen = new Set<string>();
+  const items: ValuePickItem[] = [];
+  for (const value of values) {
+    if (seen.has(value.name)) {
+      continue;
+    }
+    seen.add(value.name);
+    items.push({
+      label: value.name,
+      description: value.type,
+      value: value.name
+    });
+  }
+  items.push({ label: "Custom...", value: "", custom: true });
+  const picked = await vscode.window.showQuickPick(items, {
+    title,
+    placeHolder,
+    ignoreFocusOut: true
+  });
+  if (!picked) {
+    return undefined;
+  }
+  if (!picked.custom) {
+    return picked.value;
+  }
+  return vscode.window.showInputBox({
+    title,
+    prompt: customPrompt,
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+}
+
+async function promptCompressUniqueOptions(
+  editor: vscode.TextEditor
+): Promise<CompressUniqueOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const sourceName = await promptVectorName(
+    "edulcni: compress_unique",
+    "Vector to compress",
+    analysis.vectorSymbols,
+    "Vector variable name"
+  );
+  if (sourceName === undefined || sourceName.trim() === "") {
+    return undefined;
+  }
+
+  const used = new Set(analysis.identifiers);
+  used.add(sourceName.trim());
+  const valuesName = await vscode.window.showInputBox({
+    title: "edulcni: compress_unique",
+    prompt: "Unique values vector name",
+    value: reserveIdentifier(used, "vals", "coords"),
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (valuesName === undefined || valuesName.trim() === "") {
+    return undefined;
+  }
+  used.add(valuesName.trim());
+
+  const idFunctionName = reserveIdentifier(used, "get_id", "compress_id");
+  const rewritePick = await vscode.window.showQuickPick<
+    ValuePickItem<"rewrite" | "keep">
+  >(
+    [
+      { label: `rewrite ${sourceName.trim()} to ids`, value: "rewrite", picked: true },
+      { label: "keep source unchanged", value: "keep" }
+    ],
+    {
+      title: "edulcni: compress_unique",
+      placeHolder: "Compression output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!rewritePick) {
+    return undefined;
+  }
+
+  return {
+    sourceName: sourceName.trim(),
+    valuesName: valuesName.trim(),
+    idFunctionName,
+    rewriteSource: rewritePick.value === "rewrite"
+  };
+}
+
+async function promptReadVectorOptions(
+  editor: vscode.TextEditor
+): Promise<ReadVectorOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const nameInput = await vscode.window.showInputBox({
+    title: "edulcni: read_vector",
+    prompt: "Vector variable name",
+    value: suggestIdentifier(analysis, "a", "values"),
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (nameInput === undefined || nameInput.trim() === "") {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: read_vector",
+    "Size expression",
+    sizeExpressionCandidates(analysis),
+    "Expression for the vector size, for example n"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: read_vector",
+    "Value type",
+    ["int", "ll", "long long"],
+    "C++ value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  return {
+    name: nameInput.trim(),
+    sizeExpression: sizeExpression.trim(),
+    valueType: valueType.trim(),
+    containerType: vectorContainerTypeForValueType(analysis, valueType.trim())
+  };
+}
+
+function showRenameSummary(renames: IdentifierRename[]): void {
+  if (renames.length === 0) {
+    return;
+  }
+  const summary = renames.map((rename) => `${rename.from}->${rename.to}`).join(", ");
+  vscode.window.showInformationMessage(`edulcni: renamed exported symbols: ${summary}`);
+}
+
+async function insertSnippet(
+  context: vscode.ExtensionContext,
+  requestedPath?: string
 ): Promise<void> {
   const libraryRoot = await resolveBundledLibraryRoot(context);
   if (!libraryRoot) {
@@ -81,26 +654,54 @@ async function insertHeaderAtCursor(
     return;
   }
 
-  const headers = await collectHeaders(libraryRoot);
-  if (headers.length === 0) {
+  const [headers, catalogEntries] = await Promise.all([
+    collectHeaders(libraryRoot),
+    collectCatalogEntries(libraryRoot)
+  ]);
+  if (headers.length === 0 && catalogEntries.length === 0) {
     vscode.window.showWarningMessage(
-      "edulcni: no bundled .hpp files found in extension/library."
+      "edulcni: no bundled snippets found in extension/library."
     );
     return;
   }
 
-  const picked = await vscode.window.showQuickPick(
-    buildPickItems(libraryRoot, headers),
-    {
-      title: "edulcni",
-      placeHolder: "Type a header file name (auto-suggest) and press Enter to insert",
+  const items = buildPickItems(libraryRoot, headers, catalogEntries);
+  let picked: SnippetPickItem | undefined;
+  const directEntry = requestedPath ? directGeneratorEntry(requestedPath) : undefined;
+  if (requestedPath) {
+    picked = items.find((item) => item.snippetPath === requestedPath);
+    if (picked && directEntry) {
+      picked = {
+        ...picked,
+        entry: { ...(picked.entry ?? {}), ...directEntry },
+        snippetKind: directEntry.kind,
+        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+      };
+    } else if (!picked && directEntry) {
+      picked = {
+        label: directEntry.label ?? directEntry.path,
+        description: directEntry.description ?? "",
+        detail: directEntry.detail ?? directEntry.kind,
+        snippetPath: directEntry.path,
+        entry: directEntry,
+        snippetKind: directEntry.kind,
+        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+      };
+    }
+  } else {
+    picked = await vscode.window.showQuickPick(items, {
+      title: "edulcni:browse",
+      placeHolder: "Type a slash path, for example /solvers/segtree",
       matchOnDescription: true,
       matchOnDetail: true,
       ignoreFocusOut: true
-    }
-  );
+    });
+  }
 
   if (!picked) {
+    if (requestedPath) {
+      vscode.window.showErrorMessage(`edulcni: unknown snippet ${requestedPath}.`);
+    }
     return;
   }
 
@@ -110,23 +711,49 @@ async function insertHeaderAtCursor(
     return;
   }
 
-  const bytes = await vscode.workspace.fs.readFile(picked.uri);
-  const content = Buffer.from(bytes).toString("utf8");
-  const ok = await editor.edit((editBuilder) => {
-    editBuilder.insert(editor.selection.active, content);
-  });
-
-  if (!ok) {
-    vscode.window.showErrorMessage("edulcni: failed to insert header content.");
+  const catalogByPath = new Map(catalogEntries.map((entry) => [entry.path, entry]));
+  let renderedSnippet: RenderedSnippet;
+  if (picked.entry?.generator === "segtree") {
+    const options = await promptSegmentTreeOptions(editor);
+    if (!options) {
+      return;
+    }
+    renderedSnippet = { content: renderSegmentTree(options), renames: [], exports: [] };
+  } else if (picked.entry?.generator === "compress_unique") {
+    const options = await promptCompressUniqueOptions(editor);
+    if (!options) {
+      return;
+    }
+    renderedSnippet = { content: renderCompressUnique(options), renames: [], exports: [] };
+  } else if (picked.entry?.generator === "read_vector") {
+    const options = await promptReadVectorOptions(editor);
+    if (!options) {
+      return;
+    }
+    renderedSnippet = { content: renderReadVector(options), renames: [], exports: [] };
+  } else {
+    renderedSnippet = await renderSnippetPath(
+      libraryRoot,
+      picked.snippetPath,
+      catalogByPath,
+      analyzeCppDocument(editor.document.getText())
+    );
   }
+
+  const ok = await insertContent(editor, picked.insertMode, renderedSnippet.content);
+  if (!ok) {
+    vscode.window.showErrorMessage("edulcni: failed to insert snippet content.");
+    return;
+  }
+  showRenameSummary(renderedSnippet.renames);
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  const disposable = vscode.commands.registerCommand(
+  const browseDisposable = vscode.commands.registerCommand(
     "edulcni.insertHeader",
     async () => {
       try {
-        await insertHeaderAtCursor(context);
+        await insertSnippet(context);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "unknown extension error";
@@ -135,7 +762,20 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
-  context.subscriptions.push(disposable);
+  context.subscriptions.push(browseDisposable);
+  for (const command of DIRECT_COMMANDS) {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(command.command, async () => {
+        try {
+          await insertSnippet(context, command.snippetPath);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "unknown extension error";
+          vscode.window.showErrorMessage(`edulcni: ${message}`);
+        }
+      })
+    );
+  }
 }
 
 export function deactivate(): void {}

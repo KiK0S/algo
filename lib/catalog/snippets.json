@@ -1,0 +1,74 @@
+[
+  {
+    "path": "/solvers/segtree",
+    "kind": "solver",
+    "insertMode": "global",
+    "generator": "segtree",
+    "label": "/solvers/segtree",
+    "description": "interactive inline segment tree generator",
+    "detail": "interactive / solver",
+    "exports": [
+      "t",
+      "init_segtree",
+      "build",
+      "get",
+      "point_set",
+      "point_add",
+      "range_add",
+      "range_assign"
+    ],
+    "form": [
+      "storageName",
+      "sizeExpression",
+      "valueType",
+      "aggregate",
+      "updates",
+      "customNode"
+    ],
+    "render": {
+      "style": "inline-global",
+      "namespace": "global"
+    }
+  },
+  {
+    "path": "/bricks/modpow",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "exports": ["modpow"]
+  },
+  {
+    "path": "/bricks/compress_unique",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "generator": "compress_unique",
+    "label": "/bricks/compress_unique",
+    "description": "interactive coordinate compression snippet",
+    "detail": "interactive / brick",
+    "exports": ["vals", "get_id"],
+    "form": ["sourceName", "valuesName", "rewriteSource"]
+  },
+  {
+    "path": "/bricks/read_vector",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "generator": "read_vector",
+    "label": "/bricks/read_vector",
+    "description": "interactive vector declaration and input snippet",
+    "detail": "interactive / brick",
+    "exports": ["a"],
+    "form": ["name", "sizeExpression", "valueType"]
+  },
+  {
+    "path": "/solvers/fft_ntt",
+    "kind": "solver",
+    "insertMode": "global",
+    "exports": [
+      "fft_next_power_of_two",
+      "fft_transform",
+      "convolution_fft_round",
+      "ntt_pow",
+      "ntt_transform",
+      "convolution_ntt_int"
+    ]
+  }
+]
