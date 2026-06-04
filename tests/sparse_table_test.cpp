@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/sparse_table.hpp"
+#include "../lib/solvers/sparse_table.hpp"
 
 static int naive_min(const std::vector<int>& values, int left, int right) {
   if (values.empty() || left > right || right < 0 || left >= static_cast<int>(values.size())) {
@@ -43,8 +43,8 @@ static int naive_max(const std::vector<int>& values, int left, int right) {
 
 static void test_sparse_table_basic() {
   const std::vector<int> values = {5, 2, 7, 3, 9, 1, 4};
-  edulcni::SparseMinTable<int> min_table(values);
-  edulcni::SparseMaxTable<int> max_table(values);
+  SparseMinTable<int> min_table(values);
+  SparseMaxTable<int> max_table(values);
 
   assert(min_table.size() == static_cast<int>(values.size()));
   assert(max_table.size() == static_cast<int>(values.size()));
@@ -62,7 +62,7 @@ static void test_sparse_table_basic() {
 }
 
 static void test_sparse_table_empty() {
-  edulcni::SparseMinTable<int> table;
+  SparseMinTable<int> table;
   assert(table.empty());
   assert(table.query(0, 0) == 0);
 }
@@ -77,8 +77,8 @@ static void test_sparse_table_random() {
       values[i] = static_cast<int>(rng() % 2001) - 1000;
     }
 
-    edulcni::SparseMinTable<int> min_table(values);
-    edulcni::SparseMaxTable<int> max_table(values);
+    SparseMinTable<int> min_table(values);
+    SparseMaxTable<int> max_table(values);
 
     for (int q = 0; q < 1500; ++q) {
       int left = static_cast<int>(rng() % (n + 10)) - 5;

@@ -13,7 +13,7 @@
 #include "../lib/solvers/segtree_beats.hpp"
 #include "../lib/solvers/segtree_lazy_add_min.hpp"
 #include "../lib/solvers/segtree_point_update.hpp"
-#include "../lib/solvers/static_rmq.hpp"
+#include "../lib/solvers/sparse_table.hpp"
 
 static void test_point_segment_tree() {
   std::vector<int> a = {5, 1, 7, 3};

@@ -1,3 +1,4 @@
+// T must be a field-like type where division by a non-zero value is valid.
 // Returns c where s[i] = c[0] * s[i - 1] + ... + c[m - 1] * s[i - m].
 template <typename T>
 inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
@@ -134,4 +135,3 @@ inline T berlekamp_massey_kth(const std::vector<T>& sequence, long long index) {
   }
   return linear_recurrence_kth(initial, coefficients, index);
 }
-

@@ -1,19 +1,53 @@
 export type SnippetKind = "brick" | "solver";
 export type InsertMode = "cursor" | "global";
+export type SolutionSection =
+  | "includes"
+  | "defines"
+  | "constants"
+  | "data"
+  | "helpers"
+  | "solve"
+  | "main";
+
+export const SOLUTION_SECTION_ORDER: SolutionSection[] = [
+  "includes",
+  "defines",
+  "constants",
+  "data",
+  "helpers",
+  "solve",
+  "main"
+];
 
 export interface CatalogEntry {
   path: string;
   kind: SnippetKind;
   insertMode?: InsertMode;
-  generator?: "segtree" | "compress_unique" | "read_vector";
+  generator?: string;
   source?: string;
   label?: string;
   description?: string;
   detail?: string;
   exports?: string[];
   dependsOn?: string[];
+  features?: string[];
+  sections?: SolutionSection[];
+  variants?: unknown[];
+  pipeline?: Record<string, unknown>;
   form?: unknown[];
   render?: Record<string, unknown>;
+}
+
+export interface DynamicDependency {
+  path: string;
+  feature?: string;
+  options?: Record<string, unknown>;
+}
+
+export interface RenderedRecipe {
+  sections: Partial<Record<SolutionSection, string[]>>;
+  exports: string[];
+  dependencies: DynamicDependency[];
 }
 
 export interface AnnotatedSymbol {
@@ -26,6 +60,12 @@ export interface VectorSymbol {
   type: string;
 }
 
+export interface CppSectionSpan {
+  section: SolutionSection;
+  start: number;
+  end: number;
+}
+
 export interface CppAnalysis {
   identifiers: Set<string>;
   annotatedSymbols: AnnotatedSymbol[];
@@ -33,6 +73,7 @@ export interface CppAnalysis {
   inputSymbols: AnnotatedSymbol[];
   vectorSymbols: VectorSymbol[];
   vectorAliases: Set<string>;
+  sections: CppSectionSpan[];
 }
 
 export type SegmentAggregate = "sum" | "min" | "max" | "custom";
@@ -90,6 +131,47 @@ export interface ReadVectorOptions {
   sizeExpression: string;
   valueType: string;
   containerType: string;
+}
+
+export type SparseTableVariant = "min" | "max";
+
+export interface SparseTableNames {
+  logName: string;
+  ensureLogName: string;
+  minTableName: string;
+  buildMinName: string;
+  queryMinName: string;
+  maxTableName: string;
+  buildMaxName: string;
+  queryMaxName: string;
+}
+
+export interface SparseTableOptions {
+  valueType: string;
+  sourceName: string;
+  variants: SparseTableVariant[];
+  names: SparseTableNames;
+  includeUsageComment: boolean;
+}
+
+export type BerlekampMasseyFeature =
+  | "minimal_recurrence"
+  | "kth_term"
+  | "one_shot_kth";
+
+export interface BerlekampMasseyNames {
+  berlekampMasseyName: string;
+  linearRecurrenceKthName: string;
+  berlekampMasseyKthName: string;
+}
+
+export interface BerlekampMasseyOptions {
+  valueType: string;
+  sequenceName: string;
+  indexName: string;
+  features: BerlekampMasseyFeature[];
+  names: BerlekampMasseyNames;
+  includeUsageComment: boolean;
 }
 
 export interface IdentifierRename {
@@ -476,6 +558,121 @@ function collectDeclaredSymbols(
   return { constants, inputs, vectors };
 }
 
+function topLevelLineSection(line: string): SolutionSection | undefined {
+  const trimmed = line.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  if (/^#\s*include\b/.test(trimmed)) {
+    return "includes";
+  }
+  if (/^#\s*\w+\b/.test(trimmed)) {
+    return "defines";
+  }
+  if (/^(?:using|typedef)\b/.test(trimmed)) {
+    return "defines";
+  }
+  if (/^(?:static\s+)?(?:const|constexpr)\b/.test(trimmed)) {
+    return "constants";
+  }
+  if (/^(?:void|int|auto|ll|long\s+long)\s+solve\s*\(/.test(trimmed)) {
+    return "solve";
+  }
+  if (/^int\s+main\s*\(/.test(trimmed)) {
+    return "main";
+  }
+  if (/^(?:template|class|struct)\b/.test(trimmed)) {
+    return "helpers";
+  }
+  if (/;\s*$/.test(trimmed)) {
+    const firstParen = trimmed.indexOf("(");
+    const firstEquals = trimmed.indexOf("=");
+    if (firstParen === -1 || (firstEquals !== -1 && firstEquals < firstParen)) {
+      return "data";
+    }
+  }
+  if (topLevelDeclarationName(trimmed)) {
+    return "helpers";
+  }
+  if (/;\s*$/.test(trimmed)) {
+    return "data";
+  }
+  return "helpers";
+}
+
+function countBraceDelta(line: string): number {
+  let delta = 0;
+  for (const ch of line) {
+    if (ch === "{") {
+      ++delta;
+    } else if (ch === "}") {
+      --delta;
+    }
+  }
+  return delta;
+}
+
+function pushSectionSpan(
+  spans: CppSectionSpan[],
+  section: SolutionSection,
+  start: number,
+  end: number
+): void {
+  if (start >= end) {
+    return;
+  }
+  const previous = spans[spans.length - 1];
+  if (previous?.section === section && previous.end === start) {
+    previous.end = end;
+    return;
+  }
+  spans.push({ section, start, end });
+}
+
+export function detectCppSections(text: string): CppSectionSpan[] {
+  const stripped = stripCppCommentsAndStrings(text);
+  const spans: CppSectionSpan[] = [];
+  let offset = 0;
+  let braceDepth = 0;
+  let activeBlockSection: SolutionSection | undefined;
+
+  for (const match of stripped.matchAll(/[^\n]*(?:\n|$)/g)) {
+    const line = match[0];
+    if (line === "" && offset >= stripped.length) {
+      break;
+    }
+    const start = offset;
+    const end = start + line.length;
+    const lineWithoutNewline = line.replace(/\r?\n$/, "");
+    const section =
+      activeBlockSection ??
+      (braceDepth === 0 ? topLevelLineSection(lineWithoutNewline) : undefined);
+
+    if (section) {
+      pushSectionSpan(spans, section, start, end);
+    }
+
+    const nextBraceDepth = Math.max(0, braceDepth + countBraceDelta(lineWithoutNewline));
+    if (
+      activeBlockSection === undefined &&
+      section &&
+      (section === "helpers" || section === "solve" || section === "main") &&
+      braceDepth === 0 &&
+      nextBraceDepth > 0
+    ) {
+      activeBlockSection = section;
+    }
+    if (activeBlockSection !== undefined && nextBraceDepth === 0) {
+      activeBlockSection = undefined;
+    }
+
+    braceDepth = nextBraceDepth;
+    offset = end;
+  }
+
+  return spans;
+}
+
 export function analyzeCppDocument(text: string): CppAnalysis {
   const stripped = stripCppCommentsAndStrings(text);
   const identifiers = new Set<string>();
@@ -493,7 +690,8 @@ export function analyzeCppDocument(text: string): CppAnalysis {
     constantSymbols: declaredSymbols.constants,
     inputSymbols: declaredSymbols.inputs,
     vectorSymbols: declaredSymbols.vectors,
-    vectorAliases
+    vectorAliases,
+    sections: detectCppSections(text)
   };
 }
 
@@ -564,6 +762,99 @@ export function reserveIdentifier(
   throw new Error(`unable to reserve identifier for ${preferred}`);
 }
 
+export interface NamePlannerRequest {
+  preferred: string;
+  fallback?: string;
+  exportName?: boolean;
+}
+
+export interface NamePlanner {
+  reserve(preferred: string, fallback?: string): string;
+  reserveExport(preferred: string, fallback?: string): string;
+  reserveMany<T extends Record<string, string | NamePlannerRequest>>(
+    requests: T
+  ): { [K in keyof T]: string };
+  useExisting(name: string): string;
+  isUsed(name: string): boolean;
+  exportedNames(): string[];
+  usedNames(): Set<string>;
+}
+
+function normalizeNameRequest(request: string | NamePlannerRequest): NamePlannerRequest {
+  return typeof request === "string" ? { preferred: request } : request;
+}
+
+export function createNamePlanner(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): NamePlanner {
+  const used = new Set(analysis.identifiers);
+  const exports: string[] = [];
+  for (const name of extraReserved) {
+    if (isIdentifier(name) && !CPP_KEYWORDS.has(name)) {
+      used.add(name);
+    }
+  }
+
+  const addExport = (name: string) => {
+    if (!exports.includes(name)) {
+      exports.push(name);
+    }
+  };
+
+  const reserveOne = (
+    preferred: string,
+    fallback?: string,
+    exportName = false
+  ): string => {
+    const name = reserveIdentifier(used, preferred, fallback);
+    if (exportName) {
+      addExport(name);
+    }
+    return name;
+  };
+
+  return {
+    reserve(preferred: string, fallback?: string): string {
+      return reserveOne(preferred, fallback);
+    },
+    reserveExport(preferred: string, fallback?: string): string {
+      return reserveOne(preferred, fallback, true);
+    },
+    reserveMany<T extends Record<string, string | NamePlannerRequest>>(
+      requests: T
+    ): { [K in keyof T]: string } {
+      const result = {} as { [K in keyof T]: string };
+      for (const key of Object.keys(requests) as Array<keyof T>) {
+        const request = normalizeNameRequest(requests[key]);
+        result[key] = reserveOne(
+          request.preferred,
+          request.fallback,
+          request.exportName ?? false
+        );
+      }
+      return result;
+    },
+    useExisting(name: string): string {
+      const trimmed = name.trim();
+      if (!isIdentifier(trimmed) || CPP_KEYWORDS.has(trimmed)) {
+        throw new Error(`invalid C++ identifier: ${name}`);
+      }
+      used.add(trimmed);
+      return trimmed;
+    },
+    isUsed(name: string): boolean {
+      return used.has(name);
+    },
+    exportedNames(): string[] {
+      return [...exports];
+    },
+    usedNames(): Set<string> {
+      return new Set(used);
+    }
+  };
+}
+
 export function suggestIdentifier(
   analysis: CppAnalysis,
   preferred: string,
@@ -593,26 +884,26 @@ export function planSegmentTreeNames(
   analysis: CppAnalysis,
   requestedStorageName = "t"
 ): SegmentTreeNames {
-  const used = new Set(analysis.identifiers);
-  const storageName = reserveIdentifier(used, requestedStorageName, "segtree");
+  const planner = createNamePlanner(analysis);
+  const storageName = planner.reserve(requestedStorageName, "segtree");
   return {
     storageName,
-    lazyAddName: reserveIdentifier(used, "lazy_add", "seg_lazy_add"),
-    lazySetName: reserveIdentifier(used, "lazy_set", "seg_lazy_set"),
-    lazyHasSetName: reserveIdentifier(used, "lazy_has_set", "seg_lazy_has_set"),
-    initName: reserveIdentifier(used, "init_segtree", "seg_init"),
-    buildName: reserveIdentifier(used, "build", "build_segtree"),
-    queryName: reserveIdentifier(used, "get", "seg_get"),
-    mergeName: reserveIdentifier(used, "merge", "merge_nodes"),
-    neutralName: reserveIdentifier(used, "neutral", "seg_neutral"),
-    makeNodeName: reserveIdentifier(used, "make_node", "seg_make_node"),
-    pushName: reserveIdentifier(used, "push", "seg_push"),
-    applyAddName: reserveIdentifier(used, "apply_add", "seg_apply_add"),
-    applySetName: reserveIdentifier(used, "apply_set", "seg_apply_set"),
-    pointSetName: reserveIdentifier(used, "point_set", "seg_point_set"),
-    pointAddName: reserveIdentifier(used, "point_add", "seg_point_add"),
-    rangeAddName: reserveIdentifier(used, "range_add", "seg_range_add"),
-    rangeAssignName: reserveIdentifier(used, "range_assign", "seg_range_assign")
+    lazyAddName: planner.reserve("lazy_add", "seg_lazy_add"),
+    lazySetName: planner.reserve("lazy_set", "seg_lazy_set"),
+    lazyHasSetName: planner.reserve("lazy_has_set", "seg_lazy_has_set"),
+    initName: planner.reserve("init_segtree", "seg_init"),
+    buildName: planner.reserve("build", "build_segtree"),
+    queryName: planner.reserve("get", "seg_get"),
+    mergeName: planner.reserve("merge", "merge_nodes"),
+    neutralName: planner.reserve("neutral", "seg_neutral"),
+    makeNodeName: planner.reserve("make_node", "seg_make_node"),
+    pushName: planner.reserve("push", "seg_push"),
+    applyAddName: planner.reserve("apply_add", "seg_apply_add"),
+    applySetName: planner.reserve("apply_set", "seg_apply_set"),
+    pointSetName: planner.reserve("point_set", "seg_point_set"),
+    pointAddName: planner.reserve("point_add", "seg_point_add"),
+    rangeAddName: planner.reserve("range_add", "seg_range_add"),
+    rangeAssignName: planner.reserve("range_assign", "seg_range_assign")
   };
 }
 
@@ -699,6 +990,128 @@ function targetExpression(target: string, objectName: string): string {
 
 function pushLine(lines: string[], line = ""): void {
   lines.push(line);
+}
+
+function normalizeSectionChunk(chunk: string): string {
+  return chunk.trim();
+}
+
+export function createRenderedRecipe(
+  sections: Partial<Record<SolutionSection, string[]>>,
+  exports: string[] = [],
+  dependencies: DynamicDependency[] = []
+): RenderedRecipe {
+  return { sections, exports, dependencies };
+}
+
+export function composeRecipeSections(
+  recipe: RenderedRecipe,
+  selectedSections: SolutionSection[] = SOLUTION_SECTION_ORDER
+): string {
+  const chunks: string[] = [];
+  for (const section of selectedSections) {
+    for (const chunk of recipe.sections[section] ?? []) {
+      const normalized = normalizeSectionChunk(chunk);
+      if (normalized !== "") {
+        chunks.push(normalized);
+      }
+    }
+  }
+  return chunks.length === 0 ? "" : `${chunks.join("\n\n")}\n`;
+}
+
+export function renderRecipeSnippet(
+  recipe: RenderedRecipe,
+  selectedSections: SolutionSection[] = SOLUTION_SECTION_ORDER
+): RenderedSnippet {
+  return {
+    content: composeRecipeSections(recipe, selectedSections),
+    renames: [],
+    exports: recipe.exports
+  };
+}
+
+export function mergeRenderedRecipes(recipes: RenderedRecipe[]): RenderedRecipe {
+  const sections: Partial<Record<SolutionSection, string[]>> = {};
+  const exports: string[] = [];
+  const dependenciesByPath = new Map<string, DynamicDependency>();
+
+  for (const recipe of recipes) {
+    for (const section of SOLUTION_SECTION_ORDER) {
+      const chunks = recipe.sections[section];
+      if (!chunks || chunks.length === 0) {
+        continue;
+      }
+      sections[section] = [...(sections[section] ?? []), ...chunks];
+    }
+    for (const name of recipe.exports) {
+      if (!exports.includes(name)) {
+        exports.push(name);
+      }
+    }
+    for (const dependency of recipe.dependencies) {
+      if (!dependenciesByPath.has(dependency.path)) {
+        dependenciesByPath.set(dependency.path, dependency);
+      }
+    }
+  }
+
+  return {
+    sections,
+    exports,
+    dependencies: [...dependenciesByPath.values()]
+  };
+}
+
+function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
+  const names = options.names;
+  const result: string[] = [];
+  const add = (name: string | undefined) => {
+    if (name && !result.includes(name)) {
+      result.push(name);
+    }
+  };
+
+  add(options.aggregate === "custom" ? options.custom?.nodeType ?? "Node" : undefined);
+  add(names.storageName);
+  add(names.neutralName);
+  add(names.makeNodeName);
+  add(names.mergeName);
+  add(names.initName);
+  add(names.buildName);
+  add(names.queryName);
+  if (hasUpdate(options, "range_add")) {
+    add(names.lazyAddName);
+    add(names.applyAddName);
+  }
+  if (hasUpdate(options, "range_assign")) {
+    add(names.lazySetName);
+    add(names.lazyHasSetName);
+    add(names.applySetName);
+  }
+  if (hasUpdate(options, "range_add") || hasUpdate(options, "range_assign")) {
+    add(names.pushName);
+  }
+  if (hasUpdate(options, "point_set")) {
+    add(names.pointSetName);
+  }
+  if (hasUpdate(options, "point_add")) {
+    add(names.pointAddName);
+  }
+  if (hasUpdate(options, "range_add")) {
+    add(names.rangeAddName);
+  }
+  if (hasUpdate(options, "range_assign")) {
+    add(names.rangeAssignName);
+  }
+  return result;
+}
+
+export function renderSegmentTreeRecipe(options: SegmentTreeOptions): RenderedRecipe {
+  return createRenderedRecipe(
+    { helpers: [renderSegmentTree(options)] },
+    segmentTreeExportedNames(options)
+  );
 }
 
 export function renderSegmentTree(options: SegmentTreeOptions): string {
@@ -1005,6 +1418,444 @@ export function renderCompressUnique(options: CompressUniqueOptions): string {
 
 export function renderReadVector(options: ReadVectorOptions): string {
   return `${options.containerType} ${options.name}(${options.sizeExpression});\nfor (auto& x : ${options.name}) cin >> x;\n`;
+}
+
+export function defaultSparseTableVariants(): SparseTableVariant[] {
+  return ["min", "max"];
+}
+
+export function planSparseTableNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): SparseTableNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    logName: planner.reserve("sparse_log"),
+    ensureLogName: planner.reserve("ensure_sparse_log"),
+    minTableName: planner.reserve("sparse_min"),
+    buildMinName: planner.reserve("build_sparse_min"),
+    queryMinName: planner.reserve("query_sparse_min"),
+    maxTableName: planner.reserve("sparse_max"),
+    buildMaxName: planner.reserve("build_sparse_max"),
+    queryMaxName: planner.reserve("query_sparse_max")
+  };
+}
+
+function sparseTableVariantSet(
+  variants: SparseTableVariant[]
+): Set<SparseTableVariant> {
+  return new Set(variants.length === 0 ? defaultSparseTableVariants() : variants);
+}
+
+function sparseTableExports(
+  options: SparseTableOptions,
+  variants: Set<SparseTableVariant>
+): string[] {
+  const exports = [options.names.logName, options.names.ensureLogName];
+  if (variants.has("min")) {
+    exports.push(
+      options.names.minTableName,
+      options.names.buildMinName,
+      options.names.queryMinName
+    );
+  }
+  if (variants.has("max")) {
+    exports.push(
+      options.names.maxTableName,
+      options.names.buildMaxName,
+      options.names.queryMaxName
+    );
+  }
+  return exports;
+}
+
+function renderSparseTableUsage(
+  options: SparseTableOptions,
+  variants: Set<SparseTableVariant>
+): string {
+  const lines = ["/*", "Inclusive [l, r] queries:"];
+  if (variants.has("min")) {
+    lines.push(
+      `${options.names.buildMinName}(${options.sourceName});`,
+      `auto mn = ${options.names.queryMinName}(l, r);`
+    );
+  }
+  if (variants.has("max")) {
+    lines.push(
+      `${options.names.buildMaxName}(${options.sourceName});`,
+      `auto mx = ${options.names.queryMaxName}(l, r);`
+    );
+  }
+  lines.push("*/");
+  return lines.join("\n");
+}
+
+function renderSparseTableVariant(
+  options: SparseTableOptions,
+  variant: SparseTableVariant
+): string[] {
+  const names = options.names;
+  const isMin = variant === "min";
+  const tableName = isMin ? names.minTableName : names.maxTableName;
+  const buildName = isMin ? names.buildMinName : names.buildMaxName;
+  const queryName = isMin ? names.queryMinName : names.queryMaxName;
+  const combineExpression = isMin ? "lhs < rhs ? lhs : rhs" : "lhs < rhs ? rhs : lhs";
+  const lines: string[] = [];
+
+  pushLine(lines, `vector<vector<${options.valueType}>> ${tableName};`);
+  pushLine(lines);
+  pushLine(lines, `void ${buildName}(const vector<${options.valueType}>& values) {`);
+  pushLine(lines, "  const int n = static_cast<int>(values.size());");
+  pushLine(lines, `  ${names.ensureLogName}(n);`);
+  pushLine(lines, `  ${tableName}.clear();`);
+  pushLine(lines, "  if (n == 0) {");
+  pushLine(lines, "    return;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  ${tableName}.assign(${names.logName}[n] + 1, vector<${options.valueType}>());`);
+  pushLine(lines, `  ${tableName}[0] = values;`);
+  pushLine(lines, `  for (int level = 1; level < static_cast<int>(${tableName}.size()); ++level) {`);
+  pushLine(lines, "    const int len = 1 << level;");
+  pushLine(lines, "    const int half = len >> 1;");
+  pushLine(lines, `    ${tableName}[level].assign(n - len + 1, ${options.valueType}());`);
+  pushLine(lines, "    for (int i = 0; i + len <= n; ++i) {");
+  pushLine(lines, `      const ${options.valueType}& lhs = ${tableName}[level - 1][i];`);
+  pushLine(lines, `      const ${options.valueType}& rhs = ${tableName}[level - 1][i + half];`);
+  pushLine(lines, `      ${tableName}[level][i] = (${combineExpression});`);
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `${options.valueType} ${queryName}(int left, int right) {`);
+  pushLine(
+    lines,
+    `  const int n = ${tableName}.empty() ? 0 : static_cast<int>(${tableName}[0].size());`
+  );
+  pushLine(lines, "  if (n == 0 || left > right || right < 0 || left >= n) {");
+  pushLine(lines, `    return ${options.valueType}();`);
+  pushLine(lines, "  }");
+  pushLine(lines, "  if (left < 0) {");
+  pushLine(lines, "    left = 0;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  if (right >= n) {");
+  pushLine(lines, "    right = n - 1;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  const int level = ${names.logName}[right - left + 1];`);
+  pushLine(lines, `  const ${options.valueType}& lhs = ${tableName}[level][left];`);
+  pushLine(
+    lines,
+    `  const ${options.valueType}& rhs = ${tableName}[level][right - (1 << level) + 1];`
+  );
+  pushLine(lines, `  return ${combineExpression};`);
+  pushLine(lines, "}");
+  return lines;
+}
+
+export function renderSparseTableRecipe(options: SparseTableOptions): RenderedRecipe {
+  const variants = sparseTableVariantSet(options.variants);
+  const lines: string[] = [];
+
+  pushLine(lines, `vector<int> ${options.names.logName};`);
+  pushLine(lines);
+  pushLine(lines, `void ${options.names.ensureLogName}(int n) {`);
+  pushLine(lines, `  if (static_cast<int>(${options.names.logName}.size()) > n) {`);
+  pushLine(lines, "    return;");
+  pushLine(lines, "  }");
+  pushLine(lines, `  int start = static_cast<int>(${options.names.logName}.size());`);
+  pushLine(lines, "  if (start < 2) {");
+  pushLine(lines, "    start = 2;");
+  pushLine(lines, "  }");
+  pushLine(lines, `  ${options.names.logName}.resize(n + 1, 0);`);
+  pushLine(lines, "  for (int i = start; i <= n; ++i) {");
+  pushLine(lines, `    ${options.names.logName}[i] = ${options.names.logName}[i / 2] + 1;`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+
+  if (variants.has("min")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "min"));
+  }
+  if (variants.has("max")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "max"));
+  }
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderSparseTableUsage(options, variants));
+  }
+
+  return createRenderedRecipe(
+    { helpers: [lines.join("\n")] },
+    sparseTableExports(options, variants)
+  );
+}
+
+export function renderSparseTable(options: SparseTableOptions): string {
+  return composeRecipeSections(renderSparseTableRecipe(options));
+}
+
+export function defaultBerlekampMasseyFeatures(): BerlekampMasseyFeature[] {
+  return ["minimal_recurrence", "kth_term", "one_shot_kth"];
+}
+
+export function planBerlekampMasseyNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): BerlekampMasseyNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    berlekampMasseyName: planner.reserve("berlekamp_massey"),
+    linearRecurrenceKthName: planner.reserve("linear_recurrence_kth"),
+    berlekampMasseyKthName: planner.reserve("berlekamp_massey_kth")
+  };
+}
+
+function berlekampMasseyFeatureSet(
+  features: BerlekampMasseyFeature[]
+): Set<BerlekampMasseyFeature> {
+  const result = new Set(features.length === 0 ? defaultBerlekampMasseyFeatures() : features);
+  if (result.has("one_shot_kth")) {
+    result.add("minimal_recurrence");
+    result.add("kth_term");
+  }
+  return result;
+}
+
+function berlekampMasseyExports(
+  options: BerlekampMasseyOptions,
+  features: Set<BerlekampMasseyFeature>
+): string[] {
+  const exports: string[] = [];
+  if (features.has("minimal_recurrence")) {
+    exports.push(options.names.berlekampMasseyName);
+  }
+  if (features.has("kth_term")) {
+    exports.push(options.names.linearRecurrenceKthName);
+  }
+  if (features.has("one_shot_kth")) {
+    exports.push(options.names.berlekampMasseyKthName);
+  }
+  return exports;
+}
+
+function renderBerlekampMasseyUsage(
+  options: BerlekampMasseyOptions,
+  features: Set<BerlekampMasseyFeature>
+): string {
+  const lines = ["/*", "Example:"];
+  if (features.has("minimal_recurrence")) {
+    lines.push(
+      `auto c = ${options.names.berlekampMasseyName}<${options.valueType}>(${options.sequenceName});`
+    );
+  }
+  if (features.has("kth_term")) {
+    if (!features.has("minimal_recurrence")) {
+      lines.push(`std::vector<${options.valueType}> c = {}; // recurrence coefficients`);
+    }
+    lines.push(
+      `std::vector<${options.valueType}> init(${options.sequenceName}.begin(), ${options.sequenceName}.begin() + c.size());`,
+      `auto ans = ${options.names.linearRecurrenceKthName}<${options.valueType}>(init, c, ${options.indexName});`
+    );
+  }
+  if (features.has("one_shot_kth")) {
+    lines.push(
+      `auto same = ${options.names.berlekampMasseyKthName}<${options.valueType}>(${options.sequenceName}, ${options.indexName});`
+    );
+  }
+  lines.push("*/");
+  return lines.join("\n");
+}
+
+export function renderBerlekampMasseyRecipe(
+  options: BerlekampMasseyOptions
+): RenderedRecipe {
+  const features = berlekampMasseyFeatureSet(options.features);
+  const lines: string[] = [];
+
+  if (features.has("minimal_recurrence")) {
+    pushLine(lines, "// T must be a field-like type where division by a non-zero value is valid.");
+    pushLine(lines, "// Returns c where s[i] = c[0] * s[i - 1] + ... + c[m - 1] * s[i - m].");
+    pushLine(lines, "template <typename T>");
+    pushLine(
+      lines,
+      `inline std::vector<T> ${options.names.berlekampMasseyName}(const std::vector<T>& sequence) {`
+    );
+    pushLine(lines, "  const T zero = T(0);");
+    pushLine(lines, "  const T one = T(1);");
+    pushLine(lines);
+    pushLine(lines, "  std::vector<T> current(1, one);");
+    pushLine(lines, "  std::vector<T> last(1, one);");
+    pushLine(lines, "  int order = 0;");
+    pushLine(lines, "  int shift = 1;");
+    pushLine(lines, "  T last_discrepancy = one;");
+    pushLine(lines);
+    pushLine(lines, "  for (int i = 0; i < static_cast<int>(sequence.size()); ++i) {");
+    pushLine(lines, "    T discrepancy = sequence[i];");
+    pushLine(lines, "    for (int j = 1; j <= order; ++j) {");
+    pushLine(lines, "      discrepancy += current[j] * sequence[i - j];");
+    pushLine(lines, "    }");
+    pushLine(lines);
+    pushLine(lines, "    if (discrepancy == zero) {");
+    pushLine(lines, "      ++shift;");
+    pushLine(lines, "      continue;");
+    pushLine(lines, "    }");
+    pushLine(lines);
+    pushLine(lines, "    const std::vector<T> previous = current;");
+    pushLine(lines, "    const T factor = discrepancy / last_discrepancy;");
+    pushLine(
+      lines,
+      "    if (static_cast<int>(current.size()) < static_cast<int>(last.size()) + shift) {"
+    );
+    pushLine(lines, "      current.resize(static_cast<int>(last.size()) + shift, zero);");
+    pushLine(lines, "    }");
+    pushLine(lines, "    for (int j = 0; j < static_cast<int>(last.size()); ++j) {");
+    pushLine(lines, "      current[j + shift] -= factor * last[j];");
+    pushLine(lines, "    }");
+    pushLine(lines);
+    pushLine(lines, "    if (2 * order <= i) {");
+    pushLine(lines, "      order = i + 1 - order;");
+    pushLine(lines, "      last = previous;");
+    pushLine(lines, "      last_discrepancy = discrepancy;");
+    pushLine(lines, "      shift = 1;");
+    pushLine(lines, "    } else {");
+    pushLine(lines, "      ++shift;");
+    pushLine(lines, "    }");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  current.erase(current.begin());");
+    pushLine(lines, "  for (T& coefficient : current) {");
+    pushLine(lines, "    coefficient = zero - coefficient;");
+    pushLine(lines, "  }");
+    pushLine(lines, "  while (!current.empty() && current.back() == zero) {");
+    pushLine(lines, "    current.pop_back();");
+    pushLine(lines, "  }");
+    pushLine(lines, "  return current;");
+    pushLine(lines, "}");
+  }
+
+  if (features.has("kth_term")) {
+    if (lines.length > 0) {
+      pushLine(lines);
+    }
+    pushLine(lines, "template <typename T>");
+    pushLine(
+      lines,
+      `inline T ${options.names.linearRecurrenceKthName}(const std::vector<T>& initial,`
+    );
+    pushLine(lines, "                               const std::vector<T>& coefficients,");
+    pushLine(lines, "                               long long index) {");
+    pushLine(lines, "  if (index < 0) {");
+    pushLine(lines, "    return T(0);");
+    pushLine(lines, "  }");
+    pushLine(lines, "  if (index < static_cast<long long>(initial.size())) {");
+    pushLine(lines, "    return initial[static_cast<int>(index)];");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  const int order = static_cast<int>(coefficients.size());");
+    pushLine(lines, "  if (order == 0) {");
+    pushLine(lines, "    return T(0);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  auto combine = [&](const std::vector<T>& lhs, const std::vector<T>& rhs) {");
+    pushLine(lines, "    std::vector<T> result(2 * order, T(0));");
+    pushLine(lines, "    for (int i = 0; i < order; ++i) {");
+    pushLine(lines, "      for (int j = 0; j < order; ++j) {");
+    pushLine(lines, "        result[i + j] += lhs[i] * rhs[j];");
+    pushLine(lines, "      }");
+    pushLine(lines, "    }");
+    pushLine(lines, "    for (int i = 2 * order - 1; i >= order; --i) {");
+    pushLine(lines, "      for (int j = 0; j < order; ++j) {");
+    pushLine(lines, "        result[i - 1 - j] += result[i] * coefficients[j];");
+    pushLine(lines, "      }");
+    pushLine(lines, "    }");
+    pushLine(lines, "    result.resize(order);");
+    pushLine(lines, "    return result;");
+    pushLine(lines, "  };");
+    pushLine(lines);
+    pushLine(lines, "  std::vector<T> seed(order, T(0));");
+    pushLine(lines, "  for (int i = 0; i < order && i < static_cast<int>(initial.size()); ++i) {");
+    pushLine(lines, "    seed[i] = initial[i];");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  std::vector<T> result(order, T(0));");
+    pushLine(lines, "  result[0] = T(1);");
+    pushLine(lines);
+    pushLine(lines, "  std::vector<T> x(order, T(0));");
+    pushLine(lines, "  if (order == 1) {");
+    pushLine(lines, "    x[0] = coefficients[0];");
+    pushLine(lines, "  } else {");
+    pushLine(lines, "    x[1] = T(1);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  long long power = index;");
+    pushLine(lines, "  while (power > 0) {");
+    pushLine(lines, "    if (power & 1LL) {");
+    pushLine(lines, "      result = combine(result, x);");
+    pushLine(lines, "    }");
+    pushLine(lines, "    x = combine(x, x);");
+    pushLine(lines, "    power >>= 1LL;");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  T answer = T(0);");
+    pushLine(lines, "  for (int i = 0; i < order; ++i) {");
+    pushLine(lines, "    answer += result[i] * seed[i];");
+    pushLine(lines, "  }");
+    pushLine(lines, "  return answer;");
+    pushLine(lines, "}");
+  }
+
+  if (features.has("one_shot_kth")) {
+    if (lines.length > 0) {
+      pushLine(lines);
+    }
+    pushLine(lines, "template <typename T>");
+    pushLine(
+      lines,
+      `inline T ${options.names.berlekampMasseyKthName}(const std::vector<T>& sequence, long long index) {`
+    );
+    pushLine(lines, "  if (index < 0) {");
+    pushLine(lines, "    return T(0);");
+    pushLine(lines, "  }");
+    pushLine(lines, "  if (index < static_cast<long long>(sequence.size())) {");
+    pushLine(lines, "    return sequence[static_cast<int>(index)];");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(
+      lines,
+      `  const std::vector<T> coefficients = ${options.names.berlekampMasseyName}(sequence);`
+    );
+    pushLine(lines, "  const int order = static_cast<int>(coefficients.size());");
+    pushLine(lines, "  if (order == 0) {");
+    pushLine(lines, "    return T(0);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  std::vector<T> initial(order, T(0));");
+    pushLine(lines, "  for (int i = 0; i < order; ++i) {");
+    pushLine(lines, "    initial[i] = sequence[i];");
+    pushLine(lines, "  }");
+    pushLine(
+      lines,
+      `  return ${options.names.linearRecurrenceKthName}(initial, coefficients, index);`
+    );
+    pushLine(lines, "}");
+  }
+
+  if (options.includeUsageComment) {
+    if (lines.length > 0) {
+      pushLine(lines);
+    }
+    pushLine(lines, renderBerlekampMasseyUsage(options, features));
+  }
+
+  return createRenderedRecipe(
+    { helpers: [lines.join("\n")] },
+    berlekampMasseyExports(options, features)
+  );
+}
+
+export function renderBerlekampMassey(options: BerlekampMasseyOptions): string {
+  return composeRecipeSections(renderBerlekampMasseyRecipe(options));
 }
 
 export function stripHeaderGuard(content: string): string {

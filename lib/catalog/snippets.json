@@ -17,6 +17,9 @@
       "range_add",
       "range_assign"
     ],
+    "sections": [
+      "helpers"
+    ],
     "form": [
       "storageName",
       "sizeExpression",
@@ -28,6 +31,73 @@
     "render": {
       "style": "inline-global",
       "namespace": "global"
+    }
+  },
+  {
+    "path": "/solvers/berlekamp_massey",
+    "kind": "solver",
+    "insertMode": "global",
+    "generator": "berlekamp_massey",
+    "source": "solvers/berlekamp_massey.hpp",
+    "label": "/solvers/berlekamp_massey",
+    "description": "interactive linear recurrence helper generator",
+    "detail": "interactive / solver",
+    "exports": [
+      "berlekamp_massey",
+      "linear_recurrence_kth",
+      "berlekamp_massey_kth"
+    ],
+    "features": [
+      "minimal_recurrence",
+      "kth_term",
+      "one_shot_kth"
+    ],
+    "sections": [
+      "helpers"
+    ],
+    "form": [
+      "sequenceName",
+      "valueType",
+      "indexName",
+      "features"
+    ],
+    "render": {
+      "style": "inline-global",
+      "namespace": "global"
+    }
+  },
+  {
+    "path": "/solvers/sparse_table",
+    "kind": "solver",
+    "insertMode": "global",
+    "generator": "sparse_table",
+    "source": "solvers/sparse_table.hpp",
+    "label": "/solvers/sparse_table",
+    "description": "interactive sparse table generator",
+    "detail": "interactive / solver",
+    "exports": [
+      "SparseMinOp",
+      "SparseMaxOp",
+      "SparseTable",
+      "SparseMinTable",
+      "SparseMaxTable"
+    ],
+    "features": [
+      "min",
+      "max"
+    ],
+    "sections": [
+      "helpers"
+    ],
+    "form": [
+      "sourceName",
+      "valueType",
+      "variants"
+    ],
+    "render": {
+      "style": "inline-global",
+      "namespace": "global",
+      "interval": "inclusive"
     }
   },
   {

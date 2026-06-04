@@ -1,7 +1,7 @@
 #ifndef EDULCNI_LCA_HPP
 #define EDULCNI_LCA_HPP
 
-#include "sparse_table.hpp"
+#include "solvers/sparse_table.hpp"
 
 namespace edulcni {
 

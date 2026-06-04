@@ -11,7 +11,12 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:edulcni.insertHeader"
+    "onCommand:edulcni.insertHeader",
+    "onCommand:edulcni.segtree",
+    "onCommand:edulcni.compressUnique",
+    "onCommand:edulcni.readVector",
+    "onCommand:edulcni.berlekampMassey",
+    "onCommand:edulcni.sparseTable"
   ],
   "main": "./out/extension.js",
   "files": [
@@ -25,12 +30,33 @@
       {
         "command": "edulcni.insertHeader",
         "title": "edulcni"
+      },
+      {
+        "command": "edulcni.segtree",
+        "title": "edulcni: segtree"
+      },
+      {
+        "command": "edulcni.compressUnique",
+        "title": "edulcni: compress_unique"
+      },
+      {
+        "command": "edulcni.readVector",
+        "title": "edulcni: read_vector"
+      },
+      {
+        "command": "edulcni.berlekampMassey",
+        "title": "edulcni: berlekamp_massey"
+      },
+      {
+        "command": "edulcni.sparseTable",
+        "title": "edulcni: sparse_table"
       }
     ]
   },
   "scripts": {
     "sync-library": "node ./scripts/sync-library.mjs",
     "build": "npm run sync-library && tsc -p .",
+    "test": "npm run build && node ./test/core.test.js",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run build"
   },

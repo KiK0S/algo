@@ -3,22 +3,29 @@ import * as vscode from "vscode";
 import {
   analyzeCppDocument,
   applyIdentifierRenames,
+  BerlekampMasseyFeature,
+  BerlekampMasseyOptions,
   CatalogEntry,
   collectGlobalExportedIdentifiers,
   CompressUniqueOptions,
   CppAnalysis,
+  defaultBerlekampMasseyFeatures,
   defaultInsertModeForKind,
   defaultKindForPath,
   findGlobalInsertionOffset,
   IdentifierRename,
   InsertMode,
   normalizeInsertionText,
+  planBerlekampMasseyNames,
   planIdentifierRenames,
   planSegmentTreeNames,
+  renderBerlekampMasseyRecipe,
   renderCompressUnique,
   renderHeaderContent,
   renderReadVector,
-  renderSegmentTree,
+  renderRecipeSnippet,
+  renderSegmentTreeRecipe,
+  renderSparseTableRecipe,
   reserveIdentifier,
   resolveCatalogOrder,
   RenderedSnippet,
@@ -27,9 +34,13 @@ import {
   SegmentTreeOptions,
   SegmentUpdateOp,
   sizeExpressionCandidates,
+  defaultSparseTableVariants,
   suggestIdentifier,
   vectorContainerTypeForValueType,
-  SnippetKind
+  SnippetKind,
+  SparseTableOptions,
+  SparseTableVariant,
+  planSparseTableNames
 } from "./core";
 
 type SnippetPickItem = vscode.QuickPickItem & {
@@ -45,10 +56,18 @@ type ValuePickItem<T extends string = string> = vscode.QuickPickItem & {
   custom?: boolean;
 };
 
+interface GeneratorRegistration {
+  catalogEntry: CatalogEntry;
+  prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined>;
+  defaultSnippet?(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet;
+}
+
 const DIRECT_COMMANDS = [
   { command: "edulcni.segtree", snippetPath: "/solvers/segtree" },
   { command: "edulcni.compressUnique", snippetPath: "/bricks/compress_unique" },
-  { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" }
+  { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" },
+  { command: "edulcni.berlekampMassey", snippetPath: "/solvers/berlekamp_massey" },
+  { command: "edulcni.sparseTable", snippetPath: "/solvers/sparse_table" }
 ] as const;
 
 function toPosix(value: string): string {
@@ -227,40 +246,7 @@ function snippetPathToUri(
 }
 
 function directGeneratorEntry(snippetPath: string): CatalogEntry | undefined {
-  if (snippetPath === "/solvers/segtree") {
-    return {
-      path: snippetPath,
-      kind: "solver",
-      insertMode: "global",
-      generator: "segtree",
-      label: "/solvers/segtree",
-      description: "interactive inline segment tree generator",
-      detail: "interactive / solver"
-    };
-  }
-  if (snippetPath === "/bricks/compress_unique") {
-    return {
-      path: snippetPath,
-      kind: "brick",
-      insertMode: "cursor",
-      generator: "compress_unique",
-      label: "/bricks/compress_unique",
-      description: "interactive coordinate compression snippet",
-      detail: "interactive / brick"
-    };
-  }
-  if (snippetPath === "/bricks/read_vector") {
-    return {
-      path: snippetPath,
-      kind: "brick",
-      insertMode: "cursor",
-      generator: "read_vector",
-      label: "/bricks/read_vector",
-      description: "interactive vector declaration and input snippet",
-      detail: "interactive / brick"
-    };
-  }
-  return undefined;
+  return generatorRegistryByPath.get(snippetPath)?.catalogEntry;
 }
 
 async function renderSnippetPath(
@@ -276,10 +262,19 @@ async function renderSnippetPath(
   for (const currentPath of orderedPaths) {
     const entry = catalogByPath.get(currentPath);
     if (entry?.generator) {
-      if (currentPath === snippetPath) {
-        continue;
+      const generator = generatorRegistry.get(entry.generator);
+      if (!generator?.defaultSnippet) {
+        if (currentPath === snippetPath) {
+          continue;
+        }
+        throw new Error(
+          `generator dependency has no default renderer: ${currentPath}`
+        );
       }
-      throw new Error(`generator dependencies are not supported yet: ${currentPath}`);
+      const generated = generator.defaultSnippet(analysis, exportedNames);
+      chunks.push(generated.content.trim());
+      exportedNames.push(...generated.exports);
+      continue;
     }
     const uri = snippetPathToUri(libraryRoot, currentPath, entry);
     const kind = entry?.kind ?? defaultKindForPath(currentPath);
@@ -634,6 +629,315 @@ async function promptReadVectorOptions(
   };
 }
 
+function vectorValueType(type: string | undefined): string | undefined {
+  if (!type) {
+    return undefined;
+  }
+  const compact = type.trim();
+  if (compact === "vi") {
+    return "int";
+  }
+  if (compact === "vll") {
+    return "ll";
+  }
+  const match = compact.match(/^(?:std::)?vector\s*<(.+)>$/);
+  return match?.[1].trim();
+}
+
+function uniqueValues(values: string[]): string[] {
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (trimmed !== "" && !result.includes(trimmed)) {
+      result.push(trimmed);
+    }
+  }
+  return result;
+}
+
+async function promptSparseTableOptions(
+  editor: vscode.TextEditor
+): Promise<SparseTableOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const sourceName = await promptVectorName(
+    "edulcni: sparse_table",
+    "Source vector",
+    analysis.vectorSymbols,
+    "Source vector variable name"
+  );
+  if (sourceName === undefined || sourceName.trim() === "") {
+    return undefined;
+  }
+
+  const sourceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sourceName.trim()
+  );
+  const valueType = await pickStringWithCustom(
+    "edulcni: sparse_table",
+    "Value type",
+    uniqueValues([
+      vectorValueType(sourceSymbol?.type) ?? "",
+      "int",
+      "ll",
+      "long long"
+    ]),
+    "C++ value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const variantPicks = await vscode.window.showQuickPick<
+    ValuePickItem<SparseTableVariant>
+  >(
+    [
+      { label: "range minimum", value: "min", picked: true },
+      { label: "range maximum", value: "max", picked: true }
+    ],
+    {
+      title: "edulcni: sparse_table",
+      placeHolder: "Variants to generate",
+      canPickMany: true,
+      ignoreFocusOut: true
+    }
+  );
+  if (!variantPicks) {
+    return undefined;
+  }
+
+  return {
+    valueType: valueType.trim(),
+    sourceName: sourceName.trim(),
+    variants:
+      variantPicks.length === 0
+        ? defaultSparseTableVariants()
+        : variantPicks.map((item) => item.value),
+    names: planSparseTableNames(analysis),
+    includeUsageComment: true
+  };
+}
+
+async function promptBerlekampMasseyOptions(
+  editor: vscode.TextEditor
+): Promise<BerlekampMasseyOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const sequenceName = await promptVectorName(
+    "edulcni: berlekamp_massey",
+    "Sequence vector",
+    analysis.vectorSymbols,
+    "Sequence vector variable name"
+  );
+  if (sequenceName === undefined || sequenceName.trim() === "") {
+    return undefined;
+  }
+
+  const sequenceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sequenceName.trim()
+  );
+  const valueTypes = uniqueValues([
+    vectorValueType(sequenceSymbol?.type) ?? "",
+    "Mint",
+    "int",
+    "ll",
+    "long long"
+  ]);
+  const valueType = await pickStringWithCustom(
+    "edulcni: berlekamp_massey",
+    "Field/modint type for the usage comment",
+    valueTypes,
+    "C++ field-like type with division, for example Mint"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const indexName = await pickStringWithCustom(
+    "edulcni: berlekamp_massey",
+    "Index expression for the usage comment",
+    uniqueValues([...sizeExpressionCandidates(analysis), "k"]),
+    "Index expression, for example k"
+  );
+  if (indexName === undefined || indexName.trim() === "") {
+    return undefined;
+  }
+
+  const featurePicks = await vscode.window.showQuickPick<
+    ValuePickItem<BerlekampMasseyFeature>
+  >(
+    [
+      {
+        label: "minimal recurrence",
+        value: "minimal_recurrence",
+        picked: true
+      },
+      {
+        label: "kth from recurrence",
+        value: "kth_term",
+        picked: true
+      },
+      {
+        label: "one-shot kth",
+        value: "one_shot_kth",
+        picked: true
+      }
+    ],
+    {
+      title: "edulcni: berlekamp_massey",
+      placeHolder: "Helpers to generate",
+      canPickMany: true,
+      ignoreFocusOut: true
+    }
+  );
+  if (!featurePicks) {
+    return undefined;
+  }
+
+  return {
+    valueType: valueType.trim(),
+    sequenceName: sequenceName.trim(),
+    indexName: indexName.trim(),
+    features:
+      featurePicks.length === 0
+        ? ["minimal_recurrence"]
+        : featurePicks.map((item) => item.value),
+    names: planBerlekampMasseyNames(analysis),
+    includeUsageComment: true
+  };
+}
+
+const generatorRegistry = new Map<string, GeneratorRegistration>([
+  [
+    "segtree",
+    {
+      catalogEntry: {
+        path: "/solvers/segtree",
+        kind: "solver",
+        insertMode: "global",
+        generator: "segtree",
+        label: "/solvers/segtree",
+        description: "interactive inline segment tree generator",
+        detail: "interactive / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptSegmentTreeOptions(editor);
+        return options ? renderRecipeSnippet(renderSegmentTreeRecipe(options)) : undefined;
+      }
+    }
+  ],
+  [
+    "compress_unique",
+    {
+      catalogEntry: {
+        path: "/bricks/compress_unique",
+        kind: "brick",
+        insertMode: "cursor",
+        generator: "compress_unique",
+        label: "/bricks/compress_unique",
+        description: "interactive coordinate compression snippet",
+        detail: "interactive / brick"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptCompressUniqueOptions(editor);
+        return options
+          ? { content: renderCompressUnique(options), renames: [], exports: [] }
+          : undefined;
+      }
+    }
+  ],
+  [
+    "read_vector",
+    {
+      catalogEntry: {
+        path: "/bricks/read_vector",
+        kind: "brick",
+        insertMode: "cursor",
+        generator: "read_vector",
+        label: "/bricks/read_vector",
+        description: "interactive vector declaration and input snippet",
+        detail: "interactive / brick"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptReadVectorOptions(editor);
+        return options
+          ? { content: renderReadVector(options), renames: [], exports: [] }
+          : undefined;
+      }
+    }
+  ],
+  [
+    "sparse_table",
+    {
+      catalogEntry: {
+        path: "/solvers/sparse_table",
+        kind: "solver",
+        insertMode: "global",
+        generator: "sparse_table",
+        label: "/solvers/sparse_table",
+        description: "interactive sparse table generator",
+        detail: "interactive / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptSparseTableOptions(editor);
+        return options ? renderRecipeSnippet(renderSparseTableRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        const options: SparseTableOptions = {
+          valueType: "int",
+          sourceName: "a",
+          variants: defaultSparseTableVariants(),
+          names: planSparseTableNames(analysis, extraReserved),
+          includeUsageComment: true
+        };
+        return renderRecipeSnippet(renderSparseTableRecipe(options));
+      }
+    }
+  ],
+  [
+    "berlekamp_massey",
+    {
+      catalogEntry: {
+        path: "/solvers/berlekamp_massey",
+        kind: "solver",
+        insertMode: "global",
+        generator: "berlekamp_massey",
+        label: "/solvers/berlekamp_massey",
+        description: "interactive linear recurrence helper generator",
+        detail: "interactive / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptBerlekampMasseyOptions(editor);
+        return options
+          ? renderRecipeSnippet(renderBerlekampMasseyRecipe(options))
+          : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        const options: BerlekampMasseyOptions = {
+          valueType: "Mint",
+          sequenceName: "sequence",
+          indexName: "k",
+          features: defaultBerlekampMasseyFeatures(),
+          names: planBerlekampMasseyNames(analysis, extraReserved),
+          includeUsageComment: true
+        };
+        return renderRecipeSnippet(renderBerlekampMasseyRecipe(options));
+      }
+    }
+  ]
+]);
+
+const generatorRegistryByPath = new Map(
+  [...generatorRegistry.values()].map((generator) => [
+    generator.catalogEntry.path,
+    generator
+  ])
+);
+
 function showRenameSummary(renames: IdentifierRename[]): void {
   if (renames.length === 0) {
     return;
@@ -713,24 +1017,15 @@ async function insertSnippet(
 
   const catalogByPath = new Map(catalogEntries.map((entry) => [entry.path, entry]));
   let renderedSnippet: RenderedSnippet;
-  if (picked.entry?.generator === "segtree") {
-    const options = await promptSegmentTreeOptions(editor);
-    if (!options) {
+  const generator = picked.entry?.generator
+    ? generatorRegistry.get(picked.entry.generator)
+    : undefined;
+  if (generator) {
+    const generated = await generator.prompt(editor);
+    if (!generated) {
       return;
     }
-    renderedSnippet = { content: renderSegmentTree(options), renames: [], exports: [] };
-  } else if (picked.entry?.generator === "compress_unique") {
-    const options = await promptCompressUniqueOptions(editor);
-    if (!options) {
-      return;
-    }
-    renderedSnippet = { content: renderCompressUnique(options), renames: [], exports: [] };
-  } else if (picked.entry?.generator === "read_vector") {
-    const options = await promptReadVectorOptions(editor);
-    if (!options) {
-      return;
-    }
-    renderedSnippet = { content: renderReadVector(options), renames: [], exports: [] };
+    renderedSnippet = generated;
   } else {
     renderedSnippet = await renderSnippetPath(
       libraryRoot,
