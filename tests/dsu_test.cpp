@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/dsu.hpp"
+#include "../lib/solvers/dsu.hpp"
 
 static int naive_find(const std::vector<int>& parent, int v) {
   int x = v;
@@ -33,7 +33,7 @@ static int naive_component_size(const std::vector<int>& parent,
 }
 
 static void test_basic_dsu() {
-  edulcni::Dsu dsu(7);
+  Dsu dsu(7);
   assert(dsu.size() == 7);
   assert(dsu.components() == 7);
 
@@ -54,7 +54,7 @@ static void test_basic_dsu() {
 }
 
 static void test_reset() {
-  edulcni::Dsu dsu(10);
+  Dsu dsu(10);
   dsu.unite(0, 1);
   dsu.unite(2, 3);
   dsu.unite(3, 4);
@@ -74,7 +74,7 @@ static void test_random_dsu() {
 
   for (int it = 0; it < 300; ++it) {
     const int n = 1 + static_cast<int>(rng() % 80);
-    edulcni::Dsu dsu(n);
+    Dsu dsu(n);
     std::vector<int> parent(n, 0);
     std::vector<int> size(n, 1);
     for (int i = 0; i < n; ++i) {

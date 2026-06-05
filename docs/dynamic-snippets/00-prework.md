@@ -4,24 +4,25 @@
 
 Build shared extension infrastructure so every solver or brick can be rendered from a dynamic recipe instead of a single static header paste. The system should let the insertion pipeline choose sections, optional features, dependencies, existing variable names, and exported names.
 
-## Current Status After Proof Slice
+## Current Status After Initial Migrations
 
-The Berlekamp-Massey proof migration completed the first shared slice:
+The shared infrastructure is good enough for full single-solver migrations:
 
 - `CatalogEntry.generator` accepts arbitrary generator ids.
 - Generator dispatch uses a registry instead of hard-coded generator branches.
 - `createNamePlanner` provides shared collision-aware name reservation.
 - Renderers can return section-based `RenderedRecipe` objects, and the
   composer emits sections in the target assembly order.
-- `/solvers/berlekamp_massey` is a completed non-segtree proof generator with
-  catalog metadata, extension tests, solver-path C++ tests, and a static
-  fallback under `lib/solvers/berlekamp_massey.hpp`.
-- The top-level `lib/berlekamp_massey.hpp` compatibility header has been
-  removed.
+- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu` are
+  completed dynamic solver migrations with catalog metadata, extension tests,
+  solver-path C++ tests, static fallbacks under `lib/solvers/`, and removed
+  top-level compatibility headers.
 
-Remaining pre-work for later slices includes richer C++ role analysis,
-in-place/full-solution composition, generated dependency rendering through one
-shared planner, and reusable form primitives beyond the current prompts.
+Remaining pre-work such as richer C++ role analysis, in-place/full-solution
+composition, generated dependency rendering through one shared planner, and
+reusable form primitives can be added inside the next solver migration when
+that solver needs it. Do not wait for all pre-work phases to be finished before
+migrating the next solver.
 
 ## Assumptions
 
@@ -38,6 +39,13 @@ The general migration defaults have been confirmed with the user and are
 recorded in [README.md](./README.md#settled-migration-defaults). Future agents
 should not ask those general questions again. Ask only solver-specific questions
 that are not covered by the settled defaults or the assigned solver plan.
+
+## Agent Posture
+
+Use this file as infrastructure reference, not as a reason to stop after a small
+infrastructure task. The expected next step is to pick one todo solver, add any
+missing shared helper needed by that solver, and complete that solver's
+migration before handing off.
 
 ## Questions To Align With The User First
 

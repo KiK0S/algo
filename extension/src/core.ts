@@ -133,6 +133,24 @@ export interface ReadVectorOptions {
   containerType: string;
 }
 
+export interface DsuNames {
+  className: string;
+}
+
+export interface DsuOptions {
+  names: DsuNames;
+  includeUsageComment: boolean;
+}
+
+export interface LcaNames {
+  className: string;
+}
+
+export interface LcaOptions {
+  names: LcaNames;
+  includeUsageComment: boolean;
+}
+
 export type SparseTableVariant = "min" | "max";
 
 export interface SparseTableNames {
@@ -1418,6 +1436,283 @@ export function renderCompressUnique(options: CompressUniqueOptions): string {
 
 export function renderReadVector(options: ReadVectorOptions): string {
   return `${options.containerType} ${options.name}(${options.sizeExpression});\nfor (auto& x : ${options.name}) cin >> x;\n`;
+}
+
+export function planDsuNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): DsuNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    className: planner.reserve("Dsu")
+  };
+}
+
+function renderDsuUsage(options: DsuOptions): string {
+  return [
+    "/*",
+    "Example:",
+    `${options.names.className} dsu(n);`,
+    "dsu.unite(u, v);",
+    "if (dsu.same(u, v)) {",
+    "}",
+    "*/"
+  ].join("\n");
+}
+
+export function renderDsuRecipe(options: DsuOptions): RenderedRecipe {
+  const className = options.names.className;
+  const lines: string[] = [];
+
+  pushLine(lines, `class ${className} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, `  explicit ${className}(int n = 0) { reset(n); }`);
+  pushLine(lines);
+  pushLine(lines, "  void reset(int n) {");
+  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
+  pushLine(lines, "    components_ = n_;");
+  pushLine(lines, "    parent_.resize(n_);");
+  pushLine(lines, "    size_.assign(n_, 1);");
+  pushLine(lines, "    for (int i = 0; i < n_; ++i) {");
+  pushLine(lines, "      parent_[i] = i;");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int size() const { return n_; }");
+  pushLine(lines);
+  pushLine(lines, "  int components() const { return components_; }");
+  pushLine(lines);
+  pushLine(lines, "  int find(int v) {");
+  pushLine(lines, "    if (v < 0 || v >= n_) {");
+  pushLine(lines, "      return -1;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (parent_[v] == v) {");
+  pushLine(lines, "      return v;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    parent_[v] = find(parent_[v]);");
+  pushLine(lines, "    return parent_[v];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  bool unite(int a, int b) {");
+  pushLine(lines, "    int root_a = find(a);");
+  pushLine(lines, "    int root_b = find(b);");
+  pushLine(lines, "    if (root_a == -1 || root_b == -1 || root_a == root_b) {");
+  pushLine(lines, "      return false;");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    if (size_[root_a] > size_[root_b]) {");
+  pushLine(lines, "      std::swap(root_a, root_b);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    parent_[root_a] = root_b;");
+  pushLine(lines, "    size_[root_b] += size_[root_a];");
+  pushLine(lines, "    --components_;");
+  pushLine(lines, "    return true;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  bool same(int a, int b) { return find(a) == find(b) && find(a) != -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int component_size(int v) {");
+  pushLine(lines, "    const int root = find(v);");
+  pushLine(lines, "    if (root == -1) {");
+  pushLine(lines, "      return 0;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return size_[root];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  const std::vector<int>& parents() const { return parent_; }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  int n_;");
+  pushLine(lines, "  int components_;");
+  pushLine(lines, "  std::vector<int> parent_;");
+  pushLine(lines, "  std::vector<int> size_;");
+  pushLine(lines, "};");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderDsuUsage(options));
+  }
+
+  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+}
+
+export function renderDsu(options: DsuOptions): string {
+  return composeRecipeSections(renderDsuRecipe(options));
+}
+
+export function planLcaNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): LcaNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    className: planner.reserve("LcaBinaryLifting")
+  };
+}
+
+function renderLcaUsage(options: LcaOptions): string {
+  const className = options.names.className;
+  return [
+    "/*",
+    "Example:",
+    `${className} lca(n);`,
+    "lca.add_edge(u, v);",
+    "lca.build(root);",
+    "int c = lca.lca(a, b);",
+    "int d = lca.dist(a, b);",
+    "int p = lca.kth_ancestor(v, k);",
+    "*/"
+  ].join("\n");
+}
+
+export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
+  const className = options.names.className;
+  const lines: string[] = [];
+
+  pushLine(lines, `class ${className} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, `  explicit ${className}(int n = 0) { reset(n); }`);
+  pushLine(lines);
+  pushLine(lines, "  void reset(int n) {");
+  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
+  pushLine(lines, "    max_log_ = 1;");
+  pushLine(lines, "    while ((1 << max_log_) <= std::max(1, n_)) {");
+  pushLine(lines, "      ++max_log_;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    graph_.assign(n_, std::vector<int>());");
+  pushLine(lines, "    depth_.assign(n_, 0);");
+  pushLine(lines, "    parent_.assign(n_, -1);");
+  pushLine(lines, "    component_.assign(n_, -1);");
+  pushLine(lines, "    up_.assign(max_log_, std::vector<int>(n_, -1));");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int size() const { return n_; }");
+  pushLine(lines);
+  pushLine(lines, "  void add_edge(int a, int b, bool undirected = true) {");
+  pushLine(lines, "    if (!ok(a) || !ok(b)) {");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    graph_[a].push_back(b);");
+  pushLine(lines, "    if (undirected && a != b) {");
+  pushLine(lines, "      graph_[b].push_back(a);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void build(int root = 0) {");
+  pushLine(lines, "    if (n_ == 0) {");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    std::fill(depth_.begin(), depth_.end(), 0);");
+  pushLine(lines, "    std::fill(parent_.begin(), parent_.end(), -1);");
+  pushLine(lines, "    std::fill(component_.begin(), component_.end(), -1);");
+  pushLine(lines, "    for (int bit = 0; bit < max_log_; ++bit) {");
+  pushLine(lines, "      std::fill(up_[bit].begin(), up_[bit].end(), -1);");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    int comp = 0;");
+  pushLine(lines, "    if (ok(root)) {");
+  pushLine(lines, "      dfs(root, -1, comp++);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int v = 0; v < n_; ++v) {");
+  pushLine(lines, "      if (component_[v] == -1) {");
+  pushLine(lines, "        dfs(v, -1, comp++);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int bit = 1; bit < max_log_; ++bit) {");
+  pushLine(lines, "      for (int v = 0; v < n_; ++v) {");
+  pushLine(lines, "        const int mid = up_[bit - 1][v];");
+  pushLine(lines, "        up_[bit][v] = (mid == -1 ? -1 : up_[bit - 1][mid]);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int parent(int v) const { return ok(v) ? parent_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int depth(int v) const { return ok(v) ? depth_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int component(int v) const { return ok(v) ? component_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int kth_ancestor(int v, int k) const {");
+  pushLine(lines, "    if (!ok(v) || k < 0) {");
+  pushLine(lines, "      return -1;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int bit = 0; bit < max_log_ && v != -1; ++bit) {");
+  pushLine(lines, "      if (k >> bit & 1) {");
+  pushLine(lines, "        v = up_[bit][v];");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return v;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int lca(int a, int b) const {");
+  pushLine(lines, "    if (!ok(a) || !ok(b) || component_[a] != component_[b]) {");
+  pushLine(lines, "      return -1;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (depth_[a] < depth_[b]) {");
+  pushLine(lines, "      std::swap(a, b);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    a = kth_ancestor(a, depth_[a] - depth_[b]);");
+  pushLine(lines, "    if (a == b) {");
+  pushLine(lines, "      return a;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int bit = max_log_ - 1; bit >= 0; --bit) {");
+  pushLine(lines, "      if (up_[bit][a] != up_[bit][b]) {");
+  pushLine(lines, "        a = up_[bit][a];");
+  pushLine(lines, "        b = up_[bit][b];");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return parent_[a];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int dist(int a, int b) const {");
+  pushLine(lines, "    const int c = lca(a, b);");
+  pushLine(lines, "    return c == -1 ? -1 : depth_[a] + depth_[b] - 2 * depth_[c];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  int n_;");
+  pushLine(lines, "  int max_log_;");
+  pushLine(lines, "  std::vector<std::vector<int>> graph_;");
+  pushLine(lines, "  std::vector<int> depth_;");
+  pushLine(lines, "  std::vector<int> parent_;");
+  pushLine(lines, "  std::vector<int> component_;");
+  pushLine(lines, "  std::vector<std::vector<int>> up_;");
+  pushLine(lines);
+  pushLine(lines, "  bool ok(int v) const { return v >= 0 && v < n_; }");
+  pushLine(lines);
+  pushLine(lines, "  void dfs(int root, int root_parent, int comp) {");
+  pushLine(lines, "    std::vector<int> stack(1, root);");
+  pushLine(lines, "    parent_[root] = root_parent;");
+  pushLine(lines, "    component_[root] = comp;");
+  pushLine(lines, "    up_[0][root] = root_parent;");
+  pushLine(lines);
+  pushLine(lines, "    while (!stack.empty()) {");
+  pushLine(lines, "      const int v = stack.back();");
+  pushLine(lines, "      stack.pop_back();");
+  pushLine(lines, "      for (int to : graph_[v]) {");
+  pushLine(lines, "        if (to == parent_[v] || component_[to] != -1) {");
+  pushLine(lines, "          continue;");
+  pushLine(lines, "        }");
+  pushLine(lines, "        parent_[to] = v;");
+  pushLine(lines, "        component_[to] = comp;");
+  pushLine(lines, "        depth_[to] = depth_[v] + 1;");
+  pushLine(lines, "        up_[0][to] = v;");
+  pushLine(lines, "        stack.push_back(to);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderLcaUsage(options));
+  }
+
+  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+}
+
+export function renderLca(options: LcaOptions): string {
+  return composeRecipeSections(renderLcaRecipe(options));
 }
 
 export function defaultSparseTableVariants(): SparseTableVariant[] {

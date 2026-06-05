@@ -12,16 +12,22 @@ import {
   defaultBerlekampMasseyFeatures,
   defaultInsertModeForKind,
   defaultKindForPath,
+  DsuOptions,
   findGlobalInsertionOffset,
   IdentifierRename,
   InsertMode,
+  LcaOptions,
   normalizeInsertionText,
   planBerlekampMasseyNames,
+  planDsuNames,
+  planLcaNames,
   planIdentifierRenames,
   planSegmentTreeNames,
   renderBerlekampMasseyRecipe,
   renderCompressUnique,
+  renderDsuRecipe,
   renderHeaderContent,
+  renderLcaRecipe,
   renderReadVector,
   renderRecipeSnippet,
   renderSegmentTreeRecipe,
@@ -629,6 +635,26 @@ async function promptReadVectorOptions(
   };
 }
 
+function defaultDsuOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): DsuOptions {
+  return {
+    names: planDsuNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+function defaultLcaOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): LcaOptions {
+  return {
+    names: planLcaNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
 function vectorValueType(type: string | undefined): string | undefined {
   if (!type) {
     return undefined;
@@ -861,6 +887,58 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         return options
           ? { content: renderReadVector(options), renames: [], exports: [] }
           : undefined;
+      }
+    }
+  ],
+  [
+    "dsu",
+    {
+      catalogEntry: {
+        path: "/solvers/dsu",
+        kind: "solver",
+        insertMode: "global",
+        generator: "dsu",
+        label: "/solvers/dsu",
+        description: "dynamic disjoint set union helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const analysis = analyzeCppDocument(editor.document.getText());
+        return renderRecipeSnippet(renderDsuRecipe(defaultDsuOptions(analysis)));
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderDsuRecipe(defaultDsuOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "lca",
+    {
+      catalogEntry: {
+        path: "/solvers/lca",
+        kind: "solver",
+        insertMode: "global",
+        generator: "lca",
+        label: "/solvers/lca",
+        description: "dynamic binary lifting LCA helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const analysis = analyzeCppDocument(editor.document.getText());
+        return renderRecipeSnippet(renderLcaRecipe(defaultLcaOptions(analysis)));
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderLcaRecipe(defaultLcaOptions(analysis, extraReserved))
+        );
       }
     }
   ],

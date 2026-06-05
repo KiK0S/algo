@@ -7,9 +7,9 @@
 - related dependency: `/solvers/sparse_table`
 - tests: `tests/lca_test.cpp`, `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should the dynamic path be `/solvers/lca` with binary lifting and RMQ variants, or keep `/solvers/lca_binary_lifting` as one entry?
 - Which approach should default: binary lifting or Euler tour plus RMQ?
@@ -46,8 +46,10 @@ Ask the user:
 2. Render binary lifting mode using selected precompute fields.
 3. Render RMQ mode using Euler tour and sparse-table dependency.
 4. Make graph/read-tree input an optional dependency instead of baked-in code.
-5. Add catalog metadata for `/solvers/lca` and fallback source mapping.
-6. Keep the existing static solver available under its current path until migration is stable.
+5. Add catalog metadata for `/solvers/lca` and fallback source mapping to
+   `lib/solvers/lca_binary_lifting.hpp`.
+6. Move or remove top-level `lib/lca.hpp` references in the same migration
+   once the dynamic entry and solver fallback cover them.
 
 ## Tests
 

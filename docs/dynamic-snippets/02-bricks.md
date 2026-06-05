@@ -25,9 +25,10 @@ Files:
 - `lib/bricks/read_vector_ref.hpp`
 - `lib/bricks/static_rsq.hpp`
 
-## Start By Aligning With The User
+## Brick-Specific Choices
 
-Ask:
+Resolve these from the assumptions, settled defaults, existing code, and tests
+first. Ask the user only if a choice remains a genuine blocker:
 
 - Which bricks should become interactive first?
 - Should `base_template` become a full-solution generator with selectable sections?
@@ -104,4 +105,3 @@ Ask:
 - Dynamic bricks can use existing variable names from the active file.
 - Generated helper names avoid collisions.
 - `base_template` can render a full solution in the target assembly order.
-

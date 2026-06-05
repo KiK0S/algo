@@ -1,6 +1,6 @@
 # Berlekamp-Massey Dynamic Plan
 
-Status: completed proof migration. Future agents should not pick this as the
+Status: completed dynamic migration. Future agents should not pick this as the
 next migration packet unless they are adding one of the optional follow-up
 features below.
 
@@ -13,7 +13,7 @@ features below.
 
 ## Historical Alignment
 
-The proof slice used these resolved choices:
+The completed migration used these resolved choices:
 
 - Use a field-like/modint type with valid `/` by default.
 - Reuse an existing sequence vector when available.
@@ -27,7 +27,7 @@ The proof slice used these resolved choices:
 - Keep generic template fallback.
 - Dynamic default: existing sequence vector, emit BM and kth-term helpers.
 - The value type must support addition, subtraction, multiplication, and division or inverse semantics.
-- Current proof migration default: assume a custom field-like/modint type with
+- Current migration default: assume a custom field-like/modint type with
   valid `/`, reuse an existing sequence vector when available, emit
   `berlekamp_massey`, `linear_recurrence_kth`, and `berlekamp_massey_kth`, and
   keep the pasteable fallback at `lib/solvers/berlekamp_massey.hpp`.
@@ -47,7 +47,7 @@ The proof slice used these resolved choices:
 
 ## Implementation Plan
 
-Completed in the proof slice:
+Completed in the migration:
 
 - Added the `berlekamp_massey` generator and direct command.
 - Registered the generator through the shared registry.

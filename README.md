@@ -20,6 +20,7 @@ Interactive extension entries are available through `edulcni` browse paths such 
 - `/solvers/segtree`
 - `/solvers/berlekamp_massey`
 - `/solvers/sparse_table`
+- `/solvers/dsu`
 - `/bricks/compress_unique`
 - `/bricks/read_vector`
 
@@ -30,6 +31,8 @@ asks for the aggregate/update shape, and inserts an inline global segment tree.
 a global utility fragment with a copyable usage example in a block comment.
 `/solvers/sparse_table` can generate global min/max sparse-table helpers over an
 existing vector with inclusive `[l, r]` queries.
+`/solvers/dsu` can generate a collision-aware disjoint set union helper with a
+copyable usage example.
 `/bricks/compress_unique` and `/bricks/read_vector` are also interactive: they
 ask which vector/name to use before rendering cursor-local snippets.
 Static solver snippets also use catalog/inferred exported names to avoid

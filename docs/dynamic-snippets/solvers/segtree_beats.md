@@ -5,9 +5,9 @@
 - `lib/solvers/segtree_beats.hpp`
 - tests: `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Which operations are needed first: chmin, chmax, add, assign, sum, min, max?
 - Should beats be integrated into `/solvers/segtree` or remain `/solvers/segtree_beats`?

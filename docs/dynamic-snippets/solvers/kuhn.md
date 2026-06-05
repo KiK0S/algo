@@ -5,9 +5,9 @@
 - `lib/solvers/kuhn.hpp`
 - tests: `tests/kuhn_test.cpp`, `tests/solvers_flow_matching_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should the generator emit class-based matcher, standalone function, or both?
 - Should minimum vertex cover be optional?

@@ -4,7 +4,10 @@ This folder captures the plan for moving solver and brick insertion onto the sam
 
 ## Current Baseline
 
-- `lib/catalog/snippets.json` has generator entries for `/solvers/segtree` and `/solvers/berlekamp_massey`, plus interactive brick generators for `/bricks/compress_unique` and `/bricks/read_vector`.
+- `lib/catalog/snippets.json` has generator entries for `/solvers/segtree`,
+  `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu`,
+  plus interactive brick generators for `/bricks/compress_unique` and
+  `/bricks/read_vector`.
 - `extension/src/core.ts` already analyzes the active C++ document for identifiers, constants, input variables, vector variables, aliases, and exported-name collisions.
 - `extension/src/extension.ts` dispatches generator ids through a generator registry.
 - Static solvers remain pasteable as plain code. They are unwrapped from headers and renamed if exported identifiers collide with the current file.
@@ -33,11 +36,17 @@ For ordinary contest insertion, some sections may be empty because the active fi
 
 ## Agent Rule
 
-Every solver plan is intentionally written so the assigned agent starts by aligning with the user on the pipeline and defaults. The plans include assumptions, but they are not permission to silently lock in choices like interval convention, naming style, optional outputs, or dependencies.
+Default to completing one assigned solver migration end to end in the same
+turn: dynamic generator, catalog entry, pasteable fallback under `lib/solvers/`
+or `lib/bricks/`, legacy-header removal when references have moved, tests, and
+plan/doc status. Do not stop after infrastructure or a partial draft when the
+solver plan and settled defaults are enough to continue.
 
 Read [Settled Migration Defaults](#settled-migration-defaults) before asking
 alignment questions. Do not ask those same general questions again unless a
-specific solver plan needs a new decision.
+specific solver plan needs a new decision. Treat explicit defaults in a solver
+plan as permission to implement; ask only when a real solver-specific choice is
+missing, ambiguous, or would materially change the generated API.
 
 Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/bricks/`; there is no legacy or compatibility folder/layer left behind.
 
@@ -62,10 +71,17 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
   generated API.
 - Prefer defaults and snippets informed by the existing IWCF/pattern analysis
   when available.
-- `/solvers/berlekamp_massey` is the completed non-segtree proof migration:
-  it has a registry-backed dynamic generator, catalog metadata, a pasteable
-  fallback under `lib/solvers/`, solver-path tests, and no top-level
-  compatibility header.
+- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu` are
+  completed migrations: they have registry-backed dynamic generators, catalog
+  metadata, pasteable fallbacks under `lib/solvers/`, solver-path tests, and no
+  top-level compatibility headers.
+
+## Next-Agent Default
+
+Pick the first useful `todo` solver from [solvers/](./solvers), read its packet,
+and migrate that solver completely. A normal completed solver migration should
+leave the next agent free to start the next solver, not to finish cleanup from
+the previous one.
 
 ## Verification Spine
 

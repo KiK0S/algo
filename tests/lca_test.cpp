@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include "../lib/lca.hpp"
+#include "../lib/solvers/lca_binary_lifting.hpp"
 
-static int naive_lca(const edulcni::Lca& lca, int a, int b) {
+static int naive_lca(const LcaBinaryLifting& lca, int a, int b) {
   if (lca.component(a) != lca.component(b)) {
     return -1;
   }
@@ -25,7 +25,7 @@ static int naive_lca(const edulcni::Lca& lca, int a, int b) {
   return u;
 }
 
-static int naive_kth_ancestor(const edulcni::Lca& lca, int v, int k) {
+static int naive_kth_ancestor(const LcaBinaryLifting& lca, int v, int k) {
   if (v < 0 || k < 0 || v >= lca.size()) {
     return -1;
   }
@@ -37,7 +37,7 @@ static int naive_kth_ancestor(const edulcni::Lca& lca, int v, int k) {
 }
 
 static void test_basic_lca() {
-  edulcni::Lca lca(9);
+  LcaBinaryLifting lca(9);
   lca.add_edge(0, 1);
   lca.add_edge(0, 2);
   lca.add_edge(1, 3);
@@ -65,7 +65,7 @@ static void test_basic_lca() {
 }
 
 static void test_forest_lca() {
-  edulcni::Lca lca(6);
+  LcaBinaryLifting lca(6);
   lca.add_edge(0, 1);
   lca.add_edge(1, 2);
   lca.add_edge(3, 4);
@@ -81,7 +81,7 @@ static void test_random_lca() {
   std::mt19937 rng(20260226);
   for (int it = 0; it < 300; ++it) {
     const int n = 1 + static_cast<int>(rng() % 90);
-    edulcni::Lca lca(n);
+    LcaBinaryLifting lca(n);
 
     for (int v = 1; v < n; ++v) {
       const int parent = static_cast<int>(rng() % v);

@@ -1,8 +1,3 @@
-#ifndef EDULCNI_DSU_HPP
-#define EDULCNI_DSU_HPP
-
-namespace edulcni {
-
 class Dsu {
  public:
   explicit Dsu(int n = 0) { reset(n); }
@@ -66,7 +61,3 @@ class Dsu {
   std::vector<int> parent_;
   std::vector<int> size_;
 };
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_DSU_HPP

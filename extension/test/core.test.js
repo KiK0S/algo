@@ -53,6 +53,61 @@ function compileSource(name, source) {
   subprocess.execFileSync(exe, [], { stdio: "inherit" });
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toPosixPath(value) {
+  return value.replaceAll(path.sep, "/");
+}
+
+function collectFiles(root, extensions) {
+  const result = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...collectFiles(fullPath, extensions));
+      continue;
+    }
+    if (entry.isFile() && extensions.has(path.extname(entry.name))) {
+      result.push(fullPath);
+    }
+  }
+  return result;
+}
+
+const completedMigrations = [
+  {
+    name: "berlekamp_massey",
+    catalogPath: "/solvers/berlekamp_massey",
+    legacyHeader: "berlekamp_massey.hpp",
+    replacementHeader: path.join("solvers", "berlekamp_massey.hpp"),
+    tests: ["berlekamp_massey_test.cpp"]
+  },
+  {
+    name: "sparse_table",
+    catalogPath: "/solvers/sparse_table",
+    legacyHeader: "sparse_table.hpp",
+    replacementHeader: path.join("solvers", "sparse_table.hpp"),
+    tests: ["sparse_table_test.cpp"],
+    removedFiles: [path.join("solvers", "static_rmq.hpp")]
+  },
+  {
+    name: "dsu",
+    catalogPath: "/solvers/dsu",
+    legacyHeader: "dsu.hpp",
+    replacementHeader: path.join("solvers", "dsu.hpp"),
+    tests: ["dsu_test.cpp"]
+  },
+  {
+    name: "lca",
+    catalogPath: "/solvers/lca",
+    legacyHeader: "lca.hpp",
+    replacementHeader: path.join("solvers", "lca_binary_lifting.hpp"),
+    tests: ["lca_test.cpp", "solvers_structures_test.cpp"]
+  }
+];
+
 function berlekampOptions(overrides = {}) {
   const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
   return {
@@ -73,6 +128,24 @@ function sparseOptions(overrides = {}) {
     sourceName: "a",
     variants: core.defaultSparseTableVariants(),
     names: core.planSparseTableNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function dsuOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planDsuNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function lcaOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planLcaNames(analysis),
     includeUsageComment: true,
     ...overrides
   };
@@ -287,6 +360,14 @@ function testRecipeMetadata() {
   assert.equal(sparseRecipe.exports.includes("build_sparse_min"), true);
   assert.equal(sparseRecipe.exports.includes("query_sparse_min"), true);
   assert.equal(sparseRecipe.exports.includes("build_sparse_max"), false);
+
+  const dsuRecipe = core.renderDsuRecipe(dsuOptions({ includeUsageComment: false }));
+  assert.deepEqual(dsuRecipe.exports, ["Dsu"]);
+  assert.deepEqual(Object.keys(dsuRecipe.sections), ["helpers"]);
+
+  const lcaRecipe = core.renderLcaRecipe(lcaOptions({ includeUsageComment: false }));
+  assert.deepEqual(lcaRecipe.exports, ["LcaBinaryLifting"]);
+  assert.deepEqual(Object.keys(lcaRecipe.sections), ["helpers"]);
 }
 
 function testBundledCatalogGuardrails() {
@@ -332,48 +413,116 @@ function testBundledCatalogGuardrails() {
   assert.equal(sparseEntry.source, "solvers/sparse_table.hpp");
   assert.deepEqual(sparseEntry.features, ["min", "max"]);
   assert.deepEqual(sparseEntry.sections, ["helpers"]);
+
+  const dsuEntry = entries.find((entry) => entry.path === "/solvers/dsu");
+  assert.ok(dsuEntry);
+  assert.equal(dsuEntry.kind, "solver");
+  assert.equal(dsuEntry.generator, "dsu");
+  assert.equal(dsuEntry.source, "solvers/dsu.hpp");
+  assert.deepEqual(dsuEntry.exports, ["Dsu"]);
+  assert.deepEqual(dsuEntry.sections, ["helpers"]);
+
+  const lcaEntry = entries.find((entry) => entry.path === "/solvers/lca");
+  assert.ok(lcaEntry);
+  assert.equal(lcaEntry.kind, "solver");
+  assert.equal(lcaEntry.generator, "lca");
+  assert.equal(lcaEntry.source, "solvers/lca_binary_lifting.hpp");
+  assert.deepEqual(lcaEntry.exports, ["LcaBinaryLifting"]);
+  assert.deepEqual(lcaEntry.features, ["binary_lifting"]);
+  assert.deepEqual(lcaEntry.sections, ["helpers"]);
 }
 
-function testBerlekampMasseyMigrationGuardrails() {
+function testCompletedMigrationGuardrails() {
   const repoRoot = path.join(__dirname, "..", "..");
-  assert.equal(
-    fs.existsSync(path.join(repoRoot, "lib", "berlekamp_massey.hpp")),
-    false
-  );
+  const catalogPath = path.join(repoRoot, "lib", "catalog", "snippets.json");
+  const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+  const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+  const sourceFiles = [
+    ...collectFiles(path.join(repoRoot, "lib"), new Set([".hpp"])),
+    ...collectFiles(path.join(repoRoot, "tests"), new Set([".cpp"]))
+  ];
 
-  const solverTest = fs.readFileSync(
-    path.join(repoRoot, "tests", "berlekamp_massey_test.cpp"),
-    "utf8"
-  );
-  assert.match(
-    solverTest,
-    /#include "\.\.\/lib\/solvers\/berlekamp_massey\.hpp"/
-  );
-  assert.doesNotMatch(solverTest, /#include "\.\.\/lib\/berlekamp_massey\.hpp"/);
-}
+  for (const migration of completedMigrations) {
+    const legacyCatalogPath = `/${migration.legacyHeader.replace(/\.hpp$/, "")}`;
+    const replacementHeader = toPosixPath(migration.replacementHeader);
 
-function testSparseTableMigrationGuardrails() {
-  const repoRoot = path.join(__dirname, "..", "..");
-  assert.equal(fs.existsSync(path.join(repoRoot, "lib", "sparse_table.hpp")), false);
-  assert.equal(
-    fs.existsSync(path.join(repoRoot, "lib", "solvers", "sparse_table.hpp")),
-    true
-  );
-  assert.equal(
-    fs.existsSync(path.join(repoRoot, "lib", "solvers", "static_rmq.hpp")),
-    false
-  );
+    assert.equal(
+      fs.existsSync(path.join(repoRoot, "lib", migration.legacyHeader)),
+      false,
+      `${migration.name} still has a top-level compatibility header`
+    );
+    assert.equal(
+      fs.existsSync(path.join(repoRoot, "lib", migration.replacementHeader)),
+      true,
+      `${migration.name} replacement header is missing`
+    );
+    for (const removedFile of migration.removedFiles ?? []) {
+      assert.equal(
+        fs.existsSync(path.join(repoRoot, "lib", removedFile)),
+        false,
+        `${migration.name} removed file still exists: ${removedFile}`
+      );
+    }
 
-  const sparseTest = fs.readFileSync(
-    path.join(repoRoot, "tests", "sparse_table_test.cpp"),
-    "utf8"
-  );
-  assert.match(sparseTest, /#include "\.\.\/lib\/solvers\/sparse_table\.hpp"/);
-  assert.doesNotMatch(sparseTest, /#include "\.\.\/lib\/sparse_table\.hpp"/);
+    const entry = entries.find((candidate) => candidate.path === migration.catalogPath);
+    assert.ok(entry, `${migration.catalogPath} is missing from the catalog`);
+    if (entry.source !== undefined) {
+      assert.equal(entry.source, replacementHeader);
+    }
 
-  const legacyLca = fs.readFileSync(path.join(repoRoot, "lib", "lca.hpp"), "utf8");
-  assert.match(legacyLca, /#include "solvers\/sparse_table\.hpp"/);
-  assert.doesNotMatch(legacyLca, /#include "sparse_table\.hpp"/);
+    for (const candidate of entries) {
+      assert.notEqual(
+        candidate.path,
+        legacyCatalogPath,
+        `${migration.name} still exposes ${legacyCatalogPath} in the catalog`
+      );
+      assert.notEqual(
+        candidate.source,
+        migration.legacyHeader,
+        `${migration.name} still uses top-level source ${migration.legacyHeader}`
+      );
+      assert.equal(
+        (candidate.dependsOn ?? []).includes(legacyCatalogPath),
+        false,
+        `${migration.name} still depends on ${legacyCatalogPath}`
+      );
+    }
+
+    const expectedInclude = new RegExp(
+      `#include "${escapeRegExp(`../lib/${replacementHeader}`)}"`
+    );
+    const forbiddenInclude = new RegExp(
+      `#include "${escapeRegExp(`../lib/${migration.legacyHeader}`)}"`
+    );
+    const forbiddenLocalInclude = new RegExp(
+      `#include "${escapeRegExp(migration.legacyHeader)}"`
+    );
+    for (const testFile of migration.tests) {
+      const content = fs.readFileSync(path.join(repoRoot, "tests", testFile), "utf8");
+      assert.match(content, expectedInclude);
+      assert.doesNotMatch(content, forbiddenInclude);
+    }
+
+    for (const sourceFile of sourceFiles) {
+      const content = fs.readFileSync(sourceFile, "utf8");
+      assert.doesNotMatch(
+        content,
+        forbiddenInclude,
+        `${path.relative(repoRoot, sourceFile)} includes completed legacy header ${migration.legacyHeader}`
+      );
+      assert.doesNotMatch(
+        content,
+        forbiddenLocalInclude,
+        `${path.relative(repoRoot, sourceFile)} includes completed legacy header ${migration.legacyHeader}`
+      );
+    }
+
+    for (const check of migration.extraSourceChecks ?? []) {
+      const content = fs.readFileSync(path.join(repoRoot, ...check.pathParts), "utf8");
+      assert.match(content, check.expected);
+      assert.doesNotMatch(content, check.forbidden);
+    }
+  }
 }
 
 function testManifestCommands() {
@@ -579,6 +728,50 @@ function testSparseTableRenderer() {
   assert.match(core.renderSparseTable(collisionOptions), /build_sparse_min2/);
 }
 
+function testDsuRenderer() {
+  const defaultContent = core.renderDsu(dsuOptions({ includeUsageComment: false }));
+  assert.match(defaultContent, /class Dsu/);
+  assert.match(defaultContent, /explicit Dsu\(int n = 0\)/);
+  assert.match(defaultContent, /bool unite\(int a, int b\)/);
+  assert.match(defaultContent, /std::vector<int> parent_/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderDsu(dsuOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /Dsu dsu\(n\);/);
+
+  const collisionOptions = dsuOptions({
+    existingText: "class Dsu {}; int dsu;"
+  });
+  assert.equal(collisionOptions.names.className, "Dsu2");
+  assert.match(core.renderDsu(collisionOptions), /class Dsu2/);
+  assert.match(core.renderDsu(collisionOptions), /explicit Dsu2\(int n = 0\)/);
+}
+
+function testLcaRenderer() {
+  const defaultContent = core.renderLca(lcaOptions({ includeUsageComment: false }));
+  assert.match(defaultContent, /class LcaBinaryLifting/);
+  assert.match(defaultContent, /explicit LcaBinaryLifting\(int n = 0\)/);
+  assert.match(defaultContent, /void add_edge\(int a, int b, bool undirected = true\)/);
+  assert.match(defaultContent, /int kth_ancestor\(int v, int k\) const/);
+  assert.match(defaultContent, /int lca\(int a, int b\) const/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderLca(lcaOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /LcaBinaryLifting lca\(n\);/);
+
+  const collisionOptions = lcaOptions({
+    existingText: "class LcaBinaryLifting {}; int LcaBinaryLifting2;"
+  });
+  assert.equal(collisionOptions.names.className, "LcaBinaryLifting3");
+  assert.match(core.renderLca(collisionOptions), /class LcaBinaryLifting3/);
+  assert.match(
+    core.renderLca(collisionOptions),
+    /explicit LcaBinaryLifting3\(int n = 0\)/
+  );
+}
+
 function testGeneratedBerlekampMasseyCompiles() {
   const generated = core.renderBerlekampMassey(
     berlekampOptions({ includeUsageComment: false })
@@ -665,6 +858,64 @@ function testGeneratedSparseTableCompiles() {
   compileSource("sparse_table_generated", source);
 }
 
+function testGeneratedDsuCompiles() {
+  const generated = core.renderDsu(dsuOptions({ includeUsageComment: false }));
+  const source = [
+    "#include <bits/stdc++.h>",
+    "",
+    generated,
+    "int main() {",
+    "  Dsu dsu(5);",
+    "  assert(dsu.size() == 5);",
+    "  assert(dsu.components() == 5);",
+    "  assert(dsu.unite(0, 1));",
+    "  assert(dsu.unite(3, 4));",
+    "  assert(!dsu.unite(0, 1));",
+    "  assert(dsu.same(1, 0));",
+    "  assert(!dsu.same(1, 4));",
+    "  assert(dsu.component_size(0) == 2);",
+    "  assert(dsu.find(-1) == -1);",
+    "  assert(dsu.component_size(99) == 0);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("dsu_generated", source);
+}
+
+function testGeneratedLcaCompiles() {
+  const generated = core.renderLca(lcaOptions({ includeUsageComment: false }));
+  const source = [
+    "#include <bits/stdc++.h>",
+    "",
+    generated,
+    "int main() {",
+    "  LcaBinaryLifting lca(9);",
+    "  lca.add_edge(0, 1);",
+    "  lca.add_edge(0, 2);",
+    "  lca.add_edge(1, 3);",
+    "  lca.add_edge(1, 4);",
+    "  lca.add_edge(2, 5);",
+    "  lca.add_edge(2, 6);",
+    "  lca.add_edge(6, 7);",
+    "  lca.add_edge(7, 8);",
+    "  lca.build(0);",
+    "  assert(lca.lca(3, 4) == 1);",
+    "  assert(lca.lca(3, 6) == 0);",
+    "  assert(lca.lca(8, 5) == 2);",
+    "  assert(lca.dist(3, 8) == 6);",
+    "  assert(lca.kth_ancestor(8, 3) == 2);",
+    "  LcaBinaryLifting forest(4);",
+    "  forest.add_edge(0, 1);",
+    "  forest.add_edge(2, 3);",
+    "  forest.build(0);",
+    "  assert(forest.lca(1, 3) == -1);",
+    "  assert(forest.dist(1, 3) == -1);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("lca_generated", source);
+}
+
 testTokenScanner();
 testCollisionNames();
 testSharedNamePlanner();
@@ -675,8 +926,7 @@ testDependencyOrder();
 testSectionComposer();
 testRecipeMetadata();
 testBundledCatalogGuardrails();
-testBerlekampMasseyMigrationGuardrails();
-testSparseTableMigrationGuardrails();
+testCompletedMigrationGuardrails();
 testManifestCommands();
 testNamespaceUnwrap();
 testGlobalInsertionOffset();
@@ -684,5 +934,9 @@ testGeneratedSegmentTrees();
 testInteractiveBrickRenderers();
 testBerlekampMasseyRenderer();
 testSparseTableRenderer();
+testDsuRenderer();
+testLcaRenderer();
 testGeneratedBerlekampMasseyCompiles();
 testGeneratedSparseTableCompiles();
+testGeneratedDsuCompiles();
+testGeneratedLcaCompiles();

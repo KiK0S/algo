@@ -6,9 +6,9 @@
 - related library header: `lib/suffix_array.hpp`
 - tests: `tests/suffix_array_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should the generator build from an existing `string`, an existing vector of ints, or generate input?
 - Should `lcp` be emitted by default, optional, or omitted unless requested?

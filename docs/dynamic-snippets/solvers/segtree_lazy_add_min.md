@@ -6,9 +6,9 @@
 - current dynamic generator: `/solvers/segtree`
 - tests: `tests/solvers_structures_test.cpp`, `extension/test/core.test.js`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should this path redirect to `/solvers/segtree` with min plus range-add selected?
 - Should `first_leq` be a selectable descend feature in the dynamic segtree generator?

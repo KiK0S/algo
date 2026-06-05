@@ -129,6 +129,31 @@
     "form": ["name", "sizeExpression", "valueType"]
   },
   {
+    "path": "/solvers/dsu",
+    "kind": "solver",
+    "insertMode": "global",
+    "generator": "dsu",
+    "source": "solvers/dsu.hpp",
+    "label": "/solvers/dsu",
+    "description": "dynamic disjoint set union helper",
+    "detail": "dynamic / solver",
+    "exports": ["Dsu"],
+    "sections": ["helpers"]
+  },
+  {
+    "path": "/solvers/lca",
+    "kind": "solver",
+    "insertMode": "global",
+    "generator": "lca",
+    "source": "solvers/lca_binary_lifting.hpp",
+    "label": "/solvers/lca",
+    "description": "dynamic binary lifting LCA helper",
+    "detail": "dynamic / solver",
+    "exports": ["LcaBinaryLifting"],
+    "features": ["binary_lifting"],
+    "sections": ["helpers"]
+  },
+  {
     "path": "/solvers/fft_ntt",
     "kind": "solver",
     "insertMode": "global",

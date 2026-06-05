@@ -11,9 +11,9 @@ Status: completed sparse-table migration. The dynamic entry path is
   moved to the solver fallback path.
 - tests: `tests/sparse_table_test.cpp`, `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Historical alignment for the completed slice:
+Historical alignment for the completed migration:
 
 - Dynamic path: `/solvers/sparse_table`.
 - First variants: min and max.
@@ -21,7 +21,7 @@ Historical alignment for the completed slice:
 - Query interval: inclusive `[l, r]`, matching the current static fallback.
 - Source data: use an existing vector by default.
 - Remove the top-level `lib/sparse_table.hpp` compatibility header in the same
-  slice once references move.
+  migration once references move.
 
 ## Assumptions
 
@@ -49,7 +49,7 @@ Historical alignment for the completed slice:
 
 ## Implementation Plan
 
-Completed in this slice:
+Completed in this migration:
 
 1. Added `sparse_table` generator entry in the registry.
 2. Added prompt options using existing vector symbols.

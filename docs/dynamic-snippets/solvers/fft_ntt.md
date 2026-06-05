@@ -6,9 +6,9 @@
 - related library header: `lib/fft.hpp`
 - tests: `tests/fft_test.cpp`, `tests/solvers_twosat_fft_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should the generator emit FFT, NTT, or both?
 - Which modulus/root should default for NTT: `998244353, 3`, existing `FFT_MOD`, or custom?

@@ -5,9 +5,9 @@
 - `lib/solvers/hungarian.hpp`
 - tests: `tests/hungarian_test.cpp`, `tests/solvers_flow_matching_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should the default solve minimization or maximization?
 - Should rectangular matrices be supported by default?

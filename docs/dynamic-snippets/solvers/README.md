@@ -4,24 +4,33 @@ Each file in this directory is a work packet for one future migration agent. Age
 
 Top-level `lib/*.hpp` compatibility headers are handled by [../03-legacy-cleanup.md](../03-legacy-cleanup.md). Solver fallback means a pasteable file under `lib/solvers/`, not keeping the old top-level header indefinitely.
 
+## How To Pick Work
+
+Start with the first useful `todo` packet in the suggested order and migrate it
+completely. The packet's assumptions and the settled defaults are enough to
+proceed unless a listed choice is still a genuine blocker after reading the
+source and tests.
+
 ## Suggested Order
 
-1. `static_rmq.md`: establishes generated dependencies for RMQ consumers.
-2. `lca_binary_lifting.md`: exercises traversal precompute and sparse-table dependency.
-3. `suffix_array.md`: exercises optional outputs and optional LCP RMQ dependency.
-4. `segtree_point_update.md`, `segtree_lazy_add_min.md`, `segtree_beats.md`: finishes segment-tree family alignment.
-5. `rollback_dsu.md`, `implicit_treap.md`, `merge_sort_tree.md`: remaining structures.
-6. `maxflow_dinic.md`, `mincost_maxflow.md`, `kuhn.md`, `hungarian.md`, `twosat.md`: graph and matching style solvers.
-7. `fft_ntt.md`, `poly_hash.md`: algebra and string helpers with constants/type choices. `berlekamp_massey.md` is already done.
+Completed: `berlekamp_massey.md`, `static_rmq.md`, and `dsu.md`.
+
+1. `lca_binary_lifting.md`: exercises traversal precompute and sparse-table dependency.
+2. `suffix_array.md`: exercises optional outputs and optional LCP RMQ dependency.
+3. `segtree_point_update.md`, `segtree_lazy_add_min.md`, `segtree_beats.md`: finishes segment-tree family alignment.
+4. `rollback_dsu.md`, `implicit_treap.md`, `merge_sort_tree.md`: remaining structures.
+5. `maxflow_dinic.md`, `mincost_maxflow.md`, `kuhn.md`, `hungarian.md`, `twosat.md`: graph and matching style solvers.
+6. `fft_ntt.md`, `poly_hash.md`: algebra and string helpers with constants/type choices.
 
 ## Packets
 
-Status key: `done` means the solver already has the dynamic proof-migration
+Status key: `done` means the solver already has the complete dynamic migration
 shape and the next agent should choose another packet.
 
 | Solver source | Status | Plan |
 | --- | --- | --- |
 | `lib/solvers/berlekamp_massey.hpp` | done | [berlekamp_massey.md](./berlekamp_massey.md) |
+| `lib/solvers/dsu.hpp` | done | [dsu.md](./dsu.md) |
 | `lib/solvers/fft_ntt.hpp` | todo | [fft_ntt.md](./fft_ntt.md) |
 | `lib/solvers/hungarian.hpp` | todo | [hungarian.md](./hungarian.md) |
 | `lib/solvers/implicit_treap.hpp` | todo | [implicit_treap.md](./implicit_treap.md) |

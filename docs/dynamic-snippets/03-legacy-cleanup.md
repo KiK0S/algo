@@ -4,7 +4,7 @@
 
 Remove the top-level `lib/*.hpp` compatibility layer so every insertable artifact is either a solver or a brick. There is no literal `legacy/` directory in the current checkout; "legacy" means the top-level headers under `lib/` that sit beside `lib/solvers/`, `lib/bricks/`, and `lib/catalog/`.
 
-## Start By Aligning With The User
+## Solver-Specific Cleanup Choices
 
 The general cleanup direction is settled in
 [README.md](./README.md#settled-migration-defaults): remove top-level
@@ -15,6 +15,10 @@ Only ask again if a specific header has an ambiguous target:
 - Should tests move immediately to `lib/solvers/*` and `lib/bricks/*`, or should forwarding files exist during a short transition?
 - Should any tiny utility currently in a top-level header become a brick even if it inserts globally?
 - Should duplicate implementations be merged into one solver/brick source before dynamic rendering starts?
+
+When the target is clear from the inventory, tests, and existing solver/brick
+shape, proceed with the cleanup in the same migration. Do not keep a top-level
+compatibility header just because cleanup feels like a second task.
 
 ## Final Repository Shape
 
@@ -40,7 +44,7 @@ Only ask again if a specific header has an ambiguous target:
 | `lib/bfs.hpp` | `lib/solvers/bfs.hpp` | New solver or traversal generator; coordinate with BFS brick/precompute pipeline. |
 | `lib/dijkstra.hpp` | `lib/solvers/dijkstra.hpp` | New graph solver; dynamic options for weight type, source, path restore. |
 | `lib/dinic.hpp` | `lib/solvers/maxflow_dinic.hpp` | Existing solver; merge API differences if any. |
-| `lib/dsu.hpp` | `lib/solvers/dsu.hpp` | New solver; short DSU brick remains separate. |
+| `lib/dsu.hpp` | `lib/solvers/dsu.hpp` | Migrated with dynamic generator; legacy header removed after test include moved to solver path. Short DSU brick remains separate. |
 | `lib/fast_allocator.hpp` | `lib/solvers/fast_allocator.hpp` | Global helper solver; catalog as utility/data-structure. |
 | `lib/fenwick.hpp` | `lib/solvers/fenwick.hpp` | New solver; short sum-only Fenwick brick remains separate. |
 | `lib/fft.hpp` | `lib/solvers/fft_ntt.hpp` | Existing solver; reconcile `StaticModInt` dependency with `modint` solver. |
@@ -82,6 +86,13 @@ Add a CI/static check after migration:
 - fail if `tests/` includes `../lib/<name>.hpp` directly.
 - fail if extension catalog/bundled library exposes top-level snippets.
 - fail if top-level `lib/*.hpp` files exist, except non-insertable documentation stubs if the user explicitly allows them.
+
+During the incremental migration, `extension/test/core.test.js` has a
+`completedMigrations` guardrail table. Each completed solver/brick cleanup
+should add one row there so tests verify the legacy header is gone, the
+replacement under `lib/solvers/` or `lib/bricks/` exists, the catalog source
+points at the replacement, migrated tests include the replacement path, and no
+`lib/*.hpp` or `tests/*.cpp` source includes the completed top-level header.
 
 ## Catalog Migration
 

@@ -5,9 +5,9 @@
 - `lib/solvers/merge_sort_tree.hpp`
 - tests: `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Which queries should be emitted: count less, count less/equal, count in range, exists, kth future?
 - Should the tree use values directly or coordinate-compressed ids?

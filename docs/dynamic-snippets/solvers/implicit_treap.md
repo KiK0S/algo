@@ -5,9 +5,9 @@
 - `lib/solvers/implicit_treap.hpp`
 - tests: `tests/treap_test.cpp`, `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Which aggregate should default: sum, min, max, custom?
 - Which lazy features are wanted: reverse, add, assign, chmin/chmax future?

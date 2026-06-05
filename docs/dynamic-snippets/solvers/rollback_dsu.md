@@ -5,9 +5,9 @@
 - `lib/solvers/rollback_dsu.hpp`
 - tests: `tests/dsu_test.cpp`, `tests/solvers_structures_test.cpp`
 
-## Start By Aligning With The User
+## Solver-Specific Choices
 
-Ask the user:
+Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
 - Should rollback DSU stay a class or support short global arrays/functions?
 - Should optional features include component count, component sizes, bipartite parity, or undo history only?
