@@ -55,7 +55,7 @@ compatibility header just because cleanup feels like a second task.
 | `lib/hungarian.hpp` | `lib/solvers/hungarian.hpp` | Existing solver; compare APIs and remove duplicate. |
 | `lib/kosaraju.hpp` | `lib/solvers/kosaraju.hpp` | New graph solver; dynamic SCC options. |
 | `lib/kuhn.hpp` | `lib/solvers/kuhn.hpp` | Existing solver; compare APIs and remove duplicate. |
-| `lib/lca.hpp` | `lib/solvers/lca_binary_lifting.hpp` plus dynamic `/solvers/lca` | Existing binary-lifting solver; RMQ variant should be represented by dynamic LCA options. |
+| `lib/lca.hpp` | `lib/solvers/lca_binary_lifting.hpp` plus dynamic `/solvers/lca` | Migrated; legacy header removed after tests moved to solver path. Future RMQ variant should be represented by dynamic LCA options. |
 | `lib/linear_sieve.hpp` | `lib/solvers/linear_sieve.hpp` | New number-theory solver; optional lowest prime, primes, factorization helpers. |
 | `lib/mincost_maxflow.hpp` | `lib/solvers/mincost_maxflow.hpp` | Existing solver; compare APIs and remove duplicate. |
 | `lib/mo.hpp` | `lib/solvers/mo.hpp` | New solver; dynamic options for add/remove callbacks and answer type. |

@@ -13,14 +13,14 @@ source and tests.
 
 ## Suggested Order
 
-Completed: `berlekamp_massey.md`, `static_rmq.md`, and `dsu.md`.
+Completed: `berlekamp_massey.md`, `static_rmq.md`, `dsu.md`, and
+`lca_binary_lifting.md`.
 
-1. `lca_binary_lifting.md`: exercises traversal precompute and sparse-table dependency.
-2. `suffix_array.md`: exercises optional outputs and optional LCP RMQ dependency.
-3. `segtree_point_update.md`, `segtree_lazy_add_min.md`, `segtree_beats.md`: finishes segment-tree family alignment.
-4. `rollback_dsu.md`, `implicit_treap.md`, `merge_sort_tree.md`: remaining structures.
-5. `maxflow_dinic.md`, `mincost_maxflow.md`, `kuhn.md`, `hungarian.md`, `twosat.md`: graph and matching style solvers.
-6. `fft_ntt.md`, `poly_hash.md`: algebra and string helpers with constants/type choices.
+1. `suffix_array.md`: exercises optional outputs and optional LCP RMQ dependency.
+2. `segtree_point_update.md`, `segtree_lazy_add_min.md`, `segtree_beats.md`: finishes segment-tree family alignment.
+3. `rollback_dsu.md`, `implicit_treap.md`, `merge_sort_tree.md`: remaining structures.
+4. `maxflow_dinic.md`, `mincost_maxflow.md`, `kuhn.md`, `hungarian.md`, `twosat.md`: graph and matching style solvers.
+5. `fft_ntt.md`, `poly_hash.md`: algebra and string helpers with constants/type choices.
 
 ## Packets
 
@@ -35,7 +35,7 @@ shape and the next agent should choose another packet.
 | `lib/solvers/hungarian.hpp` | todo | [hungarian.md](./hungarian.md) |
 | `lib/solvers/implicit_treap.hpp` | todo | [implicit_treap.md](./implicit_treap.md) |
 | `lib/solvers/kuhn.hpp` | todo | [kuhn.md](./kuhn.md) |
-| `lib/solvers/lca_binary_lifting.hpp` | todo | [lca_binary_lifting.md](./lca_binary_lifting.md) |
+| `lib/solvers/lca_binary_lifting.hpp` | done | [lca_binary_lifting.md](./lca_binary_lifting.md) |
 | `lib/solvers/maxflow_dinic.hpp` | todo | [maxflow_dinic.md](./maxflow_dinic.md) |
 | `lib/solvers/merge_sort_tree.hpp` | todo | [merge_sort_tree.md](./merge_sort_tree.md) |
 | `lib/solvers/mincost_maxflow.hpp` | todo | [mincost_maxflow.md](./mincost_maxflow.md) |

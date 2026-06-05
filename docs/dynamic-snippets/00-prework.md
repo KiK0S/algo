@@ -13,10 +13,10 @@ The shared infrastructure is good enough for full single-solver migrations:
 - `createNamePlanner` provides shared collision-aware name reservation.
 - Renderers can return section-based `RenderedRecipe` objects, and the
   composer emits sections in the target assembly order.
-- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu` are
-  completed dynamic solver migrations with catalog metadata, extension tests,
-  solver-path C++ tests, static fallbacks under `lib/solvers/`, and removed
-  top-level compatibility headers.
+- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
+  `/solvers/lca` are completed dynamic solver migrations with catalog metadata,
+  extension tests, solver-path C++ tests, static fallbacks under `lib/solvers/`,
+  and removed top-level compatibility headers.
 
 Remaining pre-work such as richer C++ role analysis, in-place/full-solution
 composition, generated dependency rendering through one shared planner, and

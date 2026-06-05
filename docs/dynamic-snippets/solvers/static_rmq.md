@@ -7,8 +7,8 @@ Status: completed sparse-table migration. The dynamic entry path is
 ## Existing Source
 
 - `lib/solvers/sparse_table.hpp`
-- legacy `lib/sparse_table.hpp` was removed after tests and `lib/lca.hpp`
-  moved to the solver fallback path.
+- legacy `lib/sparse_table.hpp` was removed after tests and legacy LCA
+  references moved to solver fallback paths.
 - tests: `tests/sparse_table_test.cpp`, `tests/solvers_structures_test.cpp`
 
 ## Solver-Specific Choices
@@ -57,8 +57,8 @@ Completed in this migration:
 4. Exposed catalog metadata at `/solvers/sparse_table`.
 5. Preserved `SparseMinTable` and `SparseMaxTable` static fallback exports under
    `lib/solvers/sparse_table.hpp`.
-6. Removed `lib/sparse_table.hpp` after moving tests and the remaining
-   top-level LCA include.
+6. Removed `lib/sparse_table.hpp` after moving tests and the remaining legacy
+   LCA include.
 
 Deferred optional follow-ups:
 

@@ -5,9 +5,9 @@ This folder captures the plan for moving solver and brick insertion onto the sam
 ## Current Baseline
 
 - `lib/catalog/snippets.json` has generator entries for `/solvers/segtree`,
-  `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu`,
-  plus interactive brick generators for `/bricks/compress_unique` and
-  `/bricks/read_vector`.
+  `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
+  `/solvers/lca`, plus interactive brick generators for
+  `/bricks/compress_unique` and `/bricks/read_vector`.
 - `extension/src/core.ts` already analyzes the active C++ document for identifiers, constants, input variables, vector variables, aliases, and exported-name collisions.
 - `extension/src/extension.ts` dispatches generator ids through a generator registry.
 - Static solvers remain pasteable as plain code. They are unwrapped from headers and renamed if exported identifiers collide with the current file.
@@ -71,10 +71,10 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
   generated API.
 - Prefer defaults and snippets informed by the existing IWCF/pattern analysis
   when available.
-- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, and `/solvers/dsu` are
-  completed migrations: they have registry-backed dynamic generators, catalog
-  metadata, pasteable fallbacks under `lib/solvers/`, solver-path tests, and no
-  top-level compatibility headers.
+- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
+  `/solvers/lca` are completed migrations: they have registry-backed dynamic
+  generators, catalog metadata, pasteable fallbacks under `lib/solvers/`,
+  solver-path tests, and no top-level compatibility headers.
 
 ## Next-Agent Default
 
