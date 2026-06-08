@@ -49,6 +49,7 @@ For ordinary contest insertion, some sections may be empty because the active fi
 - [01-agent-contract.md](./01-agent-contract.md): workflow every migration agent should follow.
 - [02-bricks.md](./02-bricks.md): brick migration plan.
 - [03-legacy-cleanup.md](./03-legacy-cleanup.md): plan to remove top-level compatibility headers and classify everything as solver or brick.
+- [04-expansion-surfaces.md](./04-expansion-surfaces.md): structure-first expansion plan for prompts, application modes, custom escape hatches, and plug-and-play usage skeletons.
 - [solvers/](./solvers): one work packet per solver snippet.
 
 ## Agent Rule
@@ -133,8 +134,10 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
 
 If [solvers/](./solvers) has a useful `todo` packet, read that packet and
 migrate the solver completely. If the solver index has no queued todo packet,
-continue with generator coverage, feature groups, or brick work; the top-level
-legacy cleanup inventory is complete.
+continue with generator coverage, feature groups, brick work, or the
+structure-first expansion surfaces in
+[04-expansion-surfaces.md](./04-expansion-surfaces.md); the top-level legacy
+cleanup inventory is complete.
 
 ## Verification Spine
 
