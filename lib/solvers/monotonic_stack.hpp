@@ -1,8 +1,3 @@
-#ifndef EDULCNI_MONOTONIC_STACK_HPP
-#define EDULCNI_MONOTONIC_STACK_HPP
-
-namespace edulcni {
-
 template <typename T, typename Compare>
 inline std::vector<int> nearest_left_by(const std::vector<T>& values,
                                         Compare compare, bool strict = true) {
@@ -88,7 +83,8 @@ struct NearestIndices {
 };
 
 template <typename T>
-inline NearestIndices<T> nearest_all(const std::vector<T>& values, bool strict = true) {
+inline NearestIndices<T> nearest_all(const std::vector<T>& values,
+                                     bool strict = true) {
   NearestIndices<T> result;
   result.left_smaller = nearest_smaller_left(values, strict);
   result.right_smaller = nearest_smaller_right(values, strict);
@@ -96,7 +92,3 @@ inline NearestIndices<T> nearest_all(const std::vector<T>& values, bool strict =
   result.right_greater = nearest_greater_right(values, strict);
   return result;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_MONOTONIC_STACK_HPP

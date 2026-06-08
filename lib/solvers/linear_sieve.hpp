@@ -1,8 +1,3 @@
-#ifndef EDULCNI_LINEAR_SIEVE_HPP
-#define EDULCNI_LINEAR_SIEVE_HPP
-
-namespace edulcni {
-
 class LinearSieve {
  public:
   explicit LinearSieve(int limit = 0) : limit_(0) { build(limit); }
@@ -82,7 +77,3 @@ inline std::vector<int> linear_sieve_primes(int limit) {
   LinearSieve sieve(limit);
   return sieve.primes();
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_LINEAR_SIEVE_HPP

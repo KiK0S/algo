@@ -59,6 +59,16 @@ class Dinic {
     return total_flow;
   }
 
+  void reset_flows() {
+    for (auto& edges : graph_) {
+      for (auto& edge : edges) {
+        edge.cap = edge.original_cap;
+      }
+    }
+    std::fill(level_.begin(), level_.end(), -1);
+    std::fill(iter_.begin(), iter_.end(), 0);
+  }
+
   bool left_of_min_cut(int vertex) const {
     return vertex >= 0 && vertex < n_ && level_[vertex] != -1;
   }
@@ -118,4 +128,3 @@ class Dinic {
     return Cap(0);
   }
 };
-

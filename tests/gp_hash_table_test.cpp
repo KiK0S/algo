@@ -7,10 +7,10 @@
 
 #include <ext/pb_ds/assoc_container.hpp>
 
-#include "../lib/gp_hash_table.hpp"
+#include "../lib/solvers/gp_hash_table.hpp"
 
 static void test_basic_usage() {
-  edulcni::GpHashTable<long long, int> table;
+  GpHashTable<long long, int> table;
   table[5] = 11;
   table[9] = 13;
   table[5] += 4;
@@ -23,7 +23,7 @@ static void test_basic_usage() {
 
 static void test_pair_keys() {
   using Key = std::pair<int, int>;
-  using Table = edulcni::GpHashTable<Key, int, edulcni::PairHash<int, int>>;
+  using Table = GpHashTable<Key, int, PairHash<int, int>>;
 
   Table table;
   const Key a{1, 2};
@@ -37,7 +37,7 @@ static void test_pair_keys() {
 
 static void test_random_against_unordered_map() {
   std::mt19937_64 rng(20260226);
-  edulcni::GpHashTable<std::uint64_t, int> table;
+  GpHashTable<std::uint64_t, int> table;
   std::unordered_map<std::uint64_t, int> reference;
 
   for (int it = 0; it < 50000; ++it) {

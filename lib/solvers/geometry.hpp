@@ -1,8 +1,3 @@
-#ifndef EDULCNI_GEOMETRY_HPP
-#define EDULCNI_GEOMETRY_HPP
-
-namespace edulcni {
-
 template <typename T>
 int geometry_sign(const T& value) {
   return (T(0) < value) - (value < T(0));
@@ -276,7 +271,3 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
   lower.insert(lower.end(), upper.begin(), upper.end());
   return lower;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_GEOMETRY_HPP

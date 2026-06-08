@@ -1,9 +1,13 @@
 # FFT / NTT Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/fft_ntt`; the pasteable fallback source remains
+`lib/solvers/fft_ntt.hpp`; legacy `lib/fft.hpp` was removed after
+tests moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/fft_ntt.hpp`
-- related library header: `lib/fft.hpp`
 - tests: `tests/fft_test.cpp`, `tests/solvers_twosat_fft_test.cpp`
 
 ## Solver-Specific Choices
@@ -22,19 +26,28 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Default for NTT: modulus `998244353`, primitive root `3`.
 - Default output includes convolution wrapper for selected transform.
 
+## Resolved Choices
+
+- Dynamic path: `/solvers/fft_ntt`.
+- Static fallback: `lib/solvers/fft_ntt.hpp`.
+- Default render: both complex FFT and modular NTT with convolution wrappers.
+- NTT defaults: `998244353` and primitive root `3`; prompt can select existing
+  constants such as `FFT_MOD`, `MOD`, `FFT_ROOT`, or `ROOT`.
+- Static fallback intentionally uses the standalone `int` NTT API instead of
+  depending on `/solvers/modint`.
+
 ## Dynamic Options
 
 - transform: FFT, NTT, both
-- value/result type: int, ll, complex, custom
 - modulus and primitive root
-- outputs: transform only, convolution, next power of two, modular pow
-- names: transform functions, pow, convolution, temporary arrays
+- outputs: transform only or transform plus convolution wrappers
+- names: transform functions, shared helpers, pow, and convolution wrappers
 
 ## Sections
 
-- constants: optional modulus/root constants
+- constants: selected existing modulus/root expressions are referenced when used
 - helpers: selected transform and convolution functions
-- data/solve: optional polynomial input and call in full-solution mode
+- data/solve: not emitted in ordinary snippet mode
 
 ## Implementation Plan
 
@@ -50,3 +63,10 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Collision test for `ntt_transform`, `fft_transform`, `ntt_pow`.
 - Re-run FFT and twosat/fft tests.
 
+## Completed Work
+
+1. Added registry-backed dynamic renderer and prompt for `/solvers/fft_ntt`.
+2. Cataloged the solver with static fallback source `solvers/fft_ntt.hpp`.
+3. Added extension renderer, catalog, collision, and generated compile tests.
+4. Moved `tests/fft_test.cpp` to the solver-path include and standalone NTT API.
+5. Removed the top-level legacy `lib/fft.hpp` compatibility header.

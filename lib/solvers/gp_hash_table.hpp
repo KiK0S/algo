@@ -1,8 +1,3 @@
-#ifndef EDULCNI_GP_HASH_TABLE_HPP
-#define EDULCNI_GP_HASH_TABLE_HPP
-
-namespace edulcni {
-
 struct SplitMix64Hash {
   static std::uint64_t mix(std::uint64_t x) {
     x += 0x9e3779b97f4a7c15ULL;
@@ -38,7 +33,3 @@ struct PairHash {
 
 template <typename Key, typename Value, typename Hash = GpHash<Key>>
 using GpHashTable = __gnu_pbds::gp_hash_table<Key, Value, Hash>;
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_GP_HASH_TABLE_HPP

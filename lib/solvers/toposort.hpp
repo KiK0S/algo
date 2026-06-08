@@ -1,8 +1,3 @@
-#ifndef EDULCNI_TOPOSORT_HPP
-#define EDULCNI_TOPOSORT_HPP
-
-namespace edulcni {
-
 inline void toposort_add_edge(std::vector<std::vector<int>>& graph, int from, int to) {
   const int n = static_cast<int>(graph.size());
   if (from < 0 || from >= n || to < 0 || to >= n) {
@@ -85,7 +80,3 @@ inline bool is_topological_order(const std::vector<std::vector<int>>& graph,
   }
   return true;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_TOPOSORT_HPP

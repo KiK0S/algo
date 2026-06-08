@@ -1,9 +1,79 @@
-#ifndef EDULCNI_HALFPLANE_INTERSECTION_HPP
-#define EDULCNI_HALFPLANE_INTERSECTION_HPP
+template <typename T>
+struct Point2 {
+  using Value = T;
+  T x;
+  T y;
 
-#include "geometry.hpp"
+  Point2(const T& x_ = T(), const T& y_ = T()) : x(x_), y(y_) {}
 
-namespace edulcni {
+  bool operator==(const Point2& other) const {
+    return x == other.x && y == other.y;
+  }
+
+  bool operator!=(const Point2& other) const { return !(*this == other); }
+
+  bool operator<(const Point2& other) const {
+    if (x != other.x) {
+      return x < other.x;
+    }
+    return y < other.y;
+  }
+
+  Point2 operator+(const Point2& other) const {
+    return Point2(x + other.x, y + other.y);
+  }
+
+  Point2 operator-(const Point2& other) const {
+    return Point2(x - other.x, y - other.y);
+  }
+
+  Point2 operator*(const T& scale) const { return Point2(x * scale, y * scale); }
+
+  Point2 operator/(const T& scale) const { return Point2(x / scale, y / scale); }
+
+  T dot(const Point2& other) const { return x * other.x + y * other.y; }
+
+  T cross(const Point2& other) const { return x * other.y - y * other.x; }
+
+  T cross(const Point2& a, const Point2& b) const { return (a - *this).cross(b - *this); }
+
+  T norm2() const { return x * x + y * y; }
+};
+
+template <typename T>
+inline Point2<long double> to_point_long_double(const Point2<T>& p) {
+  return Point2<long double>(static_cast<long double>(p.x),
+                             static_cast<long double>(p.y));
+}
+
+template <typename T>
+inline long double cross_ld(const Point2<T>& a, const Point2<T>& b) {
+  return static_cast<long double>(a.x) * static_cast<long double>(b.y) -
+         static_cast<long double>(a.y) * static_cast<long double>(b.x);
+}
+
+template <typename T>
+inline bool line_intersection(const Point2<T>& a, const Point2<T>& b,
+                              const Point2<T>& c, const Point2<T>& d,
+                              Point2<long double>& out,
+                              long double eps = 1e-12L) {
+  const Point2<long double> aa = to_point_long_double(a);
+  const Point2<long double> bb = to_point_long_double(b);
+  const Point2<long double> cc = to_point_long_double(c);
+  const Point2<long double> dd = to_point_long_double(d);
+
+  const Point2<long double> ab = bb - aa;
+  const Point2<long double> cd = dd - cc;
+  const long double denom = cross_ld(ab, cd);
+  if (std::fabs(denom) <= eps) {
+    out = Point2<long double>(0.0L, 0.0L);
+    return false;
+  }
+
+  const long double t = cross_ld(cc - aa, cd) / denom;
+  out = Point2<long double>(aa.x + ab.x * t, aa.y + ab.y * t);
+  return true;
+}
 
 struct HalfPlane {
   Point2<long double> point;
@@ -132,7 +202,3 @@ inline std::vector<Point2<long double>> halfplane_intersection(
   return std::vector<Point2<long double>>(deque_intersections.begin(),
                                           deque_intersections.end());
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_HALFPLANE_INTERSECTION_HPP

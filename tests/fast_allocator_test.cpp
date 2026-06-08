@@ -6,10 +6,10 @@
 #include <stdexcept>
 #include <vector>
 
-#include "../lib/fast_allocator.hpp"
+#include "../lib/solvers/fast_allocator.hpp"
 
 static void test_arena_allocate_and_reset() {
-  edulcni::FastAllocatorArena arena(128);
+  FastAllocatorArena arena(128);
   void* a = arena.allocate(16, 8);
   void* b = arena.allocate(24, 8);
   assert(a != nullptr);
@@ -22,8 +22,8 @@ static void test_arena_allocate_and_reset() {
 }
 
 static void test_vector_with_fast_allocator() {
-  edulcni::FastAllocatorArena arena(1U << 20U);
-  using Alloc = edulcni::FastAllocator<int>;
+  FastAllocatorArena arena(1U << 20U);
+  using Alloc = FastAllocator<int>;
   std::vector<int, Alloc> values{Alloc(arena)};
 
   for (int i = 0; i < 20000; ++i) {
@@ -34,12 +34,10 @@ static void test_vector_with_fast_allocator() {
 }
 
 static void test_rebind_and_multiple_types() {
-  edulcni::FastAllocatorArena arena(1U << 20U);
+  FastAllocatorArena arena(1U << 20U);
   using Pair = std::pair<int, int>;
-  std::vector<Pair, edulcni::FastAllocator<Pair>> edges{
-      edulcni::FastAllocator<Pair>(arena)};
-  std::vector<int, edulcni::FastAllocator<int>> values{
-      edulcni::FastAllocator<int>(arena)};
+  std::vector<Pair, FastAllocator<Pair>> edges{FastAllocator<Pair>(arena)};
+  std::vector<int, FastAllocator<int>> values{FastAllocator<int>(arena)};
 
   for (int i = 0; i < 5000; ++i) {
     edges.push_back(Pair{i, i * 2});
@@ -53,7 +51,7 @@ static void test_rebind_and_multiple_types() {
 }
 
 static void test_out_of_memory() {
-  edulcni::FastAllocatorArena arena(64);
+  FastAllocatorArena arena(64);
   bool thrown = false;
   try {
     (void)arena.allocate(128, alignof(std::max_align_t));

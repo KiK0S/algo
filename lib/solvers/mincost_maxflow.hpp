@@ -63,6 +63,8 @@ class MinCostMaxFlow {
 
   const std::vector<std::vector<Edge>>& graph() const { return graph_; }
 
+  const std::vector<Cost>& potential() const { return potential_; }
+
   void set_potential_with_bellman_ford(int source) {
     if (!vertex_ok(source)) {
       return;
@@ -214,4 +216,3 @@ class MinCostMaxFlow {
     return true;
   }
 };
-

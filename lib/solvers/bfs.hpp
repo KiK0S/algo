@@ -1,8 +1,3 @@
-#ifndef EDULCNI_BFS_HPP
-#define EDULCNI_BFS_HPP
-
-namespace edulcni {
-
 struct BfsResult {
   std::vector<int> distance;
   std::vector<int> parent;
@@ -102,7 +97,3 @@ inline std::vector<int> bfs_restore_path_to_root(int target,
   std::reverse(path.begin(), path.end());
   return path;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_BFS_HPP

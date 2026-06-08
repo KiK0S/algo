@@ -1,8 +1,3 @@
-#ifndef EDULCNI_HLD_HPP
-#define EDULCNI_HLD_HPP
-
-namespace edulcni {
-
 class HeavyLightDecomposition {
  public:
   explicit HeavyLightDecomposition(int n = 0) : n_(0), root_(0), timer_(0) {
@@ -210,7 +205,3 @@ class HeavyLightDecomposition {
     }
   }
 };
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_HLD_HPP

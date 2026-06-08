@@ -8,7 +8,7 @@
 #include <ext/pb_ds/assoc_container.hpp>
 #include <ext/pb_ds/tree_policy.hpp>
 
-#include "../lib/ordered_set.hpp"
+#include "../lib/solvers/ordered_set.hpp"
 
 static std::optional<int> kth_from_std_set(const std::set<int>& st, int k) {
   if (k < 0 || k >= static_cast<int>(st.size())) {
@@ -24,7 +24,7 @@ static int order_of_key_std_set(const std::set<int>& st, int key) {
 }
 
 static void test_basic_operations() {
-  edulcni::OrderedSet<int> os;
+  OrderedSet<int> os;
   assert(os.empty());
   assert(os.insert(8));
   assert(os.insert(3));
@@ -47,7 +47,7 @@ static void test_basic_operations() {
 
 static void test_random_against_std_set() {
   std::mt19937 rng(20260226);
-  edulcni::OrderedSet<int> os;
+  OrderedSet<int> os;
   std::set<int> st;
 
   for (int it = 0; it < 7000; ++it) {

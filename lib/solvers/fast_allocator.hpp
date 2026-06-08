@@ -1,8 +1,3 @@
-#ifndef EDULCNI_FAST_ALLOCATOR_HPP
-#define EDULCNI_FAST_ALLOCATOR_HPP
-
-namespace edulcni {
-
 class FastAllocatorArena {
  public:
   explicit FastAllocatorArena(std::size_t capacity_bytes = 0)
@@ -99,7 +94,3 @@ template <typename T>
 inline FastAllocator<T> make_fast_allocator(FastAllocatorArena& arena) {
   return FastAllocator<T>(arena);
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_FAST_ALLOCATOR_HPP

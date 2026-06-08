@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "../lib/mincost_maxflow.hpp"
+#include "../lib/solvers/mincost_maxflow.hpp"
 
 namespace {
 
@@ -92,7 +92,7 @@ struct BruteMinCostMaxFlow {
 };
 
 void test_basic_network() {
-  edulcni::MinCostMaxFlow<long long, long long> mcmf(4);
+  MinCostMaxFlow<long long, long long> mcmf(4);
   mcmf.add_edge(0, 1, 2, 1);
   mcmf.add_edge(0, 2, 1, 5);
   mcmf.add_edge(1, 2, 1, 2);
@@ -105,17 +105,18 @@ void test_basic_network() {
 }
 
 void test_negative_cost_edges() {
-  edulcni::MinCostMaxFlow<long long, long long> mcmf(3);
+  MinCostMaxFlow<long long, long long> mcmf(3);
   mcmf.add_edge(0, 1, 2, -3);
   mcmf.add_edge(1, 2, 2, 2);
 
   const std::pair<long long, long long> result = mcmf.min_cost_max_flow(0, 2);
   assert(result.first == 2);
   assert(result.second == -2);
+  assert(mcmf.potential().size() == 3);
 }
 
 void test_flow_limit() {
-  edulcni::MinCostMaxFlow<long long, long long> mcmf(4);
+  MinCostMaxFlow<long long, long long> mcmf(4);
   mcmf.add_edge(0, 1, 3, 1);
   mcmf.add_edge(1, 3, 3, 2);
   mcmf.add_edge(0, 2, 3, 0);
@@ -133,7 +134,7 @@ void test_random_dag_against_bruteforce() {
     const int source = 0;
     const int sink = n - 1;
 
-    edulcni::MinCostMaxFlow<long long, long long> fast(n);
+    MinCostMaxFlow<long long, long long> fast(n);
     BruteMinCostMaxFlow brute(n);
 
     for (int u = 0; u < n; ++u) {
@@ -155,7 +156,7 @@ void test_random_dag_against_bruteforce() {
 }
 
 void test_invalid_inputs() {
-  edulcni::MinCostMaxFlow<int, int> mcmf(3);
+  MinCostMaxFlow<int, int> mcmf(3);
   assert(mcmf.add_edge(-1, 1, 3, 2) == -1);
   assert(mcmf.add_edge(0, 8, 3, 2) == -1);
   assert(mcmf.add_edge(0, 1, -3, 2) == -1);

@@ -1,8 +1,3 @@
-#ifndef EDULCNI_ORDERED_SET_HPP
-#define EDULCNI_ORDERED_SET_HPP
-
-namespace edulcni {
-
 template <typename Key, typename Compare = std::less<Key>>
 using OrderedSetTree =
     __gnu_pbds::tree<Key, __gnu_pbds::null_type, Compare, __gnu_pbds::rb_tree_tag,
@@ -70,7 +65,3 @@ class OrderedSet {
  private:
   tree_type tree_;
 };
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_ORDERED_SET_HPP

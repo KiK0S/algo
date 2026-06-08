@@ -1,26 +1,37 @@
 # Suffix Array Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/suffix_array`; the pasteable fallback source is
+`lib/solvers/suffix_array.hpp`; legacy `lib/suffix_array.hpp` was removed after
+tests moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/suffix_array.hpp`
-- related library header: `lib/suffix_array.hpp`
+- removed related library header: `lib/suffix_array.hpp`
 - tests: `tests/suffix_array_test.cpp`
 
 ## Solver-Specific Choices
 
 Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
-- Should the generator build from an existing `string`, an existing vector of ints, or generate input?
-- Should `lcp` be emitted by default, optional, or omitted unless requested?
-- Should `rank` be emitted when `lcp` is disabled?
-- Should the empty suffix be kept or stripped by default?
-- Should LCP range queries request a sparse-table dependency?
+Resolved choices:
+
+- The generator supports existing `string`, compressed int vector, and positive
+  code vector sources. Default source kind is an existing string.
+- Default optional outputs are stripped `sa`, `rank`, and `lcp`.
+- `lcp` and `rank` are independently optional; `lcp_rmq` implies both.
+- The empty suffix remains in the raw result, and the default user-facing `sa`
+  uses the remove-empty helper.
+- LCP range queries render the existing dynamic min sparse-table helper in the
+  same recipe and add a wrapper over suffix ranks.
 
 ## Assumptions
 
 - Keep `SuffixArrayResult` static fallback.
-- Dynamic default: existing string source, `sa` plus `lcp` plus `rank`, empty suffix stripped for user-facing `sa`.
-- LCP array generation should be optional because some uses only need `sa`.
+- Dynamic default: existing string source, `sa` plus `lcp` plus `rank`, empty
+  suffix stripped for user-facing `sa`.
+- LCP array generation is optional because some uses only need `sa`.
 
 ## Dynamic Options
 
@@ -36,19 +47,24 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - helpers: suffix array build, optional LCP, optional compression, optional LCP RMQ
 - solve: optional build call assigning selected output variables
 
-## Implementation Plan
+## Completed In This Migration
 
-1. Add `suffix_array` generator using shared source-variable prompts.
+1. Added `suffix_array` generator using shared source-variable prompts.
 2. Split renderer helpers so `lcp` and `rank` can be toggled.
-3. Add an option to expose either a result struct or individual arrays.
-4. Add optional sparse-table dependency for LCP range queries.
-5. Keep static functions as fallback and as a reference implementation.
+3. Added collision-aware names for the result struct, build helpers, and
+   user-facing output aliases.
+4. Added optional sparse-table-backed LCP range queries.
+5. Preserved static functions as the solver fallback and reference
+   implementation.
+6. Added catalog metadata at `/solvers/suffix_array`.
+7. Moved `tests/suffix_array_test.cpp` to include
+   `lib/solvers/suffix_array.hpp`.
+8. Removed the top-level `lib/suffix_array.hpp` compatibility header.
 
 ## Tests
 
 - Render from existing `string s`.
 - Render `sa` only and assert no `lcp` build code appears.
 - Render with collision on `sa`, `rank`, `lcp`, and `SuffixArrayResult`.
-- Compile generated string and int-vector variants.
+- Compile generated string, int-vector, and LCP RMQ variants.
 - Re-run suffix array tests.
-

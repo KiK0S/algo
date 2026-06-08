@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "../lib/mo.hpp"
+#include "../lib/solvers/mo.hpp"
 
 static int brute_distinct(const std::vector<int>& values, int left, int right) {
   left = std::max(0, std::min(left, static_cast<int>(values.size())));
@@ -25,14 +25,14 @@ static int brute_distinct(const std::vector<int>& values, int left, int right) {
 }
 
 static void test_order_is_permutation() {
-  const std::vector<edulcni::MoQuery> queries = {
+  const std::vector<MoQuery> queries = {
       {0, 4},
       {2, 7},
       {1, 1},
       {6, 9},
       {-2, 5},
   };
-  const std::vector<int> order = edulcni::mo_order(queries, 10);
+  const std::vector<int> order = mo_order(queries, 10);
   assert(order.size() == queries.size());
   std::vector<int> sorted = order;
   std::sort(sorted.begin(), sorted.end());
@@ -51,12 +51,12 @@ static void test_distinct_queries_random() {
     }
 
     const int q = 1 + static_cast<int>(rng() % 200);
-    std::vector<edulcni::MoQuery> queries;
+    std::vector<MoQuery> queries;
     queries.reserve(q);
     for (int i = 0; i < q; ++i) {
       const int l = static_cast<int>(rng() % (n + 10)) - 5;
       const int r = static_cast<int>(rng() % (n + 10)) - 5;
-      queries.push_back(edulcni::MoQuery(l, r));
+      queries.push_back(MoQuery(l, r));
     }
 
     std::vector<int> freq(35, 0);
@@ -73,7 +73,7 @@ static void test_distinct_queries_random() {
     };
     const auto answer = [&]() { return distinct; };
 
-    const std::vector<int> got = edulcni::mo_process(
+    const std::vector<int> got = mo_process(
         n, queries, add, add, remove, remove, answer);
     for (int i = 0; i < q; ++i) {
       const int expected = brute_distinct(values, queries[i].left, queries[i].right);

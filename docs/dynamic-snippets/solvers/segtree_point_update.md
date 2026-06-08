@@ -1,5 +1,11 @@
 # Segment Tree Point Update Static Fallback Plan
 
+Status: completed fallback alignment. The canonical dynamic path remains
+`/solvers/segtree`, now with an iterative class output mode for point-update
+trees. The pasteable fallback source is `lib/solvers/segtree_point_update.hpp`
+and is cataloged as `/solvers/segtree_point_update`. The top-level
+`lib/segtree.hpp` monolith has been split into solver fallbacks and removed.
+
 ## Existing Source
 
 - `lib/solvers/segtree_point_update.hpp`
@@ -10,9 +16,15 @@
 
 Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
-- Should this static snippet remain browsable, or should it redirect to `/solvers/segtree`?
-- Should point-only variants be rendered as iterative trees, recursive global trees, or either?
-- Should aliases like `SegmentMinTree` stay available from static fallback?
+Resolved choices:
+
+- `/solvers/segtree` remains the canonical dynamic generator for new segment
+  tree insertions.
+- The dynamic generator supports both recursive global helpers and an iterative
+  class output mode for point-update trees.
+- `/solvers/segtree_point_update` remains browsable as a static fallback with
+  explicit catalog exports for `SegmentTree`, operation structs, and aliases
+  such as `SegmentMinTree`.
 
 ## Assumptions
 
@@ -33,12 +45,15 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - helpers: op structs, tree class or global helpers
 - solve: optional build call
 
-## Implementation Plan
+## Completed In This Migration
 
-1. Fold point-update choices into the shared segtree generator.
-2. Add an iterative class output mode if the user wants this static style preserved dynamically.
-3. Catalog this static snippet as fallback or alias it to `/solvers/segtree`.
-4. Keep current static tests passing.
+1. Folded point-update choices into the shared segtree generator with
+   `global_recursive` and `iterative_class` output modes.
+2. Added an iterative class renderer matching the static fallback's half-open
+   query API and point update behavior.
+3. Cataloged `/solvers/segtree_point_update` as a static fallback with explicit
+   exports.
+4. Kept current static tests passing.
 
 ## Tests
 
@@ -46,4 +61,3 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Render iterative point set min tree with a collision on `SegmentTree`.
 - Compile generated point-only tree.
 - Re-run structures tests.
-

@@ -1,8 +1,3 @@
-#ifndef EDULCNI_DIJKSTRA_HPP
-#define EDULCNI_DIJKSTRA_HPP
-
-namespace edulcni {
-
 template <typename Weight>
 struct DijkstraEdge {
   int to;
@@ -107,7 +102,3 @@ std::vector<int> dijkstra_restore_path(int source, int target,
   std::reverse(path.begin(), path.end());
   return path;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_DIJKSTRA_HPP

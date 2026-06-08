@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/hld.hpp"
+#include "../lib/solvers/hld.hpp"
 
 static long long sum_on_base(const std::vector<long long>& base, int left, int right) {
   long long sum = 0;
@@ -13,7 +13,7 @@ static long long sum_on_base(const std::vector<long long>& base, int left, int r
   return sum;
 }
 
-static std::vector<int> naive_path_nodes(const edulcni::HeavyLightDecomposition& hld, int a,
+static std::vector<int> naive_path_nodes(const HeavyLightDecomposition& hld, int a,
                                          int b) {
   int u = a;
   int v = b;
@@ -41,7 +41,7 @@ static std::vector<int> naive_path_nodes(const edulcni::HeavyLightDecomposition&
   return up;
 }
 
-static int naive_lca(const edulcni::HeavyLightDecomposition& hld, int a, int b) {
+static int naive_lca(const HeavyLightDecomposition& hld, int a, int b) {
   int u = a;
   int v = b;
   while (hld.depth(u) > hld.depth(v)) {
@@ -57,7 +57,7 @@ static int naive_lca(const edulcni::HeavyLightDecomposition& hld, int a, int b) 
   return u;
 }
 
-static void collect_subtree_nodes(const edulcni::HeavyLightDecomposition& hld, int root,
+static void collect_subtree_nodes(const HeavyLightDecomposition& hld, int root,
                                   int parent, std::vector<int>& out) {
   out.push_back(root);
   for (int to : hld.graph()[root]) {
@@ -69,7 +69,7 @@ static void collect_subtree_nodes(const edulcni::HeavyLightDecomposition& hld, i
 }
 
 static void test_basic_hld() {
-  edulcni::HeavyLightDecomposition hld(7);
+  HeavyLightDecomposition hld(7);
   hld.add_edge(0, 1);
   hld.add_edge(0, 2);
   hld.add_edge(1, 3);
@@ -118,7 +118,7 @@ static void test_random_hld() {
 
   for (int it = 0; it < 250; ++it) {
     const int n = 1 + static_cast<int>(rng() % 70);
-    edulcni::HeavyLightDecomposition hld(n);
+    HeavyLightDecomposition hld(n);
     for (int v = 1; v < n; ++v) {
       const int parent = static_cast<int>(rng() % v);
       hld.add_edge(parent, v);

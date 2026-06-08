@@ -4,10 +4,10 @@
 #include <random>
 #include <vector>
 
-#include "../lib/geometry.hpp"
+#include "../lib/solvers/geometry.hpp"
 
-using Pll = edulcni::Point2<long long>;
-using Pld = edulcni::Point2<long double>;
+using Pll = Point2<long long>;
+using Pld = Point2<long double>;
 
 static bool close_ld(long double lhs, long double rhs, long double eps = 1e-9L) {
   return std::fabs(lhs - rhs) <= eps;
@@ -34,9 +34,9 @@ static void test_point_ops_and_orientation() {
   assert((b - a) == Pll(2, 3));
   assert(a.dot(b) == 13);
   assert(a.cross(b) == -1);
-  assert(edulcni::orientation(Pll(0, 0), Pll(2, 0), Pll(1, 1)) == 1);
-  assert(edulcni::orientation(Pll(0, 0), Pll(2, 0), Pll(1, -1)) == -1);
-  assert(edulcni::orientation(Pll(0, 0), Pll(2, 0), Pll(1, 0)) == 0);
+  assert(orientation(Pll(0, 0), Pll(2, 0), Pll(1, 1)) == 1);
+  assert(orientation(Pll(0, 0), Pll(2, 0), Pll(1, -1)) == -1);
+  assert(orientation(Pll(0, 0), Pll(2, 0), Pll(1, 0)) == 0);
 }
 
 static void test_convex_hull_basic() {
@@ -44,14 +44,14 @@ static void test_convex_hull_basic() {
       Pll(0, 0), Pll(4, 0), Pll(4, 4), Pll(0, 4), Pll(2, 2), Pll(1, 1),
       Pll(3, 3), Pll(2, 4), Pll(0, 0), Pll(4, 4)};
 
-  const std::vector<Pll> hull = edulcni::convex_hull(points);
+  const std::vector<Pll> hull = convex_hull(points);
   const std::vector<Pll> expected = {Pll(0, 0), Pll(4, 0), Pll(4, 4), Pll(0, 4)};
   assert(hull == expected);
 }
 
 static void test_convex_hull_collinear() {
   std::vector<Pll> points = {Pll(-3, 0), Pll(-1, 0), Pll(0, 0), Pll(2, 0), Pll(5, 0)};
-  const std::vector<Pll> hull = edulcni::convex_hull(points);
+  const std::vector<Pll> hull = convex_hull(points);
   assert(hull == std::vector<Pll>({Pll(-3, 0), Pll(5, 0)}));
 }
 
@@ -66,7 +66,7 @@ static void test_convex_hull_random_shape() {
                            static_cast<long long>(rng() % 41) - 20));
     }
 
-    const std::vector<Pll> hull = edulcni::convex_hull(points);
+    const std::vector<Pll> hull = convex_hull(points);
     if (hull.size() <= 2) {
       continue;
     }
@@ -76,7 +76,7 @@ static void test_convex_hull_random_shape() {
                              static_cast<int>(hull.size())];
       const Pll& cur = hull[i];
       const Pll& next = hull[(i + 1) % static_cast<int>(hull.size())];
-      assert(edulcni::orientation(prev, cur, next) > 0);
+      assert(orientation(prev, cur, next) > 0);
     }
 
     for (const Pll& p : hull) {
@@ -88,31 +88,31 @@ static void test_convex_hull_random_shape() {
 static void test_segment_intersection() {
   {
     const std::vector<Pld> inter =
-        edulcni::segment_intersection(Pll(0, 0), Pll(2, 2), Pll(0, 2), Pll(2, 0));
+        segment_intersection(Pll(0, 0), Pll(2, 2), Pll(0, 2), Pll(2, 0));
     assert(inter.size() == 1);
     assert(close_point(inter[0], Pld(1.0L, 1.0L)));
   }
   {
     const std::vector<Pld> inter =
-        edulcni::segment_intersection(Pll(0, 0), Pll(2, 0), Pll(2, 0), Pll(3, 1));
+        segment_intersection(Pll(0, 0), Pll(2, 0), Pll(2, 0), Pll(3, 1));
     assert(inter.size() == 1);
     assert(close_point(inter[0], Pld(2.0L, 0.0L)));
   }
   {
     const std::vector<Pld> inter =
-        edulcni::segment_intersection(Pll(0, 0), Pll(5, 0), Pll(2, 0), Pll(4, 0));
+        segment_intersection(Pll(0, 0), Pll(5, 0), Pll(2, 0), Pll(4, 0));
     assert(inter.size() == 2);
     assert(close_point(inter[0], Pld(2.0L, 0.0L)));
     assert(close_point(inter[1], Pld(4.0L, 0.0L)));
   }
   {
     const std::vector<Pld> inter =
-        edulcni::segment_intersection(Pll(0, 0), Pll(1, 1), Pll(2, 0), Pll(3, 1));
+        segment_intersection(Pll(0, 0), Pll(1, 1), Pll(2, 0), Pll(3, 1));
     assert(inter.empty());
   }
   {
     const std::vector<Pld> inter =
-        edulcni::segment_intersection(Pll(0, 0), Pll(6, 0), Pll(2, 0), Pll(10, 0));
+        segment_intersection(Pll(0, 0), Pll(6, 0), Pll(2, 0), Pll(10, 0));
     assert(inter.size() == 2);
     assert(close_point(inter[0], Pld(2.0L, 0.0L)));
     assert(close_point(inter[1], Pld(6.0L, 0.0L)));
@@ -125,7 +125,7 @@ static void test_angle_sort_vectors() {
       Pll(0, 1),   Pll(-1, 1), Pll(-1, 0), Pll(2, 0),  Pll(2, 2),
       Pll(-2, 0),  Pll(0, -2)};
 
-  edulcni::sort_vectors_by_angle(vectors);
+  sort_vectors_by_angle(vectors);
   const std::vector<Pll> expected = {
       Pll(1, 0), Pll(2, 0),  Pll(1, 1),  Pll(2, 2),  Pll(0, 1),   Pll(-1, 1),
       Pll(-1, 0), Pll(-2, 0), Pll(-1, -1), Pll(0, -1), Pll(0, -2), Pll(1, -1)};
@@ -139,11 +139,11 @@ static void test_angle_sort_points_around_center() {
       center + Pll(0, 1),   center + Pll(-2, 0),  center + Pll(1, 1),
       center + Pll(2, 0),   center + Pll(-1, 1),  center + Pll(1, -1)};
 
-  edulcni::sort_points_by_angle(points, center);
+  sort_points_by_angle(points, center);
   for (int i = 0; i + 1 < static_cast<int>(points.size()); ++i) {
     const Pll v1 = points[i] - center;
     const Pll v2 = points[i + 1] - center;
-    assert(!edulcni::angle_less(v2, v1));
+    assert(!angle_less(v2, v1));
   }
 }
 
@@ -164,7 +164,7 @@ static void test_angle_sort_random_against_atan2() {
       vectors.push_back(Pll(x, y));
     }
 
-    edulcni::sort_vectors_by_angle(vectors);
+    sort_vectors_by_angle(vectors);
     long double prev_angle = -1.0L;
     long double prev_dist = -1.0L;
 

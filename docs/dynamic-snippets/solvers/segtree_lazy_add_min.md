@@ -1,5 +1,12 @@
 # Segment Tree Lazy Add Min Static Fallback Plan
 
+Status: completed fallback alignment. The canonical dynamic path remains
+`/solvers/segtree`, now with a selectable `first_leq` descent helper for global
+recursive min trees. The pasteable fallback source is
+`lib/solvers/segtree_lazy_add_min.hpp` and is cataloged as
+`/solvers/segtree_lazy_add_min`. The top-level `lib/segtree.hpp` monolith has
+been split into solver fallbacks and removed.
+
 ## Existing Source
 
 - `lib/solvers/segtree_lazy_add_min.hpp`
@@ -10,9 +17,14 @@
 
 Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
-- Should this path redirect to `/solvers/segtree` with min plus range-add selected?
-- Should `first_leq` be a selectable descend feature in the dynamic segtree generator?
-- Should the static class remain available for paste use?
+Resolved choices:
+
+- `/solvers/segtree` remains the canonical dynamic generator for new segment
+  tree insertions.
+- `first_leq` is a selectable descent feature for global recursive min trees
+  and uses the same inclusive `[l, r]` convention as the static fallback.
+- `/solvers/segtree_lazy_add_min` remains browsable as a static fallback with
+  explicit catalog exports for `SegmentMinAddTree`.
 
 ## Assumptions
 
@@ -34,16 +46,16 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - helpers: lazy tree storage, apply/push/update/query/descend
 - solve: optional build call
 
-## Implementation Plan
+## Completed In This Migration
 
-1. Extend segtree dynamic options with descend queries.
-2. Add min/range-add/first-leq render test.
-3. Decide whether `/solvers/segtree_lazy_add_min` remains static or becomes a catalog alias to preselected segtree options.
-4. Keep static fallback tests passing.
+1. Extended segment-tree dynamic options with descent queries.
+2. Added generated min/range-add/first-leq render and compile tests.
+3. Cataloged `/solvers/segtree_lazy_add_min` as a static fallback with explicit
+   exports and feature metadata.
+4. Kept static fallback tests passing.
 
 ## Tests
 
 - Render min range-add tree with `first_leq`.
 - Collision test for `first_leq`, `lazy_add`, and `get`.
 - Compile generated output and compare with the existing static test scenario.
-

@@ -3,12 +3,15 @@
 #include <random>
 #include <vector>
 
-#include "../lib/segtree.hpp"
+#include "../lib/solvers/merge_sort_tree.hpp"
+#include "../lib/solvers/segtree_beats.hpp"
+#include "../lib/solvers/segtree_lazy_minmax.hpp"
+#include "../lib/solvers/segtree_max_subarray.hpp"
 
 static void test_min_max_assign_trees() {
   const std::vector<int> values = {5, 1, 7, 3, 9};
 
-  edulcni::SegmentMinAssignTree<int> min_tree(values);
+  SegmentMinAssignTree<int> min_tree(values);
   assert(min_tree.get(0, 4) == 1);
 
   min_tree.assign(1, 3, 6);
@@ -18,7 +21,7 @@ static void test_min_max_assign_trees() {
   assert(min_tree.last_leq(0, 4, 6) == 3);
   assert(min_tree.first_leq(2, 4, 4) == -1);
 
-  edulcni::SegmentMaxAssignTree<int> max_tree(values);
+  SegmentMaxAssignTree<int> max_tree(values);
   assert(max_tree.get(0, 4) == 9);
 
   max_tree.assign(2, 4, 4);
@@ -32,7 +35,7 @@ static void test_min_max_assign_trees() {
 static void test_min_max_add_trees() {
   const std::vector<int> values = {4, 8, 1, 6};
 
-  edulcni::SegmentMinAddTree<int> min_tree(values);
+  SegmentMinAddTree<int> min_tree(values);
   min_tree.add(0, 2, 3);  // {7, 11, 4, 6}
   assert(min_tree.get(0, 3) == 4);
 
@@ -42,7 +45,7 @@ static void test_min_max_add_trees() {
   assert(min_tree.first_leq(0, 3, 0) == 2);
   assert(min_tree.last_leq(0, 3, 1) == 3);
 
-  edulcni::SegmentMaxAddTree<int> max_tree(values);
+  SegmentMaxAddTree<int> max_tree(values);
   max_tree.add(1, 3, 2);  // {4, 10, 3, 8}
   assert(max_tree.get(0, 3) == 10);
 
@@ -56,7 +59,7 @@ static void test_min_max_add_trees() {
 
 static void test_merge_sort_tree() {
   const std::vector<int> values = {5, 1, 7, 3, 5, 2};
-  edulcni::MergeSortTree<int> mst(values);
+  MergeSortTree<int> mst(values);
 
   assert(mst.count_less(1, 4, 5) == 2);
   assert(mst.count_less_equal(1, 4, 5) == 3);
@@ -69,7 +72,7 @@ static void test_merge_sort_tree() {
 
 static void test_max_subarray_tree() {
   const std::vector<long long> values = {-2, 1, -3, 4, -1, 2, 1, -5, 4};
-  edulcni::MaxSubarraySegTree<long long> st(values);
+  MaxSubarraySegTree<long long> st(values);
 
   assert(st.max_sum(0, 8) == 6);
   assert(st.get(3, 6).best == 6);
@@ -105,7 +108,7 @@ static long long naive_max(const std::vector<long long>& a, int l, int r) {
 
 static void test_segment_tree_beats() {
   std::vector<long long> values = {5, 1, 7, 3, 9, 2};
-  edulcni::SegmentTreeBeats<long long> beats(values);
+  SegmentTreeBeats<long long> beats(values);
 
   assert(beats.query_sum(0, 5) == 27);
   assert(beats.query_min(0, 5) == 1);
@@ -143,7 +146,7 @@ static void test_segment_tree_beats_random() {
     values[i] = static_cast<long long>(static_cast<int>(rng() % 41) - 20);
   }
 
-  edulcni::SegmentTreeBeats<long long> beats(values);
+  SegmentTreeBeats<long long> beats(values);
   std::vector<long long> naive = values;
 
   for (int it = 0; it < 500; ++it) {

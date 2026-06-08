@@ -1,24 +1,31 @@
 # Hungarian Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/hungarian`; the pasteable fallback source is
+`lib/solvers/hungarian.hpp`; legacy `lib/hungarian.hpp` was removed after tests
+moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/hungarian.hpp`
 - tests: `tests/hungarian_test.cpp`, `tests/solvers_flow_matching_test.cpp`
 
-## Solver-Specific Choices
+## Completed Solver-Specific Choices
 
-Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
-
-- Should the default solve minimization or maximization?
-- Should rectangular matrices be supported by default?
-- Should output include assignment, total cost, potentials, or only assignment and cost?
-- Should the generator read a cost matrix or use an existing matrix?
+- Default mode: minimize.
+- Rectangular matrices are supported by default through transposition when
+  rows exceed columns.
+- Output stays aligned with the static fallback: `HungarianResult<Cost>` with
+  `min_cost`, `match_left`, and `match_right`.
+- Default generator shape uses an existing matrix; generated read/call solve
+  mode is optional.
+- Maximization is a selectable wrapper that reuses the generated minimizer.
 
 ## Assumptions
 
-- Keep current generic `HungarianResult<Cost>` static fallback.
-- Dynamic default: minimize an existing matrix, return cost and assignment.
-- Maximization can be a selectable wrapper.
+- Kept current generic `HungarianResult<Cost>` static fallback.
+- Dynamic default minimizes an existing matrix and returns cost plus assignment.
+- Maximization is a selectable wrapper.
 
 ## Dynamic Options
 
@@ -37,16 +44,22 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 
 ## Implementation Plan
 
-1. Add `hungarian` generator.
-2. Prompt for cost type, matrix source, and min/max mode.
-3. Render maximize wrapper only when selected.
-4. Use name planner for result and function names.
-5. Preserve static fallback.
+Completed in this migration:
+
+1. Added `hungarian` generator and registry entry.
+2. Prompted for cost type, matrix source, min/max mode, and rectangular support.
+3. Rendered the maximize wrapper only when selected.
+4. Used the name planner for result struct, helper functions, solve function,
+   matrix variable, result variable, and dimensions.
+5. Preserved static fallback under `lib/solvers/hungarian.hpp`.
+6. Moved `tests/hungarian_test.cpp` to the solver-path include.
+7. Removed the top-level legacy `lib/hungarian.hpp` compatibility header.
 
 ## Tests
 
-- Render minimize variant and compile a 3x3 case.
-- Render maximize wrapper and compile a small case.
-- Collision test for `HungarianResult`, `hungarian`, `assignment`.
-- Re-run Hungarian and flow/matching tests.
-
+- Extension render and collision tests cover minimize, maximize, rectangular
+  toggle, generated solve mode, `HungarianResult`, `hungarian`, and generated
+  data names such as `assignment`.
+- Generated C++ compile tests cover a 3x3 minimization case, a maximization
+  case, and generated read/call solve mode.
+- Re-run Hungarian and flow/matching tests after this migration.

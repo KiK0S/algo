@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/monotonic_stack.hpp"
+#include "../lib/solvers/monotonic_stack.hpp"
 
 template <typename T, typename Pred>
 static std::vector<int> brute_left(const std::vector<T>& values, Pred pred) {
@@ -37,11 +37,11 @@ static std::vector<int> brute_right(const std::vector<T>& values, Pred pred) {
 
 static void test_fixed_example() {
   const std::vector<int> values = {5, 2, 4, 4, 1, 3};
-  assert((edulcni::nearest_smaller_left(values, true) ==
+  assert((nearest_smaller_left(values, true) ==
           std::vector<int>{-1, -1, 1, 1, -1, 4}));
-  assert((edulcni::nearest_greater_right(values, true) ==
+  assert((nearest_greater_right(values, true) ==
           std::vector<int>{-1, 2, -1, -1, 5, -1}));
-  assert((edulcni::nearest_smaller_left(values, false) ==
+  assert((nearest_smaller_left(values, false) ==
           std::vector<int>{-1, -1, 1, 2, -1, 4}));
 }
 
@@ -54,20 +54,20 @@ static void test_random_against_bruteforce() {
       values[i] = static_cast<int>(rng() % 31) - 15;
     }
 
-    const auto left_smaller_strict = edulcni::nearest_smaller_left(values, true);
-    const auto right_smaller_strict = edulcni::nearest_smaller_right(values, true);
-    const auto left_greater_strict = edulcni::nearest_greater_left(values, true);
-    const auto right_greater_strict = edulcni::nearest_greater_right(values, true);
+    const auto left_smaller_strict = nearest_smaller_left(values, true);
+    const auto right_smaller_strict = nearest_smaller_right(values, true);
+    const auto left_greater_strict = nearest_greater_left(values, true);
+    const auto right_greater_strict = nearest_greater_right(values, true);
 
     assert(left_smaller_strict == brute_left(values, std::less<int>()));
     assert(right_smaller_strict == brute_right(values, std::less<int>()));
     assert(left_greater_strict == brute_left(values, std::greater<int>()));
     assert(right_greater_strict == brute_right(values, std::greater<int>()));
 
-    const auto left_smaller_nonstrict = edulcni::nearest_smaller_left(values, false);
-    const auto right_smaller_nonstrict = edulcni::nearest_smaller_right(values, false);
-    const auto left_greater_nonstrict = edulcni::nearest_greater_left(values, false);
-    const auto right_greater_nonstrict = edulcni::nearest_greater_right(values, false);
+    const auto left_smaller_nonstrict = nearest_smaller_left(values, false);
+    const auto right_smaller_nonstrict = nearest_smaller_right(values, false);
+    const auto left_greater_nonstrict = nearest_greater_left(values, false);
+    const auto right_greater_nonstrict = nearest_greater_right(values, false);
 
     assert(left_smaller_nonstrict ==
            brute_left(values, [](int a, int b) { return a <= b; }));

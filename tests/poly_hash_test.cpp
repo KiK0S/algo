@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "../lib/poly_hash.hpp"
+#include "../lib/solvers/poly_hash.hpp"
 
 static bool substrings_equal(const std::string& s, int l1, int r1, int l2, int r2) {
   if (r1 - l1 != r2 - l2) {
@@ -20,27 +20,27 @@ static bool substrings_equal(const std::string& s, int l1, int r1, int l2, int r
 
 static void test_basic_hashing() {
   const std::string text = "abracadabra";
-  const edulcni::PolyHash hash(text);
+  const PolyHash hash(text);
 
   assert(hash.size() == static_cast<int>(text.size()));
-  assert(hash.hash_substring(0, 4) == edulcni::poly_hash_string("abra"));
-  assert(hash.hash_substring(3, 7) == edulcni::poly_hash_string("acad"));
-  assert(hash.hash_substring(7, 11) == edulcni::poly_hash_string("abra"));
+  assert(hash.hash_substring(0, 4) == poly_hash_string("abra"));
+  assert(hash.hash_substring(3, 7) == poly_hash_string("acad"));
+  assert(hash.hash_substring(7, 11) == poly_hash_string("abra"));
   assert(hash.equal_substrings(0, 4, 7, 11));
   assert(!hash.equal_substrings(0, 4, 3, 7));
 
-  const edulcni::PolyHashValue left = hash.hash_substring(0, 4);
-  const edulcni::PolyHashValue right = hash.hash_substring(4, 7);
-  const edulcni::PolyHashValue merged = hash.concat(left, right, 3);
+  const PolyHashValue left = hash.hash_substring(0, 4);
+  const PolyHashValue right = hash.hash_substring(4, 7);
+  const PolyHashValue merged = hash.concat(left, right, 3);
   assert(merged == hash.hash_substring(0, 7));
 }
 
 static void test_all_hashes_of_length() {
   const std::string text = "mississippi";
-  const edulcni::PolyHash hash(text);
+  const PolyHash hash(text);
 
   for (int len = 0; len <= static_cast<int>(text.size()); ++len) {
-    const std::vector<edulcni::PolyHashValue> all = hash.all_hashes_of_length(len);
+    const std::vector<PolyHashValue> all = hash.all_hashes_of_length(len);
     assert(static_cast<int>(all.size()) == static_cast<int>(text.size()) - len + 1);
     for (int i = 0; i + len <= static_cast<int>(text.size()); ++i) {
       assert(all[i] == hash.hash_substring(i, i + len));
@@ -51,11 +51,11 @@ static void test_all_hashes_of_length() {
 static void test_cross_string_comparison() {
   const std::string lhs_text = "bananabandana";
   const std::string rhs_text = "xxbananayyy";
-  const edulcni::PolyHash lhs(lhs_text, 911382323);
-  const edulcni::PolyHash rhs(rhs_text, 911382323);
+  const PolyHash lhs(lhs_text, 911382323);
+  const PolyHash rhs(rhs_text, 911382323);
 
-  assert(edulcni::poly_hash_equal_substrings(lhs, 0, 6, rhs, 2, 8));
-  assert(!edulcni::poly_hash_equal_substrings(lhs, 0, 7, rhs, 2, 9));
+  assert(poly_hash_equal_substrings(lhs, 0, 6, rhs, 2, 8));
+  assert(!poly_hash_equal_substrings(lhs, 0, 7, rhs, 2, 9));
 }
 
 static void test_random_substrings() {
@@ -69,7 +69,7 @@ static void test_random_substrings() {
       text[i] = static_cast<char>(rng() % alphabet);
     }
 
-    edulcni::PolyHash hash(text);
+    PolyHash hash(text);
     for (int q = 0; q < 120; ++q) {
       int l1 = static_cast<int>(rng() % (n + 1));
       int r1 = static_cast<int>(rng() % (n + 1));
@@ -91,8 +91,8 @@ static void test_random_substrings() {
 }
 
 static void test_base_fallback() {
-  const edulcni::PolyHash hash("abcdef", 1);
-  assert(hash.base() == edulcni::PolyHash::kDefaultBase);
+  const PolyHash hash("abcdef", 1);
+  assert(hash.base() == PolyHash::kDefaultBase);
 }
 
 int main() {

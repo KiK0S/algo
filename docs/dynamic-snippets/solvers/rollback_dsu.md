@@ -1,5 +1,10 @@
 # Rollback DSU Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/rollback_dsu`; the pasteable fallback source is
+`lib/solvers/rollback_dsu.hpp`. There was no top-level
+`lib/rollback_dsu.hpp` compatibility header to remove.
+
 ## Existing Source
 
 - `lib/solvers/rollback_dsu.hpp`
@@ -9,10 +14,13 @@
 
 Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
 
-- Should rollback DSU stay a class or support short global arrays/functions?
-- Should optional features include component count, component sizes, bipartite parity, or undo history only?
-- Should snapshots be explicit integer tokens or stack-length snapshots?
-- Should this generator share code with the short DSU brick?
+Resolved choices:
+
+- Rollback DSU stays a class.
+- Default features include parent, size, component count, snapshot, rollback,
+  rollback-to-snapshot, unite, same, and component size.
+- Snapshots are explicit integer stack-length tokens from `snapshot()`.
+- The generator follows class-based DSU naming, not the short DSU brick.
 
 ## Assumptions
 
@@ -33,16 +41,18 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - helpers: DSU class/functions
 - solve: optional construction with selected `n`
 
-## Implementation Plan
+## Completed In This Migration
 
-1. Add `rollback_dsu` generator with static fallback.
-2. Add feature flags for history and component metadata.
-3. Share name-planning conventions with `dsu_short` brick.
-4. Add generated compile tests for default class output.
+1. Added the `rollback_dsu` generator with static fallback metadata.
+2. Preserved history, snapshot, rollback, component count, and component size in
+   the generated default class output.
+3. Added collision-aware class naming with the shared name planner.
+4. Added generated render and compile tests for default class output.
+5. Added catalog metadata at `/solvers/rollback_dsu`.
 
 ## Tests
 
 - Render default rollback DSU and compile snapshot/rollback scenario.
-- Collision test for `RollbackDsu`, `unite`, `rollback`, `history`.
-- Re-run DSU and structures tests.
-
+- Collision test for `RollbackDsu`, with method/private names scoped inside the
+  generated class.
+- Re-run structures tests.

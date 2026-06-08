@@ -1,8 +1,3 @@
-#ifndef EDULCNI_KOSARAJU_HPP
-#define EDULCNI_KOSARAJU_HPP
-
-namespace edulcni {
-
 struct KosarajuResult {
   int component_count;
   std::vector<int> component_of;
@@ -95,7 +90,3 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
 
   return result;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_KOSARAJU_HPP

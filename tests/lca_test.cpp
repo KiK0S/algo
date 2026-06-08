@@ -62,6 +62,11 @@ static void test_basic_lca() {
   assert(lca.kth_ancestor(8, 3) == 2);
   assert(lca.kth_ancestor(8, 4) == 0);
   assert(lca.kth_ancestor(8, 5) == -1);
+
+  LcaBinaryLifting single(1);
+  single.build(0);
+  assert(single.kth_ancestor(0, 0) == 0);
+  assert(single.kth_ancestor(0, 2) == -1);
 }
 
 static void test_forest_lca() {

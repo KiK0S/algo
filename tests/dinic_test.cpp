@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/dinic.hpp"
+#include "../lib/solvers/maxflow_dinic.hpp"
 
 template <typename Cap>
 static Cap edmonds_karp(const std::vector<std::vector<Cap>>& capacity, int source,
@@ -59,7 +59,7 @@ static Cap edmonds_karp(const std::vector<std::vector<Cap>>& capacity, int sourc
 
 template <typename Cap>
 static Cap total_positive_flow_out(
-    const edulcni::Dinic<Cap>& dinic, int vertex, int ignore_to = -1) {
+    const Dinic<Cap>& dinic, int vertex, int ignore_to = -1) {
   Cap total = Cap(0);
   for (const auto& edge : dinic.graph()[vertex]) {
     if (edge.original_cap > Cap(0) && edge.to != ignore_to) {
@@ -70,7 +70,7 @@ static Cap total_positive_flow_out(
 }
 
 static void test_classic_network() {
-  edulcni::Dinic<long long> flow(6);
+  Dinic<long long> flow(6);
   flow.add_edge(0, 1, 16);
   flow.add_edge(0, 2, 13);
   flow.add_edge(1, 2, 10);
@@ -87,12 +87,15 @@ static void test_classic_network() {
   assert(flow.left_of_min_cut(0));
   assert(!flow.left_of_min_cut(5));
   assert(total_positive_flow_out(flow, 0) == 23);
+  flow.reset_flows();
+  assert(total_positive_flow_out(flow, 0) == 0);
+  assert(flow.max_flow(0, 5) == 23);
 }
 
 static void test_bipartite_matching_flow() {
   const int source = 0;
   const int sink = 7;
-  edulcni::Dinic<int> flow(8);
+  Dinic<int> flow(8);
 
   for (int left = 1; left <= 3; ++left) {
     flow.add_edge(source, left, 1);
@@ -117,7 +120,7 @@ static void test_dinic_random() {
     const int source = 0;
     const int sink = n - 1;
 
-    edulcni::Dinic<long long> dinic(n);
+    Dinic<long long> dinic(n);
     std::vector<std::vector<long long>> capacity(
         static_cast<size_t>(n), std::vector<long long>(static_cast<size_t>(n), 0));
 
@@ -153,7 +156,7 @@ static void test_dinic_random() {
 }
 
 static void test_invalid_inputs() {
-  edulcni::Dinic<int> flow(3);
+  Dinic<int> flow(3);
   assert(flow.add_edge(-1, 1, 3) == -1);
   assert(flow.add_edge(0, 9, 3) == -1);
   assert(flow.add_edge(0, 1, -3) == -1);

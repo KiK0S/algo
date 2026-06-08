@@ -65,8 +65,11 @@ class LcaBinaryLifting {
     if (!ok(v) || k < 0) {
       return -1;
     }
-    for (int bit = 0; bit < max_log_ && v != -1; ++bit) {
-      if (k >> bit & 1) {
+    for (int bit = 0; k > 0 && v != -1; ++bit, k >>= 1) {
+      if (k & 1) {
+        if (bit >= max_log_) {
+          return -1;
+        }
         v = up_[bit][v];
       }
     }
@@ -131,4 +134,3 @@ class LcaBinaryLifting {
     }
   }
 };
-

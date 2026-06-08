@@ -4,7 +4,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/twosat.hpp"
+#include "../lib/solvers/twosat.hpp"
 
 enum class ConstraintType { kOr, kXor, kEqual, kImplication, kTrue };
 
@@ -67,7 +67,7 @@ static bool brute_force_satisfiable(int variables,
 }
 
 static void test_twosat_basic() {
-  edulcni::TwoSat sat(3);
+  TwoSat sat(3);
   sat.add_or(0, true, 1, true);
   sat.add_or(0, false, 1, true);
   sat.add_or(1, false, 2, true);
@@ -82,7 +82,7 @@ static void test_twosat_basic() {
 }
 
 static void test_twosat_unsat() {
-  edulcni::TwoSat sat(1);
+  TwoSat sat(1);
   sat.add_true(0, true);
   sat.add_true(0, false);
   assert(!sat.solve());
@@ -93,7 +93,7 @@ static void test_twosat_random_against_bruteforce() {
 
   for (int it = 0; it < 500; ++it) {
     const int n = 1 + static_cast<int>(rng() % 8);
-    edulcni::TwoSat sat(n);
+    TwoSat sat(n);
     std::vector<Constraint> constraints;
 
     const int m = 1 + static_cast<int>(rng() % 24);

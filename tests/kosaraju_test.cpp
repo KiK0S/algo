@@ -4,7 +4,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/kosaraju.hpp"
+#include "../lib/solvers/kosaraju.hpp"
 
 static std::vector<std::vector<char>> all_reachable(
     const std::vector<std::vector<int>>& graph) {
@@ -31,18 +31,18 @@ static std::vector<std::vector<char>> all_reachable(
 
 static void test_kosaraju_basic() {
   std::vector<std::vector<int>> graph(8);
-  edulcni::kosaraju_add_edge(graph, 0, 1);
-  edulcni::kosaraju_add_edge(graph, 1, 2);
-  edulcni::kosaraju_add_edge(graph, 2, 0);
-  edulcni::kosaraju_add_edge(graph, 2, 3);
-  edulcni::kosaraju_add_edge(graph, 3, 4);
-  edulcni::kosaraju_add_edge(graph, 4, 5);
-  edulcni::kosaraju_add_edge(graph, 5, 3);
-  edulcni::kosaraju_add_edge(graph, 6, 5);
-  edulcni::kosaraju_add_edge(graph, 6, 7);
-  edulcni::kosaraju_add_edge(graph, 7, 6);
+  kosaraju_add_edge(graph, 0, 1);
+  kosaraju_add_edge(graph, 1, 2);
+  kosaraju_add_edge(graph, 2, 0);
+  kosaraju_add_edge(graph, 2, 3);
+  kosaraju_add_edge(graph, 3, 4);
+  kosaraju_add_edge(graph, 4, 5);
+  kosaraju_add_edge(graph, 5, 3);
+  kosaraju_add_edge(graph, 6, 5);
+  kosaraju_add_edge(graph, 6, 7);
+  kosaraju_add_edge(graph, 7, 6);
 
-  const edulcni::KosarajuResult scc = edulcni::kosaraju_scc(graph);
+  const KosarajuResult scc = kosaraju_scc(graph);
   assert(scc.component_count == 3);
   assert(scc.component_of[0] == scc.component_of[1]);
   assert(scc.component_of[1] == scc.component_of[2]);
@@ -66,7 +66,7 @@ static void test_kosaraju_random() {
       graph[from].push_back(to);
     }
 
-    const edulcni::KosarajuResult scc = edulcni::kosaraju_scc(graph);
+    const KosarajuResult scc = kosaraju_scc(graph);
     const std::vector<std::vector<char>> reach = all_reachable(graph);
 
     assert(static_cast<int>(scc.component_of.size()) == n);

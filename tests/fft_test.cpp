@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/fft.hpp"
+#include "../lib/solvers/fft_ntt.hpp"
 
 static std::vector<long long> naive_convolution_ll(const std::vector<long long>& a,
                                                    const std::vector<long long>& b) {
@@ -43,7 +43,7 @@ static void test_fft_basic() {
   const std::vector<long long> a = {1, 2, 3};
   const std::vector<long long> b = {4, 5};
   const std::vector<long long> expected = {4, 13, 22, 15};
-  assert(edulcni::convolution_fft_round(a, b) == expected);
+  assert(convolution_fft_round(a, b) == expected);
 }
 
 static void test_fft_random() {
@@ -62,42 +62,34 @@ static void test_fft_random() {
     }
 
     const std::vector<long long> expected = naive_convolution_ll(a, b);
-    const std::vector<long long> got = edulcni::convolution_fft_round(a, b);
+    const std::vector<long long> got = convolution_fft_round(a, b);
     assert(got == expected);
   }
 }
 
 static void test_fft_transform_guard() {
   std::vector<std::complex<long double>> values(3, std::complex<long double>(0, 0));
-  assert(!edulcni::fft_transform(values, false));
+  assert(!fft_transform(values, false));
 }
 
 static void test_ntt_basic() {
-  using Mint = edulcni::StaticModInt<998244353>;
-
-  const std::vector<Mint> a = {Mint(1), Mint(2), Mint(3), Mint(4)};
-  const std::vector<Mint> b = {Mint(5), Mint(6), Mint(7)};
-
-  const std::vector<Mint> conv = edulcni::convolution_ntt<998244353, 3>(a, b);
+  const std::vector<int> a = {1, 2, 3, 4};
+  const std::vector<int> b = {5, 6, 7};
+  const std::vector<int> conv = convolution_ntt_int(a, b);
   const std::vector<int> expected = {5, 16, 34, 52, 45, 28};
-  assert(conv.size() == expected.size());
-  for (int i = 0; i < static_cast<int>(expected.size()); ++i) {
-    assert(conv[i].value() == expected[i]);
-  }
+  assert(conv == expected);
 }
 
 static void test_ntt_roundtrip() {
-  using Mint = edulcni::StaticModInt<998244353>;
-
   std::mt19937 rng(11235813);
-  std::vector<Mint> values(256, Mint(0));
+  std::vector<int> values(256, 0);
   for (int i = 0; i < static_cast<int>(values.size()); ++i) {
-    values[i] = Mint(static_cast<int>(rng() % 998244353));
+    values[i] = static_cast<int>(rng() % 998244353);
   }
 
-  const std::vector<Mint> original = values;
-  assert((edulcni::ntt_transform<998244353, 3>(values, false)));
-  assert((edulcni::ntt_transform<998244353, 3>(values, true)));
+  const std::vector<int> original = values;
+  assert(ntt_transform(values, false));
+  assert(ntt_transform(values, true));
   assert(values == original);
 }
 
@@ -117,16 +109,14 @@ static void test_ntt_random() {
     }
 
     const std::vector<int> expected = naive_convolution_mod(a, b, 998244353);
-    const std::vector<int> got =
-        edulcni::convolution_ntt_int<998244353, 3>(a, b);
+    const std::vector<int> got = convolution_ntt_int(a, b);
     assert(got == expected);
   }
 }
 
 static void test_ntt_transform_guard() {
-  using Mint = edulcni::StaticModInt<998244353>;
-  std::vector<Mint> values(3, Mint(0));
-  assert(!(edulcni::ntt_transform<998244353, 3>(values, false)));
+  std::vector<int> values(3, 0);
+  assert(!ntt_transform(values, false));
 }
 
 int main() {

@@ -1,9 +1,13 @@
 # Polynomial Hash Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/poly_hash`; the pasteable fallback source remains
+`lib/solvers/poly_hash.hpp`; legacy `lib/poly_hash.hpp` was removed after tests
+moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/poly_hash.hpp`
-- related library header: `lib/poly_hash.hpp`
 - tests: `tests/poly_hash_test.cpp`
 
 ## Solver-Specific Choices
@@ -38,16 +42,20 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 
 ## Implementation Plan
 
-1. Add `poly_hash` generator.
-2. Prompt for source and mod/base mode.
-3. Split renderer by feature so reverse/LCP code is only emitted when selected.
-4. Use name planner for constants and exported helpers.
-5. Preserve static fallback.
+Completed:
+
+1. Added registry-backed dynamic renderer and prompt for `/solvers/poly_hash`.
+2. Cataloged the solver with static fallback source `solvers/poly_hash.hpp`.
+3. Split generated code so reverse/palindrome, LCP, substring equality, and
+   concat helpers are selectable.
+4. Used name planning for global constants, class/value names, and exported
+   helper functions.
+5. Moved `tests/poly_hash_test.cpp` to the solver-path include.
+6. Removed the top-level legacy `lib/poly_hash.hpp` compatibility header.
 
 ## Tests
 
 - Render forward string hash and compile equality checks.
-- Render reverse hash and palindrome check.
-- Collision test for `PolyHash`, `PolyHashValue`, `BASE`, `MOD`.
+- Render reverse hash, LCP, vector hashing, and palindrome checks.
+- Collision test for `PolyHash`, `PolyHashValue`, and generated constants.
 - Re-run poly hash tests.
-

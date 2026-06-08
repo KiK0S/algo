@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "../lib/suffix_array.hpp"
+#include "../lib/solvers/suffix_array.hpp"
 
 template <typename T>
 static bool lex_suffix_less(const std::vector<T>& values, int i, int j) {
@@ -51,7 +51,7 @@ static std::vector<int> naive_lcp(const std::vector<T>& values,
   return lcp;
 }
 
-static void check_rank_inverse(const edulcni::SuffixArrayResult& result) {
+static void check_rank_inverse(const SuffixArrayResult& result) {
   for (int i = 0; i < static_cast<int>(result.sa.size()); ++i) {
     assert(result.rank[result.sa[i]] == i);
   }
@@ -59,7 +59,7 @@ static void check_rank_inverse(const edulcni::SuffixArrayResult& result) {
 
 static void test_string_basic() {
   const std::string text = "banana";
-  const edulcni::SuffixArrayResult result = edulcni::suffix_array_build(text);
+  const SuffixArrayResult result = suffix_array_build(text);
 
   const std::vector<int> expected_sa = {6, 5, 3, 1, 0, 4, 2};
   const std::vector<int> expected_lcp = {0, 0, 1, 3, 0, 0, 2};
@@ -68,19 +68,19 @@ static void test_string_basic() {
   check_rank_inverse(result);
 
   const std::vector<int> stripped =
-      edulcni::suffix_array_remove_empty_suffix(result);
+      suffix_array_remove_empty_suffix(result);
   assert(stripped == std::vector<int>({5, 3, 1, 0, 4, 2}));
 }
 
 static void test_empty_and_repeated() {
   {
-    const edulcni::SuffixArrayResult result = edulcni::suffix_array_build("");
+    const SuffixArrayResult result = suffix_array_build("");
     assert(result.sa == std::vector<int>({0}));
     assert(result.lcp == std::vector<int>({0}));
     assert(result.rank == std::vector<int>({0}));
   }
   {
-    const edulcni::SuffixArrayResult result = edulcni::suffix_array_build("aaaa");
+    const SuffixArrayResult result = suffix_array_build("aaaa");
     assert(result.sa == std::vector<int>({4, 3, 2, 1, 0}));
     assert(result.lcp == std::vector<int>({0, 0, 1, 2, 3}));
     check_rank_inverse(result);
@@ -103,7 +103,7 @@ static void test_random_strings() {
     const std::vector<int> expected_sa = naive_suffix_array(values);
     const std::vector<int> expected_lcp = naive_lcp(values, expected_sa);
 
-    const edulcni::SuffixArrayResult result = edulcni::suffix_array_build(text);
+    const SuffixArrayResult result = suffix_array_build(text);
     assert(result.sa == expected_sa);
     assert(result.lcp == expected_lcp);
     check_rank_inverse(result);
@@ -122,8 +122,8 @@ static void test_random_ints() {
     const std::vector<int> expected_sa = naive_suffix_array(values);
     const std::vector<int> expected_lcp = naive_lcp(values, expected_sa);
 
-    const edulcni::SuffixArrayResult result =
-        edulcni::suffix_array_build_from_ints(values);
+    const SuffixArrayResult result =
+        suffix_array_build_from_ints(values);
     assert(result.sa == expected_sa);
     assert(result.lcp == expected_lcp);
     check_rank_inverse(result);

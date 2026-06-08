@@ -1,5 +1,10 @@
 # Implicit Treap Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/implicit_treap`; the pasteable fallback source is
+`lib/solvers/implicit_treap.hpp`; legacy `lib/treap.hpp` was removed after
+tests moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/implicit_treap.hpp`
@@ -19,6 +24,14 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Keep class output by default because treap ownership is cleaner there.
 - Default aggregate remains sum, matching current `TreapSumOp`.
 - Reverse should be considered a first dynamic feature even if the current static API already supports it or can be extended.
+
+The completed migration used these resolved choices:
+
+- Dynamic path: `/solvers/implicit_treap`.
+- Static fallback: `lib/solvers/implicit_treap.hpp`.
+- Default output: class-based sum treap with fixed xorshift priority seed.
+- Default lazy feature: range reverse.
+- Optional generated lazy feature: range add.
 
 ## Dynamic Options
 
@@ -42,6 +55,14 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 4. Use name planner for `Node`, `ImplicitTreap`, `merge`, `split`, and helper names.
 5. Add compile tests for default sum and one lazy feature.
 
+Completed in this migration:
+
+1. Added registry-backed dynamic renderer and prompt for `/solvers/implicit_treap`.
+2. Cataloged the solver with static fallback source `solvers/implicit_treap.hpp`.
+3. Added renderer, collision, metadata, and generated C++ compile tests.
+4. Moved `tests/treap_test.cpp` to the solver-path include.
+5. Removed the top-level legacy `lib/treap.hpp` compatibility header.
+
 ## Tests
 
 - Render default sum treap and compile insert/query scenario.
@@ -49,3 +70,7 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Collision test for `Node`, `merge`, `split`, `root`.
 - Re-run treap tests.
 
+Future optional follow-ups:
+
+- Add generated range-assign support when a concrete default API is chosen.
+- Add min/max/custom aggregate presets beyond the current custom skeleton.

@@ -1,8 +1,3 @@
-#ifndef EDULCNI_MO_HPP
-#define EDULCNI_MO_HPP
-
-namespace edulcni {
-
 struct MoQuery {
   int left;
   int right;  // [left, right)
@@ -99,7 +94,3 @@ inline std::vector<typename std::invoke_result<GetAnswer>::type> mo_process(
   }
   return answers;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_MO_HPP

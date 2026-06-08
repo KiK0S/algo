@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/treap.hpp"
+#include "../lib/solvers/implicit_treap.hpp"
 
 static long long naive_range_sum(const std::vector<long long>& values, int left,
                                  int right) {
@@ -25,7 +25,7 @@ static long long naive_range_sum(const std::vector<long long>& values, int left,
 }
 
 static void test_basic_treap() {
-  edulcni::ImplicitTreap<long long> treap(12345u);
+  ImplicitTreap<long long> treap(12345u);
   assert(treap.empty());
 
   treap.push_back(10);
@@ -56,12 +56,12 @@ static void test_basic_treap() {
 
 static void test_assign_and_move() {
   std::vector<long long> initial = {3, 1, 4, 1, 5, 9, 2};
-  edulcni::ImplicitTreap<long long> treap(1u);
+  ImplicitTreap<long long> treap(1u);
   treap.assign(initial.begin(), initial.end());
   assert(treap.to_vector() == initial);
   assert(treap.range_query(0, 6) == 25LL);
 
-  edulcni::ImplicitTreap<long long> moved(std::move(treap));
+  ImplicitTreap<long long> moved(std::move(treap));
   assert(moved.to_vector() == initial);
   assert(treap.size() == 0);
   assert(treap.empty());
@@ -69,7 +69,7 @@ static void test_assign_and_move() {
 
 static void test_random_operations() {
   std::mt19937 rng(20260226);
-  edulcni::ImplicitTreap<long long> treap(987654321u);
+  ImplicitTreap<long long> treap(987654321u);
   std::vector<long long> naive;
 
   for (int it = 0; it < 5000; ++it) {

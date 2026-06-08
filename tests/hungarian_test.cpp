@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/hungarian.hpp"
+#include "../lib/solvers/hungarian.hpp"
 
 static long long brute_min_assignment(const std::vector<std::vector<long long>>& cost) {
   const int n = static_cast<int>(cost.size());
@@ -114,7 +114,7 @@ static void test_hungarian_basic() {
       {2, 0, 5},
       {3, 2, 2},
   };
-  const edulcni::HungarianResult<long long> result = edulcni::hungarian(cost);
+  const HungarianResult<long long> result = hungarian(cost);
   assert(result.min_cost == 5);
   validate_matching(result.match_left, result.match_right);
   assert(matching_cost(cost, result.match_left) == result.min_cost);
@@ -125,7 +125,7 @@ static void test_hungarian_rectangular() {
       {6, 4, 8, 5},
       {9, 7, 3, 4},
   };
-  const edulcni::HungarianResult<long long> result = edulcni::hungarian(cost);
+  const HungarianResult<long long> result = hungarian(cost);
   validate_matching(result.match_left, result.match_right);
   assert(result.min_cost == brute_min_assignment(cost));
   assert(matching_cost(cost, result.match_left) == result.min_cost);
@@ -138,7 +138,7 @@ static void test_hungarian_more_rows_than_cols() {
       {1, 6},
       {8, 3},
   };
-  const edulcni::HungarianResult<long long> result = edulcni::hungarian(cost);
+  const HungarianResult<long long> result = hungarian(cost);
   validate_matching(result.match_left, result.match_right);
   assert(result.min_cost == brute_min_assignment(cost));
   assert(matching_cost(cost, result.match_left) == result.min_cost);
@@ -156,7 +156,7 @@ static void test_hungarian_random() {
       }
     }
 
-    const edulcni::HungarianResult<long long> result = edulcni::hungarian(cost);
+    const HungarianResult<long long> result = hungarian(cost);
     validate_matching(result.match_left, result.match_right);
     assert(result.min_cost == brute_min_assignment(cost));
     assert(matching_cost(cost, result.match_left) == result.min_cost);
@@ -169,8 +169,7 @@ static void test_hungarian_maximize() {
       {2, 8, 4},
       {6, 5, 9},
   };
-  const edulcni::HungarianResult<long long> result =
-      edulcni::hungarian_maximize(value);
+  const HungarianResult<long long> result = hungarian_maximize(value);
   validate_matching(result.match_left, result.match_right);
   assert(result.min_cost == brute_max_assignment(value));
 }

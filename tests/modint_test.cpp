@@ -2,7 +2,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/modint.hpp"
+#include "../lib/solvers/modint.hpp"
 
 static long long normalize(long long x, long long mod) {
   x %= mod;
@@ -27,7 +27,7 @@ static long long mod_pow(long long base, long long exp, long long mod) {
 }
 
 static void test_basic_arithmetic() {
-  using Mint = edulcni::StaticModInt<1000000007>;
+  using Mint = StaticModInt<1000000007>;
 
   const Mint a(2);
   const Mint b(1000000006);
@@ -47,7 +47,7 @@ static void test_basic_arithmetic() {
 }
 
 static void test_non_prime_inverse_behavior() {
-  using Mint = edulcni::StaticModInt<1000>;
+  using Mint = StaticModInt<1000>;
 
   const Mint a(3);
   assert(a.has_inverse());
@@ -63,7 +63,7 @@ static void test_non_prime_inverse_behavior() {
 }
 
 static void test_random_prime_mod() {
-  using Mint = edulcni::StaticModInt<1000000007>;
+  using Mint = StaticModInt<1000000007>;
   static constexpr long long kMod = 1000000007LL;
 
   std::mt19937_64 rng(123456789ULL);
@@ -98,5 +98,8 @@ int main() {
   test_basic_arithmetic();
   test_non_prime_inverse_behavior();
   test_random_prime_mod();
+  DynamicModInt::set_mod(1000000007);
+  assert((DynamicModInt(2) + DynamicModInt(1000000006)).value() == 1);
+  assert((DynamicModInt(5) * DynamicModInt(5).inv()).value() == 1);
   return 0;
 }

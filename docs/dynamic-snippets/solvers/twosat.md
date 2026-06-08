@@ -1,5 +1,10 @@
 # TwoSat Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/twosat`; the pasteable fallback source is
+`lib/solvers/twosat.hpp`; legacy `lib/twosat.hpp` was removed after tests moved
+to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/twosat.hpp`
@@ -47,3 +52,15 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 - Collision test for `TwoSat`, `comp`, `assignment`, `solve`.
 - Re-run TwoSat tests.
 
+## Completed Notes
+
+Completed in this migration:
+
+1. Added registry-backed dynamic renderer and prompt for `/solvers/twosat`.
+2. Cataloged the solver with static fallback source `solvers/twosat.hpp`.
+3. Kept the static fallback self-contained under `lib/solvers/twosat.hpp`.
+4. Moved `tests/twosat_test.cpp` to the solver-path include.
+5. Removed the top-level legacy `lib/twosat.hpp` compatibility header.
+
+Generated input formats remain a future explicit follow-up, as the packet
+requested waiting for a confirmed clause format.

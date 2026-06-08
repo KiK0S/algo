@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "../lib/linear_sieve.hpp"
+#include "../lib/solvers/linear_sieve.hpp"
 
 static int naive_lowest_prime(int x) {
   if (x < 2) {
@@ -33,7 +33,7 @@ static long long rebuild_from_factors(const std::vector<std::pair<int, int>>& fa
 }
 
 static void test_basic_sieve() {
-  edulcni::LinearSieve sieve(20);
+  LinearSieve sieve(20);
   const std::vector<int> expected_primes = {2, 3, 5, 7, 11, 13, 17, 19};
   assert(sieve.primes() == expected_primes);
 
@@ -43,7 +43,7 @@ static void test_basic_sieve() {
 }
 
 static void test_prime_queries() {
-  edulcni::LinearSieve sieve(1000);
+  LinearSieve sieve(1000);
   for (int x = 0; x <= 1000; ++x) {
     assert(sieve.lowest_prime_of(x) == (x <= 1 ? x : naive_lowest_prime(x)));
     assert(sieve.is_prime(x) == naive_is_prime(x));
@@ -56,7 +56,7 @@ static void test_prime_queries() {
 }
 
 static void test_factorization() {
-  edulcni::LinearSieve sieve(200000);
+  LinearSieve sieve(200000);
   std::mt19937 rng(20260225);
 
   for (int it = 0; it < 1000; ++it) {
@@ -84,8 +84,8 @@ static void test_factorization() {
 }
 
 static void test_free_functions() {
-  const std::vector<int> lp = edulcni::linear_sieve_lowest_prime(30);
-  const std::vector<int> primes = edulcni::linear_sieve_primes(30);
+  const std::vector<int> lp = linear_sieve_lowest_prime(30);
+  const std::vector<int> primes = linear_sieve_primes(30);
 
   assert(lp[29] == 29);
   assert(lp[30] == 2);

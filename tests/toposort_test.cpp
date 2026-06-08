@@ -4,32 +4,32 @@
 #include <random>
 #include <vector>
 
-#include "../lib/toposort.hpp"
+#include "../lib/solvers/toposort.hpp"
 
 static void test_toposort_basic() {
   std::vector<std::vector<int>> graph(6);
-  edulcni::toposort_add_edge(graph, 5, 2);
-  edulcni::toposort_add_edge(graph, 5, 0);
-  edulcni::toposort_add_edge(graph, 4, 0);
-  edulcni::toposort_add_edge(graph, 4, 1);
-  edulcni::toposort_add_edge(graph, 2, 3);
-  edulcni::toposort_add_edge(graph, 3, 1);
+  toposort_add_edge(graph, 5, 2);
+  toposort_add_edge(graph, 5, 0);
+  toposort_add_edge(graph, 4, 0);
+  toposort_add_edge(graph, 4, 1);
+  toposort_add_edge(graph, 2, 3);
+  toposort_add_edge(graph, 3, 1);
 
   bool dag = false;
-  const std::vector<int> order = edulcni::topological_sort(graph, &dag);
+  const std::vector<int> order = topological_sort(graph, &dag);
   assert(dag);
   assert(static_cast<int>(order.size()) == 6);
-  assert(edulcni::is_topological_order(graph, order));
+  assert(is_topological_order(graph, order));
 }
 
 static void test_toposort_cycle() {
   std::vector<std::vector<int>> graph(4);
-  edulcni::toposort_add_edge(graph, 0, 1);
-  edulcni::toposort_add_edge(graph, 1, 2);
-  edulcni::toposort_add_edge(graph, 2, 0);
+  toposort_add_edge(graph, 0, 1);
+  toposort_add_edge(graph, 1, 2);
+  toposort_add_edge(graph, 2, 0);
 
   bool dag = true;
-  const std::vector<int> order = edulcni::topological_sort(graph, &dag);
+  const std::vector<int> order = topological_sort(graph, &dag);
   assert(!dag);
   assert(order.empty());
 }
@@ -60,9 +60,9 @@ static void test_toposort_random_dag() {
     }
 
     bool dag = false;
-    const std::vector<int> order = edulcni::topological_sort(graph, &dag);
+    const std::vector<int> order = topological_sort(graph, &dag);
     assert(dag);
-    assert(edulcni::is_topological_order(graph, order));
+    assert(is_topological_order(graph, order));
   }
 }
 
@@ -71,10 +71,10 @@ static void test_is_topological_order_validation() {
   graph[0].push_back(1);
   graph[1].push_back(2);
 
-  assert(edulcni::is_topological_order(graph, {0, 1, 2}));
-  assert(!edulcni::is_topological_order(graph, {1, 0, 2}));
-  assert(!edulcni::is_topological_order(graph, {0, 2}));
-  assert(!edulcni::is_topological_order(graph, {0, 0, 2}));
+  assert(is_topological_order(graph, {0, 1, 2}));
+  assert(!is_topological_order(graph, {1, 0, 2}));
+  assert(!is_topological_order(graph, {0, 2}));
+  assert(!is_topological_order(graph, {0, 0, 2}));
 }
 
 int main() {

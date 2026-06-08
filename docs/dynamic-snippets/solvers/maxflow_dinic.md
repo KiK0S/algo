@@ -1,10 +1,25 @@
 # Dinic Maxflow Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/maxflow_dinic`; the pasteable fallback source is
+`lib/solvers/maxflow_dinic.hpp`; legacy `lib/dinic.hpp` was removed after
+tests moved to the solver path.
+
 ## Existing Source
 
 - `lib/solvers/maxflow_dinic.hpp`
-- related library header: `lib/dinic.hpp`
 - tests: `tests/dinic_test.cpp`, `tests/solvers_flow_matching_test.cpp`
+
+The completed migration used these resolved choices:
+
+- Dynamic path: `/solvers/maxflow_dinic`.
+- Class output remains the default.
+- Default capacity type is `ll` when that alias exists in the active file,
+  otherwise `long long`.
+- Default optional helpers: min-cut side, graph/edge access, and reset flows.
+- Directed-edge input/read-and-call output is an explicit prompt mode, not the
+  default insertion shape.
+- Static fallback: `lib/solvers/maxflow_dinic.hpp`.
 
 ## Solver-Specific Choices
 
@@ -48,6 +63,19 @@ Resolve these from the assumptions, settled defaults, existing code, and tests f
 
 - Render helper-only class and compile a small maxflow case.
 - Render full-solution-style data/read section for `n`, `m`, `s`, `t`.
-- Collision test for `Dinic`, `Edge`, `bfs`, `dfs`, `maxflow`.
+- Collision test for `Dinic`, `Edge`, `build_level_graph`, `push_flow`,
+  `max_flow`, and `graph`.
 - Re-run Dinic and flow/matching tests.
 
+Completed in this migration:
+
+1. Added registry-backed dynamic renderer and prompt for
+   `/solvers/maxflow_dinic`.
+2. Cataloged the solver with static fallback source
+   `solvers/maxflow_dinic.hpp`.
+3. Added `reset_flows()` to the pasteable fallback to match the dynamic
+   helper surface.
+4. Moved `tests/dinic_test.cpp` to the solver-path include.
+5. Removed the top-level legacy `lib/dinic.hpp` compatibility header.
+6. Added extension guardrails, renderer tests, generated compile tests, and
+   completed-migration checks.

@@ -1,51 +1,36 @@
 # Segment Tree Beats Dynamic Plan
 
+Status: completed dynamic migration. The dynamic entry path is
+`/solvers/segtree_beats`; the pasteable fallback source remains
+`lib/solvers/segtree_beats.hpp`.
+
 ## Existing Source
 
 - `lib/solvers/segtree_beats.hpp`
-- tests: `tests/solvers_structures_test.cpp`
+- tests: `tests/solvers_structures_test.cpp`, `extension/test/core.test.js`
 
-## Solver-Specific Choices
+## Resolved Choices
 
-Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
+- Keep beats separate from `/solvers/segtree` because it has a distinct node
+  invariant and a larger update/query surface.
+- Default features match the current static class: chmin, chmax, add, and
+  sum/min/max queries.
+- Generate a class, preserving the static fallback's inclusive `[l, r]` range
+  convention.
+- Assignment remains future optional work.
 
-- Which operations are needed first: chmin, chmax, add, assign, sum, min, max?
-- Should beats be integrated into `/solvers/segtree` or remain `/solvers/segtree_beats`?
-- Should generated code be a class or global recursive functions?
-- Should interval convention stay inclusive like the static class?
+## Completed In This Migration
 
-## Assumptions
+1. Added a registry-backed `segtree_beats` renderer in `extension/src/core.ts`.
+2. Added selectable chmin/chmax/add updates and sum/min/max query methods.
+3. Added collision-aware planning for the class, nested node, update methods,
+   and query methods.
+4. Cataloged `/solvers/segtree_beats` with static fallback source
+   `solvers/segtree_beats.hpp`.
+5. Added extension tests for recipe metadata, catalog metadata, default output,
+   collision output, omitted operations, and generated C++ compilation.
 
-- Keep a separate `segtree_beats` generator because beats has a distinct node invariant.
-- Default features match the current static class: chmin, chmax, add, sum/min/max queries.
-- Assignment is future optional work unless the user requests it.
+## Follow-Up Scope
 
-## Dynamic Options
-
-- value type: `ll`, `long long`, custom numeric
-- updates: chmin, chmax, add, assign future
-- queries: sum, min, max
-- source: existing vector or generated vector
-- names: node type, tree storage, push/apply functions, update/query functions
-
-## Sections
-
-- data: optional source vector
-- helpers: node definition, tree storage/class, beats update and query helpers
-- solve: optional build call
-
-## Implementation Plan
-
-1. Extract static implementation into renderer-friendly blocks.
-2. Make operations feature-conditioned without breaking node invariants.
-3. Use generic name planner for all exported types/functions.
-4. Add catalog entry for dynamic generator with static fallback source.
-5. Add generated compile tests before adding advanced optional operations.
-
-## Tests
-
-- Render default beats and compile the deterministic test case.
-- Render collision case for `SegmentTreeBeats`, `Node`, `add`, `chmin`, `query_sum`.
-- Verify omitted queries are not rendered when disabled.
-- Re-run structures tests.
-
+- Add range assignment only if a future problem set needs it; it is not part of
+  the completed default migration.

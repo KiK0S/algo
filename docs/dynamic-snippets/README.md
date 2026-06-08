@@ -6,11 +6,28 @@ This folder captures the plan for moving solver and brick insertion onto the sam
 
 - `lib/catalog/snippets.json` has generator entries for `/solvers/segtree`,
   `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
-  `/solvers/lca`, plus interactive brick generators for
-  `/bricks/compress_unique` and `/bricks/read_vector`.
+  `/solvers/rollback_dsu`, `/solvers/lca`, `/solvers/merge_sort_tree`,
+  `/solvers/bfs`, `/solvers/linear_sieve`, `/solvers/fenwick`,
+  `/solvers/modint`,
+  `/solvers/suffix_array`, `/solvers/twosat`, `/solvers/maxflow_dinic`, and
+  `/solvers/mincost_maxflow`, `/solvers/hungarian`, `/solvers/kuhn`,
+  `/solvers/segtree_beats`, `/solvers/implicit_treap`, `/solvers/fft_ntt`,
+  and `/solvers/poly_hash`, plus interactive brick generators for
+  `/bricks/compress_unique` and `/bricks/read_vector`. Static segment-tree
+  fallbacks such as
+  `/solvers/segtree_point_update` and `/solvers/segtree_lazy_add_min` are
+  cataloged with explicit exports. Static segment-tree split fallbacks
+  `/solvers/segtree_lazy_minmax` and `/solvers/segtree_max_subarray` are also
+  cataloged.
 - `extension/src/core.ts` already analyzes the active C++ document for identifiers, constants, input variables, vector variables, aliases, and exported-name collisions.
 - `extension/src/extension.ts` dispatches generator ids through a generator registry.
 - Static solvers remain pasteable as plain code. They are unwrapped from headers and renamed if exported identifiers collide with the current file.
+- Static utility/graph solvers now include `/solvers/fast_allocator`,
+  `/solvers/monotonic_stack`, `/solvers/toposort`, `/solvers/kosaraju`,
+  `/solvers/dijkstra`, `/solvers/gp_hash_table`, `/solvers/ordered_set`, and
+  `/solvers/set_utils`; static offline-query solvers include `/solvers/mo`;
+  static geometry solvers include `/solvers/geometry` and
+  `/solvers/halfplane_intersection`; static tree solvers include `/solvers/hld`.
 
 ## Target Assembly Order
 
@@ -52,8 +69,8 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
 
 ## Settled Migration Defaults
 
-- Remove top-level `lib/*.hpp` compatibility headers gradually as each
-  solver/brick replacement lands and tests/catalog references have moved.
+- Top-level `lib/*.hpp` compatibility headers have been removed; new
+  insertable snippets should live under `lib/solvers/` or `lib/bricks/`.
 - Dynamic solvers default to pasteable global utility fragments, not full
   solution files. Solvers usually expose an interface to call; bricks are
   cursor-local snippets.
@@ -71,17 +88,53 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
   generated API.
 - Prefer defaults and snippets informed by the existing IWCF/pattern analysis
   when available.
-- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
-  `/solvers/lca` are completed migrations: they have registry-backed dynamic
-  generators, catalog metadata, pasteable fallbacks under `lib/solvers/`,
-  solver-path tests, and no top-level compatibility headers.
+- `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`,
+  `/solvers/rollback_dsu`, `/solvers/lca`, `/solvers/merge_sort_tree`,
+  `/solvers/bfs`, `/solvers/linear_sieve`, `/solvers/fenwick`,
+  `/solvers/suffix_array`, `/solvers/twosat`, `/solvers/maxflow_dinic`,
+  `/solvers/mincost_maxflow`, `/solvers/hungarian`, `/solvers/kuhn`,
+  `/solvers/segtree_beats`, `/solvers/implicit_treap`, `/solvers/fft_ntt`,
+  `/solvers/poly_hash`, and `/solvers/modint` are completed
+  migrations: they have registry-backed
+  dynamic generators, catalog metadata, pasteable fallbacks under
+  `lib/solvers/`, and solver-path tests. Dedicated top-level compatibility
+  headers are removed when they exist; broader monolith cleanup remains tracked
+  in [03-legacy-cleanup.md](./03-legacy-cleanup.md).
+- `lib/solvers/segtree_point_update.hpp` is completed fallback alignment:
+  `/solvers/segtree` has a dynamic iterative class mode, and the static
+  `/solvers/segtree_point_update` fallback is cataloged with explicit exports.
+- `lib/solvers/segtree_lazy_add_min.hpp` is completed fallback alignment:
+  `/solvers/segtree` has a dynamic min/range-add `first_leq` descent mode, and
+  the static `/solvers/segtree_lazy_add_min` fallback is cataloged with
+  explicit exports.
+- `lib/solvers/segtree_lazy_minmax.hpp` and
+  `lib/solvers/segtree_max_subarray.hpp` completed the `lib/segtree.hpp`
+  monolith cleanup: remaining lazy min/max range assign/add variants and the
+  max-subarray tree now have static solver fallbacks, and the top-level
+  monolith is removed.
+- `/solvers/fast_allocator`, `/solvers/monotonic_stack`, `/solvers/toposort`,
+  `/solvers/kosaraju`, `/solvers/dijkstra`, `/solvers/gp_hash_table`, and
+  `/solvers/ordered_set`, and `/solvers/set_utils` are completed static solver
+  cleanups: they have catalog metadata, pasteable global fallbacks under
+  `lib/solvers/`, solver-path tests, and no dedicated top-level compatibility
+  headers.
+- `/solvers/hld` is a completed static tree solver cleanup with catalog
+  metadata, a pasteable global fallback under `lib/solvers/`, solver-path tests,
+  and no top-level compatibility header.
+- `/solvers/mo` is a completed static offline-query solver cleanup with catalog
+  metadata, a pasteable global fallback under `lib/solvers/`, solver-path tests,
+  and no top-level compatibility header.
+- `/solvers/geometry` and `/solvers/halfplane_intersection` are completed
+  static geometry solver cleanups with catalog metadata, pasteable global
+  fallbacks under `lib/solvers/`, solver-path tests, and no top-level
+  compatibility headers.
 
 ## Next-Agent Default
 
-Pick the first useful `todo` solver from [solvers/](./solvers), read its packet,
-and migrate that solver completely. A normal completed solver migration should
-leave the next agent free to start the next solver, not to finish cleanup from
-the previous one.
+If [solvers/](./solvers) has a useful `todo` packet, read that packet and
+migrate the solver completely. If the solver index has no queued todo packet,
+continue with generator coverage, feature groups, or brick work; the top-level
+legacy cleanup inventory is complete.
 
 ## Verification Spine
 

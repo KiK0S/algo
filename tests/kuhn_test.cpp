@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include "../lib/kuhn.hpp"
+#include "../lib/solvers/kuhn.hpp"
 
 static int brute_max_matching_dfs(const std::vector<std::vector<int>>& graph, int right_size,
                                   int left, std::vector<char>& used_right) {
@@ -64,7 +64,7 @@ static int brute_min_vertex_cover(const std::vector<std::vector<int>>& graph, in
 }
 
 static void assert_matching_valid(const std::vector<std::vector<int>>& graph, int right_size,
-                                  const edulcni::KuhnResult& result) {
+                                  const KuhnResult& result) {
   const int left_size = static_cast<int>(graph.size());
   assert(static_cast<int>(result.match_left.size()) == left_size);
   assert(static_cast<int>(result.match_right.size()) == right_size);
@@ -91,7 +91,7 @@ static bool cover_contains(const std::vector<int>& arr, int x) {
 }
 
 static void assert_cover_valid(const std::vector<std::vector<int>>& graph, int right_size,
-                               const edulcni::BipartiteVertexCover& cover) {
+                               const BipartiteVertexCover& cover) {
   const int left_size = static_cast<int>(graph.size());
   for (int left = 0; left < left_size; ++left) {
     for (int right : graph[left]) {
@@ -113,12 +113,12 @@ static void test_basic_case() {
   };
   const int right_size = 3;
 
-  const edulcni::KuhnResult matching = edulcni::kuhn_maximum_matching(graph, right_size);
+  const KuhnResult matching = kuhn_maximum_matching(graph, right_size);
   assert_matching_valid(graph, right_size, matching);
   assert(matching.matching_size == 3);
 
-  const edulcni::BipartiteVertexCover cover =
-      edulcni::minimum_vertex_cover_bipartite(graph, right_size, matching);
+  const BipartiteVertexCover cover =
+      minimum_vertex_cover_bipartite(graph, right_size, matching);
   assert_cover_valid(graph, right_size, cover);
   assert(cover.size() == matching.matching_size);
 }
@@ -141,14 +141,14 @@ static void test_random_against_bruteforce() {
       }
     }
 
-    const edulcni::KuhnResult matching = edulcni::kuhn_maximum_matching(graph, right_size);
+    const KuhnResult matching = kuhn_maximum_matching(graph, right_size);
     assert_matching_valid(graph, right_size, matching);
 
     const int brute_matching = brute_max_matching(graph, right_size);
     assert(matching.matching_size == brute_matching);
 
-    const edulcni::BipartiteVertexCover cover =
-        edulcni::minimum_vertex_cover_bipartite(graph, right_size, matching);
+    const BipartiteVertexCover cover =
+        minimum_vertex_cover_bipartite(graph, right_size, matching);
     assert_cover_valid(graph, right_size, cover);
     assert(cover.size() == matching.matching_size);
 

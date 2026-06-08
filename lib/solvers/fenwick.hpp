@@ -1,8 +1,3 @@
-#ifndef EDULCNI_FENWICK_HPP
-#define EDULCNI_FENWICK_HPP
-
-namespace edulcni {
-
 template <typename T>
 struct FenwickSumOp {
   static constexpr bool kHasInverse = true;
@@ -153,7 +148,3 @@ using FenwickMaxTree = Fenwick<T, FenwickMaxOp<T>>;
 
 template <typename T>
 using FenwickMinTree = Fenwick<T, FenwickMinOp<T>>;
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_FENWICK_HPP

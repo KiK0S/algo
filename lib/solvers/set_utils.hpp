@@ -1,8 +1,3 @@
-#ifndef EDULCNI_SET_UTILS_HPP
-#define EDULCNI_SET_UTILS_HPP
-
-namespace edulcni {
-
 template <typename Container>
 inline std::optional<typename Container::iterator> next_iterator(
     Container& container, typename Container::iterator it) {
@@ -79,7 +74,3 @@ inline std::optional<typename Container::value_type> prev_value(
   --it;
   return *it;
 }
-
-}  // namespace edulcni
-
-#endif  // EDULCNI_SET_UTILS_HPP

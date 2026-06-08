@@ -1,10 +1,10 @@
 #include <cassert>
 #include <vector>
 
-#include "../lib/fenwick.hpp"
+#include "../lib/solvers/fenwick.hpp"
 
 static void test_sum_tree() {
-  edulcni::FenwickSumTree<int> ft(8);
+  FenwickSumTree<int> ft(8);
   const int values[8] = {3, 1, 4, 1, 5, 9, 2, 6};
 
   for (int i = 0; i < 8; ++i) {
@@ -25,7 +25,7 @@ static void test_sum_tree() {
 }
 
 static void test_xor_tree() {
-  edulcni::FenwickXorTree<int> ft(5);
+  FenwickXorTree<int> ft(5);
   const int values[5] = {5, 1, 7, 3, 2};
 
   for (int i = 0; i < 5; ++i) {
@@ -39,7 +39,7 @@ static void test_xor_tree() {
 }
 
 static void test_max_tree() {
-  edulcni::FenwickMaxTree<int> ft(7, -1000000007);
+  FenwickMaxTree<int> ft(7, -1000000007);
   const int values[7] = {1, 5, 2, 7, 3, 6, 4};
 
   for (int i = 0; i < 7; ++i) {
@@ -57,7 +57,7 @@ static void test_max_tree() {
 }
 
 static void test_min_tree() {
-  edulcni::FenwickMinTree<int> ft(5, 1000000007);
+  FenwickMinTree<int> ft(5, 1000000007);
   const int values[5] = {7, 3, 5, 2, 8};
 
   for (int i = 0; i < 5; ++i) {
