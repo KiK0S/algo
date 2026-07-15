@@ -1,0 +1,16 @@
+void {{solveName}}() {
+  int {{leftCountName}}, {{rightCountName}}, {{edgeCountName}};
+  cin >> {{leftCountName}} >> {{rightCountName}} >> {{edgeCountName}};
+  {{className}} {{instanceName}}({{leftCountName}}, {{rightCountName}});
+  for (int i = 0; i < {{edgeCountName}}; ++i) {
+    int {{leftVertexName}}, {{rightVertexName}};
+    cin >> {{leftVertexName}} >> {{rightVertexName}};
+{{#if decrementInput}}
+    --{{leftVertexName}};
+    --{{rightVertexName}};
+{{/if}}
+    {{instanceName}}.{{addEdgeName}}({{leftVertexName}}, {{rightVertexName}});
+  }
+  auto {{resultName}} = {{instanceName}}.{{maximumMatchingName}}();
+  cout << {{resultName}}.{{matchingSizeName}} << '\n';
+}

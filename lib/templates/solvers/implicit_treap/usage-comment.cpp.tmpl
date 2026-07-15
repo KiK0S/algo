@@ -1,0 +1,14 @@
+/*
+Inclusive [l, r] ranges:
+{{className}}{{typeArgs}} treap;
+treap.push_back(x);
+treap.insert(pos, x);
+auto total = treap.range_query(l, r);
+{{#if reverseFeature}}
+treap.{{reverseName}}(l, r);
+{{/if}}
+{{#if rangeAddFeature}}
+treap.{{addName}}(l, r, delta);
+{{/if}}
+auto values = treap.to_vector();
+*/

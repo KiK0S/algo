@@ -1,0 +1,41 @@
+{{#if readGraph}}
+std::vector<std::vector<{{edgeStructName}}<{{valueType}}>>> {{graphName}}({{sizeExpression}});
+for (int i = 0; i < {{edgeCountName}}; ++i) {
+  int u, v; {{valueType}} w;
+  cin >> u >> v >> w;
+{{#if oneBasedInput}}
+  --u; --v;
+{{/if}}
+  {{addEdgeName}}({{graphName}}, u, v, w, {{undirected}});
+}
+{{/if}}
+{{#unless readGraphOnly}}
+{{#if multiSource}}
+int k;
+cin >> k;
+std::vector<int> sources(k);
+for (int& v : sources) cin >> v;
+{{#if oneBasedInput}}
+for (int& v : sources) --v;
+{{/if}}
+auto {{resultName}} = {{multiSourceName}}({{graphName}}, sources, {{infExpression}});
+{{else}}
+int {{sourceName}};
+cin >> {{sourceName}};
+{{#if pathQuery}}
+int {{targetName}};
+cin >> {{targetName}};
+{{/if}}
+{{#if oneBasedInput}}
+--{{sourceName}};
+{{#if pathQuery}}
+--{{targetName}};
+{{/if}}
+{{/if}}
+auto {{resultName}} = {{singleSourceName}}({{graphName}}, {{sourceName}}, {{infExpression}});
+{{#if pathQuery}}
+auto path = {{restorePathName}}({{sourceName}}, {{targetName}}, {{resultName}});
+cout << {{resultName}}.distance[{{targetName}}] << '\n';
+{{/if}}
+{{/if}}
+{{/unless}}

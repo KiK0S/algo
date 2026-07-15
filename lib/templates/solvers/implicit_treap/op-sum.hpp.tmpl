@@ -1,0 +1,12 @@
+template <typename T>
+struct TreapSumOp {
+  static T neutral() { return T(0); }
+  static T combine(const T& lhs, const T& rhs) { return lhs + rhs; }
+{{#if rangeAddFeature}}
+
+  static void apply_delta(T& value, T& aggregate, int size, const T& delta) {
+    value += delta;
+    aggregate += delta * static_cast<T>(size);
+  }
+{{/if}}
+};

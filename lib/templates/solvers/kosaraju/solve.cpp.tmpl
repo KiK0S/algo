@@ -1,0 +1,35 @@
+{{#if readGraph}}
+std::vector<std::vector<int>> {{graphName}}({{sizeExpression}});
+for (int i = 0; i < {{edgeCountName}}; ++i) {
+  int from, to;
+  cin >> from >> to;
+{{#if oneBasedInput}}
+  --from; --to;
+{{/if}}
+  {{addEdgeName}}({{graphName}}, from, to);
+}
+{{/if}}
+{{#unless readGraphOnly}}
+{{resultStructName}} {{resultName}} = {{sccName}}({{graphName}});
+{{#if computeScc}}
+cout << {{resultName}}.component_count << '\n';
+{{/if}}
+{{#if printComponents}}
+for (const auto& component : {{resultName}}.components) {
+  for (int v : component) cout << v << ' ';
+  cout << '\n';
+}
+{{/if}}
+{{#if sameComponentQueries}}
+int q;
+cin >> q;
+while (q--) {
+  int a, b;
+  cin >> a >> b;
+{{#if oneBasedInput}}
+  --a; --b;
+{{/if}}
+  cout << ({{resultName}}.component_of[a] == {{resultName}}.component_of[b]) << '\n';
+}
+{{/if}}
+{{/unless}}

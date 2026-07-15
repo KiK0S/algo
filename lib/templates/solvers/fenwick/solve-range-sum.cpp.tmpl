@@ -1,0 +1,17 @@
+{{rangeClassName}}<{{valueType}}> {{instanceName}}({{sizeExpression}});
+{{#if queryLoop}}
+for (int qi = 0; qi < q; ++qi) {
+  int type, l, r;
+  {{valueType}} x;
+  cin >> type >> l >> r;
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+  if (type == 1) {
+    cin >> x;
+    {{instanceName}}.add(l, r, x);
+  } else {
+    cout << {{instanceName}}.sum(l, r) << '\n';
+  }
+}
+{{/if}}

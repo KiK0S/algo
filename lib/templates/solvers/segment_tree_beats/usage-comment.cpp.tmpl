@@ -1,0 +1,23 @@
+/*
+Inclusive [l, r] ranges:
+std::vector<{{valueType}}> values(n);
+{{className}}<{{valueType}}> seg(values);
+{{#if chminUpdate}}
+seg.{{chminName}}(l, r, x);
+{{/if}}
+{{#if chmaxUpdate}}
+seg.{{chmaxName}}(l, r, x);
+{{/if}}
+{{#if addUpdate}}
+seg.{{addName}}(l, r, delta);
+{{/if}}
+{{#if sumQuery}}
+auto total = seg.{{querySumName}}(l, r);
+{{/if}}
+{{#if minQuery}}
+auto mn = seg.{{queryMinName}}(l, r);
+{{/if}}
+{{#if maxQuery}}
+auto mx = seg.{{queryMaxName}}(l, r);
+{{/if}}
+*/

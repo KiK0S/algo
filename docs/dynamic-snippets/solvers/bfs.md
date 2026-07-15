@@ -1,60 +1,60 @@
-# BFS Dynamic Plan
+# BFS Smart Solver
 
-Status: completed dynamic migration. The dynamic entry path is `/solvers/bfs`;
-the pasteable fallback source is `lib/solvers/bfs.hpp`; legacy `lib/bfs.hpp`
-was removed after tests moved to the solver path.
+Status: completed smart-generator migration. The dynamic entry path is
+`/solvers/bfs`; the pasteable fallback source is `lib/solvers/bfs.hpp`; the
+extension command uses the registry-backed `bfs` generator.
 
-## Existing Source
+## Applications
 
-- `lib/solvers/bfs.hpp`
-- tests: `tests/bfs_test.cpp`
+1. `shortest_distances`: single-source distances and parent tree in an
+   unweighted graph.
+2. `multi_source`: several starting vertices at distance zero.
+3. `path_restore`: source-to-target shortest path reconstruction.
+4. `traversal_order`: reachability or BFS visit order without path output.
 
-## Historical Alignment
+## Decision Tree
 
-The completed migration used these resolved choices:
+1. Pick the application scenario.
+2. Choose graph source:
+   - `existing_graph`: use an existing adjacency-list variable.
+   - `read_edges`: generate `vector<vector<int>> graph(n)` and an edge loop.
+3. Bind `graphName`, prefilled from detected vector candidates.
+4. If reading edges, bind `sizeExpression` and `edgeCountName`.
+5. Choose directed or undirected edge insertion.
+6. Choose usage output:
+   - `helper_only`
+   - `read_graph`
+   - `single_source`
+   - `multi_source`
+   - `path_query`
+7. Choose input indexing, with generated decrements for one-based input.
 
-- Dynamic path: `/solvers/bfs`.
-- Generated shape: pasteable global helpers, not a full solution.
-- Preserve the old header API in global form: `BfsResult`, `bfs_add_edge`,
+## Generated Shape
+
+- `helpers`: emits the API-compatible `BfsResult`, `bfs_add_edge`,
   `bfs_multi_source`, `bfs`, `bfs_restore_path`, and
-  `bfs_restore_path_to_root`.
-- Keep `BfsResult::distance`, `parent`, and `order`.
-- Keep invalid vertices ignored for edge insertion and traversal.
-- Keep the static pasteable fallback at `lib/solvers/bfs.hpp`.
-- Keep the usage block comment in generated snippets by default.
-- Keep the short cursor-local BFS distance snippet separate as
-  `/bricks/bfs_dist`.
+  `bfs_restore_path_to_root` helpers.
+- `solve`: optionally emits graph reading, a single-source run, a multi-source
+  run, or a path query skeleton.
 
-## Dynamic Options
+## Bindings
 
-- exported helper names, planned through the shared name planner
-- optional usage block comment
+- `sizeExpression`: node count for generated graph allocation.
+- `edgeCountName`: edge count for generated edge loops.
+- `graphName`: adjacency-list variable.
+- `sourceName`: source vertex variable.
+- `targetName`: target vertex variable.
+- `resultName`: BFS result variable.
 
-Future graph-read or solve-section generation should reuse the read-graph brick
-pipeline instead of baking input code into the BFS helper.
+## Notes
 
-## Sections
+- BFS is for unweighted graphs. Weighted shortest paths should route to
+  Dijkstra or another weighted solver.
+- The helper API remains unchanged so existing snippets/tests keep working.
+- Default noninteractive insertion remains helper-only with a usage comment.
 
-- helpers: BFS result struct, graph edge helper, traversal helpers, path restore
-  helpers, and optional usage block comment
+## Verification
 
-## Implementation Plan
-
-Completed in this migration:
-
-1. Added the `bfs` generator and registered it through the shared registry.
-2. Added catalog metadata at `/solvers/bfs`, with static fallback source
-   `solvers/bfs.hpp`.
-3. Rendered BFS as a section-based helper recipe.
-4. Preserved the pasteable fallback under `lib/solvers/bfs.hpp`.
-5. Removed the top-level `lib/bfs.hpp` compatibility header after moving the
-   C++ test include.
-6. Added extension renderer, collision, catalog, guardrail, and generated
-   compile tests.
-
-## Tests
-
-- Render default BFS helpers.
-- Render collision cases for every exported BFS identifier.
-- Compile generated BFS helpers.
-- Re-run `tests/bfs_test.cpp`.
+- `npm --prefix extension test`
+- `npm --prefix extension run build`
+- `g++ -std=c++17 tests/bfs_test.cpp -o /tmp/bfs_test && /tmp/bfs_test`

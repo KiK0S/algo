@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 export type SnippetKind = "brick" | "solver";
 export type InsertMode = "cursor" | "global";
 export type SolutionSection =
@@ -18,6 +21,145 @@ export const SOLUTION_SECTION_ORDER: SolutionSection[] = [
   "solve",
   "main"
 ];
+
+export type CodeTemplateValue = string | number | boolean | undefined;
+export type CodeTemplateContext = Record<string, CodeTemplateValue>;
+
+const codeTemplateCache = new Map<string, string>();
+const bundledLibrarySourceCache = new Map<string, string>();
+
+function codeTemplateValue(
+  context: CodeTemplateContext,
+  name: string
+): CodeTemplateValue {
+  if (!Object.prototype.hasOwnProperty.call(context, name)) {
+    throw new Error(`missing code template value: ${name}`);
+  }
+  return context[name];
+}
+
+interface RenderedTemplateRange {
+  content: string;
+  offset: number;
+  stop?: "else" | "/if" | "/unless";
+}
+
+function renderCodeTemplateRange(
+  source: string,
+  context: CodeTemplateContext,
+  startOffset = 0,
+  stops: Set<string> = new Set()
+): RenderedTemplateRange {
+  const tokenPattern = /{{\s*([^{}]+?)\s*}}/g;
+  tokenPattern.lastIndex = startOffset;
+  let content = "";
+  let cursor = startOffset;
+
+  for (let match = tokenPattern.exec(source); match; match = tokenPattern.exec(source)) {
+    content += source.slice(cursor, match.index);
+    const token = match[1].trim();
+    if (stops.has(token)) {
+      return { content, offset: tokenPattern.lastIndex, stop: token as RenderedTemplateRange["stop"] };
+    }
+
+    const section = token.match(/^#(if|unless)\s+([A-Za-z_][A-Za-z0-9_]*)$/);
+    if (section) {
+      const [, mode, name] = section;
+      const truthy = Boolean(codeTemplateValue(context, name));
+      const expectedClose = mode === "if" ? "/if" : "/unless";
+      const primary = renderCodeTemplateRange(
+        source,
+        context,
+        tokenPattern.lastIndex,
+        new Set(["else", expectedClose])
+      );
+      let alternate = "";
+      let endOffset = primary.offset;
+      if (primary.stop === "else") {
+        const fallback = renderCodeTemplateRange(
+          source,
+          context,
+          primary.offset,
+          new Set([expectedClose])
+        );
+        if (fallback.stop !== expectedClose) {
+          throw new Error(`unclosed code template section: ${name}`);
+        }
+        alternate = fallback.content;
+        endOffset = fallback.offset;
+      } else if (primary.stop !== expectedClose) {
+        throw new Error(`unclosed code template section: ${name}`);
+      }
+      content += mode === "if" ? (truthy ? primary.content : alternate) : (truthy ? alternate : primary.content);
+      cursor = endOffset;
+      tokenPattern.lastIndex = endOffset;
+      continue;
+    }
+
+    if (token === "else" || token.startsWith("/")) {
+      throw new Error(`unexpected code template token: ${token}`);
+    }
+
+    const value = codeTemplateValue(context, token);
+    content += value === undefined ? "" : String(value);
+    cursor = tokenPattern.lastIndex;
+  }
+
+  content += source.slice(cursor);
+  return { content, offset: source.length };
+}
+
+export function renderCodeTemplateSource(
+  source: string,
+  context: CodeTemplateContext
+): string {
+  return renderCodeTemplateRange(source, context).content;
+}
+
+export function renderCodeTemplate(
+  templatePath: string,
+  context: CodeTemplateContext
+): string {
+  if (path.isAbsolute(templatePath) || templatePath.split(/[\\/]/).includes("..")) {
+    throw new Error(`invalid code template path: ${templatePath}`);
+  }
+  let source = codeTemplateCache.get(templatePath);
+  if (source === undefined) {
+    const absolutePath = path.resolve(
+      __dirname,
+      "..",
+      "library",
+      "templates",
+      templatePath
+    );
+    source = readFileSync(absolutePath, "utf8");
+    codeTemplateCache.set(templatePath, source);
+  }
+  return renderCodeTemplateSource(source, context);
+}
+
+function readBundledLibrarySource(relativePath: string): string {
+  if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes("..")) {
+    throw new Error(`invalid bundled library path: ${relativePath}`);
+  }
+  let source = bundledLibrarySourceCache.get(relativePath);
+  if (source === undefined) {
+    const absolutePath = path.resolve(__dirname, "..", "library", relativePath);
+    source = readFileSync(absolutePath, "utf8");
+    bundledLibrarySourceCache.set(relativePath, source);
+  }
+  return source;
+}
+
+function renderBundledSolver(
+  sourceName: string,
+  renames: IdentifierRename[] = []
+): string {
+  return applyIdentifierRenames(
+    readBundledLibrarySource(`solvers/${sourceName}`),
+    renames
+  );
+}
 
 export interface CatalogEntry {
   path: string;
@@ -48,6 +190,59 @@ export interface RenderedRecipe {
   sections: Partial<Record<SolutionSection, string[]>>;
   exports: string[];
   dependencies: DynamicDependency[];
+}
+
+export type BindingCandidateKind =
+  | "size"
+  | "value"
+  | "index"
+  | "query_count"
+  | "source_vector"
+  | "answer";
+
+export interface BindingCandidate {
+  label: string;
+  value: string;
+  kind: BindingCandidateKind;
+  detail?: string;
+  score: number;
+}
+
+export interface BindingField {
+  id: string;
+  label: string;
+  kind: BindingCandidateKind;
+  required: boolean;
+  defaultValue?: string;
+}
+
+export interface DecisionChoice {
+  id: string;
+  label: string;
+  description?: string;
+  next?: string;
+}
+
+export interface DecisionNode {
+  id: string;
+  label: string;
+  choices: DecisionChoice[];
+  multi?: boolean;
+}
+
+export interface UsageSection {
+  id: string;
+  label: string;
+  section: SolutionSection;
+}
+
+export interface SolverApplicationSpec {
+  path: string;
+  title: string;
+  scenarios: DecisionChoice[];
+  decisions: DecisionNode[];
+  bindings: BindingField[];
+  usageSections: UsageSection[];
 }
 
 export interface AnnotatedSymbol {
@@ -82,6 +277,15 @@ export interface CppAnalysis {
   sections: CppSectionSpan[];
 }
 
+export type SegmentTreeApplication =
+  | "point_query"
+  | "lazy_range"
+  | "lazy_minmax"
+  | "max_subarray"
+  | "beats";
+export type SegmentTreeSourceMode = "empty" | "existing_vector" | "read_loop";
+export type SegmentTreeIndexing = "zero_based" | "one_based_input";
+export type SegmentTreeUsageMode = "helper_only" | "instance" | "query_loop";
 export type SegmentAggregate = "sum" | "min" | "max" | "custom";
 export type SegmentUpdateOp =
   | "point_set"
@@ -117,6 +321,8 @@ export interface SegmentTreeNames {
   sumAliasName: string;
   minAliasName: string;
   maxAliasName: string;
+  maxSubarrayNodeName: string;
+  maxSubarrayClassName: string;
 }
 
 export interface SegmentTreeCustomOptions {
@@ -132,6 +338,13 @@ export interface SegmentTreeOptions {
   aggregate: SegmentAggregate;
   updates: SegmentUpdateOp[];
   descends?: SegmentDescendQuery[];
+  application?: SegmentTreeApplication;
+  sourceMode?: SegmentTreeSourceMode;
+  sourceName?: string;
+  indexing?: SegmentTreeIndexing;
+  usageMode?: SegmentTreeUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: SegmentTreeNames;
   outputMode?: SegmentTreeOutputMode;
   custom?: SegmentTreeCustomOptions;
@@ -139,6 +352,13 @@ export interface SegmentTreeOptions {
 
 export type SegmentTreeBeatsUpdate = "chmin" | "chmax" | "add";
 export type SegmentTreeBeatsQuery = "sum" | "min" | "max";
+export type SegmentTreeBeatsApplication =
+  | "clamp_queries"
+  | "add_clamp_queries"
+  | "query_only";
+export type SegmentTreeBeatsSourceMode = "empty" | "existing_vector" | "read_loop";
+export type SegmentTreeBeatsIndexing = "zero_based" | "one_based_input";
+export type SegmentTreeBeatsUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface SegmentTreeBeatsNames {
   className: string;
@@ -155,6 +375,14 @@ export interface SegmentTreeBeatsOptions {
   valueType: string;
   updates: SegmentTreeBeatsUpdate[];
   queries: SegmentTreeBeatsQuery[];
+  application?: SegmentTreeBeatsApplication;
+  sourceMode?: SegmentTreeBeatsSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  indexing?: SegmentTreeBeatsIndexing;
+  usageMode?: SegmentTreeBeatsUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: SegmentTreeBeatsNames;
   includeUsageComment: boolean;
 }
@@ -165,6 +393,13 @@ export type MergeSortTreeQuery =
   | "count_equal"
   | "count_in_range"
   | "exists";
+export type MergeSortTreeApplication =
+  | "range_threshold_count"
+  | "range_value_presence"
+  | "range_value_band";
+export type MergeSortTreeSourceMode = "existing_vector" | "read_loop";
+export type MergeSortTreeIndexing = "zero_based" | "one_based_input";
+export type MergeSortTreeUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface MergeSortTreeNames {
   className: string;
@@ -186,7 +421,14 @@ export interface MergeSortTreeNames {
 export interface MergeSortTreeOptions {
   valueType: string;
   sourceName: string;
+  sizeExpression?: string;
   queries: MergeSortTreeQuery[];
+  application?: MergeSortTreeApplication;
+  sourceMode?: MergeSortTreeSourceMode;
+  indexing?: MergeSortTreeIndexing;
+  usageMode?: MergeSortTreeUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: MergeSortTreeNames;
   includeUsageComment: boolean;
 }
@@ -209,7 +451,18 @@ export interface DsuNames {
   className: string;
 }
 
+export type DsuApplication = "connectivity" | "kruskal" | "query_loop";
+export type DsuIndexing = "zero_based" | "one_based_input";
+export type DsuUsageMode = "helper_only" | "instance" | "query_loop" | "kruskal";
+
 export interface DsuOptions {
+  application?: DsuApplication;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  indexing?: DsuIndexing;
+  usageMode?: DsuUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: DsuNames;
   includeUsageComment: boolean;
 }
@@ -218,7 +471,20 @@ export interface RollbackDsuNames {
   className: string;
 }
 
+export type RollbackDsuApplication =
+  | "snapshots"
+  | "offline_dynamic_connectivity";
+export type RollbackDsuIndexing = "zero_based" | "one_based_input";
+export type RollbackDsuUsageMode = "helper_only" | "instance" | "query_loop";
+
 export interface RollbackDsuOptions {
+  application?: RollbackDsuApplication;
+  sizeExpression?: string;
+  queryCountName?: string;
+  indexing?: RollbackDsuIndexing;
+  usageMode?: RollbackDsuUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: RollbackDsuNames;
   includeUsageComment: boolean;
 }
@@ -227,8 +493,51 @@ export interface LcaNames {
   className: string;
 }
 
+export type LcaApplication = "lca_dist" | "kth_ancestor" | "tree_query_loop";
+export type LcaSourceMode = "empty" | "read_tree";
+export type LcaIndexing = "zero_based" | "one_based_input";
+export type LcaUsageMode = "helper_only" | "instance" | "read_tree" | "query_loop";
+
 export interface LcaOptions {
+  application?: LcaApplication;
+  sourceMode?: LcaSourceMode;
+  sizeExpression?: string;
+  rootExpression?: string;
+  queryCountName?: string;
+  indexing?: LcaIndexing;
+  usageMode?: LcaUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: LcaNames;
+  includeUsageComment: boolean;
+}
+
+export interface HldNames {
+  className: string;
+}
+
+export type HldApplication =
+  | "path_query"
+  | "subtree_query"
+  | "lca_distance"
+  | "build_tree";
+export type HldSourceMode = "empty" | "read_tree";
+export type HldIndexing = "zero_based" | "one_based_input";
+export type HldValueMode = "vertex_values" | "edge_values";
+export type HldUsageMode = "helper_only" | "instance" | "read_tree" | "query_loop";
+
+export interface HldOptions {
+  application?: HldApplication;
+  sourceMode?: HldSourceMode;
+  sizeExpression?: string;
+  rootExpression?: string;
+  queryCountName?: string;
+  indexing?: HldIndexing;
+  valueMode?: HldValueMode;
+  usageMode?: HldUsageMode;
+  instanceName?: string;
+  answerName?: string;
+  names: HldNames;
   includeUsageComment: boolean;
 }
 
@@ -241,8 +550,368 @@ export interface BfsNames {
   restorePathToRootName: string;
 }
 
+export type BfsApplication =
+  | "shortest_distances"
+  | "multi_source"
+  | "path_restore"
+  | "traversal_order";
+export type BfsSourceMode = "existing_graph" | "read_edges";
+export type BfsGraphMode = "directed" | "undirected";
+export type BfsIndexing = "zero_based" | "one_based_input";
+export type BfsUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "single_source"
+  | "multi_source"
+  | "path_query";
+
 export interface BfsOptions {
+  application?: BfsApplication;
+  sourceMode?: BfsSourceMode;
+  graphMode?: BfsGraphMode;
+  indexing?: BfsIndexing;
+  usageMode?: BfsUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  sourceName?: string;
+  targetName?: string;
+  resultName?: string;
   names: BfsNames;
+  includeUsageComment: boolean;
+}
+
+export interface DijkstraNames {
+  edgeStructName: string;
+  resultStructName: string;
+  addEdgeName: string;
+  multiSourceName: string;
+  singleSourceName: string;
+  restorePathName: string;
+}
+
+export type DijkstraApplication =
+  | "shortest_paths"
+  | "multi_source"
+  | "path_restore"
+  | "weighted_graph_read";
+export type DijkstraSourceMode = "existing_graph" | "read_edges";
+export type DijkstraGraphMode = "directed" | "undirected";
+export type DijkstraIndexing = "zero_based" | "one_based_input";
+export type DijkstraUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "single_source"
+  | "multi_source"
+  | "path_query";
+
+export interface DijkstraOptions {
+  application?: DijkstraApplication;
+  sourceMode?: DijkstraSourceMode;
+  graphMode?: DijkstraGraphMode;
+  indexing?: DijkstraIndexing;
+  usageMode?: DijkstraUsageMode;
+  valueType?: string;
+  infExpression?: string;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  sourceName?: string;
+  targetName?: string;
+  resultName?: string;
+  names: DijkstraNames;
+  includeUsageComment: boolean;
+}
+
+export interface ToposortNames {
+  addEdgeName: string;
+  sortName: string;
+  validateName: string;
+}
+
+export type ToposortApplication =
+  | "dag_order"
+  | "cycle_detection"
+  | "dependency_schedule"
+  | "order_validation";
+export type ToposortSourceMode = "existing_graph" | "read_edges";
+export type ToposortIndexing = "zero_based" | "one_based_input";
+export type ToposortUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "sort_order"
+  | "cycle_check"
+  | "validate_order";
+
+export interface ToposortOptions {
+  application?: ToposortApplication;
+  sourceMode?: ToposortSourceMode;
+  indexing?: ToposortIndexing;
+  usageMode?: ToposortUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  orderName?: string;
+  dagName?: string;
+  names: ToposortNames;
+  includeUsageComment: boolean;
+}
+
+export interface KosarajuNames {
+  resultStructName: string;
+  addEdgeName: string;
+  sccName: string;
+}
+
+export type KosarajuApplication =
+  | "scc_components"
+  | "same_component"
+  | "condensation_dag"
+  | "two_sat_analysis";
+export type KosarajuSourceMode = "existing_graph" | "read_edges";
+export type KosarajuIndexing = "zero_based" | "one_based_input";
+export type KosarajuUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "compute_scc"
+  | "same_component_queries"
+  | "print_components";
+
+export interface KosarajuOptions {
+  application?: KosarajuApplication;
+  sourceMode?: KosarajuSourceMode;
+  indexing?: KosarajuIndexing;
+  usageMode?: KosarajuUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  queryCountName?: string;
+  graphName?: string;
+  resultName?: string;
+  names: KosarajuNames;
+  includeUsageComment: boolean;
+}
+
+export interface MoNames {
+  queryStructName: string;
+  blockSizeName: string;
+  normalizeName: string;
+  orderName: string;
+  processName: string;
+}
+
+export type MoApplication =
+  | "distinct_values"
+  | "range_frequency"
+  | "range_aggregate"
+  | "custom_callbacks";
+export type MoSourceMode = "existing_queries" | "read_queries";
+export type MoIndexing = "zero_based_half_open" | "one_based_closed_input";
+export type MoUsageMode =
+  | "helper_only"
+  | "read_queries"
+  | "process_skeleton"
+  | "distinct_count_skeleton";
+
+export interface MoOptions {
+  application?: MoApplication;
+  sourceMode?: MoSourceMode;
+  indexing?: MoIndexing;
+  usageMode?: MoUsageMode;
+  sizeExpression?: string;
+  queryCountName?: string;
+  valuesName?: string;
+  queriesName?: string;
+  answersName?: string;
+  valueType?: string;
+  answerType?: string;
+  names: MoNames;
+  includeUsageComment: boolean;
+}
+
+export interface MonotonicStackNames {
+  nearestLeftByName: string;
+  nearestRightByName: string;
+  nearestSmallerLeftName: string;
+  nearestSmallerRightName: string;
+  nearestGreaterLeftName: string;
+  nearestGreaterRightName: string;
+  nearestStructName: string;
+  nearestAllName: string;
+}
+
+export type MonotonicStackApplication =
+  | "nearest_smaller"
+  | "nearest_greater"
+  | "all_nearest"
+  | "custom_comparator";
+export type MonotonicStackDirection = "left" | "right" | "both";
+export type MonotonicStackRelation = "smaller" | "greater" | "all";
+export type MonotonicStackStrictness = "strict" | "non_strict";
+export type MonotonicStackUsageMode = "helper_only" | "compute_vector" | "compute_all";
+
+export interface MonotonicStackOptions {
+  application?: MonotonicStackApplication;
+  direction?: MonotonicStackDirection;
+  relation?: MonotonicStackRelation;
+  strictness?: MonotonicStackStrictness;
+  usageMode?: MonotonicStackUsageMode;
+  sourceName?: string;
+  resultName?: string;
+  valueType?: string;
+  names: MonotonicStackNames;
+  includeUsageComment: boolean;
+}
+
+export interface GpHashTableNames {
+  splitMixName: string;
+  hashName: string;
+  pairHashName: string;
+  tableAliasName: string;
+}
+
+export type GpHashTableApplication =
+  | "hash_map"
+  | "hash_set"
+  | "frequency_table"
+  | "pair_key";
+export type GpHashTableUsageMode =
+  | "helper_only"
+  | "declare_map"
+  | "declare_set"
+  | "frequency_loop";
+
+export interface GpHashTableOptions {
+  application?: GpHashTableApplication;
+  usageMode?: GpHashTableUsageMode;
+  keyType?: string;
+  valueType?: string;
+  tableName?: string;
+  sourceName?: string;
+  names: GpHashTableNames;
+  includeUsageComment: boolean;
+}
+
+export interface OrderedSetNames {
+  treeAliasName: string;
+  className: string;
+}
+
+export type OrderedSetApplication =
+  | "order_statistics"
+  | "kth_element"
+  | "multiset_pairs"
+  | "rank_queries";
+export type OrderedSetUsageMode =
+  | "helper_only"
+  | "declare_set"
+  | "rank_query"
+  | "kth_query"
+  | "pair_multiset";
+
+export interface OrderedSetOptions {
+  application?: OrderedSetApplication;
+  usageMode?: OrderedSetUsageMode;
+  keyType?: string;
+  setName?: string;
+  names: OrderedSetNames;
+  includeUsageComment: boolean;
+}
+
+export interface SetUtilsNames {
+  nextIteratorName: string;
+  prevIteratorName: string;
+  nextValueName: string;
+  prevValueName: string;
+}
+
+export type SetUtilsApplication =
+  | "next_value"
+  | "prev_value"
+  | "iterator_navigation"
+  | "map_neighbor";
+export type SetUtilsLookup = "next" | "prev";
+export type SetUtilsTarget = "value" | "iterator";
+export type SetUtilsUsageMode = "helper_only" | "lookup_snippet";
+
+export interface SetUtilsOptions {
+  application?: SetUtilsApplication;
+  lookup?: SetUtilsLookup;
+  target?: SetUtilsTarget;
+  usageMode?: SetUtilsUsageMode;
+  containerName?: string;
+  keyName?: string;
+  iteratorName?: string;
+  resultName?: string;
+  names: SetUtilsNames;
+  includeUsageComment: boolean;
+}
+
+export interface FastAllocatorNames {
+  arenaClassName: string;
+  allocatorClassName: string;
+  factoryName: string;
+}
+
+export type FastAllocatorApplication =
+  | "many_vectors"
+  | "graph_edges"
+  | "pool_reset"
+  | "custom_container";
+export type FastAllocatorUsageMode =
+  | "helper_only"
+  | "vector_declaration"
+  | "edge_vector"
+  | "arena_reset";
+
+export interface FastAllocatorOptions {
+  application?: FastAllocatorApplication;
+  usageMode?: FastAllocatorUsageMode;
+  valueType?: string;
+  containerName?: string;
+  arenaName?: string;
+  capacityExpression?: string;
+  edgeTypeName?: string;
+  names: FastAllocatorNames;
+  includeUsageComment: boolean;
+}
+
+export type GeometryApplication =
+  | "orientation"
+  | "segment_intersection"
+  | "angle_sort"
+  | "convex_hull";
+export type GeometryUsageMode =
+  | "helper_only"
+  | "orientation_check"
+  | "segment_intersection"
+  | "sort_points"
+  | "build_hull";
+
+export interface GeometryOptions {
+  application?: GeometryApplication;
+  usageMode?: GeometryUsageMode;
+  valueType?: string;
+  pointAliasName?: string;
+  pointsName?: string;
+  resultName?: string;
+  includeUsageComment: boolean;
+}
+
+export type HalfplaneIntersectionApplication =
+  | "convex_polygon"
+  | "linear_constraints"
+  | "clip_polygon";
+export type HalfplaneIntersectionUsageMode =
+  | "helper_only"
+  | "halfplane_vector"
+  | "inequality_box"
+  | "compute_polygon";
+
+export interface HalfplaneIntersectionOptions {
+  application?: HalfplaneIntersectionApplication;
+  usageMode?: HalfplaneIntersectionUsageMode;
+  halfplanesName?: string;
+  resultName?: string;
   includeUsageComment: boolean;
 }
 
@@ -260,22 +929,53 @@ export interface LinearSieveOptions {
   includeUsageComment: boolean;
 }
 
-export type FenwickOperation = "sum" | "xor" | "max" | "min";
+export type FenwickOperation =
+  | "sum"
+  | "xor"
+  | "max"
+  | "min"
+  | "custom"
+  | "custom_invertible";
+export type FenwickApplication =
+  | "point_prefix"
+  | "point_range"
+  | "range_point"
+  | "range_sum"
+  | "frequency_kth"
+  | "inversion_count"
+  | "prefix_minmax";
+export type FenwickSourceMode = "empty" | "existing_vector" | "read_loop";
+export type FenwickIndexing = "zero_based" | "one_based_input";
+export type FenwickUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface FenwickNames {
   className: string;
+  rangeClassName: string;
   sumOpName: string;
   xorOpName: string;
   maxOpName: string;
   minOpName: string;
+  customOpName: string;
+  customInvertibleOpName: string;
   sumAliasName: string;
   xorAliasName: string;
   maxAliasName: string;
   minAliasName: string;
+  customAliasName: string;
+  customInvertibleAliasName: string;
 }
 
 export interface FenwickOptions {
   operations: FenwickOperation[];
+  application?: FenwickApplication;
+  sourceMode?: FenwickSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  valueType?: string;
+  indexing?: FenwickIndexing;
+  usageMode?: FenwickUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: FenwickNames;
   includeUsageComment: boolean;
 }
@@ -485,6 +1185,14 @@ export interface KuhnOptions {
 
 export type ImplicitTreapAggregate = "sum" | "custom";
 export type ImplicitTreapFeature = "reverse" | "range_add";
+export type ImplicitTreapApplication =
+  | "sequence_edit"
+  | "range_query"
+  | "range_lazy"
+  | "custom_aggregate";
+export type ImplicitTreapSourceMode = "empty" | "existing_vector" | "read_loop";
+export type ImplicitTreapIndexing = "zero_based" | "one_based_input";
+export type ImplicitTreapUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface ImplicitTreapNames {
   sumOpName: string;
@@ -503,11 +1211,26 @@ export interface ImplicitTreapOptions {
   valueType: string;
   aggregate: ImplicitTreapAggregate;
   features: ImplicitTreapFeature[];
+  application?: ImplicitTreapApplication;
+  sourceMode?: ImplicitTreapSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  indexing?: ImplicitTreapIndexing;
+  usageMode?: ImplicitTreapUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: ImplicitTreapNames;
   includeUsageComment: boolean;
 }
 
-export type SparseTableVariant = "min" | "max";
+export type SparseTableApplication =
+  | "range_minmax"
+  | "range_gcd_bitwise"
+  | "custom_idempotent";
+export type SparseTableVariant = "min" | "max" | "gcd" | "bit_and" | "bit_or" | "custom";
+export type SparseTableSourceMode = "existing_vector" | "read_loop";
+export type SparseTableIndexing = "zero_based" | "one_based_input";
+export type SparseTableUsageMode = "helper_only" | "build_call" | "query_loop";
 
 export interface SparseTableNames {
   logName: string;
@@ -518,12 +1241,31 @@ export interface SparseTableNames {
   maxTableName: string;
   buildMaxName: string;
   queryMaxName: string;
+  gcdTableName: string;
+  buildGcdName: string;
+  queryGcdName: string;
+  bitAndTableName: string;
+  buildBitAndName: string;
+  queryBitAndName: string;
+  bitOrTableName: string;
+  buildBitOrName: string;
+  queryBitOrName: string;
+  customTableName: string;
+  buildCustomName: string;
+  queryCustomName: string;
+  customCombineName: string;
 }
 
 export interface SparseTableOptions {
   valueType: string;
   sourceName: string;
+  sizeExpression?: string;
   variants: SparseTableVariant[];
+  application?: SparseTableApplication;
+  sourceMode?: SparseTableSourceMode;
+  indexing?: SparseTableIndexing;
+  usageMode?: SparseTableUsageMode;
+  answerName?: string;
   names: SparseTableNames;
   includeUsageComment: boolean;
 }
@@ -639,6 +1381,7 @@ export interface RenderedSnippet {
   content: string;
   renames: IdentifierRename[];
   exports: string[];
+  recipe?: RenderedRecipe;
 }
 
 const CPP_KEYWORDS = new Set([
@@ -1198,6 +1941,75 @@ export function sizeExpressionCandidates(analysis: CppAnalysis): string[] {
   return result;
 }
 
+function candidateScore(name: string, preferred: string[]): number {
+  const exactIndex = preferred.indexOf(name);
+  if (exactIndex !== -1) {
+    return 100 - exactIndex;
+  }
+  if (/^n(?:$|[A-Z_])/.test(name)) {
+    return 80;
+  }
+  if (/^(?:q|queries|query_count)$/.test(name)) {
+    return 75;
+  }
+  if (/^(?:a|arr|v|values)$/.test(name)) {
+    return 70;
+  }
+  if (/^(?:ans|answer|res|result)$/.test(name)) {
+    return 65;
+  }
+  return 10;
+}
+
+export function bindingCandidates(
+  analysis: CppAnalysis,
+  kind: BindingCandidateKind
+): BindingCandidate[] {
+  const candidates: BindingCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (
+    value: string,
+    candidateKind: BindingCandidateKind,
+    preferred: string[],
+    detail?: string
+  ) => {
+    const trimmed = value.trim();
+    if (trimmed === "" || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
+    candidates.push({
+      label: trimmed,
+      value: trimmed,
+      kind: candidateKind,
+      detail,
+      score: candidateScore(trimmed, preferred)
+    });
+  };
+
+  if (kind === "size" || kind === "query_count" || kind === "index") {
+    const preferred =
+      kind === "query_count"
+        ? ["q", "m", "queries"]
+        : kind === "index"
+          ? ["i", "idx", "pos", "l", "r"]
+          : ["n", "N", "sz", "size"];
+    for (const value of sizeExpressionCandidates(analysis)) {
+      add(value, kind, preferred);
+    }
+  }
+
+  if (kind === "source_vector" || kind === "value" || kind === "answer") {
+    const preferred =
+      kind === "answer" ? ["ans", "answer", "res"] : ["a", "arr", "v", "values"];
+    for (const symbol of analysis.vectorSymbols) {
+      add(symbol.name, "source_vector", preferred, symbol.type);
+    }
+  }
+
+  return candidates.sort((lhs, rhs) => rhs.score - lhs.score || lhs.label.localeCompare(rhs.label));
+}
+
 export function sanitizeIdentifier(value: string, fallback: string): string {
   const trimmed = value.trim();
   return isIdentifier(trimmed) && !CPP_KEYWORDS.has(trimmed) ? trimmed : fallback;
@@ -1387,7 +2199,9 @@ export function planSegmentTreeNames(
     maxOpName: planner.reserve("SegmentMaxOp", "PointSegmentMaxOp"),
     sumAliasName: planner.reserve("SegmentSumTree", "PointSegmentSumTree"),
     minAliasName: planner.reserve("SegmentMinTree", "PointSegmentMinTree"),
-    maxAliasName: planner.reserve("SegmentMaxTree", "PointSegmentMaxTree")
+    maxAliasName: planner.reserve("SegmentMaxTree", "PointSegmentMaxTree"),
+    maxSubarrayNodeName: planner.reserve("MaxSubarrayNode", "SegmentMaxSubarrayNode"),
+    maxSubarrayClassName: planner.reserve("MaxSubarraySegTree", "SegmentMaxSubarrayTree")
   };
 }
 
@@ -1483,10 +2297,6 @@ function targetExpression(target: string, objectName: string): string {
   return trimmed.replace(/\bnode\b/g, objectName);
 }
 
-function pushLine(lines: string[], line = ""): void {
-  lines.push(line);
-}
-
 function normalizeSectionChunk(chunk: string): string {
   return chunk.trim();
 }
@@ -1522,7 +2332,8 @@ export function renderRecipeSnippet(
   return {
     content: composeRecipeSections(recipe, selectedSections),
     renames: [],
-    exports: recipe.exports
+    exports: recipe.exports,
+    recipe
   };
 }
 
@@ -1560,6 +2371,9 @@ export function mergeRenderedRecipes(recipes: RenderedRecipe[]): RenderedRecipe 
 
 function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
   const names = options.names;
+  if (options.application === "max_subarray") {
+    return [names.maxSubarrayNodeName, names.maxSubarrayClassName];
+  }
   if (options.outputMode === "iterative_class") {
     return [
       names.sumOpName,
@@ -1618,427 +2432,140 @@ function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
 }
 
 export function renderSegmentTreeRecipe(options: SegmentTreeOptions): RenderedRecipe {
+  const helpers =
+    options.application === "max_subarray"
+      ? renderMaxSubarraySegmentTree(options)
+      : renderSegmentTree(options);
+  const solve = renderSegmentTreeUsage(options);
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (solve !== "") {
+    sections.solve = [solve];
+  }
   return createRenderedRecipe(
-    { helpers: [renderSegmentTree(options)] },
+    sections,
     segmentTreeExportedNames(options)
+  );
+}
+
+function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const sourceName = options.sourceName?.trim() || "";
+  const valueType = options.valueType.trim() || "int";
+  const aggregateAlias = options.aggregate === "min"
+    ? options.names.minAliasName
+    : options.aggregate === "max" ? options.names.maxAliasName : options.names.sumAliasName;
+  const templateName = options.application === "max_subarray"
+    ? "solve-max-subarray.cpp.tmpl"
+    : options.outputMode === "iterative_class"
+      ? "solve-iterative.cpp.tmpl"
+      : "solve-global.cpp.tmpl";
+  return renderCodeTemplate(`solvers/segment_tree/${templateName}`, {
+    ...options.names,
+    valueType,
+    sourceName,
+    sizeExpression: options.sizeExpression.trim() || "n",
+    instanceName: sanitizeIdentifier(options.instanceName ?? "seg", "seg"),
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    aliasName: aggregateAlias,
+    constructorArg: sourceName || options.sizeExpression.trim() || "n",
+    readLoop: options.sourceMode === "read_loop" && sourceName !== "",
+    hasSource: sourceName !== "",
+    queryLoop: usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    rangeAdd: hasUpdate(options, "range_add"),
+    rangeAssign: hasUpdate(options, "range_assign"),
+    pointAdd: hasUpdate(options, "point_add")
+  });
+}
+
+function renderMaxSubarraySegmentTree(options: SegmentTreeOptions): string {
+  return applyIdentifierRenames(
+    renderCodeTemplate("solvers/segment_tree/max-subarray.hpp.tmpl", {}),
+    [
+      { from: "MaxSubarrayNode", to: options.names.maxSubarrayNodeName },
+      { from: "MaxSubarraySegTree", to: options.names.maxSubarrayClassName }
+    ]
   );
 }
 
 function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
   const names = options.names;
-  const lines: string[] = [];
-  const includePointAdd = hasUpdate(options, "point_add");
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `struct ${names.sumOpName} {`);
-  pushLine(lines, "  static T neutral() { return T(0); }");
-  pushLine(lines, "  static T combine(const T& a, const T& b) { return a + b; }");
-  pushLine(lines, "};");
-  pushLine(lines);
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `struct ${names.minOpName} {`);
-  pushLine(lines, "  static T neutral() { return std::numeric_limits<T>::max(); }");
-  pushLine(lines, "  static T combine(const T& a, const T& b) { return a < b ? a : b; }");
-  pushLine(lines, "};");
-  pushLine(lines);
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `struct ${names.maxOpName} {`);
-  pushLine(lines, "  static T neutral() { return std::numeric_limits<T>::lowest(); }");
-  pushLine(lines, "  static T combine(const T& a, const T& b) { return a < b ? b : a; }");
-  pushLine(lines, "};");
-  pushLine(lines);
-
-  pushLine(lines, "template <typename T, typename Op>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${names.className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, `  explicit ${names.className}(const std::vector<T>& values) {`);
-  pushLine(lines, "    build(values);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = n < 0 ? 0 : n;");
-  pushLine(lines, "    tree_.assign(2 * std::max(1, n_), Op::neutral());");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void build(const std::vector<T>& values) {");
-  pushLine(lines, "    n_ = static_cast<int>(values.size());");
-  pushLine(lines, "    tree_.assign(2 * std::max(1, n_), Op::neutral());");
-  pushLine(lines, "    for (int i = 0; i < n_; ++i) {");
-  pushLine(lines, "      tree_[n_ + i] = values[i];");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int i = n_ - 1; i > 0; --i) {");
-  pushLine(lines, "      tree_[i] = Op::combine(tree_[i << 1], tree_[i << 1 | 1]);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(lines, "  void point_set(int pos, const T& value) {");
-  pushLine(lines, "    if (pos < 0 || pos >= n_) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    pos += n_;");
-  pushLine(lines, "    tree_[pos] = value;");
-  pushLine(lines, "    for (pos >>= 1; pos > 0; pos >>= 1) {");
-  pushLine(lines, "      tree_[pos] = Op::combine(tree_[pos << 1], tree_[pos << 1 | 1]);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-
-  if (includePointAdd) {
-    pushLine(lines);
-    pushLine(lines, "  void point_add(int pos, const T& delta) {");
-    pushLine(lines, "    if (pos < 0 || pos >= n_) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    pos += n_;");
-    pushLine(lines, "    tree_[pos] += delta;");
-    pushLine(lines, "    for (pos >>= 1; pos > 0; pos >>= 1) {");
-    pushLine(lines, "      tree_[pos] = Op::combine(tree_[pos << 1], tree_[pos << 1 | 1]);");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, "  T query(int left, int right) const {");
-  pushLine(lines, "    if (left < 0) {");
-  pushLine(lines, "      left = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right > n_) {");
-  pushLine(lines, "      right = n_;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (left >= right || n_ == 0) {");
-  pushLine(lines, "      return Op::neutral();");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    T lhs = Op::neutral();");
-  pushLine(lines, "    T rhs = Op::neutral();");
-  pushLine(lines, "    for (left += n_, right += n_; left < right; left >>= 1, right >>= 1) {");
-  pushLine(lines, "      if (left & 1) {");
-  pushLine(lines, "        lhs = Op::combine(lhs, tree_[left++]);");
-  pushLine(lines, "      }");
-  pushLine(lines, "      if (right & 1) {");
-  pushLine(lines, "        rhs = Op::combine(tree_[--right], rhs);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return Op::combine(lhs, rhs);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(lines, "  std::vector<T> tree_;");
-  pushLine(lines, "};");
-  pushLine(lines);
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `using ${names.sumAliasName} = ${names.className}<T, ${names.sumOpName}<T>>;`);
-  pushLine(lines);
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `using ${names.minAliasName} = ${names.className}<T, ${names.minOpName}<T>>;`);
-  pushLine(lines);
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `using ${names.maxAliasName} = ${names.className}<T, ${names.maxOpName}<T>>;`);
-
-  return `${lines.join("\n")}\n`;
+  return applyIdentifierRenames(
+    renderCodeTemplate("solvers/segment_tree/iterative.hpp.tmpl", {
+      pointAdd: hasUpdate(options, "point_add")
+    }),
+    [
+      { from: "SegmentSumOp", to: names.sumOpName },
+      { from: "SegmentMinOp", to: names.minOpName },
+      { from: "SegmentMaxOp", to: names.maxOpName },
+      { from: "SegmentTree", to: names.className },
+      { from: "SegmentSumTree", to: names.sumAliasName },
+      { from: "SegmentMinTree", to: names.minAliasName },
+      { from: "SegmentMaxTree", to: names.maxAliasName }
+    ]
+  );
 }
 
 export function renderSegmentTree(options: SegmentTreeOptions): string {
-  if (options.outputMode === "iterative_class") {
-    return renderIterativeSegmentTree(options);
-  }
-
+  if (options.application === "max_subarray") return renderMaxSubarraySegmentTree(options);
+  if (options.outputMode === "iterative_class") return renderIterativeSegmentTree(options);
   const names = options.names;
-  const valueType = valueStorageType(options);
-  const hasRangeAdd = hasUpdate(options, "range_add");
-  const hasRangeAssign = hasUpdate(options, "range_assign");
-  const hasLazy = hasRangeAdd || hasRangeAssign;
-  const hasFirstLeq = hasDescend(options, "first_leq") && canRenderFirstLeq(options);
-  const lines: string[] = [];
-
+  const rangeAdd = hasUpdate(options, "range_add");
+  const rangeAssign = hasUpdate(options, "range_assign");
+  const context: CodeTemplateContext = {
+    valueType: options.valueType,
+    pointSet: hasUpdate(options, "point_set"),
+    pointAdd: hasUpdate(options, "point_add"),
+    rangeAdd,
+    rangeAssign,
+    hasLazy: rangeAdd || rangeAssign,
+    firstLeq: hasDescend(options, "first_leq") && canRenderFirstLeq(options)
+  };
   if (options.aggregate === "custom") {
     const custom = options.custom ?? {
-      nodeType: "Node",
-      leafTarget: "node.x",
-      leafExpression: "value",
-      updateTarget: "node.x"
+      nodeType: "Node", leafTarget: "node.x", leafExpression: "value", updateTarget: "node.x"
     };
     const fields = customFieldNames(options);
     const field = fields[0];
-    pushLine(lines, `struct ${custom.nodeType} {`);
-    for (const currentField of fields) {
-      pushLine(lines, `  ${options.valueType} ${currentField} = ${options.valueType}(0);`);
-    }
-    pushLine(lines, `  // TODO: add aggregate fields.`);
-    pushLine(lines, `};`);
-    pushLine(lines);
-    pushLine(lines, `${custom.nodeType} ${names.neutralName}() {`);
-    pushLine(lines, `  return ${custom.nodeType}{};`);
-    pushLine(lines, `}`);
-    pushLine(lines);
-    pushLine(lines, `${custom.nodeType} ${names.makeNodeName}(${options.valueType} value) {`);
-    pushLine(lines, `  ${custom.nodeType} node{};`);
-    pushLine(
-      lines,
-      `  ${targetExpression(custom.leafTarget, "node")} = ${custom.leafExpression};`
-    );
-    pushLine(lines, `  return node;`);
-    pushLine(lines, `}`);
-    pushLine(lines);
-    pushLine(lines, `${custom.nodeType} ${names.mergeName}(${custom.nodeType} a, ${custom.nodeType} b) {`);
-    pushLine(lines, `  ${custom.nodeType} res{};`);
-    pushLine(lines, `  res.${field} = a.${field} + b.${field};`);
-    pushLine(lines, `  // TODO: replace with the problem-specific merge.`);
-    pushLine(lines, `  return res;`);
-    pushLine(lines, `}`);
-  } else {
-    pushLine(lines, `${options.valueType} ${names.neutralName}() {`);
-    pushLine(lines, `  return ${scalarNeutralExpression(options)};`);
-    pushLine(lines, `}`);
-    pushLine(lines);
-    pushLine(lines, `${options.valueType} ${names.makeNodeName}(${options.valueType} value) {`);
-    pushLine(lines, `  return value;`);
-    pushLine(lines, `}`);
-    pushLine(lines);
-    pushLine(lines, `${options.valueType} ${names.mergeName}(${options.valueType} a, ${options.valueType} b) {`);
-    pushLine(lines, `  return ${scalarMergeExpression(options, "a", "b")};`);
-    pushLine(lines, `}`);
+    Object.assign(context, {
+      customNodeType: custom.nodeType,
+      customFieldDeclarations: fields.map((name) =>
+        `  ${options.valueType} ${name} = ${options.valueType}(0);`
+      ).join("\n"),
+      leafTargetExpression: targetExpression(custom.leafTarget, "node"),
+      leafExpression: custom.leafExpression,
+      updateTargetExpression: targetExpression(custom.updateTarget, "node"),
+      pointAddTargetExpression: targetExpression(custom.updateTarget, `${names.storageName}[v]`),
+      mergeTargetExpression: `res.${field}`,
+      mergeLhsExpression: `a.${field}`,
+      mergeRhsExpression: `b.${field}`
+    });
   }
-
-  pushLine(lines);
-  pushLine(lines, `vector<${valueType}> ${names.storageName};`);
-  if (hasRangeAdd) {
-    pushLine(lines, `vector<${options.valueType}> ${names.lazyAddName};`);
-  }
-  if (hasRangeAssign) {
-    pushLine(lines, `vector<${options.valueType}> ${names.lazySetName};`);
-    pushLine(lines, `vector<char> ${names.lazyHasSetName};`);
-  }
-  pushLine(lines);
-
-  pushLine(lines, `void ${names.initName}(int n) {`);
-  pushLine(
-    lines,
-    `  ${names.storageName}.assign(4 * max(1, n), ${names.neutralName}());`
+  let helpers = renderCodeTemplate(
+    `solvers/segment_tree/global-${options.aggregate}.hpp.tmpl`, context
   );
-  if (hasRangeAdd) {
-    pushLine(
-      lines,
-      `  ${names.lazyAddName}.assign(4 * max(1, n), ${options.valueType}(0));`
-    );
-  }
-  if (hasRangeAssign) {
-    pushLine(
-      lines,
-      `  ${names.lazySetName}.assign(4 * max(1, n), ${options.valueType}(0));`
-    );
-    pushLine(lines, `  ${names.lazyHasSetName}.assign(4 * max(1, n), 0);`);
-  }
-  pushLine(lines, `}`);
-  pushLine(lines);
-
-  if (hasRangeAssign) {
-    pushLine(lines, `void ${names.applySetName}(int v, int tl, int tr, ${options.valueType} value) {`);
-    if (options.aggregate === "custom") {
-      const custom = options.custom!;
-      pushLine(lines, `  (void)tl;`);
-      pushLine(lines, `  (void)tr;`);
-      pushLine(lines, `  ${valueType}& node = ${names.storageName}[v];`);
-      pushLine(lines, `  ${targetExpression(custom.updateTarget, "node")} = value;`);
-      pushLine(lines, `  // TODO: adjust assignment for aggregate fields and segment length.`);
-    } else {
-      pushLine(lines, `  ${names.storageName}[v] = ${scalarSetExpression(options, "value", "tr - tl + 1")};`);
-    }
-    pushLine(lines, `  ${names.lazyHasSetName}[v] = 1;`);
-    pushLine(lines, `  ${names.lazySetName}[v] = value;`);
-    if (hasRangeAdd) {
-      pushLine(lines, `  ${names.lazyAddName}[v] = ${options.valueType}(0);`);
-    }
-    pushLine(lines, `}`);
-    pushLine(lines);
-  }
-
-  if (hasRangeAdd) {
-    pushLine(lines, `void ${names.applyAddName}(int v, int tl, int tr, ${options.valueType} delta) {`);
-    if (options.aggregate === "custom") {
-      const custom = options.custom!;
-      pushLine(lines, `  (void)tl;`);
-      pushLine(lines, `  (void)tr;`);
-      pushLine(lines, `  ${valueType}& node = ${names.storageName}[v];`);
-      pushLine(lines, `  ${targetExpression(custom.updateTarget, "node")} += delta;`);
-      pushLine(lines, `  // TODO: adjust addition for aggregate fields and segment length.`);
-    } else {
-      pushLine(lines, `  ${names.storageName}[v] += ${scalarAddExpression(options, "delta", "tr - tl + 1")};`);
-    }
-    if (hasRangeAssign) {
-      pushLine(lines, `  if (${names.lazyHasSetName}[v]) {`);
-      pushLine(lines, `    ${names.lazySetName}[v] += delta;`);
-      pushLine(lines, `  } else {`);
-      pushLine(lines, `    ${names.lazyAddName}[v] += delta;`);
-      pushLine(lines, `  }`);
-    } else {
-      pushLine(lines, `  ${names.lazyAddName}[v] += delta;`);
-    }
-    pushLine(lines, `}`);
-    pushLine(lines);
-  }
-
-  if (hasLazy) {
-    pushLine(lines, `void ${names.pushName}(int v, int tl, int tr) {`);
-    pushLine(lines, `  if (tl == tr) return;`);
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    if (hasRangeAssign) {
-      pushLine(lines, `  if (${names.lazyHasSetName}[v]) {`);
-      pushLine(lines, `    ${names.applySetName}(v * 2, tl, tm, ${names.lazySetName}[v]);`);
-      pushLine(
-        lines,
-        `    ${names.applySetName}(v * 2 + 1, tm + 1, tr, ${names.lazySetName}[v]);`
-      );
-      pushLine(lines, `    ${names.lazyHasSetName}[v] = 0;`);
-      pushLine(lines, `  }`);
-    }
-    if (hasRangeAdd) {
-      pushLine(lines, `  if (${names.lazyAddName}[v] != ${options.valueType}(0)) {`);
-      pushLine(lines, `    ${names.applyAddName}(v * 2, tl, tm, ${names.lazyAddName}[v]);`);
-      pushLine(
-        lines,
-        `    ${names.applyAddName}(v * 2 + 1, tm + 1, tr, ${names.lazyAddName}[v]);`
-      );
-      pushLine(lines, `    ${names.lazyAddName}[v] = ${options.valueType}(0);`);
-      pushLine(lines, `  }`);
-    }
-    pushLine(lines, `}`);
-    pushLine(lines);
-  }
-
-  pushLine(lines, `void ${names.buildName}(int v, int tl, int tr, const vector<${options.valueType}>& a) {`);
-  pushLine(lines, `  if (tl == tr) {`);
-  pushLine(lines, `    ${names.storageName}[v] = ${names.makeNodeName}(a[tl]);`);
-  pushLine(lines, `    return;`);
-  pushLine(lines, `  }`);
-  pushLine(lines, `  int tm = (tl + tr) / 2;`);
-  pushLine(lines, `  ${names.buildName}(v * 2, tl, tm, a);`);
-  pushLine(lines, `  ${names.buildName}(v * 2 + 1, tm + 1, tr, a);`);
-  pushLine(
-    lines,
-    `  ${names.storageName}[v] = ${names.mergeName}(${names.storageName}[v * 2], ${names.storageName}[v * 2 + 1]);`
-  );
-  pushLine(lines, `}`);
-  pushLine(lines);
-
-  pushLine(lines, `${valueType} ${names.queryName}(int v, int tl, int tr, int l, int r) {`);
-  pushLine(lines, `  if (tl > r || tr < l) return ${names.neutralName}();`);
-  pushLine(lines, `  if (l <= tl && tr <= r) return ${names.storageName}[v];`);
-  if (hasLazy) {
-    pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-  }
-  pushLine(lines, `  int tm = (tl + tr) / 2;`);
-  pushLine(
-    lines,
-    `  return ${names.mergeName}(${names.queryName}(v * 2, tl, tm, l, r), ${names.queryName}(v * 2 + 1, tm + 1, tr, l, r));`
-  );
-  pushLine(lines, `}`);
-
-  if (hasUpdate(options, "point_set")) {
-    pushLine(lines);
-    pushLine(lines, `void ${names.pointSetName}(int v, int tl, int tr, int pos, ${options.valueType} value) {`);
-    pushLine(lines, `  if (tl == tr) {`);
-    pushLine(lines, `    ${names.storageName}[v] = ${names.makeNodeName}(value);`);
-    pushLine(lines, `    return;`);
-    pushLine(lines, `  }`);
-    if (hasLazy) {
-      pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-    }
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    pushLine(lines, `  if (pos <= tm) ${names.pointSetName}(v * 2, tl, tm, pos, value);`);
-    pushLine(lines, `  else ${names.pointSetName}(v * 2 + 1, tm + 1, tr, pos, value);`);
-    pushLine(
-      lines,
-      `  ${names.storageName}[v] = ${names.mergeName}(${names.storageName}[v * 2], ${names.storageName}[v * 2 + 1]);`
-    );
-    pushLine(lines, `}`);
-  }
-
-  if (hasUpdate(options, "point_add")) {
-    pushLine(lines);
-    pushLine(lines, `void ${names.pointAddName}(int v, int tl, int tr, int pos, ${options.valueType} delta) {`);
-    pushLine(lines, `  if (tl == tr) {`);
-    if (options.aggregate === "custom") {
-      const custom = options.custom!;
-      pushLine(lines, `    ${targetExpression(custom.updateTarget, `${names.storageName}[v]`)} += delta;`);
-    } else {
-      pushLine(lines, `    ${names.storageName}[v] += delta;`);
-    }
-    pushLine(lines, `    return;`);
-    pushLine(lines, `  }`);
-    if (hasLazy) {
-      pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-    }
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    pushLine(lines, `  if (pos <= tm) ${names.pointAddName}(v * 2, tl, tm, pos, delta);`);
-    pushLine(lines, `  else ${names.pointAddName}(v * 2 + 1, tm + 1, tr, pos, delta);`);
-    pushLine(
-      lines,
-      `  ${names.storageName}[v] = ${names.mergeName}(${names.storageName}[v * 2], ${names.storageName}[v * 2 + 1]);`
-    );
-    pushLine(lines, `}`);
-  }
-
-  if (hasRangeAdd) {
-    pushLine(lines);
-    pushLine(lines, `void ${names.rangeAddName}(int v, int tl, int tr, int l, int r, ${options.valueType} delta) {`);
-    pushLine(lines, `  if (tl > r || tr < l) return;`);
-    pushLine(lines, `  if (l <= tl && tr <= r) {`);
-    pushLine(lines, `    ${names.applyAddName}(v, tl, tr, delta);`);
-    pushLine(lines, `    return;`);
-    pushLine(lines, `  }`);
-    pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    pushLine(lines, `  ${names.rangeAddName}(v * 2, tl, tm, l, r, delta);`);
-    pushLine(lines, `  ${names.rangeAddName}(v * 2 + 1, tm + 1, tr, l, r, delta);`);
-    pushLine(
-      lines,
-      `  ${names.storageName}[v] = ${names.mergeName}(${names.storageName}[v * 2], ${names.storageName}[v * 2 + 1]);`
-    );
-    pushLine(lines, `}`);
-  }
-
-  if (hasRangeAssign) {
-    pushLine(lines);
-    pushLine(lines, `void ${names.rangeAssignName}(int v, int tl, int tr, int l, int r, ${options.valueType} value) {`);
-    pushLine(lines, `  if (tl > r || tr < l) return;`);
-    pushLine(lines, `  if (l <= tl && tr <= r) {`);
-    pushLine(lines, `    ${names.applySetName}(v, tl, tr, value);`);
-    pushLine(lines, `    return;`);
-    pushLine(lines, `  }`);
-    pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    pushLine(lines, `  ${names.rangeAssignName}(v * 2, tl, tm, l, r, value);`);
-    pushLine(lines, `  ${names.rangeAssignName}(v * 2 + 1, tm + 1, tr, l, r, value);`);
-    pushLine(
-      lines,
-      `  ${names.storageName}[v] = ${names.mergeName}(${names.storageName}[v * 2], ${names.storageName}[v * 2 + 1]);`
-    );
-    pushLine(lines, `}`);
-  }
-
-  if (hasFirstLeq) {
-    pushLine(lines);
-    pushLine(lines, `int ${names.firstLeqName}(int v, int tl, int tr, int l, int r, ${options.valueType} target) {`);
-    pushLine(lines, `  if (tl > r || tr < l || ${names.storageName}[v] > target) return -1;`);
-    pushLine(lines, `  if (tl == tr) return tl;`);
-    if (hasLazy) {
-      pushLine(lines, `  ${names.pushName}(v, tl, tr);`);
-    }
-    pushLine(lines, `  int tm = (tl + tr) / 2;`);
-    pushLine(lines, `  int left = ${names.firstLeqName}(v * 2, tl, tm, l, r, target);`);
-    pushLine(lines, `  return left != -1 ? left : ${names.firstLeqName}(v * 2 + 1, tm + 1, tr, l, r, target);`);
-    pushLine(lines, `}`);
-  }
-
-  return `${lines.join("\n")}\n`;
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "t", to: names.storageName },
+    { from: "lazy_add", to: names.lazyAddName },
+    { from: "lazy_set", to: names.lazySetName },
+    { from: "lazy_has_set", to: names.lazyHasSetName },
+    { from: "init_segtree", to: names.initName },
+    { from: "build", to: names.buildName },
+    { from: "get", to: names.queryName },
+    { from: "merge", to: names.mergeName },
+    { from: "neutral", to: names.neutralName },
+    { from: "make_node", to: names.makeNodeName },
+    { from: "push", to: names.pushName },
+    { from: "apply_add", to: names.applyAddName },
+    { from: "apply_set", to: names.applySetName },
+    { from: "point_set", to: names.pointSetName },
+    { from: "point_add", to: names.pointAddName },
+    { from: "range_add", to: names.rangeAddName },
+    { from: "range_assign", to: names.rangeAssignName },
+    { from: "first_leq", to: names.firstLeqName }
+  ]);
+  return helpers;
 }
 
 export function defaultSegmentTreeBeatsUpdates(): SegmentTreeBeatsUpdate[] {
@@ -2075,7 +2602,7 @@ function segmentTreeBeatsUpdateSet(
 function segmentTreeBeatsQuerySet(
   queries: SegmentTreeBeatsQuery[]
 ): Set<SegmentTreeBeatsQuery> {
-  return new Set(queries);
+  return new Set(queries.length === 0 ? defaultSegmentTreeBeatsQueries() : queries);
 }
 
 function segmentTreeBeatsExports(options: SegmentTreeBeatsOptions): string[] {
@@ -2087,30 +2614,56 @@ function renderSegmentTreeBeatsUsage(
   updates: Set<SegmentTreeBeatsUpdate>,
   queries: Set<SegmentTreeBeatsQuery>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Inclusive [l, r] ranges:"];
-  lines.push(`std::vector<${options.valueType}> values(n);`);
-  lines.push(`${names.className}<${options.valueType}> seg(values);`);
-  if (updates.has("chmin")) {
-    lines.push(`seg.${names.chminName}(l, r, x);`);
+  return renderCodeTemplate("solvers/segment_tree_beats/usage-comment.cpp.tmpl", {
+    ...options.names,
+    valueType: options.valueType,
+    chminUpdate: updates.has("chmin"), chmaxUpdate: updates.has("chmax"), addUpdate: updates.has("add"),
+    sumQuery: queries.has("sum"), minQuery: queries.has("min"), maxQuery: queries.has("max")
+  });
+}
+
+function firstSegmentTreeBeatsQuery(
+  queries: Set<SegmentTreeBeatsQuery>
+): SegmentTreeBeatsQuery {
+  for (const query of ["sum", "min", "max"] as const) {
+    if (queries.has(query)) {
+      return query;
+    }
   }
-  if (updates.has("chmax")) {
-    lines.push(`seg.${names.chmaxName}(l, r, x);`);
-  }
-  if (updates.has("add")) {
-    lines.push(`seg.${names.addName}(l, r, delta);`);
-  }
-  if (queries.has("sum")) {
-    lines.push(`auto total = seg.${names.querySumName}(l, r);`);
-  }
-  if (queries.has("min")) {
-    lines.push(`auto mn = seg.${names.queryMinName}(l, r);`);
-  }
-  if (queries.has("max")) {
-    lines.push(`auto mx = seg.${names.queryMaxName}(l, r);`);
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return "sum";
+}
+
+function renderSegmentTreeBeatsUsageSnippet(
+  options: SegmentTreeBeatsOptions,
+  updates: Set<SegmentTreeBeatsUpdate>,
+  queries: Set<SegmentTreeBeatsQuery>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const sourceMode = options.sourceMode ?? "empty";
+  const sourceName = options.sourceName?.trim() || "a";
+  const addUpdate = updates.has("add");
+  const chminUpdate = updates.has("chmin");
+  const chmaxUpdate = updates.has("chmax");
+  const query = firstSegmentTreeBeatsQuery(queries);
+  return renderCodeTemplate("solvers/segment_tree_beats/solve.cpp.tmpl", {
+    ...options.names,
+    valueType: options.valueType,
+    sourceName,
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    instanceName: sanitizeIdentifier(options.instanceName ?? "seg", "seg"),
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    constructorArg: sourceMode === "existing_vector" || sourceMode === "read_loop"
+      ? sourceName : options.sizeExpression?.trim() || "n",
+    readLoop: sourceMode === "read_loop",
+    queryLoop: usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    addUpdate, chminUpdate, chmaxUpdate,
+    hasUpdates: addUpdate || chminUpdate || chmaxUpdate,
+    hasPreviousBeforeChmax: addUpdate || chminUpdate,
+    chmaxType: addUpdate && chminUpdate ? 3 : 2,
+    sumQuery: query === "sum", minQuery: query === "min", maxQuery: query === "max"
+  });
 }
 
 export function renderSegmentTreeBeatsRecipe(
@@ -2119,402 +2672,37 @@ export function renderSegmentTreeBeatsRecipe(
   const names = options.names;
   const updates = segmentTreeBeatsUpdateSet(options.updates);
   const queries = segmentTreeBeatsQuerySet(options.queries);
-  const hasAdd = updates.has("add");
-  const hasChmin = updates.has("chmin");
-  const hasChmax = updates.has("chmax");
-  const hasUpdates = hasAdd || hasChmin || hasChmax;
-  const hasQuerySum = queries.has("sum");
-  const hasQueryMin = queries.has("min");
-  const hasQueryMax = queries.has("max");
-  const addRecName = `${names.addName}_rec`;
-  const chminRecName = `${names.chminName}_rec`;
-  const chmaxRecName = `${names.chmaxName}_rec`;
-  const sumRecName = `${names.querySumName}_rec`;
-  const minRecName = `${names.queryMinName}_rec`;
-  const maxRecName = `${names.queryMaxName}_rec`;
-  const applyAddName = `apply_${names.addName}`;
-  const applyChminName = `apply_${names.chminName}`;
-  const applyChmaxName = `apply_${names.chmaxName}`;
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${names.className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, `  explicit ${names.className}(const std::vector<T>& values) { build(values); }`);
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = n < 0 ? 0 : n;");
-  pushLine(lines, "    tree_.assign(4 * std::max(1, n_), empty_node());");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void build(const std::vector<T>& values) {");
-  pushLine(lines, "    reset(static_cast<int>(values.size()));");
-  pushLine(lines, "    if (n_ > 0) {");
-  pushLine(lines, "      build_rec(1, 0, n_ - 1, values);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-
-  if (hasChmin) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.chminName}(int left, int right, const T& x) {`);
-    pushLine(lines, "    if (norm(left, right)) {");
-    pushLine(lines, `      ${chminRecName}(1, 0, n_ - 1, left, right, x);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  if (hasChmax) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.chmaxName}(int left, int right, const T& x) {`);
-    pushLine(lines, "    if (norm(left, right)) {");
-    pushLine(lines, `      ${chmaxRecName}(1, 0, n_ - 1, left, right, x);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  if (hasAdd) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.addName}(int left, int right, const T& x) {`);
-    pushLine(lines, "    if (norm(left, right)) {");
-    pushLine(lines, `      ${addRecName}(1, 0, n_ - 1, left, right, x);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  if (hasQuerySum) {
-    pushLine(lines);
-    pushLine(lines, `  T ${names.querySumName}(int left, int right) {`);
-    pushLine(lines, "    if (!norm(left, right)) {");
-    pushLine(lines, "      return T(0);");
-    pushLine(lines, "    }");
-    pushLine(lines, `    return ${sumRecName}(1, 0, n_ - 1, left, right);`);
-    pushLine(lines, "  }");
-  }
-
-  if (hasQueryMin) {
-    pushLine(lines);
-    pushLine(lines, `  T ${names.queryMinName}(int left, int right) {`);
-    pushLine(lines, "    if (!norm(left, right)) {");
-    pushLine(lines, "      return pos_inf();");
-    pushLine(lines, "    }");
-    pushLine(lines, `    return ${minRecName}(1, 0, n_ - 1, left, right);`);
-    pushLine(lines, "  }");
-  }
-
-  if (hasQueryMax) {
-    pushLine(lines);
-    pushLine(lines, `  T ${names.queryMaxName}(int left, int right) {`);
-    pushLine(lines, "    if (!norm(left, right)) {");
-    pushLine(lines, "      return neg_inf();");
-    pushLine(lines, "    }");
-    pushLine(lines, `    return ${maxRecName}(1, 0, n_ - 1, left, right);`);
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, `  struct ${names.nodeName} {`);
-  pushLine(lines, "    T sum;");
-  pushLine(lines, "    T max_v;");
-  pushLine(lines, "    T smax_v;");
-  pushLine(lines, "    int max_count;");
-  pushLine(lines, "    T min_v;");
-  pushLine(lines, "    T smin_v;");
-  pushLine(lines, "    int min_count;");
-  pushLine(lines, "    T add;");
-  pushLine(lines, "  };");
-  pushLine(lines);
-  pushLine(lines, "  int n_;");
-  pushLine(lines, `  std::vector<${names.nodeName}> tree_;`);
-  pushLine(lines);
-  pushLine(lines, "  static T pos_inf() { return std::numeric_limits<T>::max() / T(4); }");
-  pushLine(lines, "  static T neg_inf() { return std::numeric_limits<T>::lowest() / T(4); }");
-  pushLine(lines);
-  pushLine(lines, `  static ${names.nodeName} empty_node() {`);
-  pushLine(lines, "    return {T(0), neg_inf(), neg_inf(), 0, pos_inf(), pos_inf(), 0, T(0)};");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static ${names.nodeName} make_leaf(const T& value) {`);
-  pushLine(lines, "    return {value, value, neg_inf(), 1, value, pos_inf(), 1, T(0)};");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static bool empty(const ${names.nodeName}& node) { return node.max_count == 0; }`);
-  pushLine(lines);
-  pushLine(lines, "  bool norm(int& left, int& right) const {");
-  pushLine(lines, "    if (n_ == 0 || left > right || right < 0 || left >= n_) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    left = std::max(left, 0);");
-  pushLine(lines, "    right = std::min(right, n_ - 1);");
-  pushLine(lines, "    return left <= right;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static ${names.nodeName} merge_node(const ${names.nodeName}& a, const ${names.nodeName}& b) {`
-  );
-  pushLine(lines, "    if (empty(a)) {");
-  pushLine(lines, "      return b;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (empty(b)) {");
-  pushLine(lines, "      return a;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    ${names.nodeName} res;`);
-  pushLine(lines, "    res.sum = a.sum + b.sum;");
-  pushLine(lines, "    res.add = T(0);");
-  pushLine(lines);
-  pushLine(lines, "    if (a.max_v == b.max_v) {");
-  pushLine(lines, "      res.max_v = a.max_v;");
-  pushLine(lines, "      res.max_count = a.max_count + b.max_count;");
-  pushLine(lines, "      res.smax_v = std::max(a.smax_v, b.smax_v);");
-  pushLine(lines, "    } else if (a.max_v > b.max_v) {");
-  pushLine(lines, "      res.max_v = a.max_v;");
-  pushLine(lines, "      res.max_count = a.max_count;");
-  pushLine(lines, "      res.smax_v = std::max(a.smax_v, b.max_v);");
-  pushLine(lines, "    } else {");
-  pushLine(lines, "      res.max_v = b.max_v;");
-  pushLine(lines, "      res.max_count = b.max_count;");
-  pushLine(lines, "      res.smax_v = std::max(a.max_v, b.smax_v);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    if (a.min_v == b.min_v) {");
-  pushLine(lines, "      res.min_v = a.min_v;");
-  pushLine(lines, "      res.min_count = a.min_count + b.min_count;");
-  pushLine(lines, "      res.smin_v = std::min(a.smin_v, b.smin_v);");
-  pushLine(lines, "    } else if (a.min_v < b.min_v) {");
-  pushLine(lines, "      res.min_v = a.min_v;");
-  pushLine(lines, "      res.min_count = a.min_count;");
-  pushLine(lines, "      res.smin_v = std::min(a.smin_v, b.min_v);");
-  pushLine(lines, "    } else {");
-  pushLine(lines, "      res.min_v = b.min_v;");
-  pushLine(lines, "      res.min_count = b.min_count;");
-  pushLine(lines, "      res.smin_v = std::min(a.min_v, b.smin_v);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    return res;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void build_rec(int v, int tl, int tr, const std::vector<T>& values) {");
-  pushLine(lines, "    if (tl == tr) {");
-  pushLine(lines, "      tree_[v] = make_leaf(values[tl]);");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    const int tm = (tl + tr) / 2;");
-  pushLine(lines, "    build_rec(v * 2, tl, tm, values);");
-  pushLine(lines, "    build_rec(v * 2 + 1, tm + 1, tr, values);");
-  pushLine(lines, "    pull(v);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void pull(int v) { tree_[v] = merge_node(tree_[v * 2], tree_[v * 2 + 1]); }");
-
-  if (hasAdd) {
-    pushLine(lines);
-    pushLine(lines, `  void ${applyAddName}(int v, int tl, int tr, const T& x) {`);
-    pushLine(lines, `    ${names.nodeName}& node = tree_[v];`);
-    pushLine(lines, "    node.sum += x * static_cast<T>(tr - tl + 1);");
-    pushLine(lines, "    node.max_v += x;");
-    pushLine(lines, "    if (node.smax_v != neg_inf()) {");
-    pushLine(lines, "      node.smax_v += x;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    node.min_v += x;");
-    pushLine(lines, "    if (node.smin_v != pos_inf()) {");
-    pushLine(lines, "      node.smin_v += x;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    node.add += x;");
-    pushLine(lines, "  }");
-  }
-
-  if (hasChmin) {
-    pushLine(lines);
-    pushLine(lines, `  void ${applyChminName}(int v, const T& x) {`);
-    pushLine(lines, `    ${names.nodeName}& node = tree_[v];`);
-    pushLine(lines, "    if (node.max_v <= x) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    node.sum += (x - node.max_v) * static_cast<T>(node.max_count);");
-    pushLine(lines, "    if (node.max_v == node.min_v) {");
-    pushLine(lines, "      node.max_v = node.min_v = x;");
-    pushLine(lines, "    } else if (node.max_v == node.smin_v) {");
-    pushLine(lines, "      node.max_v = node.smin_v = x;");
-    pushLine(lines, "    } else {");
-    pushLine(lines, "      node.max_v = x;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  if (hasChmax) {
-    pushLine(lines);
-    pushLine(lines, `  void ${applyChmaxName}(int v, const T& x) {`);
-    pushLine(lines, `    ${names.nodeName}& node = tree_[v];`);
-    pushLine(lines, "    if (node.min_v >= x) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    node.sum += (x - node.min_v) * static_cast<T>(node.min_count);");
-    pushLine(lines, "    if (node.max_v == node.min_v) {");
-    pushLine(lines, "      node.max_v = node.min_v = x;");
-    pushLine(lines, "    } else if (node.smax_v == node.min_v) {");
-    pushLine(lines, "      node.min_v = node.smax_v = x;");
-    pushLine(lines, "    } else {");
-    pushLine(lines, "      node.min_v = x;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  if (hasUpdates) {
-    pushLine(lines);
-    pushLine(lines, "  void push(int v, int tl, int tr) {");
-    pushLine(lines, "    if (tl == tr) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    if (hasAdd) {
-      pushLine(lines, "    if (tree_[v].add != T(0)) {");
-      pushLine(lines, `      ${applyAddName}(v * 2, tl, tm, tree_[v].add);`);
-      pushLine(lines, `      ${applyAddName}(v * 2 + 1, tm + 1, tr, tree_[v].add);`);
-      pushLine(lines, "      tree_[v].add = T(0);");
-      pushLine(lines, "    }");
-    }
-    if (hasChmin) {
-      pushLine(lines, "    if (tree_[v * 2].max_v > tree_[v].max_v) {");
-      pushLine(lines, `      ${applyChminName}(v * 2, tree_[v].max_v);`);
-      pushLine(lines, "    }");
-      pushLine(lines, "    if (tree_[v * 2 + 1].max_v > tree_[v].max_v) {");
-      pushLine(lines, `      ${applyChminName}(v * 2 + 1, tree_[v].max_v);`);
-      pushLine(lines, "    }");
-    }
-    if (hasChmax) {
-      pushLine(lines, "    if (tree_[v * 2].min_v < tree_[v].min_v) {");
-      pushLine(lines, `      ${applyChmaxName}(v * 2, tree_[v].min_v);`);
-      pushLine(lines, "    }");
-      pushLine(lines, "    if (tree_[v * 2 + 1].min_v < tree_[v].min_v) {");
-      pushLine(lines, `      ${applyChmaxName}(v * 2 + 1, tree_[v].min_v);`);
-      pushLine(lines, "    }");
-    }
-    pushLine(lines, "  }");
-  }
-
-  if (hasAdd) {
-    pushLine(lines);
-    pushLine(lines, `  void ${addRecName}(int v, int tl, int tr, int l, int r, const T& x) {`);
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, `      ${applyAddName}(v, tl, tr, x);`);
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    push(v, tl, tr);");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    ${addRecName}(v * 2, tl, tm, l, r, x);`);
-    pushLine(lines, `    ${addRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`);
-    pushLine(lines, "    pull(v);");
-    pushLine(lines, "  }");
-  }
-
-  if (hasChmin) {
-    pushLine(lines);
-    pushLine(lines, `  void ${chminRecName}(int v, int tl, int tr, int l, int r, const T& x) {`);
-    pushLine(lines, "    if (tl > r || tr < l || tree_[v].max_v <= x) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r && tree_[v].smax_v < x) {");
-    pushLine(lines, `      ${applyChminName}(v, x);`);
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    push(v, tl, tr);");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    ${chminRecName}(v * 2, tl, tm, l, r, x);`);
-    pushLine(lines, `    ${chminRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`);
-    pushLine(lines, "    pull(v);");
-    pushLine(lines, "  }");
-  }
-
-  if (hasChmax) {
-    pushLine(lines);
-    pushLine(lines, `  void ${chmaxRecName}(int v, int tl, int tr, int l, int r, const T& x) {`);
-    pushLine(lines, "    if (tl > r || tr < l || tree_[v].min_v >= x) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r && tree_[v].smin_v > x) {");
-    pushLine(lines, `      ${applyChmaxName}(v, x);`);
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    push(v, tl, tr);");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    ${chmaxRecName}(v * 2, tl, tm, l, r, x);`);
-    pushLine(lines, `    ${chmaxRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`);
-    pushLine(lines, "    pull(v);");
-    pushLine(lines, "  }");
-  }
-
-  if (hasQuerySum) {
-    pushLine(lines);
-    pushLine(lines, `  T ${sumRecName}(int v, int tl, int tr, int l, int r) {`);
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return T(0);");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return tree_[v].sum;");
-    pushLine(lines, "    }");
-    if (hasUpdates) {
-      pushLine(lines, "    push(v, tl, tr);");
-    }
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    return ${sumRecName}(v * 2, tl, tm, l, r) +`);
-    pushLine(lines, `           ${sumRecName}(v * 2 + 1, tm + 1, tr, l, r);`);
-    pushLine(lines, "  }");
-  }
-
-  if (hasQueryMin) {
-    pushLine(lines);
-    pushLine(lines, `  T ${minRecName}(int v, int tl, int tr, int l, int r) {`);
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return pos_inf();");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return tree_[v].min_v;");
-    pushLine(lines, "    }");
-    if (hasUpdates) {
-      pushLine(lines, "    push(v, tl, tr);");
-    }
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    return std::min(${minRecName}(v * 2, tl, tm, l, r),`);
-    pushLine(lines, `                    ${minRecName}(v * 2 + 1, tm + 1, tr, l, r));`);
-    pushLine(lines, "  }");
-  }
-
-  if (hasQueryMax) {
-    pushLine(lines);
-    pushLine(lines, `  T ${maxRecName}(int v, int tl, int tr, int l, int r) {`);
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return neg_inf();");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return tree_[v].max_v;");
-    pushLine(lines, "    }");
-    if (hasUpdates) {
-      pushLine(lines, "    push(v, tl, tr);");
-    }
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(lines, `    return std::max(${maxRecName}(v * 2, tl, tm, l, r),`);
-    pushLine(lines, `                    ${maxRecName}(v * 2 + 1, tm + 1, tr, l, r));`);
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines, "};");
-
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderSegmentTreeBeatsUsage(options, updates, queries));
-  }
-
+  const addUpdate = updates.has("add");
+  const chminUpdate = updates.has("chmin");
+  const chmaxUpdate = updates.has("chmax");
+  let helpers = renderCodeTemplate("solvers/segment_tree_beats/helpers.hpp.tmpl", {
+    addUpdate, chminUpdate, chmaxUpdate,
+    hasUpdates: addUpdate || chminUpdate || chmaxUpdate,
+    sumQuery: queries.has("sum"), minQuery: queries.has("min"), maxQuery: queries.has("max")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "SegmentTreeBeats", to: names.className },
+    { from: "Node", to: names.nodeName },
+    { from: "chmin", to: names.chminName },
+    { from: "chmax", to: names.chmaxName },
+    { from: "add", to: names.addName },
+    { from: "query_sum", to: names.querySumName },
+    { from: "query_min", to: names.queryMinName },
+    { from: "query_max", to: names.queryMaxName },
+    { from: "chmin_rec", to: `${names.chminName}_rec` },
+    { from: "chmax_rec", to: `${names.chmaxName}_rec` },
+    { from: "add_rec", to: `${names.addName}_rec` },
+    { from: "query_sum_rec", to: `${names.querySumName}_rec` },
+    { from: "query_min_rec", to: `${names.queryMinName}_rec` },
+    { from: "query_max_rec", to: `${names.queryMaxName}_rec` },
+    { from: "apply_chmin", to: `apply_${names.chminName}` },
+    { from: "apply_chmax", to: `apply_${names.chmaxName}` },
+    { from: "apply_add", to: `apply_${names.addName}` }
+  ]);
+  if (options.includeUsageComment) helpers = helpers.trimEnd() + "\n\n" + renderSegmentTreeBeatsUsage(options, updates, queries);
+  const usage = renderSegmentTreeBeatsUsageSnippet(options, updates, queries);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     segmentTreeBeatsExports(options)
   );
 }
@@ -2524,32 +2712,22 @@ export function renderSegmentTreeBeats(options: SegmentTreeBeatsOptions): string
 }
 
 export function renderCompressUnique(options: CompressUniqueOptions): string {
-  const lines: string[] = [];
-  if (options.valuesName !== options.sourceName) {
-    pushLine(lines, `auto ${options.valuesName} = ${options.sourceName};`);
-  }
-  pushLine(lines, `sort(all(${options.valuesName}));`);
-  pushLine(
-    lines,
-    `${options.valuesName}.resize(unique(all(${options.valuesName})) - ${options.valuesName}.begin());`
-  );
-  pushLine(lines, `auto ${options.idFunctionName} = [&](auto x) {`);
-  pushLine(
-    lines,
-    `  return lower_bound(all(${options.valuesName}), x) - ${options.valuesName}.begin();`
-  );
-  pushLine(lines, `};`);
-  if (options.rewriteSource && options.valuesName !== options.sourceName) {
-    pushLine(
-      lines,
-      `for (auto& x : ${options.sourceName}) x = ${options.idFunctionName}(x);`
-    );
-  }
-  return `${lines.join("\n")}\n`;
+  return renderCodeTemplate("bricks/compress_unique.cpp.tmpl", {
+    sourceName: options.sourceName,
+    valuesName: options.valuesName,
+    idFunctionName: options.idFunctionName,
+    copySource: options.valuesName !== options.sourceName,
+    rewriteSource:
+      options.rewriteSource && options.valuesName !== options.sourceName
+  });
 }
 
 export function renderReadVector(options: ReadVectorOptions): string {
-  return `${options.containerType} ${options.name}(${options.sizeExpression});\nfor (auto& x : ${options.name}) cin >> x;\n`;
+  return renderCodeTemplate("bricks/read_vector.cpp.tmpl", {
+    containerType: options.containerType,
+    name: options.name,
+    sizeExpression: options.sizeExpression
+  });
 }
 
 export function planDsuNames(
@@ -2562,92 +2740,42 @@ export function planDsuNames(
   };
 }
 
-function renderDsuUsage(options: DsuOptions): string {
-  return [
-    "/*",
-    "Example:",
-    `${options.names.className} dsu(n);`,
-    "dsu.unite(u, v);",
-    "if (dsu.same(u, v)) {",
-    "}",
-    "*/"
-  ].join("\n");
+function renderDsuUsageSnippet(options: DsuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const className = options.names.className;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const instance = sanitizeIdentifier(options.instanceName ?? "dsu", "dsu");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const templateName = usageMode === "query_loop" ? "query_loop" : usageMode;
+  return renderCodeTemplate(`solvers/dsu/${templateName}.cpp.tmpl`, {
+    className,
+    sizeExpression: n,
+    edgeCountName: m,
+    instanceName: instance,
+    answerName: answer,
+    oneBasedInput: options.indexing === "one_based_input"
+  });
 }
 
 export function renderDsuRecipe(options: DsuOptions): RenderedRecipe {
   const className = options.names.className;
-  const lines: string[] = [];
+  const helpers = renderCodeTemplate("solvers/dsu/helpers.hpp.tmpl", {
+    className,
+    instanceName: sanitizeIdentifier(options.instanceName ?? "dsu", "dsu"),
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    includeUsageComment: options.includeUsageComment
+  });
 
-  pushLine(lines, `class ${className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(lines, "    components_ = n_;");
-  pushLine(lines, "    parent_.resize(n_);");
-  pushLine(lines, "    size_.assign(n_, 1);");
-  pushLine(lines, "    for (int i = 0; i < n_; ++i) {");
-  pushLine(lines, "      parent_[i] = i;");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(lines, "  int components() const { return components_; }");
-  pushLine(lines);
-  pushLine(lines, "  int find(int v) {");
-  pushLine(lines, "    if (v < 0 || v >= n_) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (parent_[v] == v) {");
-  pushLine(lines, "      return v;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    parent_[v] = find(parent_[v]);");
-  pushLine(lines, "    return parent_[v];");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool unite(int a, int b) {");
-  pushLine(lines, "    int root_a = find(a);");
-  pushLine(lines, "    int root_b = find(b);");
-  pushLine(lines, "    if (root_a == -1 || root_b == -1 || root_a == root_b) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    if (size_[root_a] > size_[root_b]) {");
-  pushLine(lines, "      std::swap(root_a, root_b);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    parent_[root_a] = root_b;");
-  pushLine(lines, "    size_[root_b] += size_[root_a];");
-  pushLine(lines, "    --components_;");
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool same(int a, int b) { return find(a) == find(b) && find(a) != -1; }");
-  pushLine(lines);
-  pushLine(lines, "  int component_size(int v) {");
-  pushLine(lines, "    const int root = find(v);");
-  pushLine(lines, "    if (root == -1) {");
-  pushLine(lines, "      return 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return size_[root];");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  const std::vector<int>& parents() const { return parent_; }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(lines, "  int components_;");
-  pushLine(lines, "  std::vector<int> parent_;");
-  pushLine(lines, "  std::vector<int> size_;");
-  pushLine(lines, "};");
-
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderDsuUsage(options));
-  }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderDsuUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderDsu(options: DsuOptions): string {
@@ -2665,130 +2793,41 @@ export function planRollbackDsuNames(
 }
 
 function renderRollbackDsuUsage(options: RollbackDsuOptions): string {
-  const className = options.names.className;
-  return [
-    "/*",
-    "Example:",
-    `${className} dsu(n);`,
-    "int snap = dsu.snapshot();",
-    "dsu.unite(u, v);",
-    "dsu.rollback(snap);",
-    "*/"
-  ].join("\n");
+  return renderCodeTemplate("solvers/rollback_dsu/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: options.instanceName?.trim() || "dsu",
+    sizeExpression: options.sizeExpression?.trim() || "n"
+  });
+}
+
+function renderRollbackDsuUsageSnippet(options: RollbackDsuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/rollback_dsu/solve.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: sanitizeIdentifier(options.instanceName ?? "dsu", "dsu"),
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    instanceOnly: usageMode === "instance",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
 }
 
 export function renderRollbackDsuRecipe(
   options: RollbackDsuOptions
 ): RenderedRecipe {
   const className = options.names.className;
-  const lines: string[] = [];
-
-  pushLine(lines, `class ${className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(lines, "    components_ = n_;");
-  pushLine(lines, "    parent_.resize(n_);");
-  pushLine(lines, "    size_.assign(n_, 1);");
-  pushLine(lines, "    history_.clear();");
-  pushLine(lines, "    for (int i = 0; i < n_; ++i) {");
-  pushLine(lines, "      parent_[i] = i;");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(lines, "  int components() const { return components_; }");
-  pushLine(lines);
-  pushLine(lines, "  int find(int v) const {");
-  pushLine(lines, "    if (v < 0 || v >= n_) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    while (parent_[v] != v) {");
-  pushLine(lines, "      v = parent_[v];");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return v;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool same(int a, int b) const {");
-  pushLine(lines, "    const int root_a = find(a);");
-  pushLine(lines, "    const int root_b = find(b);");
-  pushLine(lines, "    return root_a != -1 && root_a == root_b;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int component_size(int v) const {");
-  pushLine(lines, "    const int root = find(v);");
-  pushLine(lines, "    return root == -1 ? 0 : size_[root];");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int snapshot() const { return static_cast<int>(history_.size()); }");
-  pushLine(lines);
-  pushLine(lines, "  bool unite(int a, int b) {");
-  pushLine(lines, "    int root_a = find(a);");
-  pushLine(lines, "    int root_b = find(b);");
-  pushLine(lines, "    if (root_a == -1 || root_b == -1 || root_a == root_b) {");
-  pushLine(lines, "      history_.push_back(Change{-1, -1, -1});");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (size_[root_a] > size_[root_b]) {");
-  pushLine(lines, "      std::swap(root_a, root_b);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    history_.push_back(Change{root_a, root_b, size_[root_b]});");
-  pushLine(lines, "    parent_[root_a] = root_b;");
-  pushLine(lines, "    size_[root_b] += size_[root_a];");
-  pushLine(lines, "    --components_;");
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void rollback() {");
-  pushLine(lines, "    if (history_.empty()) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    undo_one();");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void rollback(int snapshot_id) {");
-  pushLine(lines, "    if (snapshot_id < 0) {");
-  pushLine(lines, "      snapshot_id = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    while (static_cast<int>(history_.size()) > snapshot_id) {");
-  pushLine(lines, "      undo_one();");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  struct Change {");
-  pushLine(lines, "    int child;");
-  pushLine(lines, "    int parent;");
-  pushLine(lines, "    int parent_size;");
-  pushLine(lines, "  };");
-  pushLine(lines);
-  pushLine(lines, "  int n_;");
-  pushLine(lines, "  int components_;");
-  pushLine(lines, "  std::vector<int> parent_;");
-  pushLine(lines, "  std::vector<int> size_;");
-  pushLine(lines, "  std::vector<Change> history_;");
-  pushLine(lines);
-  pushLine(lines, "  void undo_one() {");
-  pushLine(lines, "    const Change change = history_.back();");
-  pushLine(lines, "    history_.pop_back();");
-  pushLine(lines, "    if (change.child == -1) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    parent_[change.child] = change.child;");
-  pushLine(lines, "    size_[change.parent] = change.parent_size;");
-  pushLine(lines, "    ++components_;");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
+  let helpers = renderBundledSolver("rollback_dsu.hpp", [
+    { from: "RollbackDsu", to: className }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderRollbackDsuUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderRollbackDsuUsage(options)}\n`;
   }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderRollbackDsuUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderRollbackDsu(options: RollbackDsuOptions): string {
@@ -2806,171 +2845,100 @@ export function planLcaNames(
 }
 
 function renderLcaUsage(options: LcaOptions): string {
-  const className = options.names.className;
-  return [
-    "/*",
-    "Example:",
-    `${className} lca(n);`,
-    "lca.add_edge(u, v);",
-    "lca.build(root);",
-    "int c = lca.lca(a, b);",
-    "int d = lca.dist(a, b);",
-    "int p = lca.kth_ancestor(v, k);",
-    "*/"
-  ].join("\n");
+  return renderCodeTemplate("solvers/lca/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: options.instanceName?.trim() || "lca",
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    rootExpression: options.rootExpression?.trim() || "root"
+  });
+}
+
+function renderLcaUsageSnippet(options: LcaOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/lca/solve.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: sanitizeIdentifier(options.instanceName ?? "lca", "lca"),
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    rootExpression: options.rootExpression?.trim() || "0",
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    readTree: options.sourceMode === "read_tree" || usageMode === "read_tree" || usageMode === "query_loop",
+    queryLoop: usageMode === "query_loop",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
 }
 
 export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
   const className = options.names.className;
-  const lines: string[] = [];
-
-  pushLine(lines, `class ${className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(lines, "    max_log_ = 1;");
-  pushLine(lines, "    while ((1 << max_log_) <= std::max(1, n_)) {");
-  pushLine(lines, "      ++max_log_;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    graph_.assign(n_, std::vector<int>());");
-  pushLine(lines, "    depth_.assign(n_, 0);");
-  pushLine(lines, "    parent_.assign(n_, -1);");
-  pushLine(lines, "    component_.assign(n_, -1);");
-  pushLine(lines, "    up_.assign(max_log_, std::vector<int>(n_, -1));");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(lines, "  void add_edge(int a, int b, bool undirected = true) {");
-  pushLine(lines, "    if (!ok(a) || !ok(b)) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    graph_[a].push_back(b);");
-  pushLine(lines, "    if (undirected && a != b) {");
-  pushLine(lines, "      graph_[b].push_back(a);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void build(int root = 0) {");
-  pushLine(lines, "    if (n_ == 0) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    std::fill(depth_.begin(), depth_.end(), 0);");
-  pushLine(lines, "    std::fill(parent_.begin(), parent_.end(), -1);");
-  pushLine(lines, "    std::fill(component_.begin(), component_.end(), -1);");
-  pushLine(lines, "    for (int bit = 0; bit < max_log_; ++bit) {");
-  pushLine(lines, "      std::fill(up_[bit].begin(), up_[bit].end(), -1);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    int comp = 0;");
-  pushLine(lines, "    if (ok(root)) {");
-  pushLine(lines, "      dfs(root, -1, comp++);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int v = 0; v < n_; ++v) {");
-  pushLine(lines, "      if (component_[v] == -1) {");
-  pushLine(lines, "        dfs(v, -1, comp++);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int bit = 1; bit < max_log_; ++bit) {");
-  pushLine(lines, "      for (int v = 0; v < n_; ++v) {");
-  pushLine(lines, "        const int mid = up_[bit - 1][v];");
-  pushLine(lines, "        up_[bit][v] = (mid == -1 ? -1 : up_[bit - 1][mid]);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int parent(int v) const { return ok(v) ? parent_[v] : -1; }");
-  pushLine(lines);
-  pushLine(lines, "  int depth(int v) const { return ok(v) ? depth_[v] : -1; }");
-  pushLine(lines);
-  pushLine(lines, "  int component(int v) const { return ok(v) ? component_[v] : -1; }");
-  pushLine(lines);
-  pushLine(lines, "  int kth_ancestor(int v, int k) const {");
-  pushLine(lines, "    if (!ok(v) || k < 0) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int bit = 0; k > 0 && v != -1; ++bit, k >>= 1) {");
-  pushLine(lines, "      if (k & 1) {");
-  pushLine(lines, "        if (bit >= max_log_) {");
-  pushLine(lines, "          return -1;");
-  pushLine(lines, "        }");
-  pushLine(lines, "        v = up_[bit][v];");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return v;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int lca(int a, int b) const {");
-  pushLine(lines, "    if (!ok(a) || !ok(b) || component_[a] != component_[b]) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (depth_[a] < depth_[b]) {");
-  pushLine(lines, "      std::swap(a, b);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    a = kth_ancestor(a, depth_[a] - depth_[b]);");
-  pushLine(lines, "    if (a == b) {");
-  pushLine(lines, "      return a;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int bit = max_log_ - 1; bit >= 0; --bit) {");
-  pushLine(lines, "      if (up_[bit][a] != up_[bit][b]) {");
-  pushLine(lines, "        a = up_[bit][a];");
-  pushLine(lines, "        b = up_[bit][b];");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return parent_[a];");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int dist(int a, int b) const {");
-  pushLine(lines, "    const int c = lca(a, b);");
-  pushLine(lines, "    return c == -1 ? -1 : depth_[a] + depth_[b] - 2 * depth_[c];");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(lines, "  int max_log_;");
-  pushLine(lines, "  std::vector<std::vector<int>> graph_;");
-  pushLine(lines, "  std::vector<int> depth_;");
-  pushLine(lines, "  std::vector<int> parent_;");
-  pushLine(lines, "  std::vector<int> component_;");
-  pushLine(lines, "  std::vector<std::vector<int>> up_;");
-  pushLine(lines);
-  pushLine(lines, "  bool ok(int v) const { return v >= 0 && v < n_; }");
-  pushLine(lines);
-  pushLine(lines, "  void dfs(int root, int root_parent, int comp) {");
-  pushLine(lines, "    std::vector<int> stack(1, root);");
-  pushLine(lines, "    parent_[root] = root_parent;");
-  pushLine(lines, "    component_[root] = comp;");
-  pushLine(lines, "    up_[0][root] = root_parent;");
-  pushLine(lines);
-  pushLine(lines, "    while (!stack.empty()) {");
-  pushLine(lines, "      const int v = stack.back();");
-  pushLine(lines, "      stack.pop_back();");
-  pushLine(lines, "      for (int to : graph_[v]) {");
-  pushLine(lines, "        if (to == parent_[v] || component_[to] != -1) {");
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(lines, "        parent_[to] = v;");
-  pushLine(lines, "        component_[to] = comp;");
-  pushLine(lines, "        depth_[to] = depth_[v] + 1;");
-  pushLine(lines, "        up_[0][to] = v;");
-  pushLine(lines, "        stack.push_back(to);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
+  let helpers = renderBundledSolver("lca_binary_lifting.hpp", [
+    { from: "LcaBinaryLifting", to: className }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderLcaUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderLcaUsage(options)}\n`;
   }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderLcaUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderLca(options: LcaOptions): string {
   return composeRecipeSections(renderLcaRecipe(options));
+}
+
+export function planHldNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): HldNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    className: planner.reserve("HeavyLightDecomposition")
+  };
+}
+
+function renderHldUsage(options: HldOptions): string {
+  return renderCodeTemplate("solvers/hld/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: options.instanceName?.trim() || "hld",
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    rootExpression: options.rootExpression?.trim() || "root"
+  });
+}
+
+function renderHldUsageSnippet(options: HldOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/hld/solve.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: sanitizeIdentifier(options.instanceName ?? "hld", "hld"),
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    rootExpression: options.rootExpression?.trim() || "0",
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    includeLca: options.valueMode === "edge_values" ? "false" : "true",
+    readTree: options.sourceMode === "read_tree" || usageMode === "read_tree" || usageMode === "query_loop",
+    queryLoop: usageMode === "query_loop",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
+}
+
+export function renderHldRecipe(options: HldOptions): RenderedRecipe {
+  const className = options.names.className;
+  let helpers = renderBundledSolver("hld.hpp", [
+    { from: "HeavyLightDecomposition", to: className }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderHldUsage(options)}\n`;
+  }
+  const usage = renderHldUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    [className]
+  );
+}
+
+export function renderHld(options: HldOptions): string {
+  return composeRecipeSections(renderHldRecipe(options));
 }
 
 export function planBfsNames(
@@ -2992,157 +2960,815 @@ export function planBfsNames(
 }
 
 function renderBfsUsage(options: BfsOptions): string {
-  const names = options.names;
-  return [
-    "/*",
-    "Example:",
-    "std::vector<std::vector<int>> graph(n);",
-    `${names.addEdgeName}(graph, u, v, true);`,
-    `auto result = ${names.singleSourceName}(graph, source);`,
-    `auto path = ${names.restorePathName}(source, target, result);`,
-    "*/"
-  ].join("\n");
+  return renderCodeTemplate("solvers/bfs/usage-comment.cpp.tmpl", {
+    graphName: options.graphName ?? "graph",
+    sourceName: options.sourceName ?? "source",
+    targetName: options.targetName ?? "target",
+    resultName: options.resultName ?? "result",
+    addEdgeName: options.names.addEdgeName,
+    singleSourceName: options.names.singleSourceName,
+    restorePathName: options.names.restorePathName
+  });
+}
+
+function renderBfsUsageSnippet(options: BfsOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  return renderCodeTemplate("solvers/bfs/solve.cpp.tmpl", {
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    edgeCountName: options.edgeCountName?.trim() || "m",
+    graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
+    sourceName: sanitizeIdentifier(options.sourceName ?? "source", "source"),
+    targetName: sanitizeIdentifier(options.targetName ?? "target", "target"),
+    resultName: sanitizeIdentifier(options.resultName ?? "result", "result"),
+    addEdgeName: options.names.addEdgeName,
+    multiSourceName: options.names.multiSourceName,
+    singleSourceName: options.names.singleSourceName,
+    restorePathName: options.names.restorePathName,
+    undirected: options.graphMode === "undirected" ? "true" : "false",
+    readGraph: options.sourceMode !== "existing_graph",
+    readGraphOnly: usageMode === "read_graph",
+    multiSource: usageMode === "multi_source",
+    pathQuery: usageMode === "path_query",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
 }
 
 export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, `struct ${names.resultStructName} {`);
-  pushLine(lines, "  std::vector<int> distance;");
-  pushLine(lines, "  std::vector<int> parent;");
-  pushLine(lines, "  std::vector<int> order;");
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline void ${names.addEdgeName}(std::vector<std::vector<int>>& graph, int from, int to,`
-  );
-  pushLine(lines, "                         bool undirected = false) {");
-  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
-  pushLine(lines, "  if (from < 0 || from >= n || to < 0 || to >= n) {");
-  pushLine(lines, "    return;");
-  pushLine(lines, "  }");
-  pushLine(lines, "  graph[from].push_back(to);");
-  pushLine(lines, "  if (undirected && from != to) {");
-  pushLine(lines, "    graph[to].push_back(from);");
-  pushLine(lines, "  }");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline ${names.resultStructName} ${names.multiSourceName}(const std::vector<std::vector<int>>& graph,`
-  );
-  pushLine(lines, "                                  const std::vector<int>& sources) {");
-  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
-  pushLine(lines, `  ${names.resultStructName} result;`);
-  pushLine(lines, "  result.distance.assign(n, -1);");
-  pushLine(lines, "  result.parent.assign(n, -1);");
-  pushLine(lines, "  result.order.clear();");
-  pushLine(lines);
-  pushLine(lines, "  std::queue<int> q;");
-  pushLine(lines, "  for (int source : sources) {");
-  pushLine(lines, "    if (source < 0 || source >= n || result.distance[source] != -1) {");
-  pushLine(lines, "      continue;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    result.distance[source] = 0;");
-  pushLine(lines, "    result.order.push_back(source);");
-  pushLine(lines, "    q.push(source);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  while (!q.empty()) {");
-  pushLine(lines, "    const int v = q.front();");
-  pushLine(lines, "    q.pop();");
-  pushLine(lines);
-  pushLine(lines, "    for (int to : graph[v]) {");
-  pushLine(lines, "      if (to < 0 || to >= n || result.distance[to] != -1) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      result.distance[to] = result.distance[v] + 1;");
-  pushLine(lines, "      result.parent[to] = v;");
-  pushLine(lines, "      result.order.push_back(to);");
-  pushLine(lines, "      q.push(to);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  return result;");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline ${names.resultStructName} ${names.singleSourceName}(const std::vector<std::vector<int>>& graph, int source) {`
-  );
-  pushLine(lines, `  return ${names.multiSourceName}(graph, std::vector<int>(1, source));`);
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline std::vector<int> ${names.restorePathName}(int source, int target,`
-  );
-  pushLine(lines, `                                         const ${names.resultStructName}& result) {`);
-  pushLine(lines, "  const int n = static_cast<int>(result.parent.size());");
-  pushLine(lines, "  if (source < 0 || source >= n || target < 0 || target >= n) {");
-  pushLine(lines, "    return {};");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  std::vector<int> path;");
-  pushLine(lines, "  int current = target;");
-  pushLine(lines, "  int steps = 0;");
-  pushLine(lines, "  while (current != -1 && steps <= n) {");
-  pushLine(lines, "    path.push_back(current);");
-  pushLine(lines, "    current = result.parent[current];");
-  pushLine(lines, "    ++steps;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  if (path.empty() || path.back() != source) {");
-  pushLine(lines, "    return {};");
-  pushLine(lines, "  }");
-  pushLine(lines, "  std::reverse(path.begin(), path.end());");
-  pushLine(lines, "  return path;");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline std::vector<int> ${names.restorePathToRootName}(int target,`
-  );
-  pushLine(lines, `                                                 const ${names.resultStructName}& result) {`);
-  pushLine(lines, "  const int n = static_cast<int>(result.parent.size());");
-  pushLine(lines, "  if (target < 0 || target >= n || result.distance[target] == -1) {");
-  pushLine(lines, "    return {};");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  std::vector<int> path;");
-  pushLine(lines, "  int current = target;");
-  pushLine(lines, "  int steps = 0;");
-  pushLine(lines, "  while (current != -1 && steps <= n) {");
-  pushLine(lines, "    path.push_back(current);");
-  pushLine(lines, "    current = result.parent[current];");
-  pushLine(lines, "    ++steps;");
-  pushLine(lines, "  }");
-  pushLine(lines, "  std::reverse(path.begin(), path.end());");
-  pushLine(lines, "  return path;");
-  pushLine(lines, "}");
-
+  let helpers = renderBundledSolver("bfs.hpp", [
+    { from: "BfsResult", to: names.resultStructName },
+    { from: "bfs_add_edge", to: names.addEdgeName },
+    { from: "bfs_multi_source", to: names.multiSourceName },
+    { from: "bfs", to: names.singleSourceName },
+    { from: "bfs_restore_path", to: names.restorePathName },
+    { from: "bfs_restore_path_to_root", to: names.restorePathToRootName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderBfsUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderBfsUsage(options)}\n`;
   }
-
+  const usage = renderBfsUsageSnippet(options);
+  const exports = [
+    names.resultStructName,
+    names.addEdgeName,
+    names.multiSourceName,
+    names.singleSourceName,
+    names.restorePathName,
+    names.restorePathToRootName
+  ];
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
-    [
-      names.resultStructName,
-      names.addEdgeName,
-      names.multiSourceName,
-      names.singleSourceName,
-      names.restorePathName,
-      names.restorePathToRootName
-    ]
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
   );
 }
 
 export function renderBfs(options: BfsOptions): string {
   return composeRecipeSections(renderBfsRecipe(options));
+}
+
+export function planDijkstraNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): DijkstraNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    edgeStructName: planner.reserve("DijkstraEdge", "ShortestPathEdge"),
+    resultStructName: planner.reserve("DijkstraResult", "ShortestPathResult"),
+    addEdgeName: planner.reserve("dijkstra_add_edge", "weighted_graph_add_edge"),
+    multiSourceName: planner.reserve("dijkstra_multi_source", "dijkstra_from_sources"),
+    singleSourceName: planner.reserve("dijkstra", "run_dijkstra"),
+    restorePathName: planner.reserve("dijkstra_restore_path", "dijkstra_get_path")
+  };
+}
+
+function renderDijkstraUsage(options: DijkstraOptions): string {
+  const valueType = options.valueType?.trim() || "long long";
+  return renderCodeTemplate("solvers/dijkstra/usage-comment.cpp.tmpl", {
+    valueType,
+    infExpression: options.infExpression?.trim() || "numeric_limits<long long>::max()",
+    graphName: options.graphName ?? "graph",
+    sourceName: options.sourceName ?? "source",
+    targetName: options.targetName ?? "target",
+    resultName: options.resultName ?? "result",
+    edgeStructName: options.names.edgeStructName,
+    addEdgeName: options.names.addEdgeName,
+    singleSourceName: options.names.singleSourceName,
+    restorePathName: options.names.restorePathName
+  });
+}
+
+function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  const valueType = options.valueType?.trim() || "long long";
+  return renderCodeTemplate("solvers/dijkstra/solve.cpp.tmpl", {
+    valueType,
+    infExpression: options.infExpression?.trim() || `std::numeric_limits<${valueType}>::max()`,
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    edgeCountName: options.edgeCountName?.trim() || "m",
+    graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
+    sourceName: sanitizeIdentifier(options.sourceName ?? "source", "source"),
+    targetName: sanitizeIdentifier(options.targetName ?? "target", "target"),
+    resultName: sanitizeIdentifier(options.resultName ?? "result", "result"),
+    edgeStructName: options.names.edgeStructName,
+    addEdgeName: options.names.addEdgeName,
+    multiSourceName: options.names.multiSourceName,
+    singleSourceName: options.names.singleSourceName,
+    restorePathName: options.names.restorePathName,
+    undirected: options.graphMode === "undirected" ? "true" : "false",
+    readGraph: options.sourceMode !== "existing_graph",
+    readGraphOnly: usageMode === "read_graph",
+    multiSource: usageMode === "multi_source",
+    pathQuery: usageMode === "path_query",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
+}
+
+export function renderDijkstraRecipe(options: DijkstraOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("dijkstra.hpp", [
+    { from: "DijkstraEdge", to: names.edgeStructName },
+    { from: "DijkstraResult", to: names.resultStructName },
+    { from: "dijkstra_add_edge", to: names.addEdgeName },
+    { from: "dijkstra_multi_source", to: names.multiSourceName },
+    { from: "dijkstra", to: names.singleSourceName },
+    { from: "dijkstra_restore_path", to: names.restorePathName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderDijkstraUsage(options)}\n`;
+  }
+  const usage = renderDijkstraUsageSnippet(options);
+  const exports = [
+    names.edgeStructName,
+    names.resultStructName,
+    names.addEdgeName,
+    names.multiSourceName,
+    names.singleSourceName,
+    names.restorePathName
+  ];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderDijkstra(options: DijkstraOptions): string {
+  return composeRecipeSections(renderDijkstraRecipe(options));
+}
+
+export function planToposortNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): ToposortNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    addEdgeName: planner.reserve("toposort_add_edge", "dag_add_edge"),
+    sortName: planner.reserve("topological_sort", "dag_topological_sort"),
+    validateName: planner.reserve("is_topological_order", "dag_is_topological_order")
+  };
+}
+
+function renderToposortUsage(options: ToposortOptions): string {
+  return renderCodeTemplate("solvers/toposort/usage-comment.cpp.tmpl", {
+    graphName: options.graphName?.trim() || "graph",
+    orderName: options.orderName?.trim() || "order",
+    dagName: options.dagName?.trim() || "dag",
+    addEdgeName: options.names.addEdgeName,
+    sortName: options.names.sortName
+  });
+}
+
+function renderToposortUsageSnippet(options: ToposortOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/toposort/solve.cpp.tmpl", {
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    edgeCountName: options.edgeCountName?.trim() || "m",
+    graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
+    orderName: sanitizeIdentifier(options.orderName ?? "order", "order"),
+    dagName: sanitizeIdentifier(options.dagName ?? "dag", "dag"),
+    addEdgeName: options.names.addEdgeName,
+    sortName: options.names.sortName,
+    validateName: options.names.validateName,
+    readGraph: options.sourceMode !== "existing_graph",
+    readGraphOnly: usageMode === "read_graph",
+    validateOrder: usageMode === "validate_order",
+    cycleCheck: usageMode === "cycle_check",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
+}
+
+export function renderToposortRecipe(options: ToposortOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("toposort.hpp", [
+    { from: "toposort_add_edge", to: names.addEdgeName },
+    { from: "topological_sort", to: names.sortName },
+    { from: "is_topological_order", to: names.validateName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderToposortUsage(options)}\n`;
+  }
+  const usage = renderToposortUsageSnippet(options);
+  const exports = [names.addEdgeName, names.sortName, names.validateName];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderToposort(options: ToposortOptions): string {
+  return composeRecipeSections(renderToposortRecipe(options));
+}
+
+export function planKosarajuNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): KosarajuNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    resultStructName: planner.reserve("KosarajuResult", "SccResult"),
+    addEdgeName: planner.reserve("kosaraju_add_edge", "scc_add_edge"),
+    sccName: planner.reserve("kosaraju_scc", "build_scc")
+  };
+}
+
+function renderKosarajuUsage(options: KosarajuOptions): string {
+  return renderCodeTemplate("solvers/kosaraju/usage-comment.cpp.tmpl", {
+    graphName: options.graphName?.trim() || "graph",
+    resultName: options.resultName?.trim() || "scc",
+    addEdgeName: options.names.addEdgeName,
+    sccName: options.names.sccName
+  });
+}
+
+function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/kosaraju/solve.cpp.tmpl", {
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    edgeCountName: options.edgeCountName?.trim() || "m",
+    graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
+    resultName: sanitizeIdentifier(options.resultName ?? "scc", "scc"),
+    resultStructName: options.names.resultStructName,
+    addEdgeName: options.names.addEdgeName,
+    sccName: options.names.sccName,
+    readGraph: options.sourceMode !== "existing_graph",
+    readGraphOnly: usageMode === "read_graph",
+    computeScc: usageMode === "compute_scc",
+    printComponents: usageMode === "print_components",
+    sameComponentQueries: usageMode === "same_component_queries",
+    oneBasedInput: options.indexing === "one_based_input"
+  });
+}
+
+export function renderKosarajuRecipe(options: KosarajuOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("kosaraju.hpp", [
+    { from: "KosarajuResult", to: names.resultStructName },
+    { from: "kosaraju_add_edge", to: names.addEdgeName },
+    { from: "kosaraju_scc", to: names.sccName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderKosarajuUsage(options)}\n`;
+  }
+  const usage = renderKosarajuUsageSnippet(options);
+  const exports = [names.resultStructName, names.addEdgeName, names.sccName];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderKosaraju(options: KosarajuOptions): string {
+  return composeRecipeSections(renderKosarajuRecipe(options));
+}
+
+export function planMoNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MoNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    queryStructName: planner.reserve("MoQuery", "OfflineRangeQuery"),
+    blockSizeName: planner.reserve("mo_default_block_size", "offline_range_block_size"),
+    normalizeName: planner.reserve("normalize_mo_query", "normalize_offline_range_query"),
+    orderName: planner.reserve("mo_order", "offline_range_order"),
+    processName: planner.reserve("mo_process", "process_offline_ranges")
+  };
+}
+
+function renderMoUsage(options: MoOptions): string {
+  return renderCodeTemplate("solvers/mo/usage-comment.cpp.tmpl", {
+    queryStructName: options.names.queryStructName,
+    queriesName: options.queriesName?.trim() || "queries",
+    orderName: options.names.orderName
+  });
+}
+
+function renderMoUsageSnippet(options: MoOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/mo/solve.cpp.tmpl", {
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    queryCountName: options.queryCountName?.trim() || "q",
+    valuesName: sanitizeIdentifier(options.valuesName ?? "a", "a"),
+    queriesName: sanitizeIdentifier(options.queriesName ?? "queries", "queries"),
+    answersName: sanitizeIdentifier(options.answersName ?? "answers", "answers"),
+    answerType: options.answerType?.trim() || "long long",
+    queryStructName: options.names.queryStructName,
+    processName: options.names.processName,
+    readQueries: options.sourceMode !== "existing_queries",
+    readQueriesOnly: usageMode === "read_queries",
+    distinctCount: usageMode === "distinct_count_skeleton",
+    oneBasedClosedInput: options.indexing === "one_based_closed_input"
+  });
+}
+
+export function renderMoRecipe(options: MoOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("mo.hpp", [
+    { from: "MoQuery", to: names.queryStructName },
+    { from: "mo_default_block_size", to: names.blockSizeName },
+    { from: "normalize_mo_query", to: names.normalizeName },
+    { from: "mo_order", to: names.orderName },
+    { from: "mo_process", to: names.processName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderMoUsage(options)}\n`;
+  }
+  const usage = renderMoUsageSnippet(options);
+  const exports = [
+    names.queryStructName,
+    names.blockSizeName,
+    names.normalizeName,
+    names.orderName,
+    names.processName
+  ];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderMo(options: MoOptions): string {
+  return composeRecipeSections(renderMoRecipe(options));
+}
+
+export function planMonotonicStackNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MonotonicStackNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    nearestLeftByName: planner.reserve("nearest_left_by", "nearest_left_with"),
+    nearestRightByName: planner.reserve("nearest_right_by", "nearest_right_with"),
+    nearestSmallerLeftName: planner.reserve("nearest_smaller_left", "nearest_less_left"),
+    nearestSmallerRightName: planner.reserve("nearest_smaller_right", "nearest_less_right"),
+    nearestGreaterLeftName: planner.reserve("nearest_greater_left", "nearest_more_left"),
+    nearestGreaterRightName: planner.reserve("nearest_greater_right", "nearest_more_right"),
+    nearestStructName: planner.reserve("NearestIndices", "AllNearestIndices"),
+    nearestAllName: planner.reserve("nearest_all", "build_nearest_indices")
+  };
+}
+
+function monotonicStackCallName(options: MonotonicStackOptions): string {
+  const names = options.names;
+  const relation = options.relation ?? "smaller";
+  const direction = options.direction ?? "left";
+  if (relation === "all" || direction === "both") {
+    return names.nearestAllName;
+  }
+  if (relation === "greater" && direction === "right") {
+    return names.nearestGreaterRightName;
+  }
+  if (relation === "greater") {
+    return names.nearestGreaterLeftName;
+  }
+  if (direction === "right") {
+    return names.nearestSmallerRightName;
+  }
+  return names.nearestSmallerLeftName;
+}
+
+function renderMonotonicStackUsage(options: MonotonicStackOptions): string {
+  const callName = monotonicStackCallName(options);
+  return renderCodeTemplate("solvers/monotonic_stack/usage-comment.cpp.tmpl", {
+    callName,
+    sourceName: options.sourceName?.trim() || "values",
+    resultName: options.resultName?.trim() || "nearest",
+    strict: options.strictness === "non_strict" ? "false" : "true"
+  });
+}
+
+function renderMonotonicStackUsageSnippet(options: MonotonicStackOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const callName = ((options: MonotonicStackOptions): string => {
+  const names = options.names;
+  if (options.relation === "all" || options.direction === "both") return names.nearestAllName;
+  if (options.relation === "greater" && options.direction === "right") return names.nearestGreaterRightName;
+  if (options.relation === "greater") return names.nearestGreaterLeftName;
+  if (options.direction === "right") return names.nearestSmallerRightName;
+  return names.nearestSmallerLeftName;
+})(options);
+  return renderCodeTemplate("solvers/monotonic_stack/solve.cpp.tmpl", {
+    callName,
+    sourceName: options.sourceName?.trim() || "values",
+    resultName: sanitizeIdentifier(options.resultName ?? "nearest", "nearest"),
+    strict: options.strictness === "non_strict" ? "false" : "true",
+    allResult: usageMode === "compute_all" || options.relation === "all" || options.direction === "both"
+  });
+}
+
+export function renderMonotonicStackRecipe(
+  options: MonotonicStackOptions
+): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("monotonic_stack.hpp", [
+    { from: "nearest_left_by", to: names.nearestLeftByName },
+    { from: "nearest_right_by", to: names.nearestRightByName },
+    { from: "nearest_smaller_left", to: names.nearestSmallerLeftName },
+    { from: "nearest_smaller_right", to: names.nearestSmallerRightName },
+    { from: "nearest_greater_left", to: names.nearestGreaterLeftName },
+    { from: "nearest_greater_right", to: names.nearestGreaterRightName },
+    { from: "NearestIndices", to: names.nearestStructName },
+    { from: "nearest_all", to: names.nearestAllName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderMonotonicStackUsage(options)}\n`;
+  }
+  const usage = renderMonotonicStackUsageSnippet(options);
+  const exports = [
+    names.nearestLeftByName,
+    names.nearestRightByName,
+    names.nearestSmallerLeftName,
+    names.nearestSmallerRightName,
+    names.nearestGreaterLeftName,
+    names.nearestGreaterRightName,
+    names.nearestStructName,
+    names.nearestAllName
+  ];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderMonotonicStack(options: MonotonicStackOptions): string {
+  return composeRecipeSections(renderMonotonicStackRecipe(options));
+}
+
+export function planGpHashTableNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): GpHashTableNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    splitMixName: planner.reserve("SplitMix64Hash", "SplitMix64Hasher"),
+    hashName: planner.reserve("GpHash", "SafeHash"),
+    pairHashName: planner.reserve("PairHash", "SafePairHash"),
+    tableAliasName: planner.reserve("GpHashTable", "SafeHashTable")
+  };
+}
+
+function renderGpHashTableUsage(options: GpHashTableOptions): string {
+  return renderCodeTemplate("solvers/gp_hash_table/usage-comment.cpp.tmpl", {
+    tableAliasName: options.names.tableAliasName,
+    keyType: options.keyType?.trim() || "long long",
+    valueType: options.valueType?.trim() || "int",
+    tableName: options.tableName?.trim() || "table"
+  });
+}
+
+function renderGpHashTableUsageSnippet(options: GpHashTableOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/gp_hash_table/solve.cpp.tmpl", {
+    tableAliasName: options.names.tableAliasName,
+    keyType: options.keyType?.trim() || "long long",
+    valueType: options.valueType?.trim() || "int",
+    tableName: sanitizeIdentifier(options.tableName ?? "table", "table"),
+    sourceName: sanitizeIdentifier(options.sourceName ?? "values", "values"),
+    declareSet: usageMode === "declare_set",
+    frequencyLoop: usageMode === "frequency_loop"
+  });
+}
+
+export function renderGpHashTableRecipe(options: GpHashTableOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("gp_hash_table.hpp", [
+    { from: "SplitMix64Hash", to: names.splitMixName },
+    { from: "GpHash", to: names.hashName },
+    { from: "PairHash", to: names.pairHashName },
+    { from: "GpHashTable", to: names.tableAliasName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderGpHashTableUsage(options)}\n`;
+  }
+  const usage = renderGpHashTableUsageSnippet(options);
+  const exports = [names.splitMixName, names.hashName, names.pairHashName, names.tableAliasName];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderGpHashTable(options: GpHashTableOptions): string {
+  return composeRecipeSections(renderGpHashTableRecipe(options));
+}
+
+export function planOrderedSetNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): OrderedSetNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    treeAliasName: planner.reserve("OrderedSetTree", "OrderStatisticTree"),
+    className: planner.reserve("OrderedSet", "OrderStatisticSet")
+  };
+}
+
+function renderOrderedSetUsage(options: OrderedSetOptions): string {
+  return renderCodeTemplate("solvers/ordered_set/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    keyType: options.keyType?.trim() || "int",
+    setName: options.setName?.trim() || "os"
+  });
+}
+
+function renderOrderedSetUsageSnippet(options: OrderedSetOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/ordered_set/solve.cpp.tmpl", {
+    className: options.names.className,
+    keyType: options.keyType?.trim() || "int",
+    setName: sanitizeIdentifier(options.setName ?? "os", "os"),
+    pairMultiset: usageMode === "pair_multiset",
+    rankQuery: usageMode === "rank_query",
+    kthQuery: usageMode === "kth_query"
+  });
+}
+
+export function renderOrderedSetRecipe(options: OrderedSetOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("ordered_set.hpp", [
+    { from: "OrderedSetTree", to: names.treeAliasName },
+    { from: "OrderedSet", to: names.className }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderOrderedSetUsage(options)}\n`;
+  }
+  const usage = renderOrderedSetUsageSnippet(options);
+  const exports = [names.treeAliasName, names.className];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderOrderedSet(options: OrderedSetOptions): string {
+  return composeRecipeSections(renderOrderedSetRecipe(options));
+}
+
+export function planSetUtilsNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): SetUtilsNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    nextIteratorName: planner.reserve("next_iterator", "container_next_iterator"),
+    prevIteratorName: planner.reserve("prev_iterator", "container_prev_iterator"),
+    nextValueName: planner.reserve("next_value", "container_next_value"),
+    prevValueName: planner.reserve("prev_value", "container_prev_value")
+  };
+}
+
+function setUtilsCallName(options: SetUtilsOptions): string {
+  if (options.target === "iterator") {
+    return options.lookup === "prev"
+      ? options.names.prevIteratorName
+      : options.names.nextIteratorName;
+  }
+  return options.lookup === "prev"
+    ? options.names.prevValueName
+    : options.names.nextValueName;
+}
+
+function renderSetUtilsUsage(options: SetUtilsOptions): string {
+  const callName = setUtilsCallName(options);
+  return renderCodeTemplate("solvers/set_utils/usage-comment.cpp.tmpl", {
+    callName,
+    containerName: options.containerName?.trim() || "container",
+    argumentName: options.target === "iterator"
+      ? options.iteratorName?.trim() || "it"
+      : options.keyName?.trim() || "key",
+    resultName: options.resultName?.trim() || "neighbor"
+  });
+}
+
+function renderSetUtilsUsageSnippet(options: SetUtilsOptions): string {
+  if ((options.usageMode ?? "helper_only") === "helper_only") return "";
+  const callName = ((options: SetUtilsOptions): string => {
+  if (options.target === "iterator") {
+    return options.lookup === "prev" ? options.names.prevIteratorName : options.names.nextIteratorName;
+  }
+  return options.lookup === "prev" ? options.names.prevValueName : options.names.nextValueName;
+})(options);
+  return renderCodeTemplate("solvers/set_utils/solve.cpp.tmpl", {
+    callName,
+    containerName: options.containerName?.trim() || "container",
+    argumentName: options.target === "iterator"
+      ? options.iteratorName?.trim() || "it"
+      : options.keyName?.trim() || "key",
+    resultName: sanitizeIdentifier(options.resultName ?? "neighbor", "neighbor")
+  });
+}
+
+export function renderSetUtilsRecipe(options: SetUtilsOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("set_utils.hpp", [
+    { from: "next_iterator", to: names.nextIteratorName },
+    { from: "prev_iterator", to: names.prevIteratorName },
+    { from: "next_value", to: names.nextValueName },
+    { from: "prev_value", to: names.prevValueName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderSetUtilsUsage(options)}\n`;
+  }
+  const usage = renderSetUtilsUsageSnippet(options);
+  const exports = [
+    names.nextIteratorName,
+    names.prevIteratorName,
+    names.nextValueName,
+    names.prevValueName
+  ];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderSetUtils(options: SetUtilsOptions): string {
+  return composeRecipeSections(renderSetUtilsRecipe(options));
+}
+
+export function planFastAllocatorNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): FastAllocatorNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    arenaClassName: planner.reserveExport("FastAllocatorArena", "FastArena"),
+    allocatorClassName: planner.reserveExport("FastAllocator", "ArenaAllocator"),
+    factoryName: planner.reserveExport("make_fast_allocator", "make_arena_allocator")
+  };
+}
+
+function renderFastAllocatorUsage(options: FastAllocatorOptions): string {
+  return renderCodeTemplate("solvers/fast_allocator/usage-comment.cpp.tmpl", {
+    arenaClassName: options.names.arenaClassName,
+    allocatorClassName: options.names.allocatorClassName,
+    arenaName: sanitizeIdentifier(options.arenaName ?? "arena", "arena"),
+    containerName: sanitizeIdentifier(options.containerName ?? "values", "values"),
+    valueType: options.valueType?.trim() || "int",
+    capacityExpression: options.capacityExpression?.trim() || "1U << 26U"
+  });
+}
+
+function renderFastAllocatorUsageSnippet(options: FastAllocatorOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/fast_allocator/solve.cpp.tmpl", {
+    arenaClassName: options.names.arenaClassName,
+    allocatorClassName: options.names.allocatorClassName,
+    arenaName: sanitizeIdentifier(options.arenaName ?? "arena", "arena"),
+    containerName: sanitizeIdentifier(options.containerName ?? "values", "values"),
+    valueType: options.valueType?.trim() || "int",
+    capacityExpression: options.capacityExpression?.trim() || "1U << 26U",
+    edgeTypeName: sanitizeIdentifier(options.edgeTypeName ?? "Edge", "Edge"),
+    arenaReset: usageMode === "arena_reset",
+    edgeVector: usageMode === "edge_vector"
+  });
+}
+
+export function renderFastAllocatorRecipe(options: FastAllocatorOptions): RenderedRecipe {
+  const names = options.names;
+  let helpers = renderBundledSolver("fast_allocator.hpp", [
+    { from: "FastAllocatorArena", to: names.arenaClassName },
+    { from: "FastAllocator", to: names.allocatorClassName },
+    { from: "make_fast_allocator", to: names.factoryName }
+  ]);
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderFastAllocatorUsage(options)}\n`;
+  }
+  const usage = renderFastAllocatorUsageSnippet(options);
+  const exports = [names.arenaClassName, names.allocatorClassName, names.factoryName];
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
+  );
+}
+
+export function renderFastAllocator(options: FastAllocatorOptions): string {
+  return composeRecipeSections(renderFastAllocatorRecipe(options));
+}
+
+const GEOMETRY_EXPORTS = [
+  "geometry_sign",
+  "geometry_sign_eps",
+  "Point2",
+  "to_point_long_double",
+  "cross_ld",
+  "orientation",
+  "on_segment",
+  "segments_intersect",
+  "line_intersection",
+  "point_equal_eps",
+  "segment_intersection",
+  "vector_halfplane",
+  "angle_less",
+  "sort_vectors_by_angle",
+  "sort_points_by_angle",
+  "convex_hull"
+];
+
+function renderGeometryUsage(options: GeometryOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const valueType = options.valueType?.trim() || "long long";
+  return renderCodeTemplate("solvers/geometry/solve.cpp.tmpl", {
+    pointType: `Point2<${valueType}>`,
+    pointsName: sanitizeIdentifier(options.pointsName ?? "points", "points"),
+    resultName: sanitizeIdentifier(options.resultName ?? "answer", "answer"),
+    orientationCheck: usageMode === "orientation_check",
+    segmentIntersection: usageMode === "segment_intersection",
+    sortPoints: usageMode === "sort_points",
+    buildHull: usageMode === "build_hull"
+  });
+}
+
+export function renderGeometryRecipe(options: GeometryOptions): RenderedRecipe {
+  let helpers = renderBundledSolver("geometry.hpp");
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/geometry/usage-comment.cpp.tmpl", {})}`;
+  }
+  const usage = renderGeometryUsage(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    GEOMETRY_EXPORTS
+  );
+}
+
+export function renderGeometry(options: GeometryOptions): string {
+  return composeRecipeSections(renderGeometryRecipe(options));
+}
+
+const HALFPLANE_INTERSECTION_EXPORTS = [
+  "Point2",
+  "to_point_long_double",
+  "cross_ld",
+  "line_intersection",
+  "HalfPlane",
+  "halfplane_parallel",
+  "halfplane_less",
+  "halfplane_intersection_point",
+  "halfplane_intersection"
+];
+
+function renderHalfplaneIntersectionUsage(options: HalfplaneIntersectionOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  return renderCodeTemplate("solvers/halfplane_intersection/solve.cpp.tmpl", {
+    halfplanesName: sanitizeIdentifier(options.halfplanesName ?? "halfplanes", "halfplanes"),
+    resultName: sanitizeIdentifier(options.resultName ?? "polygon", "polygon"),
+    halfplaneVector: usageMode === "halfplane_vector",
+    inequalityBox: usageMode === "inequality_box",
+    computePolygon: usageMode === "compute_polygon"
+  });
+}
+
+export function renderHalfplaneIntersectionRecipe(
+  options: HalfplaneIntersectionOptions
+): RenderedRecipe {
+  let helpers = renderBundledSolver("halfplane_intersection.hpp");
+  if (options.includeUsageComment) {
+    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/halfplane_intersection/usage-comment.cpp.tmpl", {})}`;
+  }
+  const usage = renderHalfplaneIntersectionUsage(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    HALFPLANE_INTERSECTION_EXPORTS
+  );
+}
+
+export function renderHalfplaneIntersection(
+  options: HalfplaneIntersectionOptions
+): string {
+  return composeRecipeSections(renderHalfplaneIntersectionRecipe(options));
 }
 
 export function defaultLinearSieveFeatures(): LinearSieveFeature[] {
@@ -3175,23 +3801,13 @@ function hasLinearSieveFeature(
 }
 
 function renderLinearSieveUsage(options: LinearSieveOptions): string {
-  const names = options.names;
-  const lines = ["/*", "Example:", `${names.className} sieve(n);`];
-
-  if (hasLinearSieveFeature(options, "lowest_prime")) {
-    lines.push("bool prime = sieve.is_prime(x);");
-  }
-
-  if (hasLinearSieveFeature(options, "factorization")) {
-    lines.push("auto factors = sieve.factorize(x);");
-  }
-
-  if (hasLinearSieveFeature(options, "primes")) {
-    lines.push(`auto primes = ${names.primesFunctionName}(n);`);
-  }
-
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/linear_sieve/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    primesFunctionName: options.names.primesFunctionName,
+    includeLowestPrime: hasLinearSieveFeature(options, "lowest_prime"),
+    includePrimes: hasLinearSieveFeature(options, "primes"),
+    includeFactorization: hasLinearSieveFeature(options, "factorization")
+  });
 }
 
 export function renderLinearSieveRecipe(
@@ -3201,125 +3817,21 @@ export function renderLinearSieveRecipe(
   const includeLowestPrime = hasLinearSieveFeature(options, "lowest_prime");
   const includePrimes = hasLinearSieveFeature(options, "primes");
   const includeFactorization = hasLinearSieveFeature(options, "factorization");
-  const lines: string[] = [];
-  const exports = [names.className];
-
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int limit = 0) : limit_(0) { build(limit); }`
-  );
-  pushLine(lines);
-  pushLine(lines, "  void build(int limit) {");
-  pushLine(lines, "    limit_ = (limit < 0 ? 0 : limit);");
-  pushLine(lines, "    lowest_prime_.assign(limit_ + 1, 0);");
-  pushLine(lines, "    primes_.clear();");
-  pushLine(lines);
-  pushLine(lines, "    if (limit_ >= 1) {");
-  pushLine(lines, "      lowest_prime_[1] = 1;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    for (int i = 2; i <= limit_; ++i) {");
-  pushLine(lines, "      if (lowest_prime_[i] == 0) {");
-  pushLine(lines, "        lowest_prime_[i] = i;");
-  pushLine(lines, "        primes_.push_back(i);");
-  pushLine(lines, "      }");
-  pushLine(lines, "      for (int p : primes_) {");
-  pushLine(lines, "        const long long next = static_cast<long long>(i) * p;");
-  pushLine(lines, "        if (next > limit_ || p > lowest_prime_[i]) {");
-  pushLine(lines, "          break;");
-  pushLine(lines, "        }");
-  pushLine(lines, "        lowest_prime_[static_cast<int>(next)] = p;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int limit() const { return limit_; }");
-
-  if (includeLowestPrime) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      "  const std::vector<int>& lowest_prime() const { return lowest_prime_; }"
-    );
-    pushLine(lines);
-    pushLine(lines, "  int lowest_prime_of(int value) const {");
-    pushLine(lines, "    if (value < 0 || value > limit_) {");
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    return lowest_prime_[value];");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  bool is_prime(int value) const {");
-    pushLine(
-      lines,
-      "    return value >= 2 && value <= limit_ && lowest_prime_[value] == value;"
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (includePrimes) {
-    pushLine(lines);
-    pushLine(lines, "  const std::vector<int>& primes() const { return primes_; }");
-  }
-
-  if (includeFactorization) {
-    pushLine(lines);
-    pushLine(lines, "  std::vector<std::pair<int, int>> factorize(int value) const {");
-    pushLine(lines, "    std::vector<std::pair<int, int>> factors;");
-    pushLine(lines, "    if (value < 2 || value > limit_) {");
-    pushLine(lines, "      return factors;");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(lines, "    int x = value;");
-    pushLine(lines, "    while (x > 1) {");
-    pushLine(lines, "      const int p = lowest_prime_[x];");
-    pushLine(lines, "      int exponent = 0;");
-    pushLine(lines, "      while (x % p == 0) {");
-    pushLine(lines, "        x /= p;");
-    pushLine(lines, "        ++exponent;");
-    pushLine(lines, "      }");
-    pushLine(lines, "      factors.push_back(std::make_pair(p, exponent));");
-    pushLine(lines, "    }");
-    pushLine(lines, "    return factors;");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int limit_;");
-  pushLine(lines, "  std::vector<int> lowest_prime_;");
-  pushLine(lines, "  std::vector<int> primes_;");
-  pushLine(lines, "};");
-
-  if (includeLowestPrime) {
-    exports.push(names.lowestPrimeFunctionName);
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline std::vector<int> ${names.lowestPrimeFunctionName}(int limit) {`
-    );
-    pushLine(lines, `  ${names.className} sieve(limit);`);
-    pushLine(lines, "  return sieve.lowest_prime();");
-    pushLine(lines, "}");
-  }
-
-  if (includePrimes) {
-    exports.push(names.primesFunctionName);
-    pushLine(lines);
-    pushLine(lines, `inline std::vector<int> ${names.primesFunctionName}(int limit) {`);
-    pushLine(lines, `  ${names.className} sieve(limit);`);
-    pushLine(lines, "  return sieve.primes();");
-    pushLine(lines, "}");
-  }
-
+  let helpers = renderCodeTemplate("solvers/linear_sieve/helpers.hpp.tmpl", {
+    className: names.className,
+    lowestPrimeFunctionName: names.lowestPrimeFunctionName,
+    primesFunctionName: names.primesFunctionName,
+    includeLowestPrime,
+    includePrimes,
+    includeFactorization
+  });
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderLinearSieveUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderLinearSieveUsage(options)}\n`;
   }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, exports);
+  const exports = [names.className];
+  if (includeLowestPrime) exports.push(names.lowestPrimeFunctionName);
+  if (includePrimes) exports.push(names.primesFunctionName);
+  return createRenderedRecipe({ helpers: [helpers] }, exports);
 }
 
 export function renderLinearSieve(options: LinearSieveOptions): string {
@@ -3329,6 +3841,1338 @@ export function renderLinearSieve(options: LinearSieveOptions): string {
 export function defaultFenwickOperations(): FenwickOperation[] {
   return ["sum", "xor", "max", "min"];
 }
+
+export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/segtree",
+  title: "Segment tree",
+  scenarios: [
+    {
+      id: "point_query",
+      label: "point updates + range aggregate",
+      description: "Iterative class or recursive helpers for point changes and range queries."
+    },
+    {
+      id: "lazy_range",
+      label: "lazy range updates",
+      description: "Recursive lazy tree with range add/assign and sum/min/max/custom aggregates."
+    },
+    {
+      id: "lazy_minmax",
+      label: "lazy min/max preset",
+      description: "Compatibility preset for range assign/add min/max classes and threshold descents."
+    },
+    {
+      id: "max_subarray",
+      label: "max subarray preset",
+      description: "Point-set tree that returns max subarray state and best sum."
+    },
+    {
+      id: "beats",
+      label: "beats preset",
+      description: "Range chmin/chmax/add with sum/min/max queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "aggregate",
+      label: "Aggregate",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "custom", label: "custom node" },
+        { id: "max_subarray", label: "max subarray node" },
+        { id: "beats", label: "beats node" }
+      ]
+    },
+    {
+      id: "updates",
+      label: "Updates",
+      choices: [
+        { id: "point_set", label: "point set" },
+        { id: "point_add", label: "point add" },
+        { id: "range_add", label: "range add" },
+        { id: "range_assign", label: "range assign" },
+        { id: "chmin", label: "range chmin" },
+        { id: "chmax", label: "range chmax" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    {
+      id: "helpers",
+      label: "Helpers",
+      section: "helpers"
+    },
+    {
+      id: "solve",
+      label: "Solve skeleton",
+      section: "solve"
+    }
+  ]
+};
+
+export const SEGMENT_TREE_BEATS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/segtree_beats",
+  title: "Segment tree beats",
+  scenarios: [
+    {
+      id: "clamp_queries",
+      label: "clamp updates + queries",
+      description: "Range chmin/chmax with sum/min/max queries."
+    },
+    {
+      id: "add_clamp_queries",
+      label: "add + clamp updates",
+      description: "Range add combined with chmin/chmax and aggregate queries."
+    },
+    {
+      id: "query_only",
+      label: "query-only beats node",
+      description: "Build the beats node surface but emit only selected queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "updates",
+      label: "Updates",
+      multi: true,
+      choices: [
+        { id: "chmin", label: "range chmin" },
+        { id: "chmax", label: "range chmax" },
+        { id: "add", label: "range add" }
+      ]
+    },
+    {
+      id: "queries",
+      label: "Queries",
+      multi: true,
+      choices: [
+        { id: "sum", label: "range sum" },
+        { id: "min", label: "range min" },
+        { id: "max", label: "range max" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Segment tree beats helper", section: "helpers" },
+    { id: "usage", label: "Segment tree beats usage", section: "solve" }
+  ]
+};
+
+export const FENWICK_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/fenwick",
+  title: "Fenwick",
+  scenarios: [
+    {
+      id: "point_prefix",
+      label: "point update + prefix query",
+      description: "Use one tree for online point updates and prefix aggregates."
+    },
+    {
+      id: "point_range",
+      label: "point update + range query",
+      description: "Requires an invertible operation such as sum, xor, or custom invertible."
+    },
+    {
+      id: "range_point",
+      label: "range update + point query",
+      description: "Difference-array Fenwick for range additions and point reads."
+    },
+    {
+      id: "range_sum",
+      label: "range update + range sum",
+      description: "Two Fenwick trees for range additions and range-sum queries."
+    },
+    {
+      id: "frequency_kth",
+      label: "frequency table kth",
+      description: "Counts, prefix frequencies, and lower-bound by prefix count."
+    },
+    {
+      id: "inversion_count",
+      label: "inversion count",
+      description: "Coordinate-compressed frequency skeleton."
+    },
+    {
+      id: "prefix_minmax",
+      label: "prefix min/max",
+      description: "Monotone prefix aggregate updates."
+    }
+  ],
+  decisions: [
+    {
+      id: "operation",
+      label: "Operation",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "xor", label: "xor" },
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "custom", label: "custom" },
+        { id: "custom_invertible", label: "custom invertible" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Generated usage",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance initialization" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "instanceName", label: "Instance name", kind: "value", required: true, defaultValue: "fw" },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false, defaultValue: "ans" }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Fenwick helper", section: "helpers" },
+    { id: "usage", label: "Fenwick usage", section: "solve" }
+  ]
+};
+
+export const SPARSE_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/sparse_table",
+  title: "Sparse table",
+  scenarios: [
+    {
+      id: "range_minmax",
+      label: "range min/max",
+      description: "Static idempotent min and max queries over an existing or generated vector."
+    },
+    {
+      id: "range_gcd_bitwise",
+      label: "range gcd/bitwise",
+      description: "Static idempotent gcd, bitwise-and, or bitwise-or queries."
+    },
+    {
+      id: "custom_idempotent",
+      label: "custom idempotent op",
+      description: "Custom combine placeholder for an idempotent operation."
+    }
+  ],
+  decisions: [
+    {
+      id: "variant",
+      label: "Query variants",
+      multi: true,
+      choices: [
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "gcd", label: "gcd" },
+        { id: "bit_and", label: "bitwise and" },
+        { id: "bit_or", label: "bitwise or" },
+        { id: "custom", label: "custom idempotent" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "build_call", label: "build call" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: true },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Sparse table helper", section: "helpers" },
+    { id: "usage", label: "Sparse table usage", section: "solve" }
+  ]
+};
+
+export const MERGE_SORT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/merge_sort_tree",
+  title: "Merge sort tree",
+  scenarios: [
+    {
+      id: "range_threshold_count",
+      label: "threshold counts",
+      description: "Count values below or at a threshold in static ranges."
+    },
+    {
+      id: "range_value_presence",
+      label: "value presence/equality",
+      description: "Check existence or count exact values in static ranges."
+    },
+    {
+      id: "range_value_band",
+      label: "value band counts",
+      description: "Count values in [low, high] inside static ranges."
+    }
+  ],
+  decisions: [
+    {
+      id: "query",
+      label: "Query methods",
+      multi: true,
+      choices: [
+        { id: "count_less", label: "count < x" },
+        { id: "count_less_equal", label: "count <= x" },
+        { id: "count_equal", label: "count == x" },
+        { id: "count_in_range", label: "count in [low, high]" },
+        { id: "exists", label: "exists x" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: true },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Merge sort tree helper", section: "helpers" },
+    { id: "usage", label: "Merge sort tree usage", section: "solve" }
+  ]
+};
+
+export const IMPLICIT_TREAP_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/implicit_treap",
+  title: "Implicit treap",
+  scenarios: [
+    {
+      id: "sequence_edit",
+      label: "sequence edit",
+      description: "Insert, erase, set, get, and materialize a mutable sequence."
+    },
+    {
+      id: "range_query",
+      label: "range aggregate",
+      description: "Maintain a sequence with range aggregate queries."
+    },
+    {
+      id: "range_lazy",
+      label: "range lazy operations",
+      description: "Range reverse and/or range add over a mutable sequence."
+    },
+    {
+      id: "custom_aggregate",
+      label: "custom aggregate",
+      description: "Custom aggregate operation skeleton for sequence nodes."
+    }
+  ],
+  decisions: [
+    {
+      id: "aggregate",
+      label: "Aggregate",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "custom", label: "custom aggregate" }
+      ]
+    },
+    {
+      id: "features",
+      label: "Lazy features",
+      multi: true,
+      choices: [
+        { id: "reverse", label: "range reverse" },
+        { id: "range_add", label: "range add" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty treap" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Implicit treap helper", section: "helpers" },
+    { id: "usage", label: "Implicit treap usage", section: "solve" }
+  ]
+};
+
+export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/dsu",
+  title: "DSU",
+  scenarios: [
+    {
+      id: "connectivity",
+      label: "connectivity / components",
+      description: "Plain unite, same, component size, and component count."
+    },
+    {
+      id: "kruskal",
+      label: "Kruskal skeleton",
+      description: "Sort weighted edges and unite components for MST-style problems."
+    },
+    {
+      id: "query_loop",
+      label: "online connectivity queries",
+      description: "Read type-coded unite/same/component-size queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "query_loop", label: "query loop skeleton" },
+        { id: "kruskal", label: "Kruskal skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "DSU helper", section: "helpers" },
+    { id: "usage", label: "DSU usage", section: "solve" }
+  ]
+};
+
+export const ROLLBACK_DSU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/rollback_dsu",
+  title: "Rollback DSU",
+  scenarios: [
+    {
+      id: "snapshots",
+      label: "snapshots / rollback",
+      description: "Explicit snapshot tokens and rollback during search or backtracking."
+    },
+    {
+      id: "offline_dynamic_connectivity",
+      label: "offline dynamic connectivity",
+      description: "Skeleton for time-recursive connectivity with rollback DSU."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "query_loop", label: "snapshot query loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Rollback DSU helper", section: "helpers" },
+    { id: "usage", label: "Rollback DSU usage", section: "solve" }
+  ]
+};
+
+export const LCA_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/lca",
+  title: "LCA",
+  scenarios: [
+    {
+      id: "lca_dist",
+      label: "LCA + distance",
+      description: "Binary lifting helper for LCA and tree distance queries."
+    },
+    {
+      id: "kth_ancestor",
+      label: "kth ancestor",
+      description: "Binary lifting helper for ancestor jumps."
+    },
+    {
+      id: "tree_query_loop",
+      label: "tree query loop",
+      description: "Read a tree, build LCA, and answer type-coded queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty helper" },
+        { id: "read_tree", label: "generated tree read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "read_tree", label: "read tree + build" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "rootExpression", label: "Root", kind: "index", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "LCA helper", section: "helpers" },
+    { id: "usage", label: "LCA usage", section: "solve" }
+  ]
+};
+
+export const HLD_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/hld",
+  title: "Heavy-light decomposition",
+  scenarios: [
+    {
+      id: "path_query",
+      label: "path query/update",
+      description: "Flatten tree paths into O(log n) contiguous ranges for a segment tree or Fenwick tree."
+    },
+    {
+      id: "subtree_query",
+      label: "subtree query/update",
+      description: "Use Euler/HLD positions to turn a rooted subtree into one contiguous range."
+    },
+    {
+      id: "lca_distance",
+      label: "LCA + distance",
+      description: "Use HLD heads for LCA and derive tree distances from depths."
+    },
+    {
+      id: "build_tree",
+      label: "tree flattening helper",
+      description: "Build only the HLD order, parent/depth/head/position arrays, and subtree ranges."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty helper" },
+        { id: "read_tree", label: "generated tree read loop" }
+      ]
+    },
+    {
+      id: "value_mode",
+      label: "Path value convention",
+      choices: [
+        { id: "vertex_values", label: "vertex values" },
+        { id: "edge_values", label: "edge values / skip LCA endpoint" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "read_tree", label: "read tree + build" },
+        { id: "query_loop", label: "path/subtree/LCA query loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "rootExpression", label: "Root", kind: "index", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "HLD helper", section: "helpers" },
+    { id: "usage", label: "HLD usage", section: "solve" }
+  ]
+};
+
+export const BFS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/bfs",
+  title: "BFS",
+  scenarios: [
+    {
+      id: "shortest_distances",
+      label: "unweighted shortest distances",
+      description: "Single-source BFS distances and parents on an unweighted graph."
+    },
+    {
+      id: "multi_source",
+      label: "multi-source BFS",
+      description: "Start from several sources at distance zero."
+    },
+    {
+      id: "path_restore",
+      label: "restore shortest path",
+      description: "Run BFS and reconstruct a source-to-target path."
+    },
+    {
+      id: "traversal_order",
+      label: "traversal order",
+      description: "Use BFS order, parent tree, or reachability without path restoration."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing adjacency list" },
+        { id: "read_edges", label: "generated edge read loop" }
+      ]
+    },
+    {
+      id: "graph_mode",
+      label: "Graph direction",
+      choices: [
+        { id: "undirected", label: "undirected" },
+        { id: "directed", label: "directed" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "single_source", label: "single-source run" },
+        { id: "multi_source", label: "multi-source run" },
+        { id: "path_query", label: "path query skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "sourceName", label: "Source variable", kind: "index", required: false },
+    { id: "targetName", label: "Target variable", kind: "index", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "BFS helpers", section: "helpers" },
+    { id: "usage", label: "BFS usage", section: "solve" }
+  ]
+};
+
+export const DIJKSTRA_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/dijkstra",
+  title: "Dijkstra",
+  scenarios: [
+    {
+      id: "shortest_paths",
+      label: "weighted shortest paths",
+      description: "Single-source shortest paths on a nonnegative weighted graph."
+    },
+    {
+      id: "multi_source",
+      label: "multi-source Dijkstra",
+      description: "Start from several vertices at distance zero."
+    },
+    {
+      id: "path_restore",
+      label: "restore weighted shortest path",
+      description: "Run Dijkstra and reconstruct the source-to-target path."
+    },
+    {
+      id: "weighted_graph_read",
+      label: "weighted graph read helper",
+      description: "Generate a typed weighted adjacency list and edge input loop."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing weighted adjacency list" },
+        { id: "read_edges", label: "generated weighted edge loop" }
+      ]
+    },
+    {
+      id: "graph_mode",
+      label: "Graph direction",
+      choices: [
+        { id: "directed", label: "directed" },
+        { id: "undirected", label: "undirected" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "single_source", label: "single-source run" },
+        { id: "multi_source", label: "multi-source run" },
+        { id: "path_query", label: "path query skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "sourceName", label: "Source variable", kind: "index", required: false },
+    { id: "targetName", label: "Target variable", kind: "index", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Dijkstra helpers", section: "helpers" },
+    { id: "usage", label: "Dijkstra usage", section: "solve" }
+  ]
+};
+
+export const TOPOSORT_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/toposort",
+  title: "Topological sort",
+  scenarios: [
+    {
+      id: "dag_order",
+      label: "DAG order",
+      description: "Return a topological ordering or empty output when a cycle exists."
+    },
+    {
+      id: "cycle_detection",
+      label: "cycle detection",
+      description: "Use Kahn's algorithm to check whether the directed graph is acyclic."
+    },
+    {
+      id: "dependency_schedule",
+      label: "dependency scheduling",
+      description: "Read before-after constraints and print a valid schedule."
+    },
+    {
+      id: "order_validation",
+      label: "validate proposed order",
+      description: "Check whether a supplied order satisfies every directed edge."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing adjacency list" },
+        { id: "read_edges", label: "generated dependency edge loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "sort_order", label: "sort and print order" },
+        { id: "cycle_check", label: "cycle check" },
+        { id: "validate_order", label: "validate supplied order" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "orderName", label: "Order variable", kind: "answer", required: false },
+    { id: "dagName", label: "DAG flag", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Toposort helpers", section: "helpers" },
+    { id: "usage", label: "Toposort usage", section: "solve" }
+  ]
+};
+
+export const KOSARAJU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/kosaraju",
+  title: "Kosaraju SCC",
+  scenarios: [
+    {
+      id: "scc_components",
+      label: "SCC components",
+      description: "Compute strongly connected components and component ids."
+    },
+    {
+      id: "same_component",
+      label: "same-component queries",
+      description: "Answer whether two vertices belong to the same SCC."
+    },
+    {
+      id: "condensation_dag",
+      label: "condensation DAG",
+      description: "Build the SCC DAG for dynamic programming over components."
+    },
+    {
+      id: "two_sat_analysis",
+      label: "implication graph analysis",
+      description: "Use SCC ids as a basis for implication-graph checks."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing directed graph" },
+        { id: "read_edges", label: "generated directed edge loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "compute_scc", label: "compute SCC" },
+        { id: "same_component_queries", label: "same-component query loop" },
+        { id: "print_components", label: "print components" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Kosaraju helpers", section: "helpers" },
+    { id: "usage", label: "Kosaraju usage", section: "solve" }
+  ]
+};
+
+export const MO_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/mo",
+  title: "Mo's algorithm",
+  scenarios: [
+    {
+      id: "distinct_values",
+      label: "distinct values in ranges",
+      description: "Classic offline distinct-count skeleton with frequency state."
+    },
+    {
+      id: "range_frequency",
+      label: "range frequency queries",
+      description: "Offline range queries maintained by add/remove callbacks."
+    },
+    {
+      id: "range_aggregate",
+      label: "custom range aggregate",
+      description: "Generic add/remove/get-answer skeleton for nontrivial state."
+    },
+    {
+      id: "custom_callbacks",
+      label: "callback processor only",
+      description: "Paste only the reusable ordering and processor helpers."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Query source",
+      choices: [
+        { id: "existing_queries", label: "existing query vector" },
+        { id: "read_queries", label: "generated query read loop" }
+      ]
+    },
+    {
+      id: "indexing",
+      label: "Query indexing",
+      choices: [
+        { id: "zero_based_half_open", label: "0-indexed [l, r)" },
+        { id: "one_based_closed_input", label: "1-indexed [l, r] input" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_queries", label: "read queries" },
+        { id: "process_skeleton", label: "generic processor skeleton" },
+        { id: "distinct_count_skeleton", label: "distinct-count skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Array length", kind: "size", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "valuesName", label: "Values vector", kind: "source_vector", required: false },
+    { id: "queriesName", label: "Queries vector", kind: "answer", required: false },
+    { id: "answersName", label: "Answers vector", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Mo helpers", section: "helpers" },
+    { id: "usage", label: "Mo usage", section: "solve" }
+  ]
+};
+
+export const MONOTONIC_STACK_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/monotonic_stack",
+  title: "Monotonic stack",
+  scenarios: [
+    {
+      id: "nearest_smaller",
+      label: "nearest smaller",
+      description: "Nearest previous/next smaller or smaller-or-equal index."
+    },
+    {
+      id: "nearest_greater",
+      label: "nearest greater",
+      description: "Nearest previous/next greater or greater-or-equal index."
+    },
+    {
+      id: "all_nearest",
+      label: "all nearest directions",
+      description: "Compute left/right smaller and greater arrays together."
+    },
+    {
+      id: "custom_comparator",
+      label: "custom comparator",
+      description: "Use nearest-left/right generic helpers with custom comparison."
+    }
+  ],
+  decisions: [
+    {
+      id: "relation",
+      label: "Relation",
+      choices: [
+        { id: "smaller", label: "smaller" },
+        { id: "greater", label: "greater" },
+        { id: "all", label: "all" }
+      ]
+    },
+    {
+      id: "direction",
+      label: "Direction",
+      choices: [
+        { id: "left", label: "left" },
+        { id: "right", label: "right" },
+        { id: "both", label: "both" }
+      ]
+    },
+    {
+      id: "strictness",
+      label: "Strictness",
+      choices: [
+        { id: "strict", label: "strict" },
+        { id: "non_strict", label: "allow equal" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result name", kind: "answer", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Monotonic stack helpers", section: "helpers" },
+    { id: "usage", label: "Nearest-index usage", section: "solve" }
+  ]
+};
+
+export const GP_HASH_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/gp_hash_table",
+  title: "PBDS hash table",
+  scenarios: [
+    {
+      id: "hash_map",
+      label: "hash map",
+      description: "PBDS gp_hash_table keyed by splitmix-protected scalar keys."
+    },
+    {
+      id: "hash_set",
+      label: "hash set",
+      description: "PBDS gp_hash_table with null_type values."
+    },
+    {
+      id: "frequency_table",
+      label: "frequency table",
+      description: "Count values from an existing vector."
+    },
+    {
+      id: "pair_key",
+      label: "pair key",
+      description: "Hash pairs using PairHash for coordinate or edge keys."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "declare_map", label: "declare map" },
+        { id: "declare_set", label: "declare set" },
+        { id: "frequency_loop", label: "frequency loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "keyType", label: "Key type", kind: "value", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: false },
+    { id: "tableName", label: "Table variable", kind: "answer", required: false },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Hash helpers", section: "helpers" },
+    { id: "usage", label: "Hash-table usage", section: "solve" }
+  ]
+};
+
+export const ORDERED_SET_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/ordered_set",
+  title: "Ordered set",
+  scenarios: [
+    {
+      id: "order_statistics",
+      label: "order statistics set",
+      description: "PBDS tree wrapper with rank and kth-element queries."
+    },
+    {
+      id: "kth_element",
+      label: "kth element queries",
+      description: "Find the element at a zero-based order."
+    },
+    {
+      id: "multiset_pairs",
+      label: "multiset via pair keys",
+      description: "Store (value, unique_id) pairs to emulate duplicates."
+    },
+    {
+      id: "rank_queries",
+      label: "rank queries",
+      description: "Count elements strictly smaller than a key."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "declare_set", label: "declare set" },
+        { id: "rank_query", label: "rank query" },
+        { id: "kth_query", label: "kth query" },
+        { id: "pair_multiset", label: "pair-key multiset" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "keyType", label: "Key type", kind: "value", required: false },
+    { id: "setName", label: "Set variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Ordered-set helper", section: "helpers" },
+    { id: "usage", label: "Ordered-set usage", section: "solve" }
+  ]
+};
+
+export const SET_UTILS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/set_utils",
+  title: "Ordered container neighbors",
+  scenarios: [
+    {
+      id: "next_value",
+      label: "next value",
+      description: "Find the first container value strictly greater than a key."
+    },
+    {
+      id: "prev_value",
+      label: "previous value",
+      description: "Find the last container value strictly smaller than a key."
+    },
+    {
+      id: "iterator_navigation",
+      label: "iterator navigation",
+      description: "Move safely to previous or next iterator with optional output."
+    },
+    {
+      id: "map_neighbor",
+      label: "map neighbor",
+      description: "Retrieve neighboring key/value entries from maps."
+    }
+  ],
+  decisions: [
+    {
+      id: "lookup",
+      label: "Lookup",
+      choices: [
+        { id: "next", label: "next" },
+        { id: "prev", label: "previous" }
+      ]
+    },
+    {
+      id: "target",
+      label: "Target",
+      choices: [
+        { id: "value", label: "value" },
+        { id: "iterator", label: "iterator" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "containerName", label: "Container", kind: "source_vector", required: false },
+    { id: "keyName", label: "Key", kind: "value", required: false },
+    { id: "iteratorName", label: "Iterator", kind: "value", required: false },
+    { id: "resultName", label: "Result", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Set utilities", section: "helpers" },
+    { id: "usage", label: "Neighbor lookup", section: "solve" }
+  ]
+};
+
+export const FAST_ALLOCATOR_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/fast_allocator",
+  title: "Arena-backed allocator",
+  scenarios: [
+    {
+      id: "many_vectors",
+      label: "many vectors",
+      description: "Use a preallocated arena for vectors with heavy allocation churn."
+    },
+    {
+      id: "graph_edges",
+      label: "graph edge lists",
+      description: "Allocate many edge records from one arena-backed vector."
+    },
+    {
+      id: "pool_reset",
+      label: "reset per test",
+      description: "Reuse the same arena across test cases or phases."
+    },
+    {
+      id: "custom_container",
+      label: "custom container",
+      description: "Paste allocator helpers for a custom STL container."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "vector_declaration", label: "vector declaration" },
+        { id: "edge_vector", label: "edge vector" },
+        { id: "arena_reset", label: "arena reset" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "valueType", label: "Value type", kind: "value", required: false },
+    { id: "capacityExpression", label: "Arena capacity", kind: "size", required: false },
+    { id: "arenaName", label: "Arena variable", kind: "answer", required: false },
+    { id: "containerName", label: "Container variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Allocator helper", section: "helpers" },
+    { id: "usage", label: "Allocator usage", section: "solve" }
+  ]
+};
+
+export const GEOMETRY_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/geometry",
+  title: "2D geometry",
+  scenarios: [
+    {
+      id: "orientation",
+      label: "orientation and cross products",
+      description: "Point operations, signed area, orientation, and on-segment checks."
+    },
+    {
+      id: "segment_intersection",
+      label: "segment intersection",
+      description: "Intersection predicate plus exact point/overlap extraction."
+    },
+    {
+      id: "angle_sort",
+      label: "angle sorting",
+      description: "Sort vectors or points around a center by polar angle."
+    },
+    {
+      id: "convex_hull",
+      label: "convex hull",
+      description: "Monotonic-chain hull for unique extreme points."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "orientation_check", label: "orientation check" },
+        { id: "segment_intersection", label: "segment intersection" },
+        { id: "sort_points", label: "sort points by angle" },
+        { id: "build_hull", label: "build convex hull" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "valueType", label: "Coordinate type", kind: "value", required: false },
+    { id: "pointsName", label: "Points vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Geometry helpers", section: "helpers" },
+    { id: "usage", label: "Geometry usage", section: "solve" }
+  ]
+};
+
+export const HALFPLANE_INTERSECTION_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/halfplane_intersection",
+  title: "Half-plane intersection",
+  scenarios: [
+    {
+      id: "convex_polygon",
+      label: "convex polygon from halfplanes",
+      description: "Build the polygon produced by directed half-plane boundaries."
+    },
+    {
+      id: "linear_constraints",
+      label: "linear constraints",
+      description: "Convert inequalities ax + by <= c into half-planes."
+    },
+    {
+      id: "clip_polygon",
+      label: "polygon clipping",
+      description: "Maintain a vector of clipping half-planes and compute the intersection."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "halfplane_vector", label: "half-plane vector" },
+        { id: "inequality_box", label: "inequality box" },
+        { id: "compute_polygon", label: "compute polygon" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "halfplanesName", label: "Half-planes vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result polygon", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Half-plane helpers", section: "helpers" },
+    { id: "usage", label: "Half-plane usage", section: "solve" }
+  ]
+};
 
 export function planFenwickNames(
   analysis: CppAnalysis,
@@ -3340,11 +5184,16 @@ export function planFenwickNames(
     xorOpName: planner.reserve("FenwickXorOp"),
     maxOpName: planner.reserve("FenwickMaxOp"),
     minOpName: planner.reserve("FenwickMinOp"),
+    customOpName: planner.reserve("FenwickCustomOp"),
+    customInvertibleOpName: planner.reserve("FenwickCustomInvertibleOp"),
     className: planner.reserve("Fenwick"),
+    rangeClassName: planner.reserve("RangeFenwick"),
     sumAliasName: planner.reserve("FenwickSumTree"),
     xorAliasName: planner.reserve("FenwickXorTree"),
     maxAliasName: planner.reserve("FenwickMaxTree"),
-    minAliasName: planner.reserve("FenwickMinTree")
+    minAliasName: planner.reserve("FenwickMinTree"),
+    customAliasName: planner.reserve("FenwickCustomTree"),
+    customInvertibleAliasName: planner.reserve("FenwickCustomInvertibleTree")
   };
 }
 
@@ -3354,6 +5203,14 @@ export function defaultFenwickOptions(
 ): FenwickOptions {
   return {
     operations: defaultFenwickOperations(),
+    application: "point_range",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    valueType: "long long",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: suggestIdentifier(analysis, "fw", "fenwick"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
     names: planFenwickNames(analysis, extraReserved),
     includeUsageComment: true
   };
@@ -3366,241 +5223,124 @@ function hasFenwickOperation(
   return options.operations.includes(operation);
 }
 
-function renderFenwickUsage(options: FenwickOptions): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
+function primaryFenwickOperation(options: FenwickOptions): FenwickOperation {
+  return options.operations[0] ?? "sum";
+}
 
-  if (hasFenwickOperation(options, "sum")) {
-    lines.push(`${names.sumAliasName}<long long> fw(n);`);
-    lines.push("fw.add(i, value);");
-    lines.push("auto pref = fw.prefix(r);");
-    lines.push("auto range = fw.segment(l, r);");
-    lines.push("auto first = fw.descend(target_prefix);");
-  } else if (hasFenwickOperation(options, "max")) {
-    lines.push(`${names.maxAliasName}<int> fw(n, -1000000007);`);
-    lines.push("fw.add(i, value);");
-    lines.push("auto pref_max = fw.prefix(r);");
-    lines.push("auto first_gt = fw.descend(target);");
-  } else if (hasFenwickOperation(options, "min")) {
-    lines.push(`${names.minAliasName}<int> fw(n, 1000000007);`);
-    lines.push("fw.add(i, value);");
-    lines.push("auto pref_min = fw.prefix(r);");
-  } else if (hasFenwickOperation(options, "xor")) {
-    lines.push(`${names.xorAliasName}<int> fw(n);`);
-    lines.push("fw.add(i, value);");
-    lines.push("auto pref_xor = fw.prefix(r);");
-    lines.push("auto range_xor = fw.segment(l, r);");
-  } else {
-    lines.push(`${names.className}<long long, CustomOp> fw(n);`);
+function fenwickAliasForOperation(
+  names: FenwickNames,
+  operation: FenwickOperation
+): string {
+  if (operation === "xor") {
+    return names.xorAliasName;
   }
+  if (operation === "max") {
+    return names.maxAliasName;
+  }
+  if (operation === "min") {
+    return names.minAliasName;
+  }
+  if (operation === "custom") {
+    return names.customAliasName;
+  }
+  if (operation === "custom_invertible") {
+    return names.customInvertibleAliasName;
+  }
+  return names.sumAliasName;
+}
 
-  lines.push("*/");
-  return lines.join("\n");
+function fenwickValueType(options: FenwickOptions): string {
+  return options.valueType?.trim() || "long long";
+}
+
+function fenwickSizeExpression(options: FenwickOptions): string {
+  return options.sizeExpression?.trim() || "n";
+}
+
+function fenwickInstanceName(options: FenwickOptions): string {
+  return options.instanceName?.trim() || "fw";
+}
+
+function renderFenwickUsageSnippet(options: FenwickOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const operation = primaryFenwickOperation(options);
+  const application = options.application ?? "point_range";
+  const templateName = application === "range_sum"
+    ? "solve-range-sum.cpp.tmpl"
+    : application === "range_point"
+      ? "solve-range-point.cpp.tmpl"
+      : "solve-point.cpp.tmpl";
+  return renderCodeTemplate(`solvers/fenwick/${templateName}`, {
+    ...options.names,
+    aliasName: fenwickAliasForOperation(options.names, operation),
+    valueType: fenwickValueType(options),
+    sizeExpression: fenwickSizeExpression(options),
+    instanceName: fenwickInstanceName(options),
+    sourceName: options.sourceName?.trim() || "a",
+    answerName: options.answerName?.trim() || "ans",
+    queryLoop: usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    existingVector: options.sourceMode === "existing_vector",
+    readLoop: options.sourceMode === "read_loop",
+    inversionCount: application === "inversion_count"
+  });
+}
+
+function renderFenwickUsage(options: FenwickOptions): string {
+  return renderCodeTemplate("solvers/fenwick/usage-comment.cpp.tmpl", {
+    ...options.names,
+    sumOp: hasFenwickOperation(options, "sum"),
+    maxOp: hasFenwickOperation(options, "max"),
+    minOp: hasFenwickOperation(options, "min"),
+    xorOp: hasFenwickOperation(options, "xor")
+  });
 }
 
 export function renderFenwickRecipe(options: FenwickOptions): RenderedRecipe {
   const names = options.names;
-  const lines: string[] = [];
-  const exports: string[] = [];
-  const includeSum = hasFenwickOperation(options, "sum");
-  const includeXor = hasFenwickOperation(options, "xor");
-  const includeMax = hasFenwickOperation(options, "max");
-  const includeMin = hasFenwickOperation(options, "min");
-
-  if (includeSum) {
-    exports.push(names.sumOpName);
-    pushLine(lines, "template <typename T>");
-    pushLine(lines, `struct ${names.sumOpName} {`);
-    pushLine(lines, "  static constexpr bool kHasInverse = true;");
-    pushLine(lines, "  static constexpr bool kHasDescend = true;");
-    pushLine(lines);
-    pushLine(lines, "  static T default_neutral() { return T(0); }");
-    pushLine(lines, "  static T combine(const T& lhs, const T& rhs) { return lhs + rhs; }");
-    pushLine(lines, "  static T inverse(const T& total, const T& prefix) { return total - prefix; }");
-    pushLine(lines, "  static bool descend_should_advance(const T& candidate, const T& target) {");
-    pushLine(lines, "    return candidate < target;");
-    pushLine(lines, "  }");
-    pushLine(lines, "};");
+  const operations: Array<[FenwickOperation, string, string]> = [
+    ["sum", names.sumOpName, names.sumAliasName],
+    ["xor", names.xorOpName, names.xorAliasName],
+    ["max", names.maxOpName, names.maxAliasName],
+    ["min", names.minOpName, names.minAliasName],
+    ["custom", names.customOpName, names.customAliasName],
+    ["custom_invertible", names.customInvertibleOpName, names.customInvertibleAliasName]
+  ];
+  const included = new Set(options.operations);
+  let helpers = renderCodeTemplate("solvers/fenwick/helpers.hpp.tmpl", {
+    sumOp: included.has("sum"), xorOp: included.has("xor"),
+    maxOp: included.has("max"), minOp: included.has("min"),
+    customOp: included.has("custom"), customInvertibleOp: included.has("custom_invertible"),
+    rangeSum: options.application === "range_sum"
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "Fenwick", to: names.className },
+    { from: "FenwickRange", to: names.rangeClassName },
+    { from: "FenwickSumOp", to: names.sumOpName },
+    { from: "FenwickXorOp", to: names.xorOpName },
+    { from: "FenwickMaxOp", to: names.maxOpName },
+    { from: "FenwickMinOp", to: names.minOpName },
+    { from: "FenwickCustomOp", to: names.customOpName },
+    { from: "FenwickCustomInvertibleOp", to: names.customInvertibleOpName },
+    { from: "FenwickSumTree", to: names.sumAliasName },
+    { from: "FenwickXorTree", to: names.xorAliasName },
+    { from: "FenwickMaxTree", to: names.maxAliasName },
+    { from: "FenwickMinTree", to: names.minAliasName },
+    { from: "FenwickCustomTree", to: names.customAliasName },
+    { from: "FenwickCustomInvertibleTree", to: names.customInvertibleAliasName }
+  ]);
+  if (options.includeUsageComment) helpers = helpers.trimEnd() + "\n\n" + renderFenwickUsage(options);
+  const exports = [names.className];
+  for (const [operation, opName, aliasName] of operations) {
+    if (included.has(operation)) exports.push(opName, aliasName);
   }
-
-  if (includeXor) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    exports.push(names.xorOpName);
-    pushLine(lines, "template <typename T>");
-    pushLine(lines, `struct ${names.xorOpName} {`);
-    pushLine(lines, "  static constexpr bool kHasInverse = true;");
-    pushLine(lines, "  static constexpr bool kHasDescend = false;");
-    pushLine(lines);
-    pushLine(lines, "  static T default_neutral() { return T(0); }");
-    pushLine(lines, "  static T combine(const T& lhs, const T& rhs) { return lhs ^ rhs; }");
-    pushLine(lines, "  static T inverse(const T& total, const T& prefix) { return total ^ prefix; }");
-    pushLine(lines, "};");
-  }
-
-  if (includeMax) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    exports.push(names.maxOpName);
-    pushLine(lines, "template <typename T>");
-    pushLine(lines, `struct ${names.maxOpName} {`);
-    pushLine(lines, "  static constexpr bool kHasInverse = false;");
-    pushLine(lines, "  static constexpr bool kHasDescend = true;");
-    pushLine(lines);
-    pushLine(lines, "  static T default_neutral() { return T(); }");
-    pushLine(
-      lines,
-      "  static T combine(const T& lhs, const T& rhs) { return (lhs < rhs ? rhs : lhs); }"
-    );
-    pushLine(lines, "  static bool descend_should_advance(const T& candidate, const T& target) {");
-    pushLine(lines, "    return !(target < candidate);");
-    pushLine(lines, "  }");
-    pushLine(lines, "};");
-  }
-
-  if (includeMin) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    exports.push(names.minOpName);
-    pushLine(lines, "template <typename T>");
-    pushLine(lines, `struct ${names.minOpName} {`);
-    pushLine(lines, "  static constexpr bool kHasInverse = false;");
-    pushLine(lines, "  static constexpr bool kHasDescend = false;");
-    pushLine(lines);
-    pushLine(lines, "  static T default_neutral() { return T(); }");
-    pushLine(
-      lines,
-      "  static T combine(const T& lhs, const T& rhs) { return (lhs < rhs ? lhs : rhs); }"
-    );
-    pushLine(lines, "};");
-  }
-
-  if (lines.length > 0) {
-    pushLine(lines);
-  }
-  exports.push(names.className);
-  pushLine(lines, "template <typename T, typename Op>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int n = 0, const T& neutral = Op::default_neutral())`
+  if (options.application === "range_sum") exports.push(names.rangeClassName);
+  const usage = renderFenwickUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
+    exports
   );
-  pushLine(lines, "      : n_(n < 0 ? 0 : n),");
-  pushLine(lines, "        maxn_(n_ + 1),");
-  pushLine(lines, "        bit_(maxn_, neutral),");
-  pushLine(lines, "        neutral_(neutral) {}");
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n, const T& neutral = Op::default_neutral()) {");
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(lines, "    maxn_ = n_ + 1;");
-  pushLine(lines, "    neutral_ = neutral;");
-  pushLine(lines, "    bit_.assign(maxn_, neutral_);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(lines, "  void add(int idx, const T& value) {");
-  pushLine(lines, "    if (idx < 0 || idx >= n_) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int i = idx + 1; i < maxn_; i += i & -i) {");
-  pushLine(lines, "      bit_[i] = Op::combine(bit_[i], value);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  T prefix(int idx) const {");
-  pushLine(lines, "    if (idx < 0) {");
-  pushLine(lines, "      return neutral_;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (idx >= n_) {");
-  pushLine(lines, "      idx = n_ - 1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    T result = neutral_;");
-  pushLine(lines, "    for (int i = idx + 1; i > 0; i -= i & -i) {");
-  pushLine(lines, "      result = Op::combine(result, bit_[i]);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  T segment(int left, int right) const {");
-  pushLine(lines, "    static_assert(Op::kHasInverse,");
-  pushLine(lines, "                  \"segment query requires an invertible operation\");");
-  pushLine(lines, "    if (left > right) {");
-  pushLine(lines, "      return neutral_;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right < 0 || left >= n_) {");
-  pushLine(lines, "      return neutral_;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (left < 0) {");
-  pushLine(lines, "      left = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right >= n_) {");
-  pushLine(lines, "      right = n_ - 1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return Op::inverse(prefix(right), prefix(left - 1));");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int descend(const T& target) const {");
-  pushLine(lines, "    static_assert(Op::kHasDescend,");
-  pushLine(lines, "                  \"descend is not defined for this operation\");");
-  pushLine(lines, "    if (n_ == 0) {");
-  pushLine(lines, "      return 0;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    int pos = 0;");
-  pushLine(lines, "    T accumulated = neutral_;");
-  pushLine(lines);
-  pushLine(lines, "    int pw = 1;");
-  pushLine(lines, "    while ((pw << 1) < maxn_) {");
-  pushLine(lines, "      pw <<= 1;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    for (; pw > 0; pw >>= 1) {");
-  pushLine(lines, "      const int next = pos + pw;");
-  pushLine(lines, "      if (next >= maxn_) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      const T candidate = Op::combine(accumulated, bit_[next]);");
-  pushLine(lines, "      if (Op::descend_should_advance(candidate, target)) {");
-  pushLine(lines, "        pos = next;");
-  pushLine(lines, "        accumulated = candidate;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return pos;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(lines, "  int maxn_;");
-  pushLine(lines, "  std::vector<T> bit_;");
-  pushLine(lines, "  T neutral_;");
-  pushLine(lines, "};");
-
-  const pushAlias = (operation: boolean, aliasName: string, opName: string) => {
-    if (!operation) {
-      return;
-    }
-    exports.push(aliasName);
-    pushLine(lines);
-    pushLine(lines, "template <typename T>");
-    pushLine(lines, `using ${aliasName} = ${names.className}<T, ${opName}<T>>;`);
-  };
-
-  pushAlias(includeSum, names.sumAliasName, names.sumOpName);
-  pushAlias(includeXor, names.xorAliasName, names.xorOpName);
-  pushAlias(includeMax, names.maxAliasName, names.maxOpName);
-  pushAlias(includeMin, names.minAliasName, names.minOpName);
-
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderFenwickUsage(options));
-  }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, exports);
 }
 
 export function renderFenwick(options: FenwickOptions): string {
@@ -3639,420 +5379,39 @@ function includeDynamicModInt(options: ModIntOptions): boolean {
 }
 
 function renderModIntUsage(options: ModIntOptions): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
-
-  if (includeStaticModInt(options)) {
-    lines.push(`using Mint = ${names.staticClassName}<1000000007>;`);
-    lines.push("Mint a = 2;");
-    lines.push("auto b = a.pow(10);");
-  }
-
-  if (includeDynamicModInt(options)) {
-    lines.push(`${names.dynamicClassName}::set_mod(998244353);`);
-    lines.push(`${names.dynamicClassName} x = 5;`);
-    lines.push("auto inv = x.inv();");
-  }
-
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/modint/usage-comment.cpp.tmpl", {
+    staticClassName: options.names.staticClassName,
+    dynamicClassName: options.names.dynamicClassName,
+    includeStatic: includeStaticModInt(options),
+    includeDynamic: includeDynamicModInt(options)
+  });
 }
 
-function pushStaticModInt(lines: string[], className: string): void {
-  pushLine(lines, "template <int MOD>");
-  pushLine(lines, `class ${className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, "  static_assert(MOD > 0, \"MOD must be positive\");");
-  pushLine(lines);
-  pushLine(lines, `  ${className}() : value_(0) {}`);
-  pushLine(lines);
-  pushLine(lines, "  template <typename T>");
-  pushLine(
-    lines,
-    `  ${className}(T value) : value_(normalize(static_cast<long long>(value))) {}`
-  );
-  pushLine(lines);
-  pushLine(lines, "  static constexpr int mod() { return MOD; }");
-  pushLine(lines);
-  pushLine(lines, "  int value() const { return value_; }");
-  pushLine(lines);
-  pushLine(lines, `  static ${className} raw(int value) {`);
-  pushLine(lines, `    ${className} result;`);
-  pushLine(lines, "    result.value_ = value;");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  template <typename T>");
-  pushLine(lines, `  ${className}& set(T value) {`);
-  pushLine(lines, "    value_ = normalize(static_cast<long long>(value));");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} operator+() const { return *this; }`);
-  pushLine(lines);
-  pushLine(lines, `  ${className} operator-() const {`);
-  pushLine(
-    lines,
-    `    return (value_ == 0 ? ${className}(0) : ${className}::raw(MOD - value_));`
-  );
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator+=(const ${className}& rhs) {`);
-  pushLine(lines, "    value_ += rhs.value_;");
-  pushLine(lines, "    if (value_ >= MOD) {");
-  pushLine(lines, "      value_ -= MOD;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator-=(const ${className}& rhs) {`);
-  pushLine(lines, "    value_ -= rhs.value_;");
-  pushLine(lines, "    if (value_ < 0) {");
-  pushLine(lines, "      value_ += MOD;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator*=(const ${className}& rhs) {`);
-  pushLine(lines, "    value_ = static_cast<int>(");
-  pushLine(lines, "        (static_cast<long long>(value_) * rhs.value_) % MOD);");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator/=(const ${className}& rhs) {`);
-  pushLine(lines, "    return (*this) *= rhs.inv();");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} pow(long long exponent) const {`);
-  pushLine(lines, `    ${className} base = *this;`);
-  pushLine(lines, "    long long exp = exponent;");
-  pushLine(lines, "    if (exp < 0) {");
-  pushLine(lines, "      base = base.inv();");
-  pushLine(lines, "      exp = -exp;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    ${className} result(1);`);
-  pushLine(lines, "    while (exp > 0) {");
-  pushLine(lines, "      if (exp & 1LL) {");
-  pushLine(lines, "        result *= base;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      base *= base;");
-  pushLine(lines, "      exp >>= 1LL;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool has_inverse() const {");
-  pushLine(lines, "    return positive_gcd(static_cast<long long>(value_),");
-  pushLine(lines, "                        static_cast<long long>(MOD)) == 1;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  bool try_inv(${className}& out) const {`);
-  pushLine(lines, "    long long x = 0;");
-  pushLine(lines, "    long long y = 0;");
-  pushLine(lines, "    const long long g = extended_gcd(static_cast<long long>(value_),");
-  pushLine(lines, "                                     static_cast<long long>(MOD), x, y);");
-  pushLine(lines, "    if (g != 1) {");
-  pushLine(lines, `      out = ${className}(0);`);
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    x %= MOD;");
-  pushLine(lines, "    if (x < 0) {");
-  pushLine(lines, "      x += MOD;");
-  pushLine(lines, "    }");
-  pushLine(lines, `    out = ${className}::raw(static_cast<int>(x));`);
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} inv() const {`);
-  pushLine(lines, `    ${className} result(0);`);
-  pushLine(lines, "    try_inv(result);");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator+(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs += rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator-(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs -= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator*(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs *= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator/(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs /= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  friend bool operator==(const ${className}& lhs, const ${className}& rhs) {`
-  );
-  pushLine(lines, "    return lhs.value_ == rhs.value_;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  friend bool operator!=(const ${className}& lhs, const ${className}& rhs) {`
-  );
-  pushLine(lines, "    return lhs.value_ != rhs.value_;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int value_;");
-  pushLine(lines);
-  pushLine(lines, "  static int normalize(long long value) {");
-  pushLine(lines, "    value %= MOD;");
-  pushLine(lines, "    if (value < 0) {");
-  pushLine(lines, "      value += MOD;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return static_cast<int>(value);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushModIntGcdHelpers(lines);
-  pushLine(lines, "};");
-}
 
-function pushDynamicModInt(
-  lines: string[],
-  className: string,
-  defaultModExpression: string
-): void {
-  pushLine(lines, `class ${className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  ${className}() : value_(0) {}`);
-  pushLine(lines);
-  pushLine(lines, "  template <typename T>");
-  pushLine(
-    lines,
-    `  ${className}(T value) : value_(normalize(static_cast<long long>(value))) {}`
-  );
-  pushLine(lines);
-  pushLine(lines, "  static int mod() { return modulus_ref(); }");
-  pushLine(lines);
-  pushLine(lines, "  static void set_mod(int mod_value) {");
-  pushLine(lines, "    modulus_ref() = (mod_value > 0 ? mod_value : 1);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int value() const { return value_; }");
-  pushLine(lines);
-  pushLine(lines, `  static ${className} raw(int value) {`);
-  pushLine(lines, `    ${className} result;`);
-  pushLine(lines, "    result.value_ = value;");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  template <typename T>");
-  pushLine(lines, `  ${className}& set(T value) {`);
-  pushLine(lines, "    value_ = normalize(static_cast<long long>(value));");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} operator+() const { return *this; }`);
-  pushLine(lines);
-  pushLine(lines, `  ${className} operator-() const {`);
-  pushLine(
-    lines,
-    `    return value_ == 0 ? ${className}(0) : ${className}::raw(mod() - value_);`
-  );
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator+=(const ${className}& rhs) {`);
-  pushLine(lines, "    const int m = mod();");
-  pushLine(lines, "    value_ += rhs.value_;");
-  pushLine(lines, "    if (value_ >= m) {");
-  pushLine(lines, "      value_ -= m;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator-=(const ${className}& rhs) {`);
-  pushLine(lines, "    const int m = mod();");
-  pushLine(lines, "    value_ -= rhs.value_;");
-  pushLine(lines, "    if (value_ < 0) {");
-  pushLine(lines, "      value_ += m;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator*=(const ${className}& rhs) {`);
-  pushLine(lines, "    value_ = static_cast<int>(");
-  pushLine(lines, "        (static_cast<long long>(value_) * rhs.value_) % mod());");
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className}& operator/=(const ${className}& rhs) {`);
-  pushLine(lines, "    return (*this) *= rhs.inv();");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} pow(long long exponent) const {`);
-  pushLine(lines, `    ${className} base = *this;`);
-  pushLine(lines, "    long long exp = exponent;");
-  pushLine(lines, "    if (exp < 0) {");
-  pushLine(lines, "      base = base.inv();");
-  pushLine(lines, "      exp = -exp;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    ${className} result(1);`);
-  pushLine(lines, "    while (exp > 0) {");
-  pushLine(lines, "      if (exp & 1LL) {");
-  pushLine(lines, "        result *= base;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      base *= base;");
-  pushLine(lines, "      exp >>= 1LL;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool has_inverse() const {");
-  pushLine(lines, "    return positive_gcd(static_cast<long long>(value_),");
-  pushLine(lines, "                        static_cast<long long>(mod())) == 1;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  bool try_inv(${className}& out) const {`);
-  pushLine(lines, "    const int m = mod();");
-  pushLine(lines, "    long long x = 0;");
-  pushLine(lines, "    long long y = 0;");
-  pushLine(lines, "    const long long g = extended_gcd(static_cast<long long>(value_),");
-  pushLine(lines, "                                     static_cast<long long>(m), x, y);");
-  pushLine(lines, "    if (g != 1) {");
-  pushLine(lines, `      out = ${className}(0);`);
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    x %= m;");
-  pushLine(lines, "    if (x < 0) {");
-  pushLine(lines, "      x += m;");
-  pushLine(lines, "    }");
-  pushLine(lines, `    out = ${className}::raw(static_cast<int>(x));`);
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${className} inv() const {`);
-  pushLine(lines, `    ${className} result(0);`);
-  pushLine(lines, "    try_inv(result);");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator+(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs += rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator-(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs -= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator*(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs *= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  friend ${className} operator/(${className} lhs, const ${className}& rhs) {`);
-  pushLine(lines, "    lhs /= rhs;");
-  pushLine(lines, "    return lhs;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  friend bool operator==(const ${className}& lhs, const ${className}& rhs) {`
-  );
-  pushLine(lines, "    return lhs.value_ == rhs.value_;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  friend bool operator!=(const ${className}& lhs, const ${className}& rhs) {`
-  );
-  pushLine(lines, "    return lhs.value_ != rhs.value_;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int value_;");
-  pushLine(lines);
-  pushLine(lines, "  static int normalize(long long value) {");
-  pushLine(lines, "    const int m = mod();");
-  pushLine(lines, "    value %= m;");
-  pushLine(lines, "    if (value < 0) {");
-  pushLine(lines, "      value += m;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return static_cast<int>(value);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  static int& modulus_ref() {");
-  pushLine(lines, `    static int value = ${defaultModExpression};`);
-  pushLine(lines, "    return value;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushModIntGcdHelpers(lines);
-  pushLine(lines, "};");
-}
 
-function pushModIntGcdHelpers(lines: string[]): void {
-  pushLine(lines, "  static long long positive_gcd(long long a, long long b) {");
-  pushLine(lines, "    if (a < 0) {");
-  pushLine(lines, "      a = -a;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (b < 0) {");
-  pushLine(lines, "      b = -b;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    while (b != 0) {");
-  pushLine(lines, "      const long long t = a % b;");
-  pushLine(lines, "      a = b;");
-  pushLine(lines, "      b = t;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return a;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  static long long extended_gcd(long long a, long long b, long long& x,");
-  pushLine(lines, "                                long long& y) {");
-  pushLine(lines, "    if (a == 0) {");
-  pushLine(lines, "      x = 0;");
-  pushLine(lines, "      y = 1;");
-  pushLine(lines, "      return b;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    long long x1 = 0;");
-  pushLine(lines, "    long long y1 = 0;");
-  pushLine(lines, "    const long long g = extended_gcd(b % a, a, x1, y1);");
-  pushLine(lines, "    x = y1 - (b / a) * x1;");
-  pushLine(lines, "    y = x1;");
-  pushLine(lines, "    return g;");
-  pushLine(lines, "  }");
-}
+
+
+
 
 export function renderModIntRecipe(options: ModIntOptions): RenderedRecipe {
-  const lines: string[] = [];
-  const exports: string[] = [];
-
-  if (includeStaticModInt(options)) {
-    exports.push(options.names.staticClassName);
-    pushStaticModInt(lines, options.names.staticClassName);
-  }
-
-  if (includeDynamicModInt(options)) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    exports.push(options.names.dynamicClassName);
-    pushDynamicModInt(
-      lines,
-      options.names.dynamicClassName,
-      options.dynamicDefaultModExpression
-    );
-  }
-
+  const includeStatic = includeStaticModInt(options);
+  const includeDynamic = includeDynamicModInt(options);
+  let helpers = renderCodeTemplate("solvers/modint/helpers.hpp.tmpl", {
+    includeStatic,
+    includeDynamic,
+    dynamicDefaultModExpression: options.dynamicDefaultModExpression.trim() || "1000000007"
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "StaticModInt", to: options.names.staticClassName },
+    { from: "DynamicModInt", to: options.names.dynamicClassName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderModIntUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderModIntUsage(options)}\n`;
   }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, exports);
+  const exports: string[] = [];
+  if (includeStatic) exports.push(options.names.staticClassName);
+  if (includeDynamic) exports.push(options.names.dynamicClassName);
+  return createRenderedRecipe({ helpers: [helpers] }, exports);
 }
 
 export function renderModInt(options: ModIntOptions): string {
@@ -4131,339 +5490,51 @@ function renderTwoSatUsage(
   options: TwoSatOptions,
   features: Set<TwoSatFeature>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
-  lines.push(`${names.className} sat(n);`);
-  lines.push(`sat.${names.addOrName}(a, true, b, false);`);
-  lines.push(`sat.${names.addImplicationName}(a, true, c, true);`);
-  if (features.has("xor")) {
-    lines.push(`sat.${names.addXorName}(x, true, y, true);`);
-  }
-  if (features.has("equal")) {
-    lines.push(`sat.${names.addEqualName}(u, true, v, true);`);
-  }
-  if (features.has("force")) {
-    lines.push(`sat.${names.addTrueName}(forced_var);`);
-  }
-  lines.push(`if (sat.${names.solveName}()) {`);
-  lines.push(`  auto assign = sat.${names.assignmentName}();`);
-  lines.push("}");
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/twosat/usage-comment.cpp.tmpl", {
+    ...options.names,
+    xorFeature: features.has("xor"),
+    equalFeature: features.has("equal"),
+    forceFeature: features.has("force")
+  });
 }
 
 export function renderTwoSatRecipe(options: TwoSatOptions): RenderedRecipe {
   const names = options.names;
   const features = twoSatFeatureSet(options.features);
-  const lines: string[] = [];
-
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int variables = 0) { ${names.resetName}(variables); }`
-  );
-  pushLine(lines);
-  pushLine(lines, `  void ${names.resetName}(int variables) {`);
-  pushLine(lines, "    variables_ = variables < 0 ? 0 : variables;");
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}.assign(2 * variables_, std::vector<int>());`
-  );
-  pushLine(lines, `    ${names.assignmentFieldName}.assign(variables_, false);`);
-  if (features.has("components")) {
-    pushLine(lines, `    ${names.componentFieldName}.assign(2 * variables_, -1);`);
-  }
-  pushLine(lines, "    solved_ = false;");
-  pushLine(lines, "    satisfiable_ = false;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return variables_; }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void ${names.addOrName}(int a, bool a_value, int b, bool b_value) {`
-  );
-  pushLine(lines, `    if (!${names.okVarName}(a) || !${names.okVarName}(b)) {`);
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, `    ${names.addDirectName}(a, !a_value, b, b_value);`);
-  pushLine(lines, `    ${names.addDirectName}(b, !b_value, a, a_value);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void ${names.addImplicationName}(int a, bool a_value, int b, bool b_value) {`
-  );
-  pushLine(lines, `    if (!${names.okVarName}(a) || !${names.okVarName}(b)) {`);
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, `    ${names.addDirectName}(a, a_value, b, b_value);`);
-  pushLine(lines, `    ${names.addDirectName}(b, !b_value, a, !a_value);`);
-  pushLine(lines, "  }");
-
-  if (features.has("xor")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  void ${names.addXorName}(int a, bool a_value, int b, bool b_value) {`
-    );
-    pushLine(lines, `    ${names.addOrName}(a, a_value, b, b_value);`);
-    pushLine(lines, `    ${names.addOrName}(a, !a_value, b, !b_value);`);
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("equal")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  void ${names.addEqualName}(int a, bool a_value, int b, bool b_value) {`
-    );
-    pushLine(lines, `    ${names.addOrName}(a, a_value, b, !b_value);`);
-    pushLine(lines, `    ${names.addOrName}(a, !a_value, b, b_value);`);
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("force")) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.addTrueName}(int var, bool value = true) {`);
-    pushLine(lines, `    if (${names.okVarName}(var)) {`);
-    pushLine(lines, `      ${names.addDirectName}(var, !value, var, value);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, `  void ${names.addFalseName}(int var) {`);
-    pushLine(lines, `    ${names.addTrueName}(var, false);`);
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("at_most_one")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  void ${names.addAtMostOneName}(const std::vector<int>& vars) {`
-    );
-    pushLine(lines, "    for (int i = 0; i < static_cast<int>(vars.size()); ++i) {");
-    pushLine(lines, "      for (int j = i + 1; j < static_cast<int>(vars.size()); ++j) {");
-    pushLine(lines, `        ${names.addOrName}(vars[i], false, vars[j], false);`);
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, `  bool ${names.solveName}() {`);
-  pushLine(lines, "    solved_ = true;");
-  pushLine(lines, "    satisfiable_ = true;");
-  pushLine(lines, `    ${names.assignmentFieldName}.assign(variables_, false);`);
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    const std::vector<int> comp = ${names.sccName}();`
-  );
-  if (features.has("components")) {
-    pushLine(lines, `    ${names.componentFieldName} = comp;`);
-  }
-  pushLine(lines, "    int components = 0;");
-  pushLine(lines, "    for (int x : comp) {");
-  pushLine(lines, "      components = std::max(components, x + 1);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    for (int var = 0; var < variables_; ++var) {");
-  pushLine(
-    lines,
-    `      if (comp[${names.nodeName}(var, true)] == comp[${names.nodeName}(var, false)]) {`
-  );
-  pushLine(lines, "        satisfiable_ = false;");
-  pushLine(
-    lines,
-    `        ${names.assignmentFieldName}.assign(variables_, false);`
-  );
-  pushLine(lines, "        return false;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::vector<std::vector<int>> dag(components);");
-  pushLine(lines, "    std::vector<int> indegree(components, 0);");
-  pushLine(lines, `    for (int v = 0; v < static_cast<int>(${names.graphFieldName}.size()); ++v) {`);
-  pushLine(lines, `      for (int to : ${names.graphFieldName}[v]) {`);
-  pushLine(lines, "        const int a = comp[v];");
-  pushLine(lines, "        const int b = comp[to];");
-  pushLine(lines, "        if (a != b) {");
-  pushLine(lines, "          dag[a].push_back(b);");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int v = 0; v < components; ++v) {");
-  pushLine(lines, "      std::sort(dag[v].begin(), dag[v].end());");
-  pushLine(lines, "      dag[v].resize(std::unique(dag[v].begin(), dag[v].end()) - dag[v].begin());");
-  pushLine(lines, "      for (int to : dag[v]) {");
-  pushLine(lines, "        ++indegree[to];");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::vector<int> q;");
-  pushLine(lines, "    q.reserve(components);");
-  pushLine(lines, "    for (int i = 0; i < components; ++i) {");
-  pushLine(lines, "      if (indegree[i] == 0) {");
-  pushLine(lines, "        q.push_back(i);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    std::vector<int> rank(components, 0);");
-  pushLine(lines, "    for (int i = 0; i < static_cast<int>(q.size()); ++i) {");
-  pushLine(lines, "      const int v = q[i];");
-  pushLine(lines, "      rank[v] = i;");
-  pushLine(lines, "      for (int to : dag[v]) {");
-  pushLine(lines, "        if (--indegree[to] == 0) {");
-  pushLine(lines, "          q.push_back(to);");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    for (int var = 0; var < variables_; ++var) {");
-  pushLine(
-    lines,
-    `      ${names.assignmentFieldName}[var] = rank[comp[${names.nodeName}(var, true)]] > rank[comp[${names.nodeName}(var, false)]];`
-  );
-  pushLine(lines, "    }");
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool solved() const { return solved_; }");
-  pushLine(lines);
-  pushLine(lines, "  bool satisfiable() const { return solved_ && satisfiable_; }");
-  pushLine(lines);
-  pushLine(lines, `  bool ${names.valueName}(int var) const {`);
-  pushLine(
-    lines,
-    `    return ${names.okVarName}(var) && satisfiable() ? ${names.assignmentFieldName}[var] : false;`
-  );
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  const std::vector<bool>& ${names.assignmentName}() const {`
-  );
-  pushLine(lines, `    return ${names.assignmentFieldName};`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  const std::vector<std::vector<int>>& ${names.implicationGraphName}() const {`
-  );
-  pushLine(lines, `    return ${names.graphFieldName};`);
-  pushLine(lines, "  }");
-
-  if (features.has("components")) {
-    pushLine(lines);
-    pushLine(lines, `  int ${names.componentName}(int var, bool value) const {`);
-    pushLine(
-      lines,
-      `    return ${names.okVarName}(var) && solved_ ? ${names.componentFieldName}[${names.nodeName}(var, value)] : -1;`
-    );
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int variables_;");
-  pushLine(lines, `  std::vector<std::vector<int>> ${names.graphFieldName};`);
-  pushLine(lines, `  std::vector<bool> ${names.assignmentFieldName};`);
-  if (features.has("components")) {
-    pushLine(lines, `  std::vector<int> ${names.componentFieldName};`);
-  }
-  pushLine(lines, "  bool solved_;");
-  pushLine(lines, "  bool satisfiable_;");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  bool ${names.okVarName}(int var) const { return var >= 0 && var < variables_; }`
-  );
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static int ${names.nodeName}(int var, bool value) { return 2 * var + (value ? 0 : 1); }`
-  );
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void ${names.addDirectName}(int a, bool a_value, int b, bool b_value) {`
-  );
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}[${names.nodeName}(a, a_value)].push_back(${names.nodeName}(b, b_value));`
-  );
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  std::vector<int> ${names.sccName}() const {`);
-  pushLine(lines, `    const int n = static_cast<int>(${names.graphFieldName}.size());`);
-  pushLine(lines, "    std::vector<std::vector<int>> rev(n);");
-  pushLine(lines, "    for (int v = 0; v < n; ++v) {");
-  pushLine(lines, `      for (int to : ${names.graphFieldName}[v]) {`);
-  pushLine(lines, "        rev[to].push_back(v);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::vector<char> used(n, 0);");
-  pushLine(lines, "    std::vector<int> order;");
-  pushLine(lines, "    order.reserve(n);");
-  pushLine(lines, "    for (int start = 0; start < n; ++start) {");
-  pushLine(lines, "      if (used[start]) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      std::vector<std::pair<int, int>> stack;");
-  pushLine(lines, "      stack.push_back({start, 0});");
-  pushLine(lines, "      used[start] = 1;");
-  pushLine(lines, "      while (!stack.empty()) {");
-  pushLine(lines, "        int v = stack.back().first;");
-  pushLine(lines, "        int& idx = stack.back().second;");
-  pushLine(
-    lines,
-    `        if (idx < static_cast<int>(${names.graphFieldName}[v].size())) {`
-  );
-  pushLine(lines, `          const int to = ${names.graphFieldName}[v][idx++];`);
-  pushLine(lines, "          if (!used[to]) {");
-  pushLine(lines, "            used[to] = 1;");
-  pushLine(lines, "            stack.push_back({to, 0});");
-  pushLine(lines, "          }");
-  pushLine(lines, "        } else {");
-  pushLine(lines, "          order.push_back(v);");
-  pushLine(lines, "          stack.pop_back();");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::vector<int> comp(n, -1);");
-  pushLine(lines, "    int comp_id = 0;");
-  pushLine(lines, "    for (int i = n - 1; i >= 0; --i) {");
-  pushLine(lines, "      const int start = order[i];");
-  pushLine(lines, "      if (comp[start] != -1) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      std::vector<int> stack(1, start);");
-  pushLine(lines, "      comp[start] = comp_id;");
-  pushLine(lines, "      while (!stack.empty()) {");
-  pushLine(lines, "        const int v = stack.back();");
-  pushLine(lines, "        stack.pop_back();");
-  pushLine(lines, "        for (int to : rev[v]) {");
-  pushLine(lines, "          if (comp[to] == -1) {");
-  pushLine(lines, "            comp[to] = comp_id;");
-  pushLine(lines, "            stack.push_back(to);");
-  pushLine(lines, "          }");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "      ++comp_id;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return comp;");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
+  let helpers = renderCodeTemplate("solvers/twosat/helpers.hpp.tmpl", {
+    xorFeature: features.has("xor"),
+    equalFeature: features.has("equal"),
+    forceFeature: features.has("force"),
+    atMostOneFeature: features.has("at_most_one"),
+    componentsFeature: features.has("components")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "TwoSat", to: names.className },
+    { from: "reset", to: names.resetName },
+    { from: "add_or", to: names.addOrName },
+    { from: "add_implication", to: names.addImplicationName },
+    { from: "add_xor", to: names.addXorName },
+    { from: "add_equal", to: names.addEqualName },
+    { from: "add_true", to: names.addTrueName },
+    { from: "add_false", to: names.addFalseName },
+    { from: "add_at_most_one", to: names.addAtMostOneName },
+    { from: "solve", to: names.solveName },
+    { from: "value", to: names.valueName },
+    { from: "assignment", to: names.assignmentName },
+    { from: "implication_graph", to: names.implicationGraphName },
+    { from: "component", to: names.componentName },
+    { from: "ok_var", to: names.okVarName },
+    { from: "node", to: names.nodeName },
+    { from: "add_direct", to: names.addDirectName },
+    { from: "strongly_connected_components", to: names.sccName },
+    { from: "graph_", to: names.graphFieldName },
+    { from: "assignment_", to: names.assignmentFieldName },
+    { from: "component_", to: names.componentFieldName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderTwoSatUsage(options, features));
+    helpers += "\n\n" + renderTwoSatUsage(options, features);
   }
-
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, twoSatExports(options));
+  return createRenderedRecipe({ helpers: [helpers] }, twoSatExports(options));
 }
 
 export function renderTwoSat(options: TwoSatOptions): string {
@@ -4546,66 +5617,38 @@ function renderMaxflowDinicUsage(
   features: Set<MaxflowDinicFeature>
 ): string {
   const names = options.names;
-  const lines = ["/*", "Example:"];
-  lines.push(`${names.className}<${options.capType}> ${names.instanceName}(n);`);
-  lines.push(`${names.instanceName}.${names.addEdgeName}(u, v, cap);`);
-  lines.push(
-    `auto ${names.answerName} = ${names.instanceName}.${names.maxFlowName}(s, t);`
-  );
-  if (features.has("min_cut")) {
-    lines.push(
-      `bool source_side = ${names.instanceName}.${names.minCutName}(v);`
-    );
-  }
-  if (features.has("reset_flows")) {
-    lines.push(`${names.instanceName}.${names.resetFlowsName}();`);
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/maxflow_dinic/usage-comment.cpp.tmpl", {
+    className: names.className,
+    capType: options.capType,
+    instanceName: names.instanceName,
+    addEdgeName: names.addEdgeName,
+    answerName: names.answerName,
+    maxFlowName: names.maxFlowName,
+    minCutName: names.minCutName,
+    resetFlowsName: names.resetFlowsName,
+    minCut: features.has("min_cut"),
+    resetFlows: features.has("reset_flows")
+  });
 }
 
 function renderMaxflowDinicSolveSection(options: MaxflowDinicOptions): string {
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, `void ${names.solveName}() {`);
-  pushLine(
-    lines,
-    `  int ${options.nodeCountName}, ${options.edgeCountName}, ${options.sourceName}, ${options.sinkName};`
-  );
-  pushLine(
-    lines,
-    `  cin >> ${options.nodeCountName} >> ${options.edgeCountName} >> ${options.sourceName} >> ${options.sinkName};`
-  );
-  pushLine(
-    lines,
-    `  ${names.className}<${options.capType}> ${names.instanceName}(${options.nodeCountName});`
-  );
-  pushLine(
-    lines,
-    `  for (int i = 0; i < ${options.edgeCountName}; ++i) {`
-  );
-  pushLine(
-    lines,
-    `    int ${options.fromName}, ${options.toName};`
-  );
-  pushLine(lines, `    ${options.capType} ${options.edgeCapName};`);
-  pushLine(
-    lines,
-    `    cin >> ${options.fromName} >> ${options.toName} >> ${options.edgeCapName};`
-  );
-  pushLine(
-    lines,
-    `    ${names.instanceName}.${names.addEdgeName}(${options.fromName}, ${options.toName}, ${options.edgeCapName});`
-  );
-  pushLine(lines, "  }");
-  pushLine(
-    lines,
-    `  auto ${names.answerName} = ${names.instanceName}.${names.maxFlowName}(${options.sourceName}, ${options.sinkName});`
-  );
-  pushLine(lines, `  cout << ${names.answerName} << '\\n';`);
-  pushLine(lines, "}");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/maxflow_dinic/solve.cpp.tmpl", {
+    solveName: names.solveName,
+    className: names.className,
+    capType: options.capType,
+    instanceName: names.instanceName,
+    addEdgeName: names.addEdgeName,
+    answerName: names.answerName,
+    maxFlowName: names.maxFlowName,
+    nodeCountName: options.nodeCountName,
+    edgeCountName: options.edgeCountName,
+    sourceName: options.sourceName,
+    sinkName: options.sinkName,
+    fromName: options.fromName,
+    toName: options.toName,
+    edgeCapName: options.edgeCapName
+  });
 }
 
 export function renderMaxflowDinicRecipe(
@@ -4613,238 +5656,32 @@ export function renderMaxflowDinicRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const features = maxflowDinicFeatureSet(options.features);
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename Cap>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  struct ${names.edgeName} {`);
-  pushLine(lines, "    int to;");
-  pushLine(lines, "    int rev;");
-  pushLine(lines, "    Cap cap;");
-  pushLine(lines, "    Cap original_cap;");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    ${names.edgeName}(int to_ = 0, int rev_ = 0, Cap cap_ = Cap(0),`
-  );
-  pushLine(lines, "         Cap original_cap_ = Cap(0))");
-  pushLine(
-    lines,
-    "        : to(to_), rev(rev_), cap(cap_), original_cap(original_cap_) {}"
-  );
-  pushLine(lines);
-  pushLine(lines, "    Cap flow() const { return original_cap - cap; }");
-  pushLine(lines, "  };");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int n = 0) : n_(0) { ${names.resetName}(n); }`
-  );
-  pushLine(lines);
-  pushLine(lines, `  void ${names.resetName}(int n) {`);
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}.assign(n_, std::vector<${names.edgeName}>());`
-  );
-  pushLine(lines, `    ${names.levelFieldName}.assign(n_, -1);`);
-  pushLine(lines, `    ${names.ptrFieldName}.assign(n_, 0);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  int ${names.addEdgeName}(int from, int to, Cap cap, Cap rev_cap = Cap(0)) {`
-  );
-  pushLine(lines, "    if (from < 0 || from >= n_ || to < 0 || to >= n_ ||");
-  pushLine(lines, "        cap < Cap(0) || rev_cap < Cap(0)) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    const int from_id = static_cast<int>(${names.graphFieldName}[from].size());`
-  );
-  pushLine(
-    lines,
-    `    const int to_id = static_cast<int>(${names.graphFieldName}[to].size());`
-  );
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}[from].push_back(${names.edgeName}(to, to_id, cap, cap));`
-  );
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}[to].push_back(${names.edgeName}(from, from_id, rev_cap, rev_cap));`
-  );
-  pushLine(lines, "    return from_id;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  Cap ${names.maxFlowName}(int source, int sink) {`);
-  pushLine(lines, "    if (source < 0 || source >= n_ || sink < 0 || sink >= n_ ||");
-  pushLine(lines, "        source == sink) {");
-  pushLine(lines, "      return Cap(0);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    Cap total_flow = Cap(0);");
-  pushLine(lines, `    while (${names.buildLevelName}(source, sink)) {`);
-  pushLine(
-    lines,
-    `      std::fill(${names.ptrFieldName}.begin(), ${names.ptrFieldName}.end(), 0);`
-  );
-  pushLine(lines, "      while (true) {");
-  pushLine(lines, "        const Cap pushed =");
-  pushLine(
-    lines,
-    `            ${names.pushFlowName}(source, sink, std::numeric_limits<Cap>::max());`
-  );
-  pushLine(lines, "        if (pushed == Cap(0)) {");
-  pushLine(lines, "          break;");
-  pushLine(lines, "        }");
-  pushLine(lines, "        total_flow += pushed;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return total_flow;");
-  pushLine(lines, "  }");
-
-  if (features.has("reset_flows")) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.resetFlowsName}() {`);
-    pushLine(lines, `    for (auto& edges : ${names.graphFieldName}) {`);
-    pushLine(lines, "      for (auto& edge : edges) {");
-    pushLine(lines, "        edge.cap = edge.original_cap;");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    std::fill(${names.levelFieldName}.begin(), ${names.levelFieldName}.end(), -1);`
-    );
-    pushLine(
-      lines,
-      `    std::fill(${names.ptrFieldName}.begin(), ${names.ptrFieldName}.end(), 0);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("min_cut")) {
-    pushLine(lines);
-    pushLine(lines, `  bool ${names.minCutName}(int vertex) const {`);
-    pushLine(
-      lines,
-      `    return vertex >= 0 && vertex < n_ && ${names.levelFieldName}[vertex] != -1;`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("graph_access")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  const std::vector<std::vector<${names.edgeName}>>& ${names.graphName}() const {`
-    );
-    pushLine(lines, `    return ${names.graphFieldName};`);
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(
-    lines,
-    `  std::vector<std::vector<${names.edgeName}>> ${names.graphFieldName};`
-  );
-  pushLine(lines, `  std::vector<int> ${names.levelFieldName};`);
-  pushLine(lines, `  std::vector<int> ${names.ptrFieldName};`);
-  pushLine(lines);
-  pushLine(lines, `  bool ${names.buildLevelName}(int source, int sink) {`);
-  pushLine(
-    lines,
-    `    std::fill(${names.levelFieldName}.begin(), ${names.levelFieldName}.end(), -1);`
-  );
-  pushLine(lines, "    std::queue<int> q;");
-  pushLine(lines, `    ${names.levelFieldName}[source] = 0;`);
-  pushLine(lines, "    q.push(source);");
-  pushLine(lines);
-  pushLine(lines, "    while (!q.empty()) {");
-  pushLine(lines, "      const int v = q.front();");
-  pushLine(lines, "      q.pop();");
-  pushLine(lines);
-  pushLine(lines, `      for (const ${names.edgeName}& edge : ${names.graphFieldName}[v]) {`);
-  pushLine(
-    lines,
-    `        if (edge.cap <= Cap(0) || ${names.levelFieldName}[edge.to] != -1) {`
-  );
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(
-    lines,
-    `        ${names.levelFieldName}[edge.to] = ${names.levelFieldName}[v] + 1;`
-  );
-  pushLine(lines, "        q.push(edge.to);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    return ${names.levelFieldName}[sink] != -1;`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  Cap ${names.pushFlowName}(int v, int sink, Cap flow_limit) {`
-  );
-  pushLine(lines, "    if (v == sink || flow_limit == Cap(0)) {");
-  pushLine(lines, "      return flow_limit;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    for (int& edge_id = ${names.ptrFieldName}[v]; edge_id < static_cast<int>(${names.graphFieldName}[v].size()); ++edge_id) {`
-  );
-  pushLine(
-    lines,
-    `      ${names.edgeName}& edge = ${names.graphFieldName}[v][edge_id];`
-  );
-  pushLine(
-    lines,
-    `      if (edge.cap <= Cap(0) || ${names.levelFieldName}[edge.to] != ${names.levelFieldName}[v] + 1) {`
-  );
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines);
-  pushLine(lines, "      const Cap pushed =");
-  pushLine(
-    lines,
-    `          ${names.pushFlowName}(edge.to, sink, std::min(flow_limit, edge.cap));`
-  );
-  pushLine(lines, "      if (pushed == Cap(0)) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines);
-  pushLine(lines, "      edge.cap -= pushed;");
-  pushLine(lines, `      ${names.graphFieldName}[edge.to][edge.rev].cap += pushed;`);
-  pushLine(lines, "      return pushed;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return Cap(0);");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
+  let helpers = renderCodeTemplate("solvers/maxflow_dinic/helpers.hpp.tmpl", {
+    minCut: features.has("min_cut"),
+    graphAccess: features.has("graph_access"),
+    resetFlows: features.has("reset_flows")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "Dinic", to: names.className },
+    { from: "Edge", to: names.edgeName },
+    { from: "reset", to: names.resetName },
+    { from: "add_edge", to: names.addEdgeName },
+    { from: "max_flow", to: names.maxFlowName },
+    { from: "left_of_min_cut", to: names.minCutName },
+    { from: "graph", to: names.graphName },
+    { from: "reset_flows", to: names.resetFlowsName },
+    { from: "build_level_graph", to: names.buildLevelName },
+    { from: "push_flow", to: names.pushFlowName },
+    { from: "graph_", to: names.graphFieldName },
+    { from: "level_", to: names.levelFieldName },
+    { from: "iter_", to: names.ptrFieldName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderMaxflowDinicUsage(options, features));
+    helpers = `${helpers.trim()}\n\n${renderMaxflowDinicUsage(options, features)}\n`;
   }
-
-  const sections: Partial<Record<SolutionSection, string[]>> = {
-    helpers: [lines.join("\n")]
-  };
-  if (options.generateInput) {
-    sections.solve = [renderMaxflowDinicSolveSection(options)];
-  }
-
-  return createRenderedRecipe(
-    sections,
-    maxflowDinicExports(options)
-  );
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (options.generateInput) sections.solve = [renderMaxflowDinicSolveSection(options)];
+  return createRenderedRecipe(sections, maxflowDinicExports(options));
 }
 
 export function renderMaxflowDinic(options: MaxflowDinicOptions): string {
@@ -4958,96 +5795,49 @@ function renderMinCostMaxFlowUsage(
   features: Set<MinCostMaxFlowFeature>
 ): string {
   const names = options.names;
-  const lines = ["/*", "Example:"];
-  lines.push(
-    `${names.className}<${options.capType}, ${options.costType}> ${names.instanceName}(n);`
-  );
-  lines.push(
-    `${names.instanceName}.${names.addEdgeName}(u, v, cap, cost);`
-  );
-  if (options.mode === "fixed_flow") {
-    lines.push(
-      `auto ${names.resultName} = ${names.instanceName}.${names.minCostFlowName}(s, t, ${options.flowLimitName});`
-    );
-  } else {
-    lines.push(
-      `auto ${names.resultName} = ${names.instanceName}.${names.minCostMaxFlowName}(s, t);`
-    );
-  }
-  lines.push(
-    `// ${names.resultName}.first is flow, ${names.resultName}.second is cost.`
-  );
-  if (features.has("graph_access")) {
-    lines.push(`auto edges = ${names.instanceName}.${names.graphName}();`);
-  }
-  if (features.has("potential_access")) {
-    lines.push(
-      `${names.instanceName}.${names.setPotentialName}(s);`
-    );
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/mincost_maxflow/usage-comment.cpp.tmpl", {
+    className: names.className,
+    capType: options.capType,
+    costType: options.costType,
+    instanceName: names.instanceName,
+    addEdgeName: names.addEdgeName,
+    resultName: names.resultName,
+    minCostFlowName: names.minCostFlowName,
+    minCostMaxFlowName: names.minCostMaxFlowName,
+    flowLimitName: options.flowLimitName,
+    graphName: names.graphName,
+    setPotentialName: names.setPotentialName,
+    fixedFlow: options.mode === "fixed_flow",
+    graphAccess: features.has("graph_access"),
+    potentialAccess: features.has("potential_access")
+  });
 }
 
 function renderMinCostMaxFlowSolveSection(
   options: MinCostMaxFlowOptions
 ): string {
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, `void ${names.solveName}() {`);
-  pushLine(
-    lines,
-    `  int ${options.nodeCountName}, ${options.edgeCountName}, ${options.sourceName}, ${options.sinkName};`
-  );
-  pushLine(
-    lines,
-    `  cin >> ${options.nodeCountName} >> ${options.edgeCountName} >> ${options.sourceName} >> ${options.sinkName};`
-  );
-  if (options.mode === "fixed_flow") {
-    pushLine(lines, `  ${options.capType} ${options.flowLimitName};`);
-    pushLine(lines, `  cin >> ${options.flowLimitName};`);
-  }
-  pushLine(
-    lines,
-    `  ${names.className}<${options.capType}, ${options.costType}> ${names.instanceName}(${options.nodeCountName});`
-  );
-  pushLine(
-    lines,
-    `  for (int i = 0; i < ${options.edgeCountName}; ++i) {`
-  );
-  pushLine(
-    lines,
-    `    int ${options.fromName}, ${options.toName};`
-  );
-  pushLine(lines, `    ${options.capType} ${options.edgeCapName};`);
-  pushLine(lines, `    ${options.costType} ${options.edgeCostName};`);
-  pushLine(
-    lines,
-    `    cin >> ${options.fromName} >> ${options.toName} >> ${options.edgeCapName} >> ${options.edgeCostName};`
-  );
-  pushLine(
-    lines,
-    `    ${names.instanceName}.${names.addEdgeName}(${options.fromName}, ${options.toName}, ${options.edgeCapName}, ${options.edgeCostName});`
-  );
-  pushLine(lines, "  }");
-  if (options.mode === "fixed_flow") {
-    pushLine(
-      lines,
-      `  auto ${names.resultName} = ${names.instanceName}.${names.minCostFlowName}(${options.sourceName}, ${options.sinkName}, ${options.flowLimitName});`
-    );
-  } else {
-    pushLine(
-      lines,
-      `  auto ${names.resultName} = ${names.instanceName}.${names.minCostMaxFlowName}(${options.sourceName}, ${options.sinkName});`
-    );
-  }
-  pushLine(
-    lines,
-    `  cout << ${names.resultName}.first << ' ' << ${names.resultName}.second << '\\n';`
-  );
-  pushLine(lines, "}");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/mincost_maxflow/solve.cpp.tmpl", {
+    solveName: names.solveName,
+    className: names.className,
+    capType: options.capType,
+    costType: options.costType,
+    instanceName: names.instanceName,
+    addEdgeName: names.addEdgeName,
+    resultName: names.resultName,
+    minCostFlowName: names.minCostFlowName,
+    minCostMaxFlowName: names.minCostMaxFlowName,
+    nodeCountName: options.nodeCountName,
+    edgeCountName: options.edgeCountName,
+    sourceName: options.sourceName,
+    sinkName: options.sinkName,
+    fromName: options.fromName,
+    toName: options.toName,
+    edgeCapName: options.edgeCapName,
+    edgeCostName: options.edgeCostName,
+    flowLimitName: options.flowLimitName,
+    fixedFlow: options.mode === "fixed_flow"
+  });
 }
 
 export function renderMinCostMaxFlowRecipe(
@@ -5055,375 +5845,39 @@ export function renderMinCostMaxFlowRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const features = minCostMaxFlowFeatureSet(options.features);
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename Cap, typename Cost>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  struct ${names.edgeName} {`);
-  pushLine(lines, "    int to;");
-  pushLine(lines, "    int rev;");
-  pushLine(lines, "    Cap cap;");
-  pushLine(lines, "    Cost cost;");
-  pushLine(lines, "    Cap original_cap;");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    ${names.edgeName}(int to_ = 0, int rev_ = 0, Cap cap_ = Cap(0), Cost cost_ = Cost(0),`
-  );
-  pushLine(lines, "         Cap original_cap_ = Cap(0))");
-  pushLine(lines, "        : to(to_),");
-  pushLine(lines, "          rev(rev_),");
-  pushLine(lines, "          cap(cap_),");
-  pushLine(lines, "          cost(cost_),");
-  pushLine(lines, "          original_cap(original_cap_) {}");
-  pushLine(lines);
-  pushLine(lines, "    Cap flow() const { return original_cap - cap; }");
-  pushLine(lines, "  };");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int n = 0)`
-  );
-  pushLine(
-    lines,
-    `      : n_(0), ${names.hasNegativeFieldName}(false), ${names.potentialsInitializedFieldName}(false) {`
-  );
-  pushLine(lines, `    ${names.resetName}(n);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  void ${names.resetName}(int n) {`);
-  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}.assign(n_, std::vector<${names.edgeName}>());`
-  );
-  pushLine(
-    lines,
-    `    ${names.potentialFieldName}.assign(n_, Cost(0));`
-  );
-  pushLine(
-    lines,
-    `    ${names.distFieldName}.assign(n_, ${names.infCostName}());`
-  );
-  pushLine(lines, `    ${names.prevVertexFieldName}.assign(n_, -1);`);
-  pushLine(lines, `    ${names.prevEdgeFieldName}.assign(n_, -1);`);
-  pushLine(lines, `    ${names.hasNegativeFieldName} = false;`);
-  pushLine(lines, `    ${names.potentialsInitializedFieldName} = false;`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  int ${names.addEdgeName}(int from, int to, Cap cap, Cost cost) {`
-  );
-  pushLine(lines, `    return ${names.addEdgeName}(from, to, cap, cost, Cap(0), -cost);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  int ${names.addEdgeName}(int from, int to, Cap cap, Cost cost, Cap rev_cap) {`
-  );
-  pushLine(lines, `    return ${names.addEdgeName}(from, to, cap, cost, rev_cap, -cost);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  int ${names.addEdgeName}(int from, int to, Cap cap, Cost cost, Cap rev_cap, Cost rev_cost) {`
-  );
-  pushLine(
-    lines,
-    `    if (!${names.vertexOkName}(from) || !${names.vertexOkName}(to) || cap < Cap(0) || rev_cap < Cap(0)) {`
-  );
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    const int from_id = static_cast<int>(${names.graphFieldName}[from].size());`
-  );
-  pushLine(
-    lines,
-    `    const int to_id = static_cast<int>(${names.graphFieldName}[to].size());`
-  );
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}[from].push_back(${names.edgeName}(to, to_id, cap, cost, cap));`
-  );
-  pushLine(
-    lines,
-    `    ${names.graphFieldName}[to].push_back(${names.edgeName}(from, from_id, rev_cap, rev_cost, rev_cap));`
-  );
-  pushLine(
-    lines,
-    `    if ((cap > Cap(0) && cost < Cost(0)) || (rev_cap > Cap(0) && rev_cost < Cost(0))) {`
-  );
-  pushLine(lines, `      ${names.hasNegativeFieldName} = true;`);
-  pushLine(lines, "    }");
-  pushLine(lines, `    ${names.potentialsInitializedFieldName} = false;`);
-  pushLine(lines, "    return from_id;");
-  pushLine(lines, "  }");
-
-  if (features.has("graph_access")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  const std::vector<std::vector<${names.edgeName}>>& ${names.graphName}() const {`
-    );
-    pushLine(lines, `    return ${names.graphFieldName};`);
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("potential_access")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  const std::vector<Cost>& ${names.potentialName}() const { return ${names.potentialFieldName}; }`
-    );
-    pushLine(lines);
-    pushLine(lines, `  void ${names.setPotentialName}(int source) {`);
-    pushLine(lines, `    if (!${names.vertexOkName}(source)) {`);
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, `    ${names.bellmanFordName}(source);`);
-    pushLine(lines, `    ${names.potentialsInitializedFieldName} = true;`);
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  std::pair<Cap, Cost> ${names.minCostFlowName}(`
-  );
-  pushLine(lines, "      int source, int sink,");
-  pushLine(
-    lines,
-    "      Cap flow_limit = std::numeric_limits<Cap>::max() / Cap(4)) {"
-  );
-  pushLine(lines, `    if (!${names.vertexOkName}(source) || !${names.vertexOkName}(sink) || source == sink ||`);
-  pushLine(lines, "        flow_limit <= Cap(0)) {");
-  pushLine(lines, "      return std::make_pair(Cap(0), Cost(0));");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    if (${names.hasNegativeFieldName} && !${names.potentialsInitializedFieldName}) {`
-  );
-  pushLine(lines, `      ${names.bellmanFordName}(source);`);
-  pushLine(lines, `      ${names.potentialsInitializedFieldName} = true;`);
-  pushLine(lines, "    }");
-  pushLine(
-    lines,
-    `    if (!${names.hasNegativeFieldName} && !${names.potentialsInitializedFieldName}) {`
-  );
-  pushLine(
-    lines,
-    `      std::fill(${names.potentialFieldName}.begin(), ${names.potentialFieldName}.end(), Cost(0));`
-  );
-  pushLine(lines, `      ${names.potentialsInitializedFieldName} = true;`);
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    Cap total_flow = Cap(0);");
-  pushLine(lines, "    Cost total_cost = Cost(0);");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    while (total_flow < flow_limit && ${names.dijkstraName}(source, sink)) {`
-  );
-  pushLine(lines, "      Cap pushed = flow_limit - total_flow;");
-  pushLine(lines, `      for (int v = sink; v != source; v = ${names.prevVertexFieldName}[v]) {`);
-  pushLine(
-    lines,
-    `        const ${names.edgeName}& edge = ${names.graphFieldName}[${names.prevVertexFieldName}[v]][${names.prevEdgeFieldName}[v]];`
-  );
-  pushLine(lines, "        pushed = std::min(pushed, edge.cap);");
-  pushLine(lines, "      }");
-  pushLine(lines);
-  pushLine(lines, `      for (int v = sink; v != source; v = ${names.prevVertexFieldName}[v]) {`);
-  pushLine(
-    lines,
-    `        ${names.edgeName}& edge = ${names.graphFieldName}[${names.prevVertexFieldName}[v]][${names.prevEdgeFieldName}[v]];`
-  );
-  pushLine(lines, `        ${names.edgeName}& rev = ${names.graphFieldName}[edge.to][edge.rev];`);
-  pushLine(lines, "        edge.cap -= pushed;");
-  pushLine(lines, "        rev.cap += pushed;");
-  pushLine(lines, "        total_cost += static_cast<Cost>(pushed) * edge.cost;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      total_flow += pushed;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    return std::make_pair(total_flow, total_cost);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  std::pair<Cap, Cost> ${names.maxFlowMinCostName}(int source, int sink) {`
-  );
-  pushLine(lines, `    return ${names.minCostFlowName}(source, sink);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  std::pair<Cap, Cost> ${names.minCostMaxFlowName}(int source, int sink) {`
-  );
-  pushLine(lines, `    return ${names.minCostFlowName}(source, sink);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(
-    lines,
-    `  std::vector<std::vector<${names.edgeName}>> ${names.graphFieldName};`
-  );
-  pushLine(lines, `  std::vector<Cost> ${names.potentialFieldName};`);
-  pushLine(lines, `  std::vector<Cost> ${names.distFieldName};`);
-  pushLine(lines, `  std::vector<int> ${names.prevVertexFieldName};`);
-  pushLine(lines, `  std::vector<int> ${names.prevEdgeFieldName};`);
-  pushLine(lines, `  bool ${names.hasNegativeFieldName};`);
-  pushLine(lines, `  bool ${names.potentialsInitializedFieldName};`);
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  bool ${names.vertexOkName}(int v) const { return v >= 0 && v < n_; }`
-  );
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static Cost ${names.infCostName}() { return std::numeric_limits<Cost>::max() / Cost(4); }`
-  );
-  pushLine(lines);
-  pushLine(lines, `  void ${names.bellmanFordName}(int source) {`);
-  pushLine(lines, `    const Cost inf = ${names.infCostName}();`);
-  pushLine(
-    lines,
-    `    std::fill(${names.potentialFieldName}.begin(), ${names.potentialFieldName}.end(), inf);`
-  );
-  pushLine(lines, `    ${names.potentialFieldName}[source] = Cost(0);`);
-  pushLine(lines);
-  pushLine(lines, "    for (int it = 0; it < n_ - 1; ++it) {");
-  pushLine(lines, "      bool updated = false;");
-  pushLine(lines, "      for (int v = 0; v < n_; ++v) {");
-  pushLine(lines, `        if (${names.potentialFieldName}[v] == inf) {`);
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(
-    lines,
-    `        for (const ${names.edgeName}& edge : ${names.graphFieldName}[v]) {`
-  );
-  pushLine(lines, "          if (edge.cap <= Cap(0)) {");
-  pushLine(lines, "            continue;");
-  pushLine(lines, "          }");
-  pushLine(
-    lines,
-    `          const Cost candidate = ${names.potentialFieldName}[v] + edge.cost;`
-  );
-  pushLine(
-    lines,
-    `          if (candidate < ${names.potentialFieldName}[edge.to]) {`
-  );
-  pushLine(lines, `            ${names.potentialFieldName}[edge.to] = candidate;`);
-  pushLine(lines, "            updated = true;");
-  pushLine(lines, "          }");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "      if (!updated) {");
-  pushLine(lines, "        break;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    for (Cost& value : ${names.potentialFieldName}) {`);
-  pushLine(lines, "      if (value == inf) {");
-  pushLine(lines, "        value = Cost(0);");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  bool ${names.dijkstraName}(int source, int sink) {`);
-  pushLine(lines, `    const Cost inf = ${names.infCostName}();`);
-  pushLine(
-    lines,
-    `    std::fill(${names.distFieldName}.begin(), ${names.distFieldName}.end(), inf);`
-  );
-  pushLine(
-    lines,
-    `    std::fill(${names.prevVertexFieldName}.begin(), ${names.prevVertexFieldName}.end(), -1);`
-  );
-  pushLine(
-    lines,
-    `    std::fill(${names.prevEdgeFieldName}.begin(), ${names.prevEdgeFieldName}.end(), -1);`
-  );
-  pushLine(lines);
-  pushLine(lines, "    using Node = std::pair<Cost, int>;");
-  pushLine(lines, "    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pq;");
-  pushLine(lines, `    ${names.distFieldName}[source] = Cost(0);`);
-  pushLine(lines, "    pq.push(std::make_pair(Cost(0), source));");
-  pushLine(lines);
-  pushLine(lines, "    while (!pq.empty()) {");
-  pushLine(lines, "      const Cost current_dist = pq.top().first;");
-  pushLine(lines, "      const int v = pq.top().second;");
-  pushLine(lines, "      pq.pop();");
-  pushLine(lines, `      if (current_dist != ${names.distFieldName}[v]) {`);
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `      for (int edge_id = 0; edge_id < static_cast<int>(${names.graphFieldName}[v].size()); ++edge_id) {`
-  );
-  pushLine(
-    lines,
-    `        const ${names.edgeName}& edge = ${names.graphFieldName}[v][edge_id];`
-  );
-  pushLine(lines, "        if (edge.cap <= Cap(0)) {");
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `        const Cost reduced_cost = edge.cost + ${names.potentialFieldName}[v] - ${names.potentialFieldName}[edge.to];`
-  );
-  pushLine(lines, "        const Cost candidate = current_dist + reduced_cost;");
-  pushLine(lines, `        if (candidate < ${names.distFieldName}[edge.to]) {`);
-  pushLine(lines, `          ${names.distFieldName}[edge.to] = candidate;`);
-  pushLine(lines, `          ${names.prevVertexFieldName}[edge.to] = v;`);
-  pushLine(lines, `          ${names.prevEdgeFieldName}[edge.to] = edge_id;`);
-  pushLine(lines, "          pq.push(std::make_pair(candidate, edge.to));");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    if (${names.distFieldName}[sink] == inf) {`);
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int v = 0; v < n_; ++v) {");
-  pushLine(lines, `      if (${names.distFieldName}[v] != inf) {`);
-  pushLine(
-    lines,
-    `        ${names.potentialFieldName}[v] += ${names.distFieldName}[v];`
-  );
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
+  let helpers = renderCodeTemplate("solvers/mincost_maxflow/helpers.hpp.tmpl", {
+    graphAccess: features.has("graph_access"),
+    potentialAccess: features.has("potential_access")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "MinCostMaxFlow", to: names.className },
+    { from: "Edge", to: names.edgeName },
+    { from: "reset", to: names.resetName },
+    { from: "add_edge", to: names.addEdgeName },
+    { from: "graph", to: names.graphName },
+    { from: "potential", to: names.potentialName },
+    { from: "set_potential_with_bellman_ford", to: names.setPotentialName },
+    { from: "min_cost_flow", to: names.minCostFlowName },
+    { from: "max_flow_min_cost", to: names.maxFlowMinCostName },
+    { from: "min_cost_max_flow", to: names.minCostMaxFlowName },
+    { from: "vertex_ok", to: names.vertexOkName },
+    { from: "inf_cost", to: names.infCostName },
+    { from: "bellman_ford_initialize", to: names.bellmanFordName },
+    { from: "dijkstra", to: names.dijkstraName },
+    { from: "graph_", to: names.graphFieldName },
+    { from: "potential_", to: names.potentialFieldName },
+    { from: "dist_", to: names.distFieldName },
+    { from: "prev_vertex_", to: names.prevVertexFieldName },
+    { from: "prev_edge_", to: names.prevEdgeFieldName },
+    { from: "has_negative_cost_edge_", to: names.hasNegativeFieldName },
+    { from: "potentials_initialized_", to: names.potentialsInitializedFieldName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderMinCostMaxFlowUsage(options, features));
+    helpers = `${helpers.trim()}\n\n${renderMinCostMaxFlowUsage(options, features)}\n`;
   }
-
-  const sections: Partial<Record<SolutionSection, string[]>> = {
-    helpers: [lines.join("\n")]
-  };
-  if (options.generateInput) {
-    sections.solve = [renderMinCostMaxFlowSolveSection(options)];
-  }
-
-  return createRenderedRecipe(
-    sections,
-    minCostMaxFlowExports(options)
-  );
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (options.generateInput) sections.solve = [renderMinCostMaxFlowSolveSection(options)];
+  return createRenderedRecipe(sections, minCostMaxFlowExports(options));
 }
 
 export function renderMinCostMaxFlow(options: MinCostMaxFlowOptions): string {
@@ -5490,290 +5944,42 @@ function hungarianExports(options: HungarianOptions): string[] {
 }
 
 function renderHungarianUsage(options: HungarianOptions): string {
-  const lines = ["/*", "Example:"];
-  lines.push(
-    `auto ${options.resultName} = ${hungarianCallName(options)}(${options.sourceName});`
-  );
-  lines.push(`cout << ${options.resultName}.min_cost << '\\n';`);
-  lines.push(`int col = ${options.resultName}.match_left[row];`);
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/hungarian/usage-comment.cpp.tmpl", {
+    resultName: options.resultName,
+    callName: hungarianCallName(options),
+    sourceName: options.sourceName
+  });
 }
 
 function renderHungarianSolveSection(options: HungarianOptions): string {
-  const lines: string[] = [];
-  pushLine(lines, `void ${options.names.solveName}() {`);
-  pushLine(lines, `  int ${options.rowCountName}, ${options.colCountName};`);
-  pushLine(
-    lines,
-    `  cin >> ${options.rowCountName} >> ${options.colCountName};`
-  );
-  pushLine(
-    lines,
-    `  std::vector<std::vector<${options.costType}>> ${options.sourceName}(${options.rowCountName}, std::vector<${options.costType}>(${options.colCountName}));`
-  );
-  pushLine(lines, `  for (int i = 0; i < ${options.rowCountName}; ++i) {`);
-  pushLine(lines, `    for (int j = 0; j < ${options.colCountName}; ++j) {`);
-  pushLine(lines, `      cin >> ${options.sourceName}[i][j];`);
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(
-    lines,
-    `  auto ${options.resultName} = ${hungarianCallName(options)}(${options.sourceName});`
-  );
-  pushLine(lines, `  cout << ${options.resultName}.min_cost << '\\n';`);
-  pushLine(
-    lines,
-    `  for (int i = 0; i < static_cast<int>(${options.resultName}.match_left.size()); ++i) {`
-  );
-  pushLine(lines, "    if (i > 0) {");
-  pushLine(lines, "      cout << ' ';");
-  pushLine(lines, "    }");
-  pushLine(lines, `    cout << ${options.resultName}.match_left[i];`);
-  pushLine(lines, "  }");
-  pushLine(lines, "  cout << '\\n';");
-  pushLine(lines, "}");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/hungarian/solve.cpp.tmpl", {
+    solveName: options.names.solveName,
+    rowCountName: options.rowCountName,
+    colCountName: options.colCountName,
+    costType: options.costType,
+    sourceName: options.sourceName,
+    resultName: options.resultName,
+    callName: hungarianCallName(options)
+  });
 }
 
 export function renderHungarianRecipe(options: HungarianOptions): RenderedRecipe {
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename Cost>");
-  pushLine(lines, `struct ${names.resultStructName} {`);
-  pushLine(lines, "  Cost min_cost;");
-  pushLine(lines, "  std::vector<int> match_left;");
-  pushLine(lines, "  std::vector<int> match_right;");
-  pushLine(lines);
-  pushLine(lines, `  ${names.resultStructName}() : min_cost(Cost()) {}`);
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(lines, "template <typename Cost>");
-  pushLine(
-    lines,
-    `inline ${names.resultStructName}<Cost> ${names.internalName}(`
-  );
-  pushLine(
-    lines,
-    "    const std::vector<std::vector<Cost>>& cost, Cost inf) {"
-  );
-  pushLine(lines, `  ${names.resultStructName}<Cost> result;`);
-  pushLine(lines);
-  pushLine(lines, "  const int n = static_cast<int>(cost.size());");
-  pushLine(
-    lines,
-    "  const int m = (n == 0 ? 0 : static_cast<int>(cost[0].size()));"
-  );
-  pushLine(lines, "  result.match_left.assign(n, -1);");
-  pushLine(lines, "  result.match_right.assign(m, -1);");
-  pushLine(lines, "  if (n == 0 || m == 0) {");
-  pushLine(lines, "    result.min_cost = Cost(0);");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  std::vector<Cost> u(n + 1, Cost(0));");
-  pushLine(lines, "  std::vector<Cost> v(m + 1, Cost(0));");
-  pushLine(lines, "  std::vector<int> p(m + 1, 0);");
-  pushLine(lines, "  std::vector<int> way(m + 1, 0);");
-  pushLine(lines);
-  pushLine(lines, "  for (int i = 1; i <= n; ++i) {");
-  pushLine(lines, "    p[0] = i;");
-  pushLine(lines, "    int j0 = 0;");
-  pushLine(lines, "    std::vector<Cost> minv(m + 1, inf);");
-  pushLine(lines, "    std::vector<char> used(m + 1, 0);");
-  pushLine(lines);
-  pushLine(lines, "    do {");
-  pushLine(lines, "      used[j0] = 1;");
-  pushLine(lines, "      const int i0 = p[j0];");
-  pushLine(lines, "      int j1 = 0;");
-  pushLine(lines, "      Cost delta = inf;");
-  pushLine(lines);
-  pushLine(lines, "      for (int j = 1; j <= m; ++j) {");
-  pushLine(lines, "        if (used[j]) {");
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(
-    lines,
-    "        const Cost current = cost[i0 - 1][j - 1] - u[i0] - v[j];"
-  );
-  pushLine(lines, "        if (current < minv[j]) {");
-  pushLine(lines, "          minv[j] = current;");
-  pushLine(lines, "          way[j] = j0;");
-  pushLine(lines, "        }");
-  pushLine(lines, "        if (minv[j] < delta) {");
-  pushLine(lines, "          delta = minv[j];");
-  pushLine(lines, "          j1 = j;");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines);
-  pushLine(lines, "      for (int j = 0; j <= m; ++j) {");
-  pushLine(lines, "        if (used[j]) {");
-  pushLine(lines, "          u[p[j]] += delta;");
-  pushLine(lines, "          v[j] -= delta;");
-  pushLine(lines, "        } else {");
-  pushLine(lines, "          minv[j] -= delta;");
-  pushLine(lines, "        }");
-  pushLine(lines, "      }");
-  pushLine(lines, "      j0 = j1;");
-  pushLine(lines, "    } while (p[j0] != 0);");
-  pushLine(lines);
-  pushLine(lines, "    do {");
-  pushLine(lines, "      const int j1 = way[j0];");
-  pushLine(lines, "      p[j0] = p[j1];");
-  pushLine(lines, "      j0 = j1;");
-  pushLine(lines, "    } while (j0 != 0);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  result.min_cost = Cost(0);");
-  pushLine(lines, "  for (int j = 1; j <= m; ++j) {");
-  pushLine(lines, "    if (p[j] != 0) {");
-  pushLine(lines, "      const int row = p[j] - 1;");
-  pushLine(lines, "      const int col = j - 1;");
-  pushLine(lines, "      result.match_left[row] = col;");
-  pushLine(lines, "      result.match_right[col] = row;");
-  pushLine(lines, "      result.min_cost += cost[row][col];");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines, "  return result;");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(lines, "template <typename Cost>");
-  pushLine(
-    lines,
-    `inline ${names.resultStructName}<Cost> ${names.minimizeName}(`
-  );
-  pushLine(lines, "    const std::vector<std::vector<Cost>>& cost,");
-  pushLine(
-    lines,
-    "    Cost inf = std::numeric_limits<Cost>::max() / Cost(4)) {"
-  );
-  pushLine(lines, `  ${names.resultStructName}<Cost> result;`);
-  pushLine(lines, "  const int n = static_cast<int>(cost.size());");
-  pushLine(
-    lines,
-    "  const int m = (n == 0 ? 0 : static_cast<int>(cost[0].size()));"
-  );
-  pushLine(lines, "  result.match_left.assign(n, -1);");
-  pushLine(lines, "  result.match_right.assign(m, -1);");
-  pushLine(lines, "  result.min_cost = Cost(0);");
-  pushLine(lines);
-  pushLine(lines, "  if (n == 0 || m == 0) {");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines, "  for (int i = 1; i < n; ++i) {");
-  pushLine(lines, "    if (static_cast<int>(cost[i].size()) != m) {");
-  pushLine(lines, "      return result;");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  if (options.rectangular) {
-    pushLine(lines, "  if (n <= m) {");
-    pushLine(lines, `    return ${names.internalName}(cost, inf);`);
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      "  std::vector<std::vector<Cost>> transposed(m, std::vector<Cost>(n, Cost(0)));"
-    );
-    pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-    pushLine(lines, "    for (int j = 0; j < m; ++j) {");
-    pushLine(lines, "      transposed[j][i] = cost[i][j];");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  const ${names.resultStructName}<Cost> transposed_result = ${names.internalName}(transposed, inf);`
-    );
-    pushLine(lines, "  result.min_cost = transposed_result.min_cost;");
-    pushLine(lines, "  for (int col = 0; col < m; ++col) {");
-    pushLine(lines, "    const int row = transposed_result.match_left[col];");
-    pushLine(lines, "    if (row != -1) {");
-    pushLine(lines, "      result.match_left[row] = col;");
-    pushLine(lines, "      result.match_right[col] = row;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return result;");
-  } else {
-    pushLine(lines, "  if (n > m) {");
-    pushLine(lines, "    return result;");
-    pushLine(lines, "  }");
-    pushLine(lines, `  return ${names.internalName}(cost, inf);`);
-  }
-  pushLine(lines, "}");
-
-  if (options.mode === "maximize") {
-    pushLine(lines);
-    pushLine(lines, "template <typename Cost>");
-    pushLine(
-      lines,
-      `inline ${names.resultStructName}<Cost> ${names.maximizeName}(`
-    );
-    pushLine(lines, "    const std::vector<std::vector<Cost>>& value) {");
-    pushLine(lines, `  ${names.resultStructName}<Cost> result;`);
-    pushLine(lines, "  const int n = static_cast<int>(value.size());");
-    pushLine(
-      lines,
-      "  const int m = (n == 0 ? 0 : static_cast<int>(value[0].size()));"
-    );
-    pushLine(lines, "  result.match_left.assign(n, -1);");
-    pushLine(lines, "  result.match_right.assign(m, -1);");
-    pushLine(lines, "  result.min_cost = Cost(0);");
-    pushLine(lines, "  if (n == 0 || m == 0) {");
-    pushLine(lines, "    return result;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  for (int i = 1; i < n; ++i) {");
-    pushLine(lines, "    if (static_cast<int>(value[i].size()) != m) {");
-    pushLine(lines, "      return result;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  Cost max_value = value[0][0];");
-    pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-    pushLine(lines, "    for (int j = 0; j < m; ++j) {");
-    pushLine(lines, "      if (value[i][j] > max_value) {");
-    pushLine(lines, "        max_value = value[i][j];");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      "  std::vector<std::vector<Cost>> transformed(n, std::vector<Cost>(m, Cost(0)));"
-    );
-    pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-    pushLine(lines, "    for (int j = 0; j < m; ++j) {");
-    pushLine(lines, "      transformed[i][j] = max_value - value[i][j];");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, `  result = ${names.minimizeName}(transformed);`);
-    pushLine(lines, "  if (!result.match_left.empty() || n == 0 || m == 0) {");
-    pushLine(lines, "    Cost max_sum = Cost(0);");
-    pushLine(lines, "    for (int i = 0; i < n; ++i) {");
-    pushLine(lines, "      if (result.match_left[i] != -1) {");
-    pushLine(lines, "        max_sum += value[i][result.match_left[i]];");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "    result.min_cost = max_sum;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return result;");
-    pushLine(lines, "}");
-  }
-
+  let helpers = renderCodeTemplate("solvers/hungarian/helpers.hpp.tmpl", {
+    rectangular: options.rectangular,
+    maximize: options.mode === "maximize"
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "HungarianResult", to: names.resultStructName },
+    { from: "hungarian_internal", to: names.internalName },
+    { from: "hungarian", to: names.minimizeName },
+    { from: "hungarian_maximize", to: names.maximizeName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderHungarianUsage(options));
+    helpers = `${helpers.trim()}\n\n${renderHungarianUsage(options)}\n`;
   }
-
-  const sections: Partial<Record<SolutionSection, string[]>> = {
-    helpers: [lines.join("\n")]
-  };
-  if (options.generateInput) {
-    sections.solve = [renderHungarianSolveSection(options)];
-  }
-
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (options.generateInput) sections.solve = [renderHungarianSolveSection(options)];
   return createRenderedRecipe(sections, hungarianExports(options));
 }
 
@@ -5869,316 +6075,72 @@ function renderKuhnUsage(
   options: KuhnOptions,
   features: Set<KuhnFeature>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
-  lines.push(
-    `${names.className} ${options.instanceName}(${options.leftCountName}, ${options.rightCountName});`,
-    `${options.instanceName}.${names.addEdgeName}(${options.leftVertexName}, ${options.rightVertexName});`,
-    `auto ${options.resultName} = ${options.instanceName}.${names.maximumMatchingName}();`,
-    `cout << ${options.resultName}.${names.matchingSizeName} << '\\n';`
-  );
-  if (features.has("vertex_cover")) {
-    lines.push(
-      `auto ${options.coverName} = ${names.vertexCoverFunctionName}(${options.instanceName}.${names.graphName}(), ${options.rightCountName}, ${options.resultName});`
-    );
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/kuhn/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    instanceName: options.instanceName,
+    leftCountName: options.leftCountName,
+    rightCountName: options.rightCountName,
+    leftVertexName: options.leftVertexName,
+    rightVertexName: options.rightVertexName,
+    addEdgeName: options.names.addEdgeName,
+    maximumMatchingName: options.names.maximumMatchingName,
+    resultName: options.resultName,
+    matchingSizeName: options.names.matchingSizeName,
+    coverName: options.coverName,
+    vertexCoverFunctionName: options.names.vertexCoverFunctionName,
+    graphName: options.names.graphName,
+    vertexCover: features.has("vertex_cover")
+  });
 }
 
 function renderKuhnSolveSection(options: KuhnOptions): string {
-  const names = options.names;
-  const lines: string[] = [];
-  pushLine(lines, `void ${names.solveName}() {`);
-  pushLine(
-    lines,
-    `  int ${options.leftCountName}, ${options.rightCountName}, ${options.edgeCountName};`
-  );
-  pushLine(
-    lines,
-    `  cin >> ${options.leftCountName} >> ${options.rightCountName} >> ${options.edgeCountName};`
-  );
-  pushLine(
-    lines,
-    `  ${names.className} ${options.instanceName}(${options.leftCountName}, ${options.rightCountName});`
-  );
-  pushLine(lines, `  for (int i = 0; i < ${options.edgeCountName}; ++i) {`);
-  pushLine(lines, `    int ${options.leftVertexName}, ${options.rightVertexName};`);
-  pushLine(lines, `    cin >> ${options.leftVertexName} >> ${options.rightVertexName};`);
-  if (options.decrementInput) {
-    pushLine(lines, `    --${options.leftVertexName};`);
-    pushLine(lines, `    --${options.rightVertexName};`);
-  }
-  pushLine(
-    lines,
-    `    ${options.instanceName}.${names.addEdgeName}(${options.leftVertexName}, ${options.rightVertexName});`
-  );
-  pushLine(lines, "  }");
-  pushLine(
-    lines,
-    `  auto ${options.resultName} = ${options.instanceName}.${names.maximumMatchingName}();`
-  );
-  pushLine(lines, `  cout << ${options.resultName}.${names.matchingSizeName} << '\\n';`);
-  pushLine(lines, "}");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/kuhn/solve.cpp.tmpl", {
+    solveName: options.names.solveName,
+    className: options.names.className,
+    addEdgeName: options.names.addEdgeName,
+    maximumMatchingName: options.names.maximumMatchingName,
+    matchingSizeName: options.names.matchingSizeName,
+    leftCountName: options.leftCountName,
+    rightCountName: options.rightCountName,
+    edgeCountName: options.edgeCountName,
+    leftVertexName: options.leftVertexName,
+    rightVertexName: options.rightVertexName,
+    instanceName: options.instanceName,
+    resultName: options.resultName,
+    decrementInput: options.decrementInput
+  });
 }
 
 export function renderKuhnRecipe(options: KuhnOptions): RenderedRecipe {
   const features = kuhnFeatureSet(options.features);
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, `struct ${names.resultStructName} {`);
-  pushLine(lines, `  int ${names.matchingSizeName};`);
-  pushLine(lines, `  std::vector<int> ${names.matchLeftName};`);
-  pushLine(lines, `  std::vector<int> ${names.matchRightName};`);
-  pushLine(lines);
-  pushLine(lines, `  ${names.resultStructName}() : ${names.matchingSizeName}(0) {}`);
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(
-    lines,
-    `  explicit ${names.className}(int n_left = 0, int n_right = 0) : n_left_(0), n_right_(0) {`
-  );
-  pushLine(lines, `    ${names.resetName}(n_left, n_right);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  void ${names.resetName}(int n_left, int n_right) {`);
-  pushLine(lines, "    n_left_ = (n_left < 0 ? 0 : n_left);");
-  pushLine(lines, "    n_right_ = (n_right < 0 ? 0 : n_right);");
-  pushLine(lines, "    graph_.assign(n_left_, std::vector<int>());");
-  pushLine(lines, "    used_.assign(n_left_, 0);");
-  pushLine(lines, "    visit_token_ = 1;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  int ${names.leftSizeName}() const { return n_left_; }`);
-  pushLine(lines);
-  pushLine(lines, `  int ${names.rightSizeName}() const { return n_right_; }`);
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  const std::vector<std::vector<int>>& ${names.graphName}() const { return graph_; }`
-  );
-  pushLine(lines);
-  pushLine(lines, `  int ${names.addEdgeName}(int left, int right) {`);
-  pushLine(lines, "    if (!left_ok(left) || !right_ok(right)) {");
-  pushLine(lines, "      return -1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    graph_[left].push_back(right);");
-  pushLine(lines, "    return static_cast<int>(graph_[left].size()) - 1;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${names.resultStructName} ${names.maximumMatchingName}() {`);
-  pushLine(lines, `    ${names.resultStructName} result;`);
-  pushLine(lines, `    result.${names.matchLeftName}.assign(n_left_, -1);`);
-  pushLine(lines, `    result.${names.matchRightName}.assign(n_right_, -1);`);
-  pushLine(lines, `    result.${names.matchingSizeName} = 0;`);
-  pushLine(lines, "    if (n_left_ == 0 || n_right_ == 0) {");
-  pushLine(lines, "      return result;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    for (int left = 0; left < n_left_; ++left) {");
-  pushLine(lines, "      for (int right : graph_[left]) {");
-  pushLine(
-    lines,
-    `        if (!right_ok(right) || result.${names.matchRightName}[right] != -1) {`
-  );
-  pushLine(lines, "          continue;");
-  pushLine(lines, "        }");
-  pushLine(lines, `        result.${names.matchLeftName}[left] = right;`);
-  pushLine(lines, `        result.${names.matchRightName}[right] = left;`);
-  pushLine(lines, `        ++result.${names.matchingSizeName};`);
-  pushLine(lines, "        break;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::fill(used_.begin(), used_.end(), 0);");
-  pushLine(lines, "    visit_token_ = 1;");
-  pushLine(lines, "    for (int left = 0; left < n_left_; ++left) {");
-  pushLine(lines, `      if (result.${names.matchLeftName}[left] != -1) {`);
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      ++visit_token_;");
-  pushLine(lines, "      if (visit_token_ == std::numeric_limits<int>::max()) {");
-  pushLine(lines, "        std::fill(used_.begin(), used_.end(), 0);");
-  pushLine(lines, "        visit_token_ = 1;");
-  pushLine(lines, "      }");
-  pushLine(
-    lines,
-    `      if (${names.tryAugmentName}(left, result.${names.matchLeftName}, result.${names.matchRightName})) {`
-  );
-  pushLine(lines, `        ++result.${names.matchingSizeName};`);
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return result;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_left_;");
-  pushLine(lines, "  int n_right_;");
-  pushLine(lines, "  std::vector<std::vector<int>> graph_;");
-  pushLine(lines, "  std::vector<int> used_;");
-  pushLine(lines, "  int visit_token_;");
-  pushLine(lines);
-  pushLine(lines, "  bool left_ok(int v) const { return v >= 0 && v < n_left_; }");
-  pushLine(lines);
-  pushLine(lines, "  bool right_ok(int v) const { return v >= 0 && v < n_right_; }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  bool ${names.tryAugmentName}(int left, std::vector<int>& match_left,`
-  );
-  pushLine(lines, "                   std::vector<int>& match_right) {");
-  pushLine(lines, "    if (!left_ok(left) || used_[left] == visit_token_) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    used_[left] = visit_token_;");
-  pushLine(lines);
-  pushLine(lines, "    for (int right : graph_[left]) {");
-  pushLine(lines, "      if (!right_ok(right)) {");
-  pushLine(lines, "        continue;");
-  pushLine(lines, "      }");
-  pushLine(lines, "      const int matched_left = match_right[right];");
-  pushLine(
-    lines,
-    `      if (matched_left == -1 || ${names.tryAugmentName}(matched_left, match_left, match_right)) {`
-  );
-  pushLine(lines, "        match_left[left] = right;");
-  pushLine(lines, "        match_right[right] = left;");
-  pushLine(lines, "        return true;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return false;");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline ${names.resultStructName} ${names.matchFunctionName}(const std::vector<std::vector<int>>& graph,`
-  );
-  pushLine(lines, "                                        int right_size) {");
-  pushLine(
-    lines,
-    `  ${names.className} matcher(static_cast<int>(graph.size()), right_size);`
-  );
-  pushLine(lines, "  for (int left = 0; left < static_cast<int>(graph.size()); ++left) {");
-  pushLine(lines, "    for (int right : graph[left]) {");
-  pushLine(lines, `      matcher.${names.addEdgeName}(left, right);`);
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines, `  return matcher.${names.maximumMatchingName}();`);
-  pushLine(lines, "}");
-
-  if (features.has("vertex_cover")) {
-    pushLine(lines);
-    pushLine(lines, `struct ${names.coverStructName} {`);
-    pushLine(lines, `  std::vector<int> ${names.leftCoverName};`);
-    pushLine(lines, `  std::vector<int> ${names.rightCoverName};`);
-    pushLine(lines);
-    pushLine(lines, "  int size() const {");
-    pushLine(
-      lines,
-      `    return static_cast<int>(${names.leftCoverName}.size() + ${names.rightCoverName}.size());`
-    );
-    pushLine(lines, "  }");
-    pushLine(lines, "};");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline ${names.coverStructName} ${names.vertexCoverFunctionName}(`
-    );
-    pushLine(lines, "    const std::vector<std::vector<int>>& graph, int right_size,");
-    pushLine(lines, `    const ${names.resultStructName}& matching) {`);
-    pushLine(lines, "  const int left_size = static_cast<int>(graph.size());");
-    pushLine(lines, `  ${names.coverStructName} cover;`);
-    pushLine(lines, "  if (left_size == 0 || right_size <= 0) {");
-    pushLine(lines, "    return cover;");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<char> visited_left(left_size, 0);");
-    pushLine(lines, "  std::vector<char> visited_right(static_cast<std::size_t>(right_size), 0);");
-    pushLine(lines, "  std::queue<int> q;");
-    pushLine(lines);
-    pushLine(lines, "  for (int left = 0; left < left_size; ++left) {");
-    pushLine(
-      lines,
-      `    if (left < static_cast<int>(matching.${names.matchLeftName}.size()) &&`
-    );
-    pushLine(lines, `        matching.${names.matchLeftName}[left] != -1) {`);
-    pushLine(lines, "      continue;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    visited_left[left] = 1;");
-    pushLine(lines, "    q.push(left);");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  while (!q.empty()) {");
-    pushLine(lines, "    const int left = q.front();");
-    pushLine(lines, "    q.pop();");
-    pushLine(lines, "    for (int right : graph[left]) {");
-    pushLine(lines, "      if (right < 0 || right >= right_size) {");
-    pushLine(lines, "        continue;");
-    pushLine(lines, "      }");
-    pushLine(
-      lines,
-      `      if (left < static_cast<int>(matching.${names.matchLeftName}.size()) &&`
-    );
-    pushLine(lines, `          matching.${names.matchLeftName}[left] == right) {`);
-    pushLine(lines, "        continue;");
-    pushLine(lines, "      }");
-    pushLine(lines, "      if (visited_right[right]) {");
-    pushLine(lines, "        continue;");
-    pushLine(lines, "      }");
-    pushLine(lines, "      visited_right[right] = 1;");
-    pushLine(lines, `      if (right < static_cast<int>(matching.${names.matchRightName}.size())) {`);
-    pushLine(lines, `        const int matched_left = matching.${names.matchRightName}[right];`);
-    pushLine(lines, "        if (matched_left != -1 && !visited_left[matched_left]) {");
-    pushLine(lines, "          visited_left[matched_left] = 1;");
-    pushLine(lines, "          q.push(matched_left);");
-    pushLine(lines, "        }");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  for (int left = 0; left < left_size; ++left) {");
-    pushLine(lines, "    if (!visited_left[left]) {");
-    pushLine(lines, `      cover.${names.leftCoverName}.push_back(left);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  for (int right = 0; right < right_size; ++right) {");
-    pushLine(lines, "    if (visited_right[right]) {");
-    pushLine(lines, `      cover.${names.rightCoverName}.push_back(right);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return cover;");
-    pushLine(lines, "}");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline ${names.coverStructName} ${names.vertexCoverFunctionName}(`
-    );
-    pushLine(lines, "    const std::vector<std::vector<int>>& graph, int right_size) {");
-    pushLine(
-      lines,
-      `  const ${names.resultStructName} matching = ${names.matchFunctionName}(graph, right_size);`
-    );
-    pushLine(lines, `  return ${names.vertexCoverFunctionName}(graph, right_size, matching);`);
-    pushLine(lines, "}");
-  }
-
+  let helpers = renderCodeTemplate("solvers/kuhn/helpers.hpp.tmpl", {
+    vertexCover: features.has("vertex_cover")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "KuhnResult", to: names.resultStructName },
+    { from: "BipartiteVertexCover", to: names.coverStructName },
+    { from: "KuhnMatcher", to: names.className },
+    { from: "reset", to: names.resetName },
+    { from: "left_size", to: names.leftSizeName },
+    { from: "right_size", to: names.rightSizeName },
+    { from: "graph", to: names.graphName },
+    { from: "add_edge", to: names.addEdgeName },
+    { from: "maximum_matching", to: names.maximumMatchingName },
+    { from: "try_augment", to: names.tryAugmentName },
+    { from: "kuhn_maximum_matching", to: names.matchFunctionName },
+    { from: "minimum_vertex_cover_bipartite", to: names.vertexCoverFunctionName },
+    { from: "matching_size", to: names.matchingSizeName },
+    { from: "match_left", to: names.matchLeftName },
+    { from: "match_right", to: names.matchRightName },
+    { from: "left_vertices", to: names.leftCoverName },
+    { from: "right_vertices", to: names.rightCoverName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderKuhnUsage(options, features));
+    helpers = `${helpers.trim()}\n\n${renderKuhnUsage(options, features)}\n`;
   }
-
-  const sections: Partial<Record<SolutionSection, string[]>> = {
-    helpers: [lines.join("\n")]
-  };
-  if (options.generateInput) {
-    sections.solve = [renderKuhnSolveSection(options)];
-  }
-
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (options.generateInput) sections.solve = [renderKuhnSolveSection(options)];
   return createRenderedRecipe(sections, kuhnExports(options, features));
 }
 
@@ -6229,76 +6191,56 @@ function renderImplicitTreapUsage(
   options: ImplicitTreapOptions,
   features: Set<ImplicitTreapFeature>
 ): string {
-  const names = options.names;
   const opName = implicitTreapOpName(options);
-  const typeArgs =
-    options.aggregate === "custom"
+  return renderCodeTemplate("solvers/implicit_treap/usage-comment.cpp.tmpl", {
+    ...options.names,
+    typeArgs: options.aggregate === "custom"
       ? `<${options.valueType}, ${opName}<${options.valueType}>>`
-      : `<${options.valueType}>`;
-  const lines = ["/*", "Inclusive [l, r] ranges:"];
-  lines.push(`${names.className}${typeArgs} treap;`);
-  lines.push("treap.push_back(x);");
-  lines.push("treap.insert(pos, x);");
-  lines.push(`auto total = treap.range_query(l, r);`);
-  if (features.has("reverse")) {
-    lines.push(`treap.${names.reverseName}(l, r);`);
-  }
-  if (features.has("range_add")) {
-    lines.push(`treap.${names.addName}(l, r, delta);`);
-  }
-  lines.push("auto values = treap.to_vector();");
-  lines.push("*/");
-  return lines.join("\n");
+      : `<${options.valueType}>`,
+    reverseFeature: features.has("reverse"),
+    rangeAddFeature: features.has("range_add")
+  });
+}
+
+function renderImplicitTreapUsageSnippet(
+  options: ImplicitTreapOptions,
+  features: Set<ImplicitTreapFeature>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const opName = implicitTreapOpName(options);
+  const reverseFeature = features.has("reverse");
+  const sourceMode = options.sourceMode ?? "empty";
+  return renderCodeTemplate("solvers/implicit_treap/solve.cpp.tmpl", {
+    ...options.names,
+    valueType: options.valueType,
+    typeArgs: options.aggregate === "custom"
+      ? `<${options.valueType}, ${opName}<${options.valueType}>>`
+      : `<${options.valueType}>`,
+    sourceName: options.sourceName?.trim() || "a",
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    instanceName: sanitizeIdentifier(options.instanceName ?? "treap", "treap"),
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    readLoop: sourceMode === "read_loop",
+    assignSource: sourceMode === "existing_vector" || sourceMode === "read_loop",
+    queryLoop: usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    reverseFeature,
+    rangeAddFeature: features.has("range_add"),
+    addQueryType: reverseFeature ? 5 : 4
+  });
 }
 
 function renderImplicitTreapOp(
   options: ImplicitTreapOptions,
   features: Set<ImplicitTreapFeature>
 ): string {
-  const opName = implicitTreapOpName(options);
-  const hasRangeAdd = features.has("range_add");
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `struct ${opName} {`);
-  if (options.aggregate === "custom") {
-    pushLine(lines, "  static T neutral() { return T(); }");
-    pushLine(lines);
-    pushLine(lines, "  static T combine(const T& lhs, const T& rhs) {");
-    pushLine(lines, "    // TODO: replace with the problem-specific aggregate merge.");
-    pushLine(lines, "    return lhs + rhs;");
-    pushLine(lines, "  }");
-    if (hasRangeAdd) {
-      pushLine(lines);
-      pushLine(
-        lines,
-        "  static void apply_delta(T& value, T& aggregate, int size, const T& delta) {"
-      );
-      pushLine(lines, "    (void)size;");
-      pushLine(lines, "    value += delta;");
-      pushLine(lines, "    // TODO: update aggregate for the custom lazy-add semantics.");
-      pushLine(lines, "    aggregate += delta;");
-      pushLine(lines, "  }");
-    }
-  } else {
-    pushLine(lines, "  static T neutral() { return T(0); }");
-    pushLine(
-      lines,
-      "  static T combine(const T& lhs, const T& rhs) { return lhs + rhs; }"
-    );
-    if (hasRangeAdd) {
-      pushLine(lines);
-      pushLine(
-        lines,
-        "  static void apply_delta(T& value, T& aggregate, int size, const T& delta) {"
-      );
-      pushLine(lines, "    value += delta;");
-      pushLine(lines, "    aggregate += delta * static_cast<T>(size);");
-      pushLine(lines, "  }");
-    }
-  }
-  pushLine(lines, "};");
-  return lines.join("\n");
+  return renderCodeTemplate(
+    options.aggregate === "custom"
+      ? "solvers/implicit_treap/op-custom.hpp.tmpl"
+      : "solvers/implicit_treap/op-sum.hpp.tmpl",
+    { rangeAddFeature: features.has("range_add") }
+  );
 }
 
 export function renderImplicitTreapRecipe(
@@ -6306,463 +6248,31 @@ export function renderImplicitTreapRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const features = implicitTreapFeatureSet(options.features);
-  const hasReverse = features.has("reverse");
-  const hasRangeAdd = features.has("range_add");
   const opName = implicitTreapOpName(options);
-  const rootField = `${names.rootName}_`;
-  const rngField = `${names.rngName}_`;
-  const lines: string[] = [];
-
-  pushLine(lines, renderImplicitTreapOp(options, features));
-  pushLine(lines);
-  pushLine(lines, "template <typename T, typename Op = " + `${opName}<T>>`);
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " private:");
-  pushLine(lines, `  struct ${names.nodeName} {`);
-  pushLine(lines, "    T value;");
-  pushLine(lines, "    T aggregate;");
-  pushLine(lines, "    unsigned priority;");
-  pushLine(lines, "    int size;");
-  pushLine(lines, `    ${names.nodeName}* left;`);
-  pushLine(lines, `    ${names.nodeName}* right;`);
-  if (hasReverse) {
-    pushLine(lines, "    bool reversed;");
-  }
-  if (hasRangeAdd) {
-    pushLine(lines, "    T lazy_add;");
-  }
-  pushLine(lines);
-  pushLine(lines, `    ${names.nodeName}(const T& value_, unsigned priority_)`);
-  const initializers = [
-    "value(value_)",
-    "aggregate(value_)",
-    "priority(priority_)",
-    "size(1)",
-    "left(nullptr)",
-    "right(nullptr)"
-  ];
-  if (hasReverse) {
-    initializers.push("reversed(false)");
-  }
-  if (hasRangeAdd) {
-    initializers.push("lazy_add(T(0))");
-  }
-  for (let i = 0; i < initializers.length; ++i) {
-    const prefix = i === 0 ? "        : " : "          ";
-    const suffix = i + 1 === initializers.length ? " {}" : ",";
-    pushLine(lines, `${prefix}${initializers[i]}${suffix}`);
-  }
-  pushLine(lines, "  };");
-  pushLine(lines);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${names.className}(unsigned seed = 712367821u)`);
-  pushLine(
-    lines,
-    `      : ${rootField}(nullptr), ${rngField}(seed == 0u ? 1u : seed) {}`
-  );
-  pushLine(lines);
-  pushLine(lines, `  ~${names.className}() { clear(); }`);
-  pushLine(lines);
-  pushLine(lines, `  ${names.className}(const ${names.className}&) = delete;`);
-  pushLine(
-    lines,
-    `  ${names.className}& operator=(const ${names.className}&) = delete;`
-  );
-  pushLine(lines);
-  pushLine(lines, `  ${names.className}(${names.className}&& other) noexcept`);
-  pushLine(
-    lines,
-    `      : ${rootField}(other.${rootField}), ${rngField}(other.${rngField}) {`
-  );
-  pushLine(lines, `    other.${rootField} = nullptr;`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  ${names.className}& operator=(${names.className}&& other) noexcept {`
-  );
-  pushLine(lines, "    if (this == &other) {");
-  pushLine(lines, "      return *this;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    clear();");
-  pushLine(lines, `    ${rootField} = other.${rootField};`);
-  pushLine(lines, `    ${rngField} = other.${rngField};`);
-  pushLine(lines, `    other.${rootField} = nullptr;`);
-  pushLine(lines, "    return *this;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void clear() {");
-  pushLine(lines, `    clear_node(${rootField});`);
-  pushLine(lines, `    ${rootField} = nullptr;`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  int size() const { return node_size(${rootField}); }`);
-  pushLine(lines);
-  pushLine(lines, `  bool empty() const { return ${rootField} == nullptr; }`);
-  pushLine(lines);
-  pushLine(lines, "  void push_back(const T& value) { insert(size(), value); }");
-  pushLine(lines);
-  pushLine(lines, "  void insert(int position, const T& value) {");
-  pushLine(lines, "    if (position < 0) {");
-  pushLine(lines, "      position = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (position > size()) {");
-  pushLine(lines, "      position = size();");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    ${names.nodeName}* node = new ${names.nodeName}(value, next_priority());`);
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> parts = ${names.splitName}(${rootField}, position);`
-  );
-  pushLine(lines, `    ${rootField} = ${names.mergeName}(${names.mergeName}(parts.first, node), parts.second);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool erase(int position, T* erased_value = nullptr) {");
-  pushLine(lines, "    if (position < 0 || position >= size()) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> left_mid = ${names.splitName}(${rootField}, position);`
-  );
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> mid_right = ${names.splitName}(left_mid.second, 1);`
-  );
-  pushLine(lines);
-  pushLine(lines, "    if (mid_right.first == nullptr) {");
-  pushLine(lines, `      ${rootField} = ${names.mergeName}(left_mid.first, mid_right.second);`);
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    if (erased_value != nullptr) {");
-  pushLine(lines, "      *erased_value = mid_right.first->value;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    clear_node(mid_right.first);");
-  pushLine(lines, `    ${rootField} = ${names.mergeName}(left_mid.first, mid_right.second);`);
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool get(int position, T& out) {");
-  pushLine(lines, "    if (position < 0 || position >= size()) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    ${names.nodeName}* node = ${rootField};`);
-  pushLine(lines, "    int index = position;");
-  pushLine(lines, "    while (node != nullptr) {");
-  pushLine(lines, "      push(node);");
-  pushLine(lines, "      const int left_size = node_size(node->left);");
-  pushLine(lines, "      if (index < left_size) {");
-  pushLine(lines, "        node = node->left;");
-  pushLine(lines, "      } else if (index == left_size) {");
-  pushLine(lines, "        out = node->value;");
-  pushLine(lines, "        return true;");
-  pushLine(lines, "      } else {");
-  pushLine(lines, "        index -= left_size + 1;");
-  pushLine(lines, "        node = node->right;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return false;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool set(int position, const T& value) {");
-  pushLine(lines, "    if (position < 0 || position >= size()) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> left_mid = ${names.splitName}(${rootField}, position);`
-  );
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> mid_right = ${names.splitName}(left_mid.second, 1);`
-  );
-  pushLine(lines, "    if (mid_right.first == nullptr) {");
-  pushLine(lines, `      ${rootField} = ${names.mergeName}(left_mid.first, mid_right.second);`);
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    mid_right.first->value = value;");
-  pushLine(lines, "    mid_right.first->aggregate = value;");
-  pushLine(lines, "    clear_lazy(mid_right.first);");
-  pushLine(lines, "    pull(mid_right.first);");
-  pushLine(
-    lines,
-    `    ${rootField} = ${names.mergeName}(left_mid.first, ${names.mergeName}(mid_right.first, mid_right.second));`
-  );
-  pushLine(lines, "    return true;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  T range_query(int left, int right) {");
-  pushLine(lines, "    if (!normalize_range(left, right)) {");
-  pushLine(lines, "      return Op::neutral();");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> left_mid = ${names.splitName}(${rootField}, left);`
-  );
-  pushLine(
-    lines,
-    `    std::pair<${names.nodeName}*, ${names.nodeName}*> mid_right = ${names.splitName}(left_mid.second, right - left + 1);`
-  );
-  pushLine(lines, "    const T answer = node_aggregate(mid_right.first);");
-  pushLine(
-    lines,
-    `    ${rootField} = ${names.mergeName}(left_mid.first, ${names.mergeName}(mid_right.first, mid_right.second));`
-  );
-  pushLine(lines, "    return answer;");
-  pushLine(lines, "  }");
-
-  if (hasReverse) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.reverseName}(int left, int right) {`);
-    pushLine(lines, "    if (!normalize_range(left, right)) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `    std::pair<${names.nodeName}*, ${names.nodeName}*> left_mid = ${names.splitName}(${rootField}, left);`
-    );
-    pushLine(
-      lines,
-      `    std::pair<${names.nodeName}*, ${names.nodeName}*> mid_right = ${names.splitName}(left_mid.second, right - left + 1);`
-    );
-    pushLine(lines, "    apply_reverse(mid_right.first);");
-    pushLine(
-      lines,
-      `    ${rootField} = ${names.mergeName}(left_mid.first, ${names.mergeName}(mid_right.first, mid_right.second));`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (hasRangeAdd) {
-    pushLine(lines);
-    pushLine(lines, `  void ${names.addName}(int left, int right, const T& delta) {`);
-    pushLine(lines, "    if (!normalize_range(left, right)) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `    std::pair<${names.nodeName}*, ${names.nodeName}*> left_mid = ${names.splitName}(${rootField}, left);`
-    );
-    pushLine(
-      lines,
-      `    std::pair<${names.nodeName}*, ${names.nodeName}*> mid_right = ${names.splitName}(left_mid.second, right - left + 1);`
-    );
-    pushLine(lines, "    apply_add(mid_right.first, delta);");
-    pushLine(
-      lines,
-      `    ${rootField} = ${names.mergeName}(left_mid.first, ${names.mergeName}(mid_right.first, mid_right.second));`
-    );
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, "  std::vector<T> to_vector() {");
-  pushLine(lines, "    std::vector<T> values;");
-  pushLine(lines, "    values.reserve(size());");
-  pushLine(lines, `    collect_inorder(${rootField}, values);`);
-  pushLine(lines, "    return values;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  template <typename It>");
-  pushLine(lines, "  void assign(It begin, It end) {");
-  pushLine(lines, "    clear();");
-  pushLine(lines, "    for (It it = begin; it != end; ++it) {");
-  pushLine(lines, "      push_back(*it);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, `  ${names.nodeName}* ${rootField};`);
-  pushLine(lines, `  unsigned ${rngField};`);
-  pushLine(lines);
-  pushLine(lines, `  static int node_size(${names.nodeName}* node) {`);
-  pushLine(lines, "    return node == nullptr ? 0 : node->size;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static T node_aggregate(${names.nodeName}* node) {`);
-  pushLine(lines, "    return node == nullptr ? Op::neutral() : node->aggregate;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static void clear_lazy(${names.nodeName}* node) {`);
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  if (hasReverse) {
-    pushLine(lines, "    node->reversed = false;");
-  }
-  if (hasRangeAdd) {
-    pushLine(lines, "    node->lazy_add = T(0);");
-  }
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static void pull(${names.nodeName}* node) {`);
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    node->size = 1 + node_size(node->left) + node_size(node->right);");
-  pushLine(lines, "    node->aggregate = Op::combine(");
-  pushLine(lines, "        Op::combine(node_aggregate(node->left), node->value),");
-  pushLine(lines, "        node_aggregate(node->right));");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  static void clear_node(${names.nodeName}* node) {`);
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    clear_node(node->left);");
-  pushLine(lines, "    clear_node(node->right);");
-  pushLine(lines, "    delete node;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  unsigned next_priority() {");
-  pushLine(lines, `    ${rngField} ^= ${rngField} << 7;`);
-  pushLine(lines, `    ${rngField} ^= ${rngField} >> 9;`);
-  pushLine(lines, `    ${rngField} ^= ${rngField} << 8;`);
-  pushLine(lines, `    return ${rngField};`);
-  pushLine(lines, "  }");
-
-  if (hasReverse) {
-    pushLine(lines);
-    pushLine(lines, `  static void apply_reverse(${names.nodeName}* node) {`);
-    pushLine(lines, "    if (node == nullptr) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    std::swap(node->left, node->right);");
-    pushLine(lines, "    node->reversed = !node->reversed;");
-    pushLine(lines, "  }");
-  }
-
-  if (hasRangeAdd) {
-    pushLine(lines);
-    pushLine(lines, `  static void apply_add(${names.nodeName}* node, const T& delta) {`);
-    pushLine(lines, "    if (node == nullptr) {");
-    pushLine(lines, "      return;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      "    Op::apply_delta(node->value, node->aggregate, node->size, delta);"
-    );
-    pushLine(lines, "    node->lazy_add += delta;");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, `  static void push(${names.nodeName}* node) {`);
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  if (hasReverse) {
-    pushLine(lines, "    if (node->reversed) {");
-    pushLine(lines, "      apply_reverse(node->left);");
-    pushLine(lines, "      apply_reverse(node->right);");
-    pushLine(lines, "      node->reversed = false;");
-    pushLine(lines, "    }");
-  }
-  if (hasRangeAdd) {
-    pushLine(lines, "    if (node->lazy_add != T(0)) {");
-    pushLine(lines, "      apply_add(node->left, node->lazy_add);");
-    pushLine(lines, "      apply_add(node->right, node->lazy_add);");
-    pushLine(lines, "      node->lazy_add = T(0);");
-    pushLine(lines, "    }");
-  }
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static std::pair<${names.nodeName}*, ${names.nodeName}*> ${names.splitName}(${names.nodeName}* node, int left_size) {`
-  );
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return std::make_pair(nullptr, nullptr);");
-  pushLine(lines, "    }");
-  pushLine(lines, "    push(node);");
-  pushLine(lines);
-  pushLine(lines, "    if (node_size(node->left) >= left_size) {");
-  pushLine(
-    lines,
-    `      std::pair<${names.nodeName}*, ${names.nodeName}*> parts = ${names.splitName}(node->left, left_size);`
-  );
-  pushLine(lines, "      node->left = parts.second;");
-  pushLine(lines, "      pull(node);");
-  pushLine(lines, "      return std::make_pair(parts.first, node);");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    std::pair<${names.nodeName}*, ${names.nodeName}*> parts =`);
-  pushLine(
-    lines,
-    `        ${names.splitName}(node->right, left_size - node_size(node->left) - 1);`
-  );
-  pushLine(lines, "    node->right = parts.first;");
-  pushLine(lines, "    pull(node);");
-  pushLine(lines, "    return std::make_pair(node, parts.second);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static ${names.nodeName}* ${names.mergeName}(${names.nodeName}* left, ${names.nodeName}* right) {`
-  );
-  pushLine(lines, "    if (left == nullptr) {");
-  pushLine(lines, "      return right;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right == nullptr) {");
-  pushLine(lines, "      return left;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    if (left->priority > right->priority) {");
-  pushLine(lines, "      push(left);");
-  pushLine(lines, `      left->right = ${names.mergeName}(left->right, right);`);
-  pushLine(lines, "      pull(left);");
-  pushLine(lines, "      return left;");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    push(right);");
-  pushLine(lines, `    right->left = ${names.mergeName}(left, right->left);`);
-  pushLine(lines, "    pull(right);");
-  pushLine(lines, "    return right;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  bool normalize_range(int& left, int& right) const {");
-  pushLine(lines, "    if (left > right || right < 0 || left >= size()) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (left < 0) {");
-  pushLine(lines, "      left = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right >= size()) {");
-  pushLine(lines, "      right = size() - 1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return left <= right;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  static void collect_inorder(${names.nodeName}* node, std::vector<T>& out) {`
-  );
-  pushLine(lines, "    if (node == nullptr) {");
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    push(node);");
-  pushLine(lines, "    collect_inorder(node->left, out);");
-  pushLine(lines, "    out.push_back(node->value);");
-  pushLine(lines, "    collect_inorder(node->right, out);");
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderImplicitTreapUsage(options, features));
-  }
-
+  let opDefinition = renderImplicitTreapOp(options, features);
+  opDefinition = applyIdentifierRenames(opDefinition, [
+    { from: options.aggregate === "custom" ? "TreapCustomOp" : "TreapSumOp", to: opName }
+  ]);
+  let helpers = renderCodeTemplate("solvers/implicit_treap/helpers.hpp.tmpl", {
+    opDefinition,
+    reverseFeature: features.has("reverse"),
+    rangeAddFeature: features.has("range_add")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "TreapSumOp", to: opName },
+    { from: "ImplicitTreap", to: names.className },
+    { from: "Node", to: names.nodeName },
+    { from: "split", to: names.splitName },
+    { from: "merge", to: names.mergeName },
+    { from: "root_", to: `${names.rootName}_` },
+    { from: "rng_state_", to: `${names.rngName}_` },
+    { from: "reverse", to: names.reverseName },
+    { from: "add", to: names.addName }
+  ]);
+  if (options.includeUsageComment) helpers = helpers.trimEnd() + "\n\n" + renderImplicitTreapUsage(options, features);
+  const usage = renderImplicitTreapUsageSnippet(options, features);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     implicitTreapExports(options)
   );
 }
@@ -6827,29 +6337,56 @@ function renderMergeSortTreeUsage(
   options: MergeSortTreeOptions,
   queries: Set<MergeSortTreeQuery>
 ): string {
-  const names = options.names;
-  const lines = [
-    "/*",
-    "Inclusive [l, r] queries:",
-    `${names.className}<${options.valueType}> mst(${options.sourceName});`
-  ];
-  if (queries.has("count_less")) {
-    lines.push(`auto lt = mst.${names.countLessName}(l, r, x);`);
+  return renderCodeTemplate("solvers/merge_sort_tree/usage-comment.cpp.tmpl", {
+    ...options.names,
+    valueType: options.valueType,
+    sourceName: options.sourceName,
+    countLess: queries.has("count_less"),
+    countLessEqual: queries.has("count_less_equal"),
+    countEqual: queries.has("count_equal"),
+    countInRange: queries.has("count_in_range"),
+    exists: queries.has("exists")
+  });
+}
+
+function firstMergeSortTreeQuery(queries: Set<MergeSortTreeQuery>): MergeSortTreeQuery {
+  for (const query of [
+    "count_less",
+    "count_less_equal",
+    "count_equal",
+    "count_in_range",
+    "exists"
+  ] as const) {
+    if (queries.has(query)) {
+      return query;
+    }
   }
-  if (queries.has("count_less_equal")) {
-    lines.push(`auto le = mst.${names.countLessEqualName}(l, r, x);`);
-  }
-  if (queries.has("count_equal")) {
-    lines.push(`auto eq = mst.${names.countEqualName}(l, r, x);`);
-  }
-  if (queries.has("count_in_range")) {
-    lines.push(`auto inside = mst.${names.countInRangeName}(l, r, low, high);`);
-  }
-  if (queries.has("exists")) {
-    lines.push(`bool found = mst.${names.existsName}(l, r, x);`);
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return "count_less";
+}
+
+function renderMergeSortTreeUsageSnippet(
+  options: MergeSortTreeOptions,
+  queries: Set<MergeSortTreeQuery>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const query = firstMergeSortTreeQuery(queries);
+  return renderCodeTemplate("solvers/merge_sort_tree/solve.cpp.tmpl", {
+    ...options.names,
+    valueType: options.valueType,
+    sourceName: options.sourceName.trim() || "a",
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    instanceName: sanitizeIdentifier(options.instanceName ?? "mst", "mst"),
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    readLoop: options.sourceMode === "read_loop",
+    queryLoop: usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    rangeQuery: query === "count_in_range",
+    countLessQuery: query === "count_less",
+    countLessEqualQuery: query === "count_less_equal",
+    countEqualQuery: query === "count_equal",
+    existsQuery: query === "exists"
+  });
 }
 
 export function renderMergeSortTreeRecipe(
@@ -6857,280 +6394,34 @@ export function renderMergeSortTreeRecipe(
 ): RenderedRecipe {
   const queries = mergeSortTreeQuerySet(options.queries);
   const names = options.names;
-  const lines: string[] = [];
-
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(lines, `  explicit ${names.className}(int n = 0) { reset(n); }`);
-  pushLine(lines);
-  pushLine(lines, `  explicit ${names.className}(const std::vector<T>& values) {`);
-  pushLine(lines, `    ${names.buildName}(values);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void reset(int n) {");
-  pushLine(lines, "    n_ = n < 0 ? 0 : n;");
-  pushLine(lines, `    ${names.storageName}.assign(4 * std::max(1, n_), std::vector<T>());`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  void ${names.buildName}(const std::vector<T>& values) {`);
-  pushLine(lines, "    reset(static_cast<int>(values.size()));");
-  pushLine(lines, "    if (n_ > 0) {");
-  pushLine(lines, `      ${names.buildRecName}(1, 0, n_ - 1, values);`);
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return n_; }");
-
-  if (queries.has("count_less")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countLessName}(int left, int right, const T& x) const {`
-    );
-    pushLine(lines, `    if (!${names.normName}(left, right)) {`);
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    return ${names.countLessRecName}(1, 0, n_ - 1, left, right, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("count_less_equal")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countLessEqualName}(int left, int right, const T& x) const {`
-    );
-    pushLine(lines, `    if (!${names.normName}(left, right)) {`);
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    return ${names.countLessEqualRecName}(1, 0, n_ - 1, left, right, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("count_equal")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countEqualName}(int left, int right, const T& x) const {`
-    );
-    pushLine(lines, `    if (!${names.normName}(left, right)) {`);
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    return ${names.countInRangeRecName}(1, 0, n_ - 1, left, right, x, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("count_in_range")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countInRangeName}(int left, int right, const T& low,`
-    );
-    pushLine(lines, "                         const T& high) const {");
-    pushLine(lines, `    if (high < low || !${names.normName}(left, right)) {`);
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    return ${names.countInRangeRecName}(1, 0, n_ - 1, left, right, low, high);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("exists")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  bool ${names.existsName}(int left, int right, const T& x) const {`
-    );
-    pushLine(lines, `    if (!${names.normName}(left, right)) {`);
-    pushLine(lines, "      return false;");
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      `    return ${names.existsRecName}(1, 0, n_ - 1, left, right, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int n_;");
-  pushLine(lines, `  std::vector<std::vector<T>> ${names.storageName};`);
-  pushLine(lines);
-  pushLine(lines, `  bool ${names.normName}(int& left, int& right) const {`);
-  pushLine(lines, "    if (n_ == 0 || left > right || right < 0 || left >= n_) {");
-  pushLine(lines, "      return false;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    left = std::max(left, 0);");
-  pushLine(lines, "    right = std::min(right, n_ - 1);");
-  pushLine(lines, "    return left <= right;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void ${names.buildRecName}(int v, int tl, int tr, const std::vector<T>& values) {`
-  );
-  pushLine(lines, "    if (tl == tr) {");
-  pushLine(lines, `      ${names.storageName}[v] = {values[tl]};`);
-  pushLine(lines, "      return;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    const int tm = (tl + tr) / 2;");
-  pushLine(lines, `    ${names.buildRecName}(v * 2, tl, tm, values);`);
-  pushLine(lines, `    ${names.buildRecName}(v * 2 + 1, tm + 1, tr, values);`);
-  pushLine(
-    lines,
-    `    ${names.storageName}[v].resize(${names.storageName}[v * 2].size() + ${names.storageName}[v * 2 + 1].size());`
-  );
-  pushLine(
-    lines,
-    `    std::merge(${names.storageName}[v * 2].begin(), ${names.storageName}[v * 2].end(),`
-  );
-  pushLine(
-    lines,
-    `               ${names.storageName}[v * 2 + 1].begin(), ${names.storageName}[v * 2 + 1].end(),`
-  );
-  pushLine(lines, `               ${names.storageName}[v].begin());`);
-  pushLine(lines, "  }");
-
-  if (queries.has("count_less")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countLessRecName}(int v, int tl, int tr, int l, int r,`
-    );
-    pushLine(lines, "                         const T& x) const {");
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return static_cast<int>(");
-    pushLine(
-      lines,
-      `          std::lower_bound(${names.storageName}[v].begin(), ${names.storageName}[v].end(), x) -`
-    );
-    pushLine(lines, `          ${names.storageName}[v].begin());`);
-    pushLine(lines, "    }");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(
-      lines,
-      `    return ${names.countLessRecName}(v * 2, tl, tm, l, r, x) +`
-    );
-    pushLine(
-      lines,
-      `           ${names.countLessRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("count_less_equal")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countLessEqualRecName}(int v, int tl, int tr, int l, int r,`
-    );
-    pushLine(lines, "                               const T& x) const {");
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return static_cast<int>(");
-    pushLine(
-      lines,
-      `          std::upper_bound(${names.storageName}[v].begin(), ${names.storageName}[v].end(), x) -`
-    );
-    pushLine(lines, `          ${names.storageName}[v].begin());`);
-    pushLine(lines, "    }");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(
-      lines,
-      `    return ${names.countLessEqualRecName}(v * 2, tl, tm, l, r, x) +`
-    );
-    pushLine(
-      lines,
-      `           ${names.countLessEqualRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("count_equal") || queries.has("count_in_range")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  int ${names.countInRangeRecName}(int v, int tl, int tr, int l, int r,`
-    );
-    pushLine(lines, "                            const T& low, const T& high) const {");
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, "      return static_cast<int>(");
-    pushLine(
-      lines,
-      `          std::upper_bound(${names.storageName}[v].begin(), ${names.storageName}[v].end(), high) -`
-    );
-    pushLine(
-      lines,
-      `          std::lower_bound(${names.storageName}[v].begin(), ${names.storageName}[v].end(), low));`
-    );
-    pushLine(lines, "    }");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(
-      lines,
-      `    return ${names.countInRangeRecName}(v * 2, tl, tm, l, r, low, high) +`
-    );
-    pushLine(
-      lines,
-      `           ${names.countInRangeRecName}(v * 2 + 1, tm + 1, tr, l, r, low, high);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  if (queries.has("exists")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  bool ${names.existsRecName}(int v, int tl, int tr, int l, int r,`
-    );
-    pushLine(lines, "                        const T& x) const {");
-    pushLine(lines, "    if (tl > r || tr < l) {");
-    pushLine(lines, "      return false;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (l <= tl && tr <= r) {");
-    pushLine(lines, `      return std::binary_search(${names.storageName}[v].begin(),`);
-    pushLine(lines, `                                ${names.storageName}[v].end(), x);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "    const int tm = (tl + tr) / 2;");
-    pushLine(
-      lines,
-      `    return ${names.existsRecName}(v * 2, tl, tm, l, r, x) ||`
-    );
-    pushLine(
-      lines,
-      `           ${names.existsRecName}(v * 2 + 1, tm + 1, tr, l, r, x);`
-    );
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines, "};");
-
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderMergeSortTreeUsage(options, queries));
-  }
-
+  let helpers = renderCodeTemplate("solvers/merge_sort_tree/helpers.hpp.tmpl", {
+    countLess: queries.has("count_less"),
+    countLessEqual: queries.has("count_less_equal"),
+    countEqual: queries.has("count_equal"),
+    countInRange: queries.has("count_in_range"),
+    needsRangeRec: queries.has("count_equal") || queries.has("count_in_range"),
+    exists: queries.has("exists")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "MergeSortTree", to: names.className },
+    { from: "tree_", to: names.storageName },
+    { from: "build", to: names.buildName },
+    { from: "norm", to: names.normName },
+    { from: "build_rec", to: names.buildRecName },
+    { from: "count_less", to: names.countLessName },
+    { from: "count_less_equal", to: names.countLessEqualName },
+    { from: "count_equal", to: names.countEqualName },
+    { from: "count_in_range", to: names.countInRangeName },
+    { from: "exists", to: names.existsName },
+    { from: "count_less_rec", to: names.countLessRecName },
+    { from: "count_less_equal_rec", to: names.countLessEqualRecName },
+    { from: "count_in_range_rec", to: names.countInRangeRecName },
+    { from: "exists_rec", to: names.existsRecName }
+  ]);
+  if (options.includeUsageComment) helpers = helpers.trimEnd() + "\n\n" + renderMergeSortTreeUsage(options, queries);
+  const usage = renderMergeSortTreeUsageSnippet(options, queries);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     mergeSortTreeExports(options)
   );
 }
@@ -7156,7 +6447,20 @@ export function planSparseTableNames(
     queryMinName: planner.reserve("query_sparse_min"),
     maxTableName: planner.reserve("sparse_max"),
     buildMaxName: planner.reserve("build_sparse_max"),
-    queryMaxName: planner.reserve("query_sparse_max")
+    queryMaxName: planner.reserve("query_sparse_max"),
+    gcdTableName: planner.reserve("sparse_gcd"),
+    buildGcdName: planner.reserve("build_sparse_gcd"),
+    queryGcdName: planner.reserve("query_sparse_gcd"),
+    bitAndTableName: planner.reserve("sparse_bit_and"),
+    buildBitAndName: planner.reserve("build_sparse_bit_and"),
+    queryBitAndName: planner.reserve("query_sparse_bit_and"),
+    bitOrTableName: planner.reserve("sparse_bit_or"),
+    buildBitOrName: planner.reserve("build_sparse_bit_or"),
+    queryBitOrName: planner.reserve("query_sparse_bit_or"),
+    customTableName: planner.reserve("sparse_custom"),
+    buildCustomName: planner.reserve("build_sparse_custom"),
+    queryCustomName: planner.reserve("query_sparse_custom"),
+    customCombineName: planner.reserve("sparse_combine")
   };
 }
 
@@ -7185,127 +6489,152 @@ function sparseTableExports(
       options.names.queryMaxName
     );
   }
+  if (variants.has("gcd")) {
+    exports.push(
+      options.names.gcdTableName,
+      options.names.buildGcdName,
+      options.names.queryGcdName
+    );
+  }
+  if (variants.has("bit_and")) {
+    exports.push(
+      options.names.bitAndTableName,
+      options.names.buildBitAndName,
+      options.names.queryBitAndName
+    );
+  }
+  if (variants.has("bit_or")) {
+    exports.push(
+      options.names.bitOrTableName,
+      options.names.buildBitOrName,
+      options.names.queryBitOrName
+    );
+  }
+  if (variants.has("custom")) {
+    exports.push(
+      options.names.customCombineName,
+      options.names.customTableName,
+      options.names.buildCustomName,
+      options.names.queryCustomName
+    );
+  }
   return exports;
 }
 
-function renderSparseTableUsage(
+function renderSparseTableCommentUsage(
   options: SparseTableOptions,
   variants: Set<SparseTableVariant>
 ): string {
-  const lines = ["/*", "Inclusive [l, r] queries:"];
-  if (variants.has("min")) {
-    lines.push(
-      `${options.names.buildMinName}(${options.sourceName});`,
-      `auto mn = ${options.names.queryMinName}(l, r);`
-    );
-  }
-  if (variants.has("max")) {
-    lines.push(
-      `${options.names.buildMaxName}(${options.sourceName});`,
-      `auto mx = ${options.names.queryMaxName}(l, r);`
-    );
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  const answerNames: Record<SparseTableVariant, string> = {
+    min: "mn",
+    max: "mx",
+    gcd: "g",
+    bit_and: "common_bits",
+    bit_or: "any_bits",
+    custom: "value"
+  };
+  const variantExamples = [...variants].map((variant) => {
+    const names = sparseTableVariantNames(options, variant);
+    return renderCodeTemplate("solvers/sparse_table/usage-comment-variant.cpp.tmpl", {
+      buildName: names.buildName,
+      queryName: names.queryName,
+      sourceName: options.sourceName,
+      answerName: answerNames[variant]
+    }).trim();
+  }).join("\n");
+  return renderCodeTemplate("solvers/sparse_table/usage-comment.cpp.tmpl", {
+    variantExamples
+  });
+}
+
+function sparseTableVariantNames(
+  options: SparseTableOptions,
+  variant: SparseTableVariant
+): { tableName: string; buildName: string; queryName: string } {
+  const names = options.names;
+  if (variant === "min") return { tableName: names.minTableName, buildName: names.buildMinName, queryName: names.queryMinName };
+  if (variant === "max") return { tableName: names.maxTableName, buildName: names.buildMaxName, queryName: names.queryMaxName };
+  if (variant === "gcd") return { tableName: names.gcdTableName, buildName: names.buildGcdName, queryName: names.queryGcdName };
+  if (variant === "bit_and") return { tableName: names.bitAndTableName, buildName: names.buildBitAndName, queryName: names.queryBitAndName };
+  if (variant === "bit_or") return { tableName: names.bitOrTableName, buildName: names.buildBitOrName, queryName: names.queryBitOrName };
+  return { tableName: names.customTableName, buildName: names.buildCustomName, queryName: names.queryCustomName };
 }
 
 function renderSparseTableVariant(
   options: SparseTableOptions,
   variant: SparseTableVariant
-): string[] {
-  const names = options.names;
-  const isMin = variant === "min";
-  const tableName = isMin ? names.minTableName : names.maxTableName;
-  const buildName = isMin ? names.buildMinName : names.buildMaxName;
-  const queryName = isMin ? names.queryMinName : names.queryMaxName;
-  const combineExpression = isMin ? "lhs < rhs ? lhs : rhs" : "lhs < rhs ? rhs : lhs";
-  const lines: string[] = [];
+): string {
+  const names = sparseTableVariantNames(options, variant);
+  return renderCodeTemplate("solvers/sparse_table/variant.hpp.tmpl", {
+    valueType: options.valueType,
+    logName: options.names.logName,
+    ensureLogName: options.names.ensureLogName,
+    customCombineName: options.names.customCombineName,
+    tableName: names.tableName,
+    buildName: names.buildName,
+    queryName: names.queryName,
+    min: variant === "min",
+    max: variant === "max",
+    gcd: variant === "gcd",
+    bitAnd: variant === "bit_and",
+    bitOr: variant === "bit_or",
+    custom: variant === "custom"
+  });
+}
 
-  pushLine(lines, `vector<vector<${options.valueType}>> ${tableName};`);
-  pushLine(lines);
-  pushLine(lines, `void ${buildName}(const vector<${options.valueType}>& values) {`);
-  pushLine(lines, "  const int n = static_cast<int>(values.size());");
-  pushLine(lines, `  ${names.ensureLogName}(n);`);
-  pushLine(lines, `  ${tableName}.clear();`);
-  pushLine(lines, "  if (n == 0) {");
-  pushLine(lines, "    return;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${tableName}.assign(${names.logName}[n] + 1, vector<${options.valueType}>());`);
-  pushLine(lines, `  ${tableName}[0] = values;`);
-  pushLine(lines, `  for (int level = 1; level < static_cast<int>(${tableName}.size()); ++level) {`);
-  pushLine(lines, "    const int len = 1 << level;");
-  pushLine(lines, "    const int half = len >> 1;");
-  pushLine(lines, `    ${tableName}[level].assign(n - len + 1, ${options.valueType}());`);
-  pushLine(lines, "    for (int i = 0; i + len <= n; ++i) {");
-  pushLine(lines, `      const ${options.valueType}& lhs = ${tableName}[level - 1][i];`);
-  pushLine(lines, `      const ${options.valueType}& rhs = ${tableName}[level - 1][i + half];`);
-  pushLine(lines, `      ${tableName}[level][i] = (${combineExpression});`);
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(lines, `${options.valueType} ${queryName}(int left, int right) {`);
-  pushLine(
-    lines,
-    `  const int n = ${tableName}.empty() ? 0 : static_cast<int>(${tableName}[0].size());`
-  );
-  pushLine(lines, "  if (n == 0 || left > right || right < 0 || left >= n) {");
-  pushLine(lines, `    return ${options.valueType}();`);
-  pushLine(lines, "  }");
-  pushLine(lines, "  if (left < 0) {");
-  pushLine(lines, "    left = 0;");
-  pushLine(lines, "  }");
-  pushLine(lines, "  if (right >= n) {");
-  pushLine(lines, "    right = n - 1;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  const int level = ${names.logName}[right - left + 1];`);
-  pushLine(lines, `  const ${options.valueType}& lhs = ${tableName}[level][left];`);
-  pushLine(
-    lines,
-    `  const ${options.valueType}& rhs = ${tableName}[level][right - (1 << level) + 1];`
-  );
-  pushLine(lines, `  return ${combineExpression};`);
-  pushLine(lines, "}");
-  return lines;
+function firstSparseTableVariant(variants: Set<SparseTableVariant>): SparseTableVariant {
+  for (const variant of ["min", "max", "gcd", "bit_and", "bit_or", "custom"] as const) {
+    if (variants.has(variant)) {
+      return variant;
+    }
+  }
+  return "min";
+}
+
+function renderSparseTableUsageSnippet(
+  options: SparseTableOptions,
+  variants: Set<SparseTableVariant>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") return "";
+  const sourceName = options.sourceName.trim() || "a";
+  const chunks: string[] = [];
+  if (options.sourceMode === "read_loop") {
+    chunks.push(renderCodeTemplate("solvers/sparse_table/read-source.cpp.tmpl", {
+      valueType: options.valueType,
+      sourceName,
+      sizeExpression: options.sizeExpression?.trim() || "n"
+    }));
+  }
+  for (const variant of variants) {
+    chunks.push(renderCodeTemplate("solvers/sparse_table/build.cpp.tmpl", {
+      buildName: sparseTableVariantNames(options, variant).buildName,
+      sourceName
+    }));
+  }
+  if (usageMode === "query_loop") {
+    const queryName = sparseTableVariantNames(options, firstSparseTableVariant(variants)).queryName;
+    chunks.push(renderCodeTemplate("solvers/sparse_table/query-loop.cpp.tmpl", {
+      queryName,
+      answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+      oneBasedInput: options.indexing === "one_based_input"
+    }));
+  }
+  return chunks.map((chunk) => chunk.trim()).filter(Boolean).join("\n");
 }
 
 export function renderSparseTableRecipe(options: SparseTableOptions): RenderedRecipe {
   const variants = sparseTableVariantSet(options.variants);
-  const lines: string[] = [];
-
-  pushLine(lines, `vector<int> ${options.names.logName};`);
-  pushLine(lines);
-  pushLine(lines, `void ${options.names.ensureLogName}(int n) {`);
-  pushLine(lines, `  if (static_cast<int>(${options.names.logName}.size()) > n) {`);
-  pushLine(lines, "    return;");
-  pushLine(lines, "  }");
-  pushLine(lines, `  int start = static_cast<int>(${options.names.logName}.size());`);
-  pushLine(lines, "  if (start < 2) {");
-  pushLine(lines, "    start = 2;");
-  pushLine(lines, "  }");
-  pushLine(lines, `  ${options.names.logName}.resize(n + 1, 0);`);
-  pushLine(lines, "  for (int i = start; i <= n; ++i) {");
-  pushLine(lines, `    ${options.names.logName}[i] = ${options.names.logName}[i / 2] + 1;`);
-  pushLine(lines, "  }");
-  pushLine(lines, "}");
-
-  if (variants.has("min")) {
-    pushLine(lines);
-    lines.push(...renderSparseTableVariant(options, "min"));
-  }
-  if (variants.has("max")) {
-    pushLine(lines);
-    lines.push(...renderSparseTableVariant(options, "max"));
-  }
-  if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderSparseTableUsage(options, variants));
-  }
-
+  const chunks = [renderCodeTemplate("solvers/sparse_table/base.hpp.tmpl", {
+    logName: options.names.logName,
+    ensureLogName: options.names.ensureLogName
+  })];
+  for (const variant of variants) chunks.push(renderSparseTableVariant(options, variant));
+  if (options.includeUsageComment) chunks.push(renderSparseTableCommentUsage(options, variants));
+  const helpers = chunks.map((chunk) => chunk.trim()).filter(Boolean).join("\n\n");
+  const usage = renderSparseTableUsageSnippet(options, variants);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     sparseTableExports(options, variants)
   );
 }
@@ -7344,7 +6673,20 @@ export function planSuffixArrayNames(
       queryMinName: planner.reserve("query_sparse_min", "query_suffix_lcp_min"),
       maxTableName: planner.reserve("sparse_max", "suffix_lcp_max"),
       buildMaxName: planner.reserve("build_sparse_max", "build_suffix_lcp_max"),
-      queryMaxName: planner.reserve("query_sparse_max", "query_suffix_lcp_max")
+      queryMaxName: planner.reserve("query_sparse_max", "query_suffix_lcp_max"),
+      gcdTableName: planner.reserve("sparse_gcd", "suffix_lcp_gcd"),
+      buildGcdName: planner.reserve("build_sparse_gcd", "build_suffix_lcp_gcd"),
+      queryGcdName: planner.reserve("query_sparse_gcd", "query_suffix_lcp_gcd"),
+      bitAndTableName: planner.reserve("sparse_bit_and", "suffix_lcp_bit_and"),
+      buildBitAndName: planner.reserve("build_sparse_bit_and", "build_suffix_lcp_bit_and"),
+      queryBitAndName: planner.reserve("query_sparse_bit_and", "query_suffix_lcp_bit_and"),
+      bitOrTableName: planner.reserve("sparse_bit_or", "suffix_lcp_bit_or"),
+      buildBitOrName: planner.reserve("build_sparse_bit_or", "build_suffix_lcp_bit_or"),
+      queryBitOrName: planner.reserve("query_sparse_bit_or", "query_suffix_lcp_bit_or"),
+      customTableName: planner.reserve("sparse_custom", "suffix_lcp_custom"),
+      buildCustomName: planner.reserve("build_sparse_custom", "build_suffix_lcp_custom"),
+      queryCustomName: planner.reserve("query_sparse_custom", "query_suffix_lcp_custom"),
+      customCombineName: planner.reserve("sparse_combine", "suffix_lcp_combine")
     }
   };
 }
@@ -7397,30 +6739,20 @@ function renderSuffixArrayUsage(
   options: SuffixArrayOptions,
   features: Set<SuffixArrayFeature>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
-  lines.push(`auto ${names.resultName} = ${suffixArrayBuildCall(options)};`);
-  if (features.has("stripped_sa")) {
-    lines.push(
-      `auto ${names.saName} = ${names.removeEmptySuffixName}(${names.resultName});`
-    );
-  } else {
-    lines.push(`const auto& ${names.saName} = ${names.resultName}.sa;`);
-  }
-  if (features.has("rank")) {
-    lines.push(`const auto& ${names.rankName} = ${names.resultName}.rank;`);
-  }
-  if (features.has("lcp")) {
-    lines.push(`const auto& ${names.lcpName} = ${names.resultName}.lcp;`);
-  }
-  if (features.has("lcp_rmq")) {
-    lines.push(
-      `${names.lcpSparseNames.buildMinName}(${names.resultName}.lcp);`,
-      `int common = ${names.lcpRangeQueryName}(i, j, ${names.resultName});`
-    );
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/suffix_array/usage-comment.cpp.tmpl", {
+    resultName: options.names.resultName,
+    buildCall: suffixArrayBuildCall(options),
+    strippedFeature: features.has("stripped_sa"),
+    saName: options.names.saName,
+    removeEmptySuffixName: options.names.removeEmptySuffixName,
+    rankFeature: features.has("rank"),
+    rankName: options.names.rankName,
+    lcpFeature: features.has("lcp"),
+    lcpName: options.names.lcpName,
+    lcpRmqFeature: features.has("lcp_rmq"),
+    buildLcpMinName: options.names.lcpSparseNames.buildMinName,
+    lcpRangeQueryName: options.names.lcpRangeQueryName
+  });
 }
 
 function renderSuffixArrayHelpers(
@@ -7428,222 +6760,28 @@ function renderSuffixArrayHelpers(
   features: Set<SuffixArrayFeature>
 ): string {
   const names = options.names;
-  const needsRank = features.has("rank") || features.has("lcp");
-  const lines: string[] = [];
-
-  pushLine(lines, `struct ${names.resultStructName} {`);
-  pushLine(lines, "  std::vector<int> sa;");
-  if (features.has("lcp")) {
-    pushLine(lines, "  std::vector<int> lcp;");
-  }
-  if (features.has("rank")) {
-    pushLine(lines, "  std::vector<int> rank;");
-  }
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline ${names.resultStructName} ${names.buildPositiveCodesName}(`
-  );
-  pushLine(
-    lines,
-    "    const std::vector<int>& positive_codes, int alphabet_limit = 0) {"
-  );
-  pushLine(lines, "  const int text_n = static_cast<int>(positive_codes.size());");
-  pushLine(lines, "  const int n = text_n + 1;");
-  pushLine(lines);
-  pushLine(lines, "  std::vector<int> sequence(n, 0);");
-  pushLine(lines, "  int lim = (alphabet_limit < 2 ? 2 : alphabet_limit);");
-  pushLine(lines, "  for (int i = 0; i < text_n; ++i) {");
-  pushLine(lines, "    const int code = (positive_codes[i] <= 0 ? 1 : positive_codes[i]);");
-  pushLine(lines, "    sequence[i] = code;");
-  pushLine(lines, "    if (code + 1 > lim) {");
-  pushLine(lines, "      lim = code + 1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, `  ${names.resultStructName} result;`);
-  pushLine(lines, "  result.sa.assign(n, 0);");
-  if (features.has("lcp")) {
-    pushLine(lines, "  result.lcp.assign(n, 0);");
-  }
-  if (features.has("rank")) {
-    pushLine(lines, "  result.rank.assign(n, 0);");
-  }
-  pushLine(lines);
-  pushLine(lines, "  std::vector<int> x = sequence;");
-  pushLine(lines, "  std::vector<int> y(n, 0);");
-  pushLine(lines, "  std::vector<int> ws(std::max(n, lim), 0);");
-  pushLine(lines, "  std::iota(result.sa.begin(), result.sa.end(), 0);");
-  pushLine(lines);
-  pushLine(lines, "  for (int j = 0, p = 0; p < n; j = std::max(1, j * 2), lim = p) {");
-  pushLine(lines, "    p = j;");
-  pushLine(lines, "    std::iota(y.begin(), y.end(), n - j);");
-  pushLine(lines, "    for (int i = 0; i < n; ++i) {");
-  pushLine(lines, "      if (result.sa[i] >= j) {");
-  pushLine(lines, "        y[p++] = result.sa[i] - j;");
-  pushLine(lines, "      }");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::fill(ws.begin(), ws.begin() + lim, 0);");
-  pushLine(lines, "    for (int i = 0; i < n; ++i) {");
-  pushLine(lines, "      ++ws[x[i]];");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int i = 1; i < lim; ++i) {");
-  pushLine(lines, "      ws[i] += ws[i - 1];");
-  pushLine(lines, "    }");
-  pushLine(lines, "    for (int i = n - 1; i >= 0; --i) {");
-  pushLine(lines, "      result.sa[--ws[x[y[i]]]] = y[i];");
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    std::swap(x, y);");
-  pushLine(lines, "    p = 1;");
-  pushLine(lines, "    x[result.sa[0]] = 0;");
-  pushLine(lines, "    for (int i = 1; i < n; ++i) {");
-  pushLine(lines, "      const int a = result.sa[i - 1];");
-  pushLine(lines, "      const int b = result.sa[i];");
-  pushLine(lines, "      const int a_second = (a + j < n ? y[a + j] : -1);");
-  pushLine(lines, "      const int b_second = (b + j < n ? y[b + j] : -1);");
-  pushLine(
-    lines,
-    "      x[b] = (y[a] == y[b] && a_second == b_second) ? p - 1 : p++;"
-  );
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-
-  if (needsRank) {
-    pushLine(lines);
-    pushLine(lines, "  std::vector<int> rank(n, 0);");
-    pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-    pushLine(lines, "    rank[result.sa[i]] = i;");
-    pushLine(lines, "  }");
-    if (features.has("rank")) {
-      pushLine(lines, "  result.rank = rank;");
-    }
-  }
-
-  if (features.has("lcp")) {
-    pushLine(lines);
-    pushLine(lines, "  for (int i = 0, k = 0; i < n - 1; ++i) {");
-    pushLine(lines, "    const int r = rank[i];");
-    pushLine(lines, "    const int j = result.sa[r - 1];");
-    pushLine(
-      lines,
-      "    while (i + k < n && j + k < n && sequence[i + k] == sequence[j + k]) {"
-    );
-    pushLine(lines, "      ++k;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    result.lcp[r] = k;");
-    pushLine(lines, "    if (k > 0) {");
-    pushLine(lines, "      --k;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, "  return result;");
-  pushLine(lines, "}");
-
-  if (options.inputKind === "string") {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline ${names.resultStructName} ${names.buildStringName}(const std::string& s) {`
-    );
-    pushLine(lines, "  std::vector<int> codes(s.size(), 0);");
-    pushLine(lines, "  for (int i = 0; i < static_cast<int>(s.size()); ++i) {");
-    pushLine(
-      lines,
-      "    codes[i] = static_cast<int>(static_cast<unsigned char>(s[i])) + 1;"
-    );
-    pushLine(lines, "  }");
-    pushLine(lines, `  return ${names.buildPositiveCodesName}(codes, 257);`);
-    pushLine(lines, "}");
-  }
-
-  if (options.inputKind === "ints") {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline ${names.resultStructName} ${names.buildIntsName}(`
-    );
-    pushLine(lines, "    const std::vector<int>& values) {");
-    pushLine(lines, "  std::vector<int> sorted_values = values;");
-    pushLine(lines, "  std::sort(sorted_values.begin(), sorted_values.end());");
-    pushLine(lines, "  sorted_values.erase(");
-    pushLine(
-      lines,
-      "      std::unique(sorted_values.begin(), sorted_values.end()),"
-    );
-    pushLine(lines, "      sorted_values.end());");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<int> codes(values.size(), 0);");
-    pushLine(lines, "  for (int i = 0; i < static_cast<int>(values.size()); ++i) {");
-    pushLine(lines, "    const int idx = static_cast<int>(std::lower_bound(sorted_values.begin(),");
-    pushLine(lines, "                                                      sorted_values.end(),");
-    pushLine(lines, "                                                      values[i]) -");
-    pushLine(lines, "                                     sorted_values.begin());");
-    pushLine(lines, "    codes[i] = idx + 1;");
-    pushLine(lines, "  }");
-    pushLine(lines, `  return ${names.buildPositiveCodesName}(`);
-    pushLine(lines, "      codes, static_cast<int>(sorted_values.size()) + 1);");
-    pushLine(lines, "}");
-  }
-
-  if (features.has("stripped_sa")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline std::vector<int> ${names.removeEmptySuffixName}(`
-    );
-    pushLine(lines, `    const ${names.resultStructName}& result) {`);
-    pushLine(lines, "  if (result.sa.empty()) {");
-    pushLine(lines, "    return {};");
-    pushLine(lines, "  }");
-    pushLine(lines, "  const int empty_suffix_start = static_cast<int>(result.sa.size()) - 1;");
-    pushLine(lines, "  std::vector<int> stripped;");
-    pushLine(lines, "  stripped.reserve(result.sa.size() - 1);");
-    pushLine(lines, "  for (int start : result.sa) {");
-    pushLine(lines, "    if (start != empty_suffix_start) {");
-    pushLine(lines, "      stripped.push_back(start);");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return stripped;");
-    pushLine(lines, "}");
-  }
-
-  if (features.has("lcp_rmq")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline int ${names.lcpRangeQueryName}(int left, int right,`
-    );
-    pushLine(lines, `                            const ${names.resultStructName}& result) {`);
-    pushLine(lines, "  const int n = static_cast<int>(result.rank.size());");
-    pushLine(lines, "  if (left < 0 || right < 0 || left >= n || right >= n) {");
-    pushLine(lines, "    return 0;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  if (left == right) {");
-    pushLine(lines, "    return n - 1 - left;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  int rank_left = result.rank[left];");
-    pushLine(lines, "  int rank_right = result.rank[right];");
-    pushLine(lines, "  if (rank_left > rank_right) {");
-    pushLine(lines, "    std::swap(rank_left, rank_right);");
-    pushLine(lines, "  }");
-    pushLine(
-      lines,
-      `  return ${names.lcpSparseNames.queryMinName}(rank_left + 1, rank_right);`
-    );
-    pushLine(lines, "}");
-  }
-
+  let helpers = renderCodeTemplate("solvers/suffix_array/helpers.hpp.tmpl", {
+    lcpFeature: features.has("lcp"),
+    rankFeature: features.has("rank"),
+    needsRank: features.has("rank") || features.has("lcp"),
+    stringInput: options.inputKind === "string",
+    intsInput: options.inputKind === "ints",
+    strippedFeature: features.has("stripped_sa"),
+    lcpRmqFeature: features.has("lcp_rmq")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "SuffixArrayResult", to: names.resultStructName },
+    { from: "suffix_array_build_from_positive_codes", to: names.buildPositiveCodesName },
+    { from: "suffix_array_build", to: names.buildStringName },
+    { from: "suffix_array_build_from_ints", to: names.buildIntsName },
+    { from: "suffix_array_remove_empty_suffix", to: names.removeEmptySuffixName },
+    { from: "suffix_array_lcp", to: names.lcpRangeQueryName },
+    { from: "query_sparse_min", to: names.lcpSparseNames.queryMinName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderSuffixArrayUsage(options, features));
+    helpers = helpers.trimEnd() + "\n\n" + renderSuffixArrayUsage(options, features) + "\n";
   }
-
-  return `${lines.join("\n")}\n`;
+  return helpers;
 }
 
 export function renderSuffixArrayRecipe(
@@ -7735,271 +6873,42 @@ function renderFftNttUsage(
   options: FftNttOptions,
   transforms: Set<FftNttTransform>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Example:"];
-  if (options.includeConvolution) {
-    if (transforms.has("fft")) {
-      lines.push(`auto c = ${names.convolutionFftName}(a, b);`);
-    }
-    if (transforms.has("ntt")) {
-      lines.push(`auto c_mod = ${names.convolutionNttName}(a, b);`);
-    }
-  } else {
-    lines.push("Transform vectors must have power-of-two length.");
-    if (transforms.has("fft")) {
-      lines.push(
-        `std::vector<std::complex<long double>> fa(n);`,
-        `${names.fftTransformName}(fa, false);`,
-        `${names.fftTransformName}(fa, true);`
-      );
-    }
-    if (transforms.has("ntt")) {
-      lines.push(
-        `std::vector<int> fa(n);`,
-        `${names.nttTransformName}(fa, false);`,
-        `${names.nttTransformName}(fa, true);`
-      );
-    }
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/fft_ntt/usage-comment.cpp.tmpl", {
+    includeFft: transforms.has("fft"),
+    includeNtt: transforms.has("ntt"),
+    includeConvolution: options.includeConvolution,
+    fftTransformName: options.names.fftTransformName,
+    convolutionFftName: options.names.convolutionFftName,
+    nttTransformName: options.names.nttTransformName,
+    convolutionNttName: options.names.convolutionNttName
+  });
 }
 
 export function renderFftNttRecipe(options: FftNttOptions): RenderedRecipe {
   const transforms = fftNttTransformSet(options.transforms);
   const names = options.names;
-  const lines: string[] = [];
-
-  if (options.includeConvolution) {
-    pushLine(lines, `inline int ${names.nextPowerName}(int n) {`);
-    pushLine(lines, "  int p = 1;");
-    pushLine(lines, "  while (p < n) {");
-    pushLine(lines, "    p <<= 1;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return p;");
-    pushLine(lines, "}");
-    pushLine(lines);
-  }
-
-  pushLine(
-    lines,
-    `inline bool ${names.isPowerName}(int n) { return n > 0 && (n & (n - 1)) == 0; }`
-  );
-  pushLine(lines);
-  pushLine(lines, "template <typename T>");
-  pushLine(lines, `inline void ${names.bitReverseName}(std::vector<T>& a) {`);
-  pushLine(lines, "  const int n = static_cast<int>(a.size());");
-  pushLine(lines, "  for (int i = 1, j = 0; i < n; ++i) {");
-  pushLine(lines, "    int bit = n >> 1;");
-  pushLine(lines, "    while (j & bit) {");
-  pushLine(lines, "      j ^= bit;");
-  pushLine(lines, "      bit >>= 1;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    j ^= bit;");
-  pushLine(lines, "    if (i < j) {");
-  pushLine(lines, "      std::swap(a[i], a[j]);");
-  pushLine(lines, "    }");
-  pushLine(lines, "  }");
-  pushLine(lines, "}");
-
-  if (transforms.has("fft")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline bool ${names.fftTransformName}(std::vector<std::complex<long double>>& a,`
-    );
-    pushLine(lines, "                          bool invert = false) {");
-    pushLine(lines, "  const int n = static_cast<int>(a.size());");
-    pushLine(lines, "  if (n == 0) {");
-    pushLine(lines, "    return true;");
-    pushLine(lines, "  }");
-    pushLine(lines, `  if (!${names.isPowerName}(n)) {`);
-    pushLine(lines, "    return false;");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, `  ${names.bitReverseName}(a);`);
-    pushLine(lines, "  const long double pi = std::acos(static_cast<long double>(-1));");
-    pushLine(lines, "  for (int len = 2; len <= n; len <<= 1) {");
-    pushLine(lines, "    const long double ang = (invert ? -2.0L : 2.0L) * pi / len;");
-    pushLine(
-      lines,
-      "    const std::complex<long double> wlen(std::cos(ang), std::sin(ang));"
-    );
-    pushLine(lines, "    for (int i = 0; i < n; i += len) {");
-    pushLine(lines, "      std::complex<long double> w(1.0L, 0.0L);");
-    pushLine(lines, "      for (int j = 0; j < len / 2; ++j) {");
-    pushLine(lines, "        const auto u = a[i + j];");
-    pushLine(lines, "        const auto v = a[i + j + len / 2] * w;");
-    pushLine(lines, "        a[i + j] = u + v;");
-    pushLine(lines, "        a[i + j + len / 2] = u - v;");
-    pushLine(lines, "        w *= wlen;");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  if (invert) {");
-    pushLine(lines, "    const long double inv_n = 1.0L / static_cast<long double>(n);");
-    pushLine(lines, "    for (auto& x : a) {");
-    pushLine(lines, "      x *= inv_n;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return true;");
-    pushLine(lines, "}");
-
-    if (options.includeConvolution) {
-      pushLine(lines);
-      pushLine(lines, "template <typename T>");
-      pushLine(
-        lines,
-        `inline std::vector<long long> ${names.convolutionFftName}(const std::vector<T>& a,`
-      );
-      pushLine(lines, "                                                    const std::vector<T>& b) {");
-      pushLine(lines, "  if (a.empty() || b.empty()) {");
-      pushLine(lines, "    return {};");
-      pushLine(lines, "  }");
-      pushLine(lines, "  const int need = static_cast<int>(a.size() + b.size() - 1);");
-      pushLine(lines, `  const int n = ${names.nextPowerName}(need);`);
-      pushLine(lines, "  std::vector<std::complex<long double>> fa(n), fb(n);");
-      pushLine(lines, "  for (int i = 0; i < static_cast<int>(a.size()); ++i) {");
-      pushLine(lines, "    fa[i] = static_cast<long double>(a[i]);");
-      pushLine(lines, "  }");
-      pushLine(lines, "  for (int i = 0; i < static_cast<int>(b.size()); ++i) {");
-      pushLine(lines, "    fb[i] = static_cast<long double>(b[i]);");
-      pushLine(lines, "  }");
-      pushLine(lines, `  ${names.fftTransformName}(fa, false);`);
-      pushLine(lines, `  ${names.fftTransformName}(fb, false);`);
-      pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-      pushLine(lines, "    fa[i] *= fb[i];");
-      pushLine(lines, "  }");
-      pushLine(lines, `  ${names.fftTransformName}(fa, true);`);
-      pushLine(lines);
-      pushLine(lines, "  std::vector<long long> result(need);");
-      pushLine(lines, "  for (int i = 0; i < need; ++i) {");
-      pushLine(lines, "    result[i] = static_cast<long long>(std::llround(fa[i].real()));");
-      pushLine(lines, "  }");
-      pushLine(lines, "  return result;");
-      pushLine(lines, "}");
-    }
-  }
-
-  if (transforms.has("ntt")) {
-    pushLine(lines);
-    pushLine(lines, `inline int ${names.nttPowName}(int a, long long e, int mod) {`);
-    pushLine(lines, "  long long res = 1;");
-    pushLine(lines, "  long long base = a % mod;");
-    pushLine(lines, "  if (base < 0) {");
-    pushLine(lines, "    base += mod;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  while (e > 0) {");
-    pushLine(lines, "    if (e & 1LL) {");
-    pushLine(lines, "      res = res * base % mod;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    base = base * base % mod;");
-    pushLine(lines, "    e >>= 1LL;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return static_cast<int>(res);");
-    pushLine(lines, "}");
-    pushLine(lines);
-    pushLine(lines, `inline bool ${names.nttTransformName}(std::vector<int>& a, bool invert = false,`);
-    pushLine(lines, `                          int mod = ${options.modulusExpression},`);
-    pushLine(lines, `                          int primitive_root = ${options.primitiveRootExpression}) {`);
-    pushLine(lines, "  const int n = static_cast<int>(a.size());");
-    pushLine(lines, "  if (n == 0) {");
-    pushLine(lines, "    return true;");
-    pushLine(lines, "  }");
-    pushLine(lines, `  if (!${names.isPowerName}(n) || (mod - 1) % n != 0) {`);
-    pushLine(lines, "    return false;");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, `  ${names.bitReverseName}(a);`);
-    pushLine(lines, "  for (int len = 2; len <= n; len <<= 1) {");
-    pushLine(lines, `    int wlen = ${names.nttPowName}(primitive_root, (mod - 1) / len, mod);`);
-    pushLine(lines, "    if (invert) {");
-    pushLine(lines, `      wlen = ${names.nttPowName}(wlen, mod - 2, mod);`);
-    pushLine(lines, "    }");
-    pushLine(lines, "    for (int i = 0; i < n; i += len) {");
-    pushLine(lines, "      long long w = 1;");
-    pushLine(lines, "      for (int j = 0; j < len / 2; ++j) {");
-    pushLine(lines, "        const int u = a[i + j];");
-    pushLine(lines, "        const int v = static_cast<int>(w * a[i + j + len / 2] % mod);");
-    pushLine(lines, "        int x = u + v;");
-    pushLine(lines, "        if (x >= mod) {");
-    pushLine(lines, "          x -= mod;");
-    pushLine(lines, "        }");
-    pushLine(lines, "        int y = u - v;");
-    pushLine(lines, "        if (y < 0) {");
-    pushLine(lines, "          y += mod;");
-    pushLine(lines, "        }");
-    pushLine(lines, "        a[i + j] = x;");
-    pushLine(lines, "        a[i + j + len / 2] = y;");
-    pushLine(lines, "        w = w * wlen % mod;");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  if (invert) {");
-    pushLine(lines, `    const int inv_n = ${names.nttPowName}(n, mod - 2, mod);`);
-    pushLine(lines, "    for (int& x : a) {");
-    pushLine(lines, "      x = static_cast<int>(1LL * x * inv_n % mod);");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return true;");
-    pushLine(lines, "}");
-
-    if (options.includeConvolution) {
-      pushLine(lines);
-      pushLine(lines, "template <typename T>");
-      pushLine(
-        lines,
-        `inline std::vector<int> ${names.convolutionNttName}(const std::vector<T>& a,`
-      );
-      pushLine(lines, "                                            const std::vector<T>& b,");
-      pushLine(lines, `                                            int mod = ${options.modulusExpression},`);
-      pushLine(lines, `                                            int primitive_root = ${options.primitiveRootExpression}) {`);
-      pushLine(lines, "  if (a.empty() || b.empty()) {");
-      pushLine(lines, "    return {};");
-      pushLine(lines, "  }");
-      pushLine(lines, "  const int need = static_cast<int>(a.size() + b.size() - 1);");
-      pushLine(lines, `  const int n = ${names.nextPowerName}(need);`);
-      pushLine(lines, "  std::vector<int> fa(n), fb(n);");
-      pushLine(lines, "  for (int i = 0; i < static_cast<int>(a.size()); ++i) {");
-      pushLine(lines, "    long long x = static_cast<long long>(a[i]) % mod;");
-      pushLine(lines, "    if (x < 0) {");
-      pushLine(lines, "      x += mod;");
-      pushLine(lines, "    }");
-      pushLine(lines, "    fa[i] = static_cast<int>(x);");
-      pushLine(lines, "  }");
-      pushLine(lines, "  for (int i = 0; i < static_cast<int>(b.size()); ++i) {");
-      pushLine(lines, "    long long x = static_cast<long long>(b[i]) % mod;");
-      pushLine(lines, "    if (x < 0) {");
-      pushLine(lines, "      x += mod;");
-      pushLine(lines, "    }");
-      pushLine(lines, "    fb[i] = static_cast<int>(x);");
-      pushLine(lines, "  }");
-      pushLine(lines);
-      pushLine(lines, `  if (!${names.nttTransformName}(fa, false, mod, primitive_root) ||`);
-      pushLine(lines, `      !${names.nttTransformName}(fb, false, mod, primitive_root)) {`);
-      pushLine(lines, "    return {};");
-      pushLine(lines, "  }");
-      pushLine(lines, "  for (int i = 0; i < n; ++i) {");
-      pushLine(lines, "    fa[i] = static_cast<int>(1LL * fa[i] * fb[i] % mod);");
-      pushLine(lines, "  }");
-      pushLine(lines, `  if (!${names.nttTransformName}(fa, true, mod, primitive_root)) {`);
-      pushLine(lines, "    return {};");
-      pushLine(lines, "  }");
-      pushLine(lines, "  fa.resize(need);");
-      pushLine(lines, "  return fa;");
-      pushLine(lines, "}");
-    }
-  }
-
+  let helpers = renderCodeTemplate("solvers/fft_ntt/helpers.hpp.tmpl", {
+    includeFft: transforms.has("fft"),
+    includeNtt: transforms.has("ntt"),
+    includeConvolution: options.includeConvolution,
+    modulusExpression: options.modulusExpression,
+    primitiveRootExpression: options.primitiveRootExpression
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "fft_next_power_of_two", to: names.nextPowerName },
+    { from: "fft_is_power_of_two", to: names.isPowerName },
+    { from: "fft_bit_reverse", to: names.bitReverseName },
+    { from: "fft_transform", to: names.fftTransformName },
+    { from: "convolution_fft_round", to: names.convolutionFftName },
+    { from: "ntt_pow", to: names.nttPowName },
+    { from: "ntt_transform", to: names.nttTransformName },
+    { from: "convolution_ntt_int", to: names.convolutionNttName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderFftNttUsage(options, transforms));
+    helpers = `${helpers.trim()}\n\n${renderFftNttUsage(options, transforms)}\n`;
   }
-
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    { helpers: [helpers] },
     fftNttExports(options, transforms)
   );
 }
@@ -8075,409 +6984,49 @@ function renderPolyHashUsage(
   options: PolyHashOptions,
   features: Set<PolyHashFeature>
 ): string {
-  const names = options.names;
-  const lines = ["/*", "Half-open [l, r) substring hashes:"];
-  lines.push(`${names.className} hash(${options.sourceName});`);
-  lines.push(`auto value = hash.hash_substring(l, r);`);
-  if (features.has("substring_equal")) {
-    lines.push(`bool same = hash.equal_substrings(l1, r1, l2, r2);`);
-  }
-  if (features.has("concat")) {
-    lines.push(`auto joined = hash.concat(left_hash, right_hash, right_length);`);
-  }
-  if (features.has("reverse")) {
-    lines.push(`bool palindrome = hash.is_palindrome(l, r);`);
-  }
-  if (features.has("lcp")) {
-    lines.push(`int common = hash.lcp(i, j);`);
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/poly_hash/usage-comment.cpp.tmpl", {
+    className: options.names.className,
+    sourceName: options.sourceName,
+    equalFeature: features.has("substring_equal"),
+    concatFeature: features.has("concat"),
+    reverseFeature: features.has("reverse"),
+    lcpFeature: features.has("lcp")
+  });
 }
 
 export function renderPolyHashRecipe(options: PolyHashOptions): RenderedRecipe {
   const features = polyHashFeatureSet(options.features);
   const names = options.names;
-  const constants: string[] = [];
-  const lines: string[] = [];
-
-  pushLine(constants, `constexpr int ${names.mod1Name} = ${options.mod1Expression};`);
-  pushLine(constants, `constexpr int ${names.mod2Name} = ${options.mod2Expression};`);
-  pushLine(constants, `constexpr int ${names.baseName} = ${options.baseExpression};`);
-
-  pushLine(lines, `struct ${names.valueStructName} {`);
-  pushLine(lines, "  int first;");
-  pushLine(lines, "  int second;");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  ${names.valueStructName}(int first_ = 0, int second_ = 0)`
-  );
-  pushLine(lines, "      : first(first_), second(second_) {}");
-  pushLine(lines, "};");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline bool operator==(const ${names.valueStructName}& lhs, const ${names.valueStructName}& rhs) {`
-  );
-  pushLine(lines, "  return lhs.first == rhs.first && lhs.second == rhs.second;");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline bool operator!=(const ${names.valueStructName}& lhs, const ${names.valueStructName}& rhs) {`
-  );
-  pushLine(lines, "  return !(lhs == rhs);");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `inline bool operator<(const ${names.valueStructName}& lhs, const ${names.valueStructName}& rhs) {`
-  );
-  pushLine(lines, "  if (lhs.first != rhs.first) {");
-  pushLine(lines, "    return lhs.first < rhs.first;");
-  pushLine(lines, "  }");
-  pushLine(lines, "  return lhs.second < rhs.second;");
-  pushLine(lines, "}");
-  pushLine(lines);
-  pushLine(lines, `class ${names.className} {`);
-  pushLine(lines, " public:");
-  pushLine(
-    lines,
-    `  explicit ${names.className}(const std::string& text = std::string(), int base = ${names.baseName}) {`
-  );
-  pushLine(lines, "    build(text, base);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  explicit ${names.className}(const std::vector<int>& values, int base = ${names.baseName}) {`
-  );
-  pushLine(lines, "    build(values, base);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void build(const std::string& text, int base = ${names.baseName}) {`
-  );
-  pushLine(lines, "    std::vector<int> values;");
-  pushLine(lines, "    values.reserve(text.size());");
-  pushLine(lines, "    for (unsigned char ch : text) {");
-  pushLine(lines, "      values.push_back(static_cast<int>(ch));");
-  pushLine(lines, "    }");
-  pushLine(lines, "    build_values(values, base);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  void build(const std::vector<int>& values, int base = ${names.baseName}) {`
-  );
-  pushLine(lines, "    build_values(values, base);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int size() const { return static_cast<int>(prefix1_.size()) - 1; }");
-  pushLine(lines);
-  pushLine(lines, "  int base() const { return base_; }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  ${names.valueStructName} hash_prefix(int length) const {`
-  );
-  pushLine(lines, "    return hash_substring(0, length);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  ${names.valueStructName} hash_substring(int left, int right) const {`
-  );
-  pushLine(lines, "    const int n = size();");
-  pushLine(lines, "    if (left < 0) {");
-  pushLine(lines, "      left = 0;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (right > n) {");
-  pushLine(lines, "      right = n;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    if (left >= right) {");
-  pushLine(lines, `      return ${names.valueStructName}(0, 0);`);
-  pushLine(lines, "    }");
-  pushLine(lines, "    return range_hash(prefix1_, prefix2_, left, right);");
-  pushLine(lines, "  }");
-
-  if (features.has("reverse")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  ${names.valueStructName} reverse_hash_substring(int left, int right) const {`
-    );
-    pushLine(lines, "    const int n = size();");
-    pushLine(lines, "    if (left < 0) {");
-    pushLine(lines, "      left = 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (right > n) {");
-    pushLine(lines, "      right = n;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    if (left >= right) {");
-    pushLine(lines, `      return ${names.valueStructName}(0, 0);`);
-    pushLine(lines, "    }");
-    pushLine(
-      lines,
-      "    return range_hash(reverse_prefix1_, reverse_prefix2_, n - right, n - left);"
-    );
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  bool is_palindrome(int left, int right) const {");
-    pushLine(lines, "    return hash_substring(left, right) == reverse_hash_substring(left, right);");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  std::vector<${names.valueStructName}> all_hashes_of_length(int length) const {`
-  );
-  pushLine(lines, "    const int n = size();");
-  pushLine(lines, "    if (length < 0 || length > n) {");
-  pushLine(lines, "      return {};");
-  pushLine(lines, "    }");
-  pushLine(lines, `    std::vector<${names.valueStructName}> hashes;`);
-  pushLine(lines, "    hashes.reserve(n - length + 1);");
-  pushLine(lines, "    for (int i = 0; i + length <= n; ++i) {");
-  pushLine(lines, "      hashes.push_back(hash_substring(i, i + length));");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return hashes;");
-  pushLine(lines, "  }");
-
-  if (features.has("substring_equal")) {
-    pushLine(lines);
-    pushLine(lines, "  bool equal_substrings(int left1, int right1, int left2, int right2) const {");
-    pushLine(lines, "    if (right1 - left1 != right2 - left2) {");
-    pushLine(lines, "      return false;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    return hash_substring(left1, right1) == hash_substring(left2, right2);");
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("concat")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  ${names.valueStructName} concat(const ${names.valueStructName}& left,`
-    );
-    pushLine(
-      lines,
-      `                         const ${names.valueStructName}& right, int right_length) const {`
-    );
-    pushLine(lines, "    if (right_length < 0 || right_length >= static_cast<int>(power1_.size())) {");
-    pushLine(lines, `      return ${names.valueStructName}(0, 0);`);
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(lines, "    const int merged1 =");
-    pushLine(
-      lines,
-      "        static_cast<int>((static_cast<long long>(left.first) * power1_[right_length] +"
-    );
-    pushLine(lines, `                          right.first) % ${names.mod1Name});`);
-    pushLine(lines, "    const int merged2 =");
-    pushLine(
-      lines,
-      "        static_cast<int>((static_cast<long long>(left.second) * power2_[right_length] +"
-    );
-    pushLine(lines, `                          right.second) % ${names.mod2Name});`);
-    pushLine(lines, `    return ${names.valueStructName}(merged1, merged2);`);
-    pushLine(lines, "  }");
-  }
-
-  if (features.has("lcp")) {
-    pushLine(lines);
-    pushLine(lines, "  int lcp(int left1, int left2, int limit = -1) const {");
-    pushLine(lines, "    const int n = size();");
-    pushLine(lines, "    if (left1 < 0 || left2 < 0 || left1 >= n || left2 >= n) {");
-    pushLine(lines, "      return 0;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    int high = std::min(n - left1, n - left2);");
-    pushLine(lines, "    if (limit >= 0 && limit < high) {");
-    pushLine(lines, "      high = limit;");
-    pushLine(lines, "    }");
-    pushLine(lines, "    int low = 0;");
-    pushLine(lines, "    while (low < high) {");
-    pushLine(lines, "      const int mid = (low + high + 1) / 2;");
-    pushLine(
-      lines,
-      "      if (hash_substring(left1, left1 + mid) == hash_substring(left2, left2 + mid)) {"
-    );
-    pushLine(lines, "        low = mid;");
-    pushLine(lines, "      } else {");
-    pushLine(lines, "        high = mid - 1;");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "    return low;");
-    pushLine(lines, "  }");
-  }
-
-  pushLine(lines);
-  pushLine(lines, " private:");
-  pushLine(lines, "  int base_;");
-  pushLine(lines, "  int base_mod1_;");
-  pushLine(lines, "  int base_mod2_;");
-  pushLine(lines, "  std::vector<int> prefix1_;");
-  pushLine(lines, "  std::vector<int> prefix2_;");
-  pushLine(lines, "  std::vector<int> power1_;");
-  pushLine(lines, "  std::vector<int> power2_;");
-  if (features.has("reverse")) {
-    pushLine(lines, "  std::vector<int> reverse_prefix1_;");
-    pushLine(lines, "  std::vector<int> reverse_prefix2_;");
-  }
-  pushLine(lines);
-  pushLine(lines, "  static int normalize_mod(long long value, int mod) {");
-  pushLine(lines, "    long long x = value % mod;");
-  pushLine(lines, "    if (x < 0) {");
-  pushLine(lines, "      x += mod;");
-  pushLine(lines, "    }");
-  pushLine(lines, "    return static_cast<int>(x);");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(
-    lines,
-    `  ${names.valueStructName} range_hash(const std::vector<int>& prefix1,`
-  );
-  pushLine(lines, "                            const std::vector<int>& prefix2,");
-  pushLine(lines, "                            int left, int right) const {");
-  pushLine(lines, "    const int len = right - left;");
-  pushLine(lines, "    int value1 =");
-  pushLine(lines, "        prefix1[right] -");
-  pushLine(
-    lines,
-    `        static_cast<int>((static_cast<long long>(prefix1[left]) * power1_[len]) % ${names.mod1Name});`
-  );
-  pushLine(lines, "    if (value1 < 0) {");
-  pushLine(lines, `      value1 += ${names.mod1Name};`);
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, "    int value2 =");
-  pushLine(lines, "        prefix2[right] -");
-  pushLine(
-    lines,
-    `        static_cast<int>((static_cast<long long>(prefix2[left]) * power2_[len]) % ${names.mod2Name});`
-  );
-  pushLine(lines, "    if (value2 < 0) {");
-  pushLine(lines, `      value2 += ${names.mod2Name};`);
-  pushLine(lines, "    }");
-  pushLine(lines);
-  pushLine(lines, `    return ${names.valueStructName}(value1, value2);`);
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  int choose_base(int base) {");
-  pushLine(lines, `    int mod1 = normalize_mod(base, ${names.mod1Name});`);
-  pushLine(lines, `    int mod2 = normalize_mod(base, ${names.mod2Name});`);
-  pushLine(lines, "    if (mod1 <= 1 || mod2 <= 1) {");
-  pushLine(lines, `      base = ${names.baseName};`);
-  pushLine(lines, `      mod1 = normalize_mod(base, ${names.mod1Name});`);
-  pushLine(lines, `      mod2 = normalize_mod(base, ${names.mod2Name});`);
-  pushLine(lines, "    }");
-  pushLine(lines, "    base_mod1_ = mod1;");
-  pushLine(lines, "    base_mod2_ = mod2;");
-  pushLine(lines, "    return base;");
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  void push_prefix_value(long long raw_value, std::vector<int>& prefix1,");
-  pushLine(lines, "                         std::vector<int>& prefix2) const {");
-  pushLine(lines, `    const int value1 = normalize_mod(raw_value + 1, ${names.mod1Name});`);
-  pushLine(lines, `    const int value2 = normalize_mod(raw_value + 1, ${names.mod2Name});`);
-  pushLine(lines, "    prefix1.push_back(");
-  pushLine(
-    lines,
-    `        static_cast<int>((static_cast<long long>(prefix1.back()) * base_mod1_ + value1) % ${names.mod1Name}));`
-  );
-  pushLine(lines, "    prefix2.push_back(");
-  pushLine(
-    lines,
-    `        static_cast<int>((static_cast<long long>(prefix2.back()) * base_mod2_ + value2) % ${names.mod2Name}));`
-  );
-  pushLine(lines, "  }");
-  pushLine(lines);
-  pushLine(lines, "  template <typename Container>");
-  pushLine(lines, "  void build_values(const Container& values, int base) {");
-  pushLine(lines, "    base_ = choose_base(base);");
-  pushLine(lines, "    const int n = static_cast<int>(values.size());");
-  pushLine(lines);
-  pushLine(lines, "    prefix1_.assign(1, 0);");
-  pushLine(lines, "    prefix2_.assign(1, 0);");
-  pushLine(lines, "    power1_.assign(n + 1, 1);");
-  pushLine(lines, "    power2_.assign(n + 1, 1);");
-  if (features.has("reverse")) {
-    pushLine(lines, "    reverse_prefix1_.assign(1, 0);");
-    pushLine(lines, "    reverse_prefix2_.assign(1, 0);");
-  }
-  pushLine(lines);
-  pushLine(lines, "    for (int i = 0; i < n; ++i) {");
-  pushLine(
-    lines,
-    `      power1_[i + 1] = static_cast<int>((static_cast<long long>(power1_[i]) * base_mod1_) % ${names.mod1Name});`
-  );
-  pushLine(
-    lines,
-    `      power2_[i + 1] = static_cast<int>((static_cast<long long>(power2_[i]) * base_mod2_) % ${names.mod2Name});`
-  );
-  pushLine(lines, "      push_prefix_value(static_cast<long long>(values[i]), prefix1_, prefix2_);");
-  pushLine(lines, "    }");
-  if (features.has("reverse")) {
-    pushLine(lines);
-    pushLine(lines, "    for (int i = n - 1; i >= 0; --i) {");
-    pushLine(
-      lines,
-      "      push_prefix_value(static_cast<long long>(values[i]), reverse_prefix1_, reverse_prefix2_);"
-    );
-    pushLine(lines, "    }");
-  }
-  pushLine(lines, "  }");
-  pushLine(lines, "};");
-  pushLine(lines);
-  if (options.inputKind === "vector_int") {
-    pushLine(
-      lines,
-      `inline ${names.valueStructName} ${names.hashVectorName}(const std::vector<int>& values,`
-    );
-    pushLine(lines, `                                      int base = ${names.baseName}) {`);
-    pushLine(lines, `  ${names.className} hash(values, base);`);
-    pushLine(lines, "  return hash.hash_prefix(static_cast<int>(values.size()));");
-    pushLine(lines, "}");
-  } else {
-    pushLine(
-      lines,
-      `inline ${names.valueStructName} ${names.hashStringName}(const std::string& text,`
-    );
-    pushLine(lines, `                                      int base = ${names.baseName}) {`);
-    pushLine(lines, `  ${names.className} hash(text, base);`);
-    pushLine(lines, "  return hash.hash_prefix(static_cast<int>(text.size()));");
-    pushLine(lines, "}");
-  }
-
-  if (features.has("substring_equal")) {
-    pushLine(lines);
-    pushLine(
-      lines,
-      `inline bool ${names.equalFunctionName}(const ${names.className}& lhs,`
-    );
-    pushLine(lines, "                                       int left1, int right1,");
-    pushLine(
-      lines,
-      `                                       const ${names.className}& rhs,`
-    );
-    pushLine(lines, "                                       int left2, int right2) {");
-    pushLine(lines, "  if (lhs.base() != rhs.base() || right1 - left1 != right2 - left2) {");
-    pushLine(lines, "    return false;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return lhs.hash_substring(left1, right1) == rhs.hash_substring(left2, right2);");
-    pushLine(lines, "}");
-  }
-
+  const constants = renderCodeTemplate("solvers/poly_hash/constants.hpp.tmpl", {
+    mod1Name: names.mod1Name,
+    mod1Expression: options.mod1Expression,
+    mod2Name: names.mod2Name,
+    mod2Expression: options.mod2Expression,
+    baseName: names.baseName,
+    baseExpression: options.baseExpression
+  });
+  let helpers = renderCodeTemplate("solvers/poly_hash/helpers.hpp.tmpl", {
+    vectorInput: options.inputKind === "vector_int",
+    equalFeature: features.has("substring_equal"),
+    concatFeature: features.has("concat"),
+    reverseFeature: features.has("reverse"),
+    lcpFeature: features.has("lcp")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "POLY_HASH_MOD1", to: names.mod1Name },
+    { from: "POLY_HASH_MOD2", to: names.mod2Name },
+    { from: "POLY_HASH_BASE", to: names.baseName },
+    { from: "PolyHashValue", to: names.valueStructName },
+    { from: "PolyHash", to: names.className },
+    { from: "poly_hash_string", to: names.hashStringName },
+    { from: "poly_hash_vector", to: names.hashVectorName },
+    { from: "poly_hash_equal_substrings", to: names.equalFunctionName }
+  ]);
   if (options.includeUsageComment) {
-    pushLine(lines);
-    pushLine(lines, renderPolyHashUsage(options, features));
+    helpers = helpers.trimEnd() + "\n\n" + renderPolyHashUsage(options, features);
   }
-
   return createRenderedRecipe(
-    { constants: [constants.join("\n")], helpers: [lines.join("\n")] },
+    { constants: [constants], helpers: [helpers] },
     polyHashExports(options, features)
   );
 }
@@ -8534,213 +7083,39 @@ function renderBerlekampMasseyUsage(
   options: BerlekampMasseyOptions,
   features: Set<BerlekampMasseyFeature>
 ): string {
-  const lines = ["/*", "Example:"];
-  if (features.has("minimal_recurrence")) {
-    lines.push(
-      `auto c = ${options.names.berlekampMasseyName}<${options.valueType}>(${options.sequenceName});`
-    );
-  }
-  if (features.has("kth_term")) {
-    if (!features.has("minimal_recurrence")) {
-      lines.push(`std::vector<${options.valueType}> c = {}; // recurrence coefficients`);
-    }
-    lines.push(
-      `std::vector<${options.valueType}> init(${options.sequenceName}.begin(), ${options.sequenceName}.begin() + c.size());`,
-      `auto ans = ${options.names.linearRecurrenceKthName}<${options.valueType}>(init, c, ${options.indexName});`
-    );
-  }
-  if (features.has("one_shot_kth")) {
-    lines.push(
-      `auto same = ${options.names.berlekampMasseyKthName}<${options.valueType}>(${options.sequenceName}, ${options.indexName});`
-    );
-  }
-  lines.push("*/");
-  return lines.join("\n");
+  return renderCodeTemplate("solvers/berlekamp_massey/usage-comment.cpp.tmpl", {
+    valueType: options.valueType,
+    sequenceName: options.sequenceName,
+    indexName: options.indexName,
+    berlekampMasseyName: options.names.berlekampMasseyName,
+    linearRecurrenceKthName: options.names.linearRecurrenceKthName,
+    berlekampMasseyKthName: options.names.berlekampMasseyKthName,
+    minimalRecurrence: features.has("minimal_recurrence"),
+    kthTerm: features.has("kth_term"),
+    standaloneKthTerm: features.has("kth_term") && !features.has("minimal_recurrence"),
+    oneShotKth: features.has("one_shot_kth")
+  });
 }
 
 export function renderBerlekampMasseyRecipe(
   options: BerlekampMasseyOptions
 ): RenderedRecipe {
   const features = berlekampMasseyFeatureSet(options.features);
-  const lines: string[] = [];
-
-  if (features.has("minimal_recurrence")) {
-    pushLine(lines, "// T must be a field-like type where division by a non-zero value is valid.");
-    pushLine(lines, "// Returns c where s[i] = c[0] * s[i - 1] + ... + c[m - 1] * s[i - m].");
-    pushLine(lines, "template <typename T>");
-    pushLine(
-      lines,
-      `inline std::vector<T> ${options.names.berlekampMasseyName}(const std::vector<T>& sequence) {`
-    );
-    pushLine(lines, "  const T zero = T(0);");
-    pushLine(lines, "  const T one = T(1);");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<T> current(1, one);");
-    pushLine(lines, "  std::vector<T> last(1, one);");
-    pushLine(lines, "  int order = 0;");
-    pushLine(lines, "  int shift = 1;");
-    pushLine(lines, "  T last_discrepancy = one;");
-    pushLine(lines);
-    pushLine(lines, "  for (int i = 0; i < static_cast<int>(sequence.size()); ++i) {");
-    pushLine(lines, "    T discrepancy = sequence[i];");
-    pushLine(lines, "    for (int j = 1; j <= order; ++j) {");
-    pushLine(lines, "      discrepancy += current[j] * sequence[i - j];");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(lines, "    if (discrepancy == zero) {");
-    pushLine(lines, "      ++shift;");
-    pushLine(lines, "      continue;");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(lines, "    const std::vector<T> previous = current;");
-    pushLine(lines, "    const T factor = discrepancy / last_discrepancy;");
-    pushLine(
-      lines,
-      "    if (static_cast<int>(current.size()) < static_cast<int>(last.size()) + shift) {"
-    );
-    pushLine(lines, "      current.resize(static_cast<int>(last.size()) + shift, zero);");
-    pushLine(lines, "    }");
-    pushLine(lines, "    for (int j = 0; j < static_cast<int>(last.size()); ++j) {");
-    pushLine(lines, "      current[j + shift] -= factor * last[j];");
-    pushLine(lines, "    }");
-    pushLine(lines);
-    pushLine(lines, "    if (2 * order <= i) {");
-    pushLine(lines, "      order = i + 1 - order;");
-    pushLine(lines, "      last = previous;");
-    pushLine(lines, "      last_discrepancy = discrepancy;");
-    pushLine(lines, "      shift = 1;");
-    pushLine(lines, "    } else {");
-    pushLine(lines, "      ++shift;");
-    pushLine(lines, "    }");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  current.erase(current.begin());");
-    pushLine(lines, "  for (T& coefficient : current) {");
-    pushLine(lines, "    coefficient = zero - coefficient;");
-    pushLine(lines, "  }");
-    pushLine(lines, "  while (!current.empty() && current.back() == zero) {");
-    pushLine(lines, "    current.pop_back();");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return current;");
-    pushLine(lines, "}");
-  }
-
-  if (features.has("kth_term")) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    pushLine(lines, "template <typename T>");
-    pushLine(
-      lines,
-      `inline T ${options.names.linearRecurrenceKthName}(const std::vector<T>& initial,`
-    );
-    pushLine(lines, "                               const std::vector<T>& coefficients,");
-    pushLine(lines, "                               long long index) {");
-    pushLine(lines, "  if (index < 0) {");
-    pushLine(lines, "    return T(0);");
-    pushLine(lines, "  }");
-    pushLine(lines, "  if (index < static_cast<long long>(initial.size())) {");
-    pushLine(lines, "    return initial[static_cast<int>(index)];");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  const int order = static_cast<int>(coefficients.size());");
-    pushLine(lines, "  if (order == 0) {");
-    pushLine(lines, "    return T(0);");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  auto combine = [&](const std::vector<T>& lhs, const std::vector<T>& rhs) {");
-    pushLine(lines, "    std::vector<T> result(2 * order, T(0));");
-    pushLine(lines, "    for (int i = 0; i < order; ++i) {");
-    pushLine(lines, "      for (int j = 0; j < order; ++j) {");
-    pushLine(lines, "        result[i + j] += lhs[i] * rhs[j];");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "    for (int i = 2 * order - 1; i >= order; --i) {");
-    pushLine(lines, "      for (int j = 0; j < order; ++j) {");
-    pushLine(lines, "        result[i - 1 - j] += result[i] * coefficients[j];");
-    pushLine(lines, "      }");
-    pushLine(lines, "    }");
-    pushLine(lines, "    result.resize(order);");
-    pushLine(lines, "    return result;");
-    pushLine(lines, "  };");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<T> seed(order, T(0));");
-    pushLine(lines, "  for (int i = 0; i < order && i < static_cast<int>(initial.size()); ++i) {");
-    pushLine(lines, "    seed[i] = initial[i];");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<T> result(order, T(0));");
-    pushLine(lines, "  result[0] = T(1);");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<T> x(order, T(0));");
-    pushLine(lines, "  if (order == 1) {");
-    pushLine(lines, "    x[0] = coefficients[0];");
-    pushLine(lines, "  } else {");
-    pushLine(lines, "    x[1] = T(1);");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  long long power = index;");
-    pushLine(lines, "  while (power > 0) {");
-    pushLine(lines, "    if (power & 1LL) {");
-    pushLine(lines, "      result = combine(result, x);");
-    pushLine(lines, "    }");
-    pushLine(lines, "    x = combine(x, x);");
-    pushLine(lines, "    power >>= 1LL;");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  T answer = T(0);");
-    pushLine(lines, "  for (int i = 0; i < order; ++i) {");
-    pushLine(lines, "    answer += result[i] * seed[i];");
-    pushLine(lines, "  }");
-    pushLine(lines, "  return answer;");
-    pushLine(lines, "}");
-  }
-
-  if (features.has("one_shot_kth")) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    pushLine(lines, "template <typename T>");
-    pushLine(
-      lines,
-      `inline T ${options.names.berlekampMasseyKthName}(const std::vector<T>& sequence, long long index) {`
-    );
-    pushLine(lines, "  if (index < 0) {");
-    pushLine(lines, "    return T(0);");
-    pushLine(lines, "  }");
-    pushLine(lines, "  if (index < static_cast<long long>(sequence.size())) {");
-    pushLine(lines, "    return sequence[static_cast<int>(index)];");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(
-      lines,
-      `  const std::vector<T> coefficients = ${options.names.berlekampMasseyName}(sequence);`
-    );
-    pushLine(lines, "  const int order = static_cast<int>(coefficients.size());");
-    pushLine(lines, "  if (order == 0) {");
-    pushLine(lines, "    return T(0);");
-    pushLine(lines, "  }");
-    pushLine(lines);
-    pushLine(lines, "  std::vector<T> initial(order, T(0));");
-    pushLine(lines, "  for (int i = 0; i < order; ++i) {");
-    pushLine(lines, "    initial[i] = sequence[i];");
-    pushLine(lines, "  }");
-    pushLine(
-      lines,
-      `  return ${options.names.linearRecurrenceKthName}(initial, coefficients, index);`
-    );
-    pushLine(lines, "}");
-  }
-
+  let helpers = renderCodeTemplate("solvers/berlekamp_massey/helpers.hpp.tmpl", {
+    minimalRecurrence: features.has("minimal_recurrence"),
+    kthTerm: features.has("kth_term"),
+    oneShotKth: features.has("one_shot_kth")
+  });
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "berlekamp_massey", to: options.names.berlekampMasseyName },
+    { from: "linear_recurrence_kth", to: options.names.linearRecurrenceKthName },
+    { from: "berlekamp_massey_kth", to: options.names.berlekampMasseyKthName }
+  ]);
   if (options.includeUsageComment) {
-    if (lines.length > 0) {
-      pushLine(lines);
-    }
-    pushLine(lines, renderBerlekampMasseyUsage(options, features));
+    helpers = `${helpers.trim()}\n\n${renderBerlekampMasseyUsage(options, features)}\n`;
   }
-
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    { helpers: [helpers] },
     berlekampMasseyExports(options, features)
   );
 }

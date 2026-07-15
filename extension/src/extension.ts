@@ -5,9 +5,17 @@ import {
   applyIdentifierRenames,
   BerlekampMasseyFeature,
   BerlekampMasseyOptions,
+  bindingCandidates,
+  BFS_APPLICATION_SPEC,
+  BfsApplication,
+  BfsGraphMode,
+  BfsIndexing,
   BfsOptions,
+  BfsSourceMode,
+  BfsUsageMode,
   CatalogEntry,
   collectGlobalExportedIdentifiers,
+  composeRecipeSections,
   CompressUniqueOptions,
   CppAnalysis,
   defaultBerlekampMasseyFeatures,
@@ -20,6 +28,8 @@ import {
   defaultMinCostMaxFlowFeatures,
   defaultMinCostMaxFlowOptions,
   defaultFenwickOptions,
+  FENWICK_APPLICATION_SPEC,
+  SEGMENT_TREE_BEATS_APPLICATION_SPEC,
   defaultModIntOptions,
   defaultPolyHashOptions,
   defaultSegmentTreeBeatsQueries,
@@ -32,96 +42,216 @@ import {
   defaultKuhnFeatures,
   defaultKuhnOptions,
   defaultLinearSieveFeatures,
+  DIJKSTRA_APPLICATION_SPEC,
+  DSU_APPLICATION_SPEC,
+  DijkstraApplication,
+  DijkstraGraphMode,
+  DijkstraIndexing,
+  DijkstraOptions,
+  DijkstraSourceMode,
+  DijkstraUsageMode,
+  DsuApplication,
+  DsuIndexing,
   DsuOptions,
+  DsuUsageMode,
+  FAST_ALLOCATOR_APPLICATION_SPEC,
+  FastAllocatorApplication,
+  FastAllocatorOptions,
+  FastAllocatorUsageMode,
+  GEOMETRY_APPLICATION_SPEC,
+  GeometryApplication,
+  GeometryOptions,
+  GeometryUsageMode,
+  HALFPLANE_INTERSECTION_APPLICATION_SPEC,
+  HalfplaneIntersectionApplication,
+  HalfplaneIntersectionOptions,
+  HalfplaneIntersectionUsageMode,
   defaultMergeSortTreeQueries,
+  MERGE_SORT_TREE_APPLICATION_SPEC,
   defaultSuffixArrayFeatures,
   findGlobalInsertionOffset,
+  FenwickApplication,
+  FenwickIndexing,
+  FenwickOperation,
+  FenwickSourceMode,
+  FenwickUsageMode,
   FftNttOptions,
   FftNttTransform,
+  GP_HASH_TABLE_APPLICATION_SPEC,
+  GpHashTableApplication,
+  GpHashTableOptions,
+  GpHashTableUsageMode,
   HungarianMode,
   HungarianOptions,
+  HLD_APPLICATION_SPEC,
+  HldApplication,
+  HldIndexing,
+  HldOptions,
+  HldSourceMode,
+  HldUsageMode,
+  HldValueMode,
   IdentifierRename,
+  IMPLICIT_TREAP_APPLICATION_SPEC,
   ImplicitTreapAggregate,
+  ImplicitTreapApplication,
   ImplicitTreapFeature,
+  ImplicitTreapSourceMode,
   ImplicitTreapOptions,
+  ImplicitTreapUsageMode,
   InsertMode,
   KuhnFeature,
   KuhnOptions,
+  KOSARAJU_APPLICATION_SPEC,
+  KosarajuApplication,
+  KosarajuIndexing,
+  KosarajuOptions,
+  KosarajuSourceMode,
+  KosarajuUsageMode,
+  LCA_APPLICATION_SPEC,
+  LcaApplication,
+  LcaIndexing,
   LinearSieveOptions,
   LcaOptions,
+  LcaSourceMode,
+  LcaUsageMode,
   MaxflowDinicFeature,
   MaxflowDinicOptions,
   MinCostMaxFlowFeature,
   MinCostMaxFlowMode,
   MinCostMaxFlowOptions,
+  MO_APPLICATION_SPEC,
   ModIntMode,
   ModIntOptions,
+  MoApplication,
+  MoIndexing,
+  MoOptions,
+  MoSourceMode,
+  MoUsageMode,
+  MONOTONIC_STACK_APPLICATION_SPEC,
+  MonotonicStackApplication,
+  MonotonicStackDirection,
+  MonotonicStackOptions,
+  MonotonicStackRelation,
+  MonotonicStackStrictness,
+  MonotonicStackUsageMode,
+  MergeSortTreeApplication,
   MergeSortTreeOptions,
   MergeSortTreeQuery,
+  MergeSortTreeSourceMode,
+  MergeSortTreeUsageMode,
   normalizeInsertionText,
+  ORDERED_SET_APPLICATION_SPEC,
+  OrderedSetApplication,
+  OrderedSetOptions,
+  OrderedSetUsageMode,
+  SET_UTILS_APPLICATION_SPEC,
+  SetUtilsApplication,
+  SetUtilsLookup,
+  SetUtilsOptions,
+  SetUtilsTarget,
+  SetUtilsUsageMode,
   planBerlekampMasseyNames,
   planBfsNames,
+  planDijkstraNames,
   planDsuNames,
+  planFastAllocatorNames,
+  planFenwickNames,
   planFftNttNames,
+  planGpHashTableNames,
+  planHldNames,
   planHungarianNames,
   planImplicitTreapNames,
+  planKosarajuNames,
   planKuhnNames,
   planLcaNames,
   planLinearSieveNames,
   planMaxflowDinicNames,
   planMinCostMaxFlowNames,
   planMergeSortTreeNames,
+  planMoNames,
   planModIntNames,
+  planMonotonicStackNames,
+  planOrderedSetNames,
   planPolyHashNames,
   planIdentifierRenames,
   planSegmentTreeBeatsNames,
   planSegmentTreeNames,
+  planSetUtilsNames,
   planSuffixArrayNames,
+  planToposortNames,
   renderBerlekampMasseyRecipe,
   renderBfsRecipe,
   renderCompressUnique,
+  renderDijkstraRecipe,
   renderDsuRecipe,
+  renderFastAllocatorRecipe,
   renderFenwickRecipe,
+  renderGeometryRecipe,
+  renderHalfplaneIntersectionRecipe,
   renderFftNttRecipe,
+  renderGpHashTableRecipe,
   renderHungarianRecipe,
   renderHeaderContent,
+  renderHldRecipe,
   renderImplicitTreapRecipe,
+  renderKosarajuRecipe,
   renderKuhnRecipe,
   renderLcaRecipe,
   renderLinearSieveRecipe,
   renderMaxflowDinicRecipe,
   renderMinCostMaxFlowRecipe,
   renderMergeSortTreeRecipe,
+  renderMoRecipe,
   renderModIntRecipe,
+  renderMonotonicStackRecipe,
+  renderOrderedSetRecipe,
   renderPolyHashRecipe,
   renderReadVector,
   renderRecipeSnippet,
   renderRollbackDsuRecipe,
   renderSegmentTreeBeatsRecipe,
   renderSegmentTreeRecipe,
+  renderSetUtilsRecipe,
+  SEGMENT_TREE_APPLICATION_SPEC,
   renderSparseTableRecipe,
   renderSuffixArrayRecipe,
+  renderToposortRecipe,
   renderTwoSatRecipe,
   reserveIdentifier,
   resolveCatalogOrder,
   RenderedSnippet,
   ReadVectorOptions,
+  ROLLBACK_DSU_APPLICATION_SPEC,
+  RollbackDsuApplication,
+  RollbackDsuIndexing,
   RollbackDsuOptions,
+  RollbackDsuUsageMode,
   SegmentDescendQuery,
   SegmentAggregate,
+  SegmentTreeApplication,
+  SegmentTreeBeatsApplication,
   SegmentTreeBeatsOptions,
   SegmentTreeBeatsQuery,
+  SegmentTreeBeatsSourceMode,
   SegmentTreeBeatsUpdate,
+  SegmentTreeBeatsUsageMode,
   SegmentTreeOptions,
   SegmentTreeOutputMode,
+  SegmentTreeSourceMode,
+  SegmentTreeUsageMode,
   SegmentUpdateOp,
+  SPARSE_TABLE_APPLICATION_SPEC,
   sizeExpressionCandidates,
   defaultSparseTableVariants,
   defaultImplicitTreapFeatures,
   suggestIdentifier,
   vectorContainerTypeForValueType,
   SnippetKind,
+  SolutionSection,
   SparseTableOptions,
+  SparseTableApplication,
+  SparseTableSourceMode,
+  SparseTableUsageMode,
   SparseTableVariant,
   planSparseTableNames,
   planRollbackDsuNames,
@@ -133,6 +263,12 @@ import {
   PolyHashOptions,
   TwoSatFeature,
   TwoSatOptions,
+  TOPOSORT_APPLICATION_SPEC,
+  ToposortApplication,
+  ToposortIndexing,
+  ToposortOptions,
+  ToposortSourceMode,
+  ToposortUsageMode,
   planTwoSatNames
 } from "./core";
 
@@ -413,6 +549,72 @@ async function insertContent(
   });
 }
 
+function recipeSectionsExceptSolve(): SolutionSection[] {
+  return [
+    "includes",
+    "defines",
+    "constants",
+    "data",
+    "helpers",
+    "main"
+  ];
+}
+
+function solveBodyInsertionOffset(documentText: string, analysis: CppAnalysis): number | undefined {
+  const solveSpan = analysis.sections.find((span) => span.section === "solve");
+  if (!solveSpan) {
+    return undefined;
+  }
+  const solveText = documentText.slice(solveSpan.start, solveSpan.end);
+  const closeOffset = solveText.lastIndexOf("}");
+  if (closeOffset === -1) {
+    return undefined;
+  }
+  return solveSpan.start + closeOffset;
+}
+
+async function insertRenderedSnippet(
+  editor: vscode.TextEditor,
+  insertMode: InsertMode,
+  snippet: RenderedSnippet
+): Promise<boolean> {
+  const recipe = snippet.recipe;
+  const solveChunks = recipe?.sections.solve ?? [];
+  if (!recipe || solveChunks.length === 0) {
+    return insertContent(editor, insertMode, snippet.content);
+  }
+
+  const documentText = editor.document.getText();
+  const analysis = analyzeCppDocument(documentText);
+  const helperContent = composeRecipeSections(recipe, recipeSectionsExceptSolve());
+  const usageContent = `${solveChunks.map((chunk) => chunk.trim()).filter(Boolean).join("\n\n")}\n`;
+  const globalOffset = findGlobalInsertionOffset(documentText);
+  const solveOffset = solveBodyInsertionOffset(documentText, analysis);
+
+  return editor.edit((editBuilder) => {
+    if (helperContent.trim() !== "") {
+      editBuilder.insert(
+        positionAtOffset(editor, globalOffset),
+        normalizeInsertionText(documentText, globalOffset, helperContent)
+      );
+    }
+
+    const usagePosition =
+      solveOffset === undefined
+        ? editor.selection.active
+        : positionAtOffset(editor, solveOffset);
+    const usageText =
+      solveOffset === undefined
+        ? usageContent
+        : `\n${usageContent
+            .split("\n")
+            .filter((line) => line.length > 0)
+            .map((line) => `  ${line}`)
+            .join("\n")}\n`;
+    editBuilder.insert(usagePosition, usageText);
+  });
+}
+
 function validateIdentifier(value: string): string | undefined {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value.trim())) {
     return "Use a valid C++ identifier.";
@@ -448,8 +650,31 @@ async function pickStringWithCustom(
 
 async function promptSegmentTreeOptions(
   editor: vscode.TextEditor
-): Promise<SegmentTreeOptions | undefined> {
+): Promise<RenderedSnippet | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeApplication>
+  >(
+    SEGMENT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as SegmentTreeApplication
+    })),
+    {
+      title: "edulcni: segment tree",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  if (scenarioPick.value === "beats") {
+    const options = await promptSegmentTreeBeatsOptions(editor);
+    return options ? renderRecipeSnippet(renderSegmentTreeBeatsRecipe(options)) : undefined;
+  }
+
   const initialNames = planSegmentTreeNames(analysis);
   const storageInput = await vscode.window.showInputBox({
     title: "edulcni: segment tree",
@@ -483,25 +708,33 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const outputPick = await vscode.window.showQuickPick<
-    ValuePickItem<SegmentTreeOutputMode>
-  >(
-    [
-      { label: "recursive globals", value: "global_recursive", picked: true },
-      { label: "iterative class", value: "iterative_class" }
-    ],
-    {
-      title: "edulcni: segment tree",
-      placeHolder: "Output shape",
-      ignoreFocusOut: true
-    }
-  );
+  const fixedOutputMode: SegmentTreeOutputMode | undefined =
+    scenarioPick.value === "point_query"
+      ? undefined
+      : scenarioPick.value === "max_subarray"
+        ? "iterative_class"
+        : "global_recursive";
+  const outputPick: ValuePickItem<SegmentTreeOutputMode> | undefined = fixedOutputMode
+    ? { label: fixedOutputMode, value: fixedOutputMode }
+    : await vscode.window.showQuickPick<ValuePickItem<SegmentTreeOutputMode>>(
+        [
+          { label: "recursive globals", value: "global_recursive", picked: true },
+          { label: "iterative class", value: "iterative_class" }
+        ],
+        {
+          title: "edulcni: segment tree",
+          placeHolder: "Output shape",
+          ignoreFocusOut: true
+        }
+      );
   if (!outputPick) {
     return undefined;
   }
 
   const aggregatePick = await vscode.window.showQuickPick<ValuePickItem<SegmentAggregate>>(
-    outputPick.value === "iterative_class"
+    scenarioPick.value === "max_subarray"
+      ? [{ label: "max subarray", value: "sum" }]
+      : outputPick.value === "iterative_class"
       ? [
           { label: "sum", value: "sum" },
           { label: "min", value: "min" },
@@ -524,7 +757,14 @@ async function promptSegmentTreeOptions(
   }
 
   const updateItems: ValuePickItem<SegmentUpdateOp>[] =
-    outputPick.value === "iterative_class"
+    scenarioPick.value === "max_subarray"
+      ? [{ label: "point set", value: "point_set", picked: true }]
+      : scenarioPick.value === "lazy_minmax"
+        ? [
+            { label: "range add lazy", value: "range_add", picked: true },
+            { label: "range assign lazy", value: "range_assign", picked: true }
+          ]
+      : outputPick.value === "iterative_class"
       ? [
           { label: "point set", value: "point_set", picked: true },
           { label: "point add", value: "point_add" }
@@ -547,7 +787,10 @@ async function promptSegmentTreeOptions(
 
   const updates = updatePicks.map((item) => item.value);
   let descends: SegmentDescendQuery[] = [];
-  if (outputPick.value === "global_recursive" && aggregatePick.value === "min") {
+  if (
+    outputPick.value === "global_recursive" &&
+    aggregatePick.value === "min"
+  ) {
     const descendPicks = await vscode.window.showQuickPick<
       ValuePickItem<SegmentDescendQuery>
     >(
@@ -565,16 +808,95 @@ async function promptSegmentTreeOptions(
     descends = descendPicks.map((item) => item.value);
   }
 
+  const sourcePick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeSourceMode>
+  >(
+    [
+      { label: "empty size", value: "empty", picked: true },
+      { label: "existing vector", value: "existing_vector" },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: segment tree",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  let sourceName: string | undefined;
+  if (sourcePick.value === "existing_vector") {
+    sourceName = await promptVectorName(
+      "edulcni: segment tree",
+      "Source vector",
+      analysis.vectorSymbols,
+      "Existing vector name"
+    );
+  } else if (sourcePick.value === "read_loop") {
+    sourceName = await vscode.window.showInputBox({
+      title: "edulcni: segment tree",
+      prompt: "Generated vector name",
+      value: "a",
+      validateInput: validateIdentifier,
+      ignoreFocusOut: true
+    });
+  }
+  if (sourcePick.value !== "empty" && !sourceName) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: segment tree",
+      placeHolder: "Query/update indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance/build skeleton", value: "instance" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: segment tree",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
   if (aggregatePick.value !== "custom") {
-    return {
+    return renderRecipeSnippet(renderSegmentTreeRecipe({
       sizeExpression: sizeExpression.trim(),
       valueType: valueType.trim(),
       aggregate: aggregatePick.value,
       updates,
       descends,
+      application: scenarioPick.value,
+      sourceMode: sourcePick.value,
+      sourceName,
+      indexing: indexingPick.value as "zero_based" | "one_based_input",
+      usageMode: usagePick.value,
+      instanceName: "seg",
+      answerName: "ans",
       names,
       outputMode: outputPick.value
-    };
+    }));
   }
 
   const nodeType = await vscode.window.showInputBox({
@@ -621,11 +943,18 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  return {
+  return renderRecipeSnippet(renderSegmentTreeRecipe({
     sizeExpression: sizeExpression.trim(),
     valueType: valueType.trim(),
     aggregate: "custom",
     updates,
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    sourceName,
+    indexing: indexingPick.value as "zero_based" | "one_based_input",
+    usageMode: usagePick.value,
+    instanceName: "seg",
+    answerName: "ans",
     names,
     outputMode: outputPick.value,
     custom: {
@@ -634,7 +963,7 @@ async function promptSegmentTreeOptions(
       leafExpression: leafExpression.trim(),
       updateTarget: updateTarget.trim()
     }
-  };
+  }));
 }
 
 async function promptVectorName(
@@ -777,31 +1106,106 @@ async function promptSegmentTreeBeatsOptions(
   editor: vscode.TextEditor
 ): Promise<SegmentTreeBeatsOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeBeatsApplication>
+  >(
+    SEGMENT_TREE_BEATS_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as SegmentTreeBeatsApplication
+    })),
+    {
+      title: "edulcni: segtree_beats",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeBeatsSourceMode>
+  >(
+    [
+      { label: "empty size", value: "empty", picked: true },
+      { label: "existing vector", value: "existing_vector" },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: segtree_beats",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  let sourceName: string | undefined;
+  if (sourcePick.value === "existing_vector") {
+    sourceName = await promptVectorName(
+      "edulcni: segtree_beats",
+      "Source vector",
+      analysis.vectorSymbols,
+      "Source vector variable name"
+    );
+  } else if (sourcePick.value === "read_loop") {
+    sourceName = await vscode.window.showInputBox({
+      title: "edulcni: segtree_beats",
+      prompt: "Generated vector name",
+      value: "a",
+      validateInput: validateIdentifier,
+      ignoreFocusOut: true
+    });
+  }
+  if (sourcePick.value !== "empty" && (!sourceName || sourceName.trim() === "")) {
+    return undefined;
+  }
+
+  const sourceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sourceName?.trim()
+  );
   const valueType = await pickStringWithCustom(
     "edulcni: segtree_beats",
     "Value type",
-    ["ll", "long long", "int"],
+    uniqueValues([
+      vectorValueType(sourceSymbol?.type) ?? "",
+      "ll",
+      "long long",
+      "int"
+    ]),
     "C++ value type"
   );
   if (valueType === undefined || valueType.trim() === "") {
     return undefined;
   }
 
-  const updatePicks = await vscode.window.showQuickPick<
-    ValuePickItem<SegmentTreeBeatsUpdate>
-  >(
-    [
-      { label: "range chmin", value: "chmin", picked: true },
-      { label: "range chmax", value: "chmax", picked: true },
-      { label: "range add", value: "add", picked: true }
-    ],
-    {
-      title: "edulcni: segtree_beats",
-      placeHolder: "Update operations to generate",
-      canPickMany: true,
-      ignoreFocusOut: true
-    }
-  );
+  const updateItems: ValuePickItem<SegmentTreeBeatsUpdate>[] =
+    scenarioPick.value === "query_only"
+      ? []
+      : scenarioPick.value === "clamp_queries"
+        ? [
+            { label: "range chmin", value: "chmin", picked: true },
+            { label: "range chmax", value: "chmax", picked: true }
+          ]
+        : [
+            { label: "range chmin", value: "chmin", picked: true },
+            { label: "range chmax", value: "chmax", picked: true },
+            { label: "range add", value: "add", picked: true }
+          ];
+  const updatePicks =
+    updateItems.length === 0
+      ? []
+      : await vscode.window.showQuickPick<ValuePickItem<SegmentTreeBeatsUpdate>>(
+          updateItems,
+          {
+            title: "edulcni: segtree_beats",
+            placeHolder: "Update operations to generate",
+            canPickMany: true,
+            ignoreFocusOut: true
+          }
+        );
   if (!updatePicks) {
     return undefined;
   }
@@ -825,12 +1229,67 @@ async function promptSegmentTreeBeatsOptions(
     return undefined;
   }
 
+  const sizeDefaults =
+    sourcePick.value === "existing_vector" && sourceName
+      ? [`(int)${sourceName.trim()}.size()`, ...bindingCandidates(analysis, "size").map((item) => item.value)]
+      : bindingCandidates(analysis, "size").map((item) => item.value);
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: segtree_beats",
+    "Size expression",
+    uniqueValues([...sizeDefaults, "n"]),
+    "Segment tree beats size expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: segtree_beats",
+      placeHolder: "Query/update indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<SegmentTreeBeatsUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance/build skeleton", value: "instance" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: segtree_beats",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
   return {
     valueType: valueType.trim(),
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    sourceName: sourceName?.trim(),
+    sizeExpression: sizeExpression.trim(),
+    indexing: indexingPick.value as "zero_based" | "one_based_input",
+    usageMode: usagePick.value,
+    instanceName: "seg",
+    answerName: "ans",
     updates: updatePicks.map((item) => item.value),
     queries: queryPicks.map((item) => item.value),
     names: planSegmentTreeBeatsNames(analysis),
-    includeUsageComment: true
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -838,10 +1297,75 @@ async function promptImplicitTreapOptions(
   editor: vscode.TextEditor
 ): Promise<ImplicitTreapOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<ImplicitTreapApplication>
+  >(
+    IMPLICIT_TREAP_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as ImplicitTreapApplication
+    })),
+    {
+      title: "edulcni: implicit_treap",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourceModePick = await vscode.window.showQuickPick<
+    ValuePickItem<ImplicitTreapSourceMode>
+  >(
+    [
+      { label: "empty treap", value: "empty", picked: true },
+      { label: "existing vector", value: "existing_vector" },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: implicit_treap",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourceModePick) {
+    return undefined;
+  }
+
+  let sourceName: string | undefined;
+  if (sourceModePick.value === "existing_vector") {
+    sourceName = await promptVectorName(
+      "edulcni: implicit_treap",
+      "Source vector",
+      analysis.vectorSymbols,
+      "Source vector variable name"
+    );
+  } else if (sourceModePick.value === "read_loop") {
+    sourceName = await vscode.window.showInputBox({
+      title: "edulcni: implicit_treap",
+      prompt: "Generated vector name",
+      value: "a",
+      validateInput: validateIdentifier,
+      ignoreFocusOut: true
+    });
+  }
+  if (sourceModePick.value !== "empty" && (!sourceName || sourceName.trim() === "")) {
+    return undefined;
+  }
+
+  const sourceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sourceName?.trim()
+  );
   const valueType = await pickStringWithCustom(
     "edulcni: implicit_treap",
     "Value type",
-    ["ll", "long long", "int"],
+    uniqueValues([
+      vectorValueType(sourceSymbol?.type) ?? "",
+      "ll",
+      "long long",
+      "int"
+    ]),
     "C++ value type"
   );
   if (valueType === undefined || valueType.trim() === "") {
@@ -851,10 +1375,12 @@ async function promptImplicitTreapOptions(
   const aggregatePick = await vscode.window.showQuickPick<
     ValuePickItem<ImplicitTreapAggregate>
   >(
-    [
-      { label: "sum", value: "sum", picked: true },
-      { label: "custom aggregate skeleton", value: "custom" }
-    ],
+    scenarioPick.value === "custom_aggregate"
+      ? [{ label: "custom aggregate skeleton", value: "custom", picked: true }]
+      : [
+          { label: "sum", value: "sum", picked: true },
+          { label: "custom aggregate skeleton", value: "custom" }
+        ],
     {
       title: "edulcni: implicit_treap",
       placeHolder: "Aggregate operation",
@@ -865,30 +1391,91 @@ async function promptImplicitTreapOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
-    ValuePickItem<ImplicitTreapFeature>
-  >(
+  const featureItems: ValuePickItem<ImplicitTreapFeature>[] =
+    scenarioPick.value === "range_lazy"
+      ? [
+          { label: "range reverse", value: "reverse", picked: true },
+          { label: "range add", value: "range_add" }
+        ]
+      : scenarioPick.value === "sequence_edit"
+        ? []
+        : [{ label: "range reverse", value: "reverse", picked: true }];
+  const featurePicks =
+    featureItems.length === 0
+      ? []
+      : await vscode.window.showQuickPick<ValuePickItem<ImplicitTreapFeature>>(
+          featureItems,
+          {
+            title: "edulcni: implicit_treap",
+            placeHolder: "Lazy features to generate",
+            canPickMany: true,
+            ignoreFocusOut: true
+          }
+        );
+  if (!featurePicks) {
+    return undefined;
+  }
+
+  let sizeExpression: string | undefined;
+  if (sourceModePick.value === "read_loop") {
+    sizeExpression = await pickStringWithCustom(
+      "edulcni: implicit_treap",
+      "Size expression",
+      sizeExpressionCandidates(analysis),
+      "Expression for generated vector size, for example n"
+    );
+    if (sizeExpression === undefined || sizeExpression.trim() === "") {
+      return undefined;
+    }
+  }
+
+  const indexingPick = await vscode.window.showQuickPick(
     [
-      { label: "range reverse", value: "reverse", picked: true },
-      { label: "range add", value: "range_add" }
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
     ],
     {
       title: "edulcni: implicit_treap",
-      placeHolder: "Lazy features to generate",
-      canPickMany: true,
+      placeHolder: "Operation indexing",
       ignoreFocusOut: true
     }
   );
-  if (!featurePicks) {
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<ImplicitTreapUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance/build skeleton", value: "instance" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: implicit_treap",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
     return undefined;
   }
 
   return {
     valueType: valueType.trim(),
     aggregate: aggregatePick.value,
+    application: scenarioPick.value,
     features: featurePicks.map((item) => item.value),
+    sourceMode: sourceModePick.value,
+    sourceName: sourceName?.trim(),
+    sizeExpression: sizeExpression?.trim(),
+    indexing: indexingPick.value as "zero_based" | "one_based_input",
+    usageMode: usagePick.value,
+    instanceName: "treap",
+    answerName: "ans",
     names: planImplicitTreapNames(analysis),
-    includeUsageComment: true
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -896,6 +1483,24 @@ async function promptMergeSortTreeOptions(
   editor: vscode.TextEditor
 ): Promise<MergeSortTreeOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<MergeSortTreeApplication>
+  >(
+    MERGE_SORT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as MergeSortTreeApplication
+    })),
+    {
+      title: "edulcni: merge_sort_tree",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
   const sourceName = await promptVectorName(
     "edulcni: merge_sort_tree",
     "Source vector",
@@ -924,16 +1529,24 @@ async function promptMergeSortTreeOptions(
     return undefined;
   }
 
+  const queryItems: ValuePickItem<MergeSortTreeQuery>[] =
+    scenarioPick.value === "range_value_presence"
+      ? [
+          { label: "exists x", value: "exists", picked: true },
+          { label: "count == x", value: "count_equal" }
+        ]
+      : scenarioPick.value === "range_value_band"
+        ? [
+            { label: "count in [low, high]", value: "count_in_range", picked: true }
+          ]
+        : [
+            { label: "count < x", value: "count_less", picked: true },
+            { label: "count <= x", value: "count_less_equal" }
+          ];
   const queryPicks = await vscode.window.showQuickPick<
     ValuePickItem<MergeSortTreeQuery>
   >(
-    [
-      { label: "count < x", value: "count_less", picked: true },
-      { label: "count <= x", value: "count_less_equal" },
-      { label: "count == x", value: "count_equal" },
-      { label: "count in [low, high]", value: "count_in_range", picked: true },
-      { label: "exists x", value: "exists" }
-    ],
+    queryItems,
     {
       title: "edulcni: merge_sort_tree",
       placeHolder: "Query methods to generate",
@@ -945,15 +1558,85 @@ async function promptMergeSortTreeOptions(
     return undefined;
   }
 
+  const sourceModePick = await vscode.window.showQuickPick<
+    ValuePickItem<MergeSortTreeSourceMode>
+  >(
+    [
+      { label: "existing vector", value: "existing_vector", picked: true },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: merge_sort_tree",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourceModePick) {
+    return undefined;
+  }
+
+  let sizeExpression: string | undefined;
+  if (sourceModePick.value === "read_loop") {
+    sizeExpression = await pickStringWithCustom(
+      "edulcni: merge_sort_tree",
+      "Size expression",
+      sizeExpressionCandidates(analysis),
+      "Expression for generated vector size, for example n"
+    );
+    if (sizeExpression === undefined || sizeExpression.trim() === "") {
+      return undefined;
+    }
+  }
+
+  const indexingPick = await vscode.window.showQuickPick(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: merge_sort_tree",
+      placeHolder: "Query indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<MergeSortTreeUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance/build skeleton", value: "instance" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: merge_sort_tree",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
   return {
     valueType: valueType.trim(),
     sourceName: sourceName.trim(),
+    sizeExpression: sizeExpression?.trim(),
     queries:
       queryPicks.length === 0
         ? defaultMergeSortTreeQueries()
         : queryPicks.map((item) => item.value),
+    application: scenarioPick.value,
+    sourceMode: sourceModePick.value,
+    indexing: indexingPick.value as "zero_based" | "one_based_input",
+    usageMode: usagePick.value,
+    instanceName: "mst",
+    answerName: "ans",
     names: planMergeSortTreeNames(analysis),
-    includeUsageComment: true
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -962,8 +1645,104 @@ function defaultDsuOptions(
   extraReserved: string[] = []
 ): DsuOptions {
   return {
+    application: "connectivity",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "dsu",
+    answerName: "ans",
     names: planDsuNames(analysis, extraReserved),
     includeUsageComment: true
+  };
+}
+
+async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<DsuApplication>>(
+    DSU_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as DsuApplication
+    })),
+    {
+      title: "edulcni: dsu",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: dsu",
+    "Node count expression",
+    uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+    "DSU node count expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<DsuUsageMode>>(
+    scenarioPick.value === "kruskal"
+      ? [{ label: "Kruskal skeleton", value: "kruskal", picked: true }]
+      : scenarioPick.value === "query_loop"
+        ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
+        : [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "instance skeleton", value: "instance" },
+            { label: "query loop skeleton", value: "query_loop" }
+          ],
+    {
+      title: "edulcni: dsu",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const edgeCountName =
+    usagePick.value === "kruskal"
+      ? await pickStringWithCustom(
+          "edulcni: dsu",
+          "Edge count expression",
+          uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
+          "Kruskal edge count expression"
+        )
+      : undefined;
+  if (usagePick.value === "kruskal" && (!edgeCountName || edgeCountName.trim() === "")) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<DsuIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: dsu",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sizeExpression: sizeExpression.trim(),
+    edgeCountName: edgeCountName?.trim(),
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    instanceName: suggestIdentifier(analysis, "dsu", "sets"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
+    names: planDsuNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -972,8 +1751,95 @@ function defaultRollbackDsuOptions(
   extraReserved: string[] = []
 ): RollbackDsuOptions {
   return {
+    application: "snapshots",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "dsu",
+    answerName: "ans",
     names: planRollbackDsuNames(analysis, extraReserved),
     includeUsageComment: true
+  };
+}
+
+async function promptRollbackDsuOptions(
+  editor: vscode.TextEditor
+): Promise<RollbackDsuOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<RollbackDsuApplication>
+  >(
+    ROLLBACK_DSU_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as RollbackDsuApplication
+    })),
+    {
+      title: "edulcni: rollback_dsu",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: rollback_dsu",
+    "Node count expression",
+    uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+    "Rollback DSU node count expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<RollbackDsuUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance skeleton", value: "instance" },
+      { label: "snapshot query loop", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: rollback_dsu",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<
+    ValuePickItem<RollbackDsuIndexing>
+  >(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: rollback_dsu",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sizeExpression: sizeExpression.trim(),
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    instanceName: suggestIdentifier(analysis, "dsu", "rollback_dsu"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
+    names: planRollbackDsuNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -982,8 +1848,262 @@ function defaultLcaOptions(
   extraReserved: string[] = []
 ): LcaOptions {
   return {
+    application: "lca_dist",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    rootExpression: "0",
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "lca",
+    answerName: "ans",
     names: planLcaNames(analysis, extraReserved),
     includeUsageComment: true
+  };
+}
+
+async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<LcaApplication>>(
+    LCA_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as LcaApplication
+    })),
+    {
+      title: "edulcni: lca",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: lca",
+    "Node count expression",
+    uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+    "LCA node count expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const rootExpression = await pickStringWithCustom(
+    "edulcni: lca",
+    "Root expression",
+    uniqueValues(["0", ...bindingCandidates(analysis, "index").map((item) => item.value)]),
+    "Root vertex expression"
+  );
+  if (rootExpression === undefined || rootExpression.trim() === "") {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<LcaSourceMode>>(
+    [
+      { label: "empty helper", value: "empty", picked: true },
+      { label: "generated tree read loop", value: "read_tree" }
+    ],
+    {
+      title: "edulcni: lca",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<LcaUsageMode>>(
+    scenarioPick.value === "tree_query_loop"
+      ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
+      : [
+          { label: "helper only", value: "helper_only", picked: true },
+          { label: "instance skeleton", value: "instance" },
+          { label: "read tree + build", value: "read_tree" },
+          { label: "query loop skeleton", value: "query_loop" }
+        ],
+    {
+      title: "edulcni: lca",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<LcaIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: lca",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    sizeExpression: sizeExpression.trim(),
+    rootExpression: rootExpression.trim(),
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    instanceName: suggestIdentifier(analysis, "lca", "tree_lca"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
+    names: planLcaNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultHldOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): HldOptions {
+  return {
+    application: "path_query",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    rootExpression: "0",
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: "zero_based",
+    valueMode: "vertex_values",
+    usageMode: "helper_only",
+    instanceName: "hld",
+    answerName: "ans",
+    names: planHldNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<HldApplication>>(
+    HLD_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as HldApplication
+    })),
+    {
+      title: "edulcni: hld",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: hld",
+    "Node count expression",
+    uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+    "HLD node count expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const rootExpression = await pickStringWithCustom(
+    "edulcni: hld",
+    "Root expression",
+    uniqueValues(["0", ...bindingCandidates(analysis, "index").map((item) => item.value)]),
+    "Root vertex expression"
+  );
+  if (rootExpression === undefined || rootExpression.trim() === "") {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<HldSourceMode>>(
+    [
+      { label: "empty helper", value: "empty", picked: true },
+      { label: "generated tree read loop", value: "read_tree" }
+    ],
+    {
+      title: "edulcni: hld",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const valueModePick = await vscode.window.showQuickPick<ValuePickItem<HldValueMode>>(
+    [
+      { label: "vertex values", description: "path ranges include the LCA position", value: "vertex_values", picked: true },
+      { label: "edge values", description: "path ranges skip the LCA endpoint", value: "edge_values" }
+    ],
+    {
+      title: "edulcni: hld",
+      placeHolder: "Path value convention",
+      ignoreFocusOut: true
+    }
+  );
+  if (!valueModePick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<HldUsageMode>>(
+    scenarioPick.value === "path_query"
+      ? [
+          { label: "path/subtree/LCA query loop", value: "query_loop", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "read tree + build", value: "read_tree" },
+          { label: "instance skeleton", value: "instance" }
+        ]
+      : [
+          { label: "helper only", value: "helper_only", picked: true },
+          { label: "instance skeleton", value: "instance" },
+          { label: "read tree + build", value: "read_tree" },
+          { label: "path/subtree/LCA query loop", value: "query_loop" }
+        ],
+    {
+      title: "edulcni: hld",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<HldIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: hld",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    sizeExpression: sizeExpression.trim(),
+    rootExpression: rootExpression.trim(),
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    indexing: indexingPick.value,
+    valueMode: valueModePick.value,
+    usageMode: usagePick.value,
+    instanceName: suggestIdentifier(analysis, "hld", "tree_hld"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
+    names: planHldNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -992,8 +2112,1518 @@ function defaultBfsOptions(
   extraReserved: string[] = []
 ): BfsOptions {
   return {
+    application: "shortest_distances",
+    sourceMode: "existing_graph",
+    graphMode: "undirected",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
+    graphName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "graph",
+    sourceName: suggestIdentifier(analysis, "source", "s"),
+    targetName: suggestIdentifier(analysis, "target", "t"),
+    resultName: suggestIdentifier(analysis, "result", "bfs_result"),
     names: planBfsNames(analysis, extraReserved),
     includeUsageComment: true
+  };
+}
+
+async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<BfsApplication>>(
+    BFS_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as BfsApplication
+    })),
+    {
+      title: "edulcni: bfs",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<BfsSourceMode>>(
+    [
+      { label: "existing adjacency list", value: "existing_graph", picked: true },
+      { label: "generated edge read loop", value: "read_edges" }
+    ],
+    {
+      title: "edulcni: bfs",
+      placeHolder: "Graph source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const graphName = await pickStringWithCustom(
+    "edulcni: bfs",
+    "Graph variable",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+    "Adjacency-list variable name"
+  );
+  if (graphName === undefined || graphName.trim() === "") {
+    return undefined;
+  }
+
+  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
+  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
+  if (sourcePick.value === "read_edges") {
+    const pickedSize = await pickStringWithCustom(
+      "edulcni: bfs",
+      "Node count expression",
+      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+      "BFS node count expression"
+    );
+    if (pickedSize === undefined || pickedSize.trim() === "") {
+      return undefined;
+    }
+    sizeExpression = pickedSize.trim();
+
+    const pickedEdges = await pickStringWithCustom(
+      "edulcni: bfs",
+      "Edge count expression",
+      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
+      "BFS edge count expression"
+    );
+    if (pickedEdges === undefined || pickedEdges.trim() === "") {
+      return undefined;
+    }
+    edgeCountName = pickedEdges.trim();
+  }
+
+  const graphModePick = await vscode.window.showQuickPick<ValuePickItem<BfsGraphMode>>(
+    [
+      { label: "undirected", value: "undirected", picked: true },
+      { label: "directed", value: "directed" }
+    ],
+    {
+      title: "edulcni: bfs",
+      placeHolder: "Graph direction",
+      ignoreFocusOut: true
+    }
+  );
+  if (!graphModePick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<BfsUsageMode>>(
+    scenarioPick.value === "multi_source"
+      ? [
+          { label: "multi-source run", value: "multi_source", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "read graph", value: "read_graph" }
+        ]
+      : scenarioPick.value === "path_restore"
+        ? [
+            { label: "path query skeleton", value: "path_query", picked: true },
+            { label: "single-source run", value: "single_source" },
+            { label: "helper only", value: "helper_only" },
+            { label: "read graph", value: "read_graph" }
+          ]
+        : [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "read graph", value: "read_graph" },
+            { label: "single-source run", value: "single_source" },
+            { label: "multi-source run", value: "multi_source" },
+            { label: "path query skeleton", value: "path_query" }
+          ],
+    {
+      title: "edulcni: bfs",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<BfsIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: bfs",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    graphMode: graphModePick.value,
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    sizeExpression,
+    edgeCountName,
+    graphName: graphName.trim(),
+    sourceName: suggestIdentifier(analysis, "source", "s"),
+    targetName: suggestIdentifier(analysis, "target", "t"),
+    resultName: suggestIdentifier(analysis, "result", "bfs_result"),
+    names: planBfsNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultDijkstraOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): DijkstraOptions {
+  return {
+    application: "shortest_paths",
+    sourceMode: "existing_graph",
+    graphMode: "directed",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    valueType: "long long",
+    infExpression: "std::numeric_limits<long long>::max()",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
+    graphName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "graph",
+    sourceName: suggestIdentifier(analysis, "source", "s"),
+    targetName: suggestIdentifier(analysis, "target", "t"),
+    resultName: suggestIdentifier(analysis, "result", "dijkstra_result"),
+    names: planDijkstraNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptDijkstraOptions(
+  editor: vscode.TextEditor
+): Promise<DijkstraOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<DijkstraApplication>>(
+    DIJKSTRA_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as DijkstraApplication
+    })),
+    {
+      title: "edulcni: dijkstra",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraSourceMode>>(
+    [
+      { label: "existing weighted adjacency list", value: "existing_graph", picked: true },
+      { label: "generated weighted edge loop", value: "read_edges" }
+    ],
+    {
+      title: "edulcni: dijkstra",
+      placeHolder: "Graph source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: dijkstra",
+    "Weight type",
+    ["long long", "int", "double"],
+    "Dijkstra edge weight type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const defaultInf = valueType.trim() === "long long"
+    ? "std::numeric_limits<long long>::max()"
+    : `std::numeric_limits<${valueType.trim()}>::max()`;
+  const infExpression = await pickStringWithCustom(
+    "edulcni: dijkstra",
+    "Infinity expression",
+    [defaultInf],
+    "Dijkstra infinity expression"
+  );
+  if (infExpression === undefined || infExpression.trim() === "") {
+    return undefined;
+  }
+
+  const graphName = await pickStringWithCustom(
+    "edulcni: dijkstra",
+    "Graph variable",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+    "Weighted adjacency-list variable name"
+  );
+  if (graphName === undefined || graphName.trim() === "") {
+    return undefined;
+  }
+
+  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
+  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
+  if (sourcePick.value === "read_edges") {
+    const pickedSize = await pickStringWithCustom(
+      "edulcni: dijkstra",
+      "Node count expression",
+      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+      "Dijkstra node count expression"
+    );
+    if (pickedSize === undefined || pickedSize.trim() === "") {
+      return undefined;
+    }
+    sizeExpression = pickedSize.trim();
+
+    const pickedEdges = await pickStringWithCustom(
+      "edulcni: dijkstra",
+      "Edge count expression",
+      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
+      "Dijkstra edge count expression"
+    );
+    if (pickedEdges === undefined || pickedEdges.trim() === "") {
+      return undefined;
+    }
+    edgeCountName = pickedEdges.trim();
+  }
+
+  const graphModePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraGraphMode>>(
+    [
+      { label: "directed", value: "directed", picked: true },
+      { label: "undirected", value: "undirected" }
+    ],
+    {
+      title: "edulcni: dijkstra",
+      placeHolder: "Graph direction",
+      ignoreFocusOut: true
+    }
+  );
+  if (!graphModePick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraUsageMode>>(
+    scenarioPick.value === "multi_source"
+      ? [
+          { label: "multi-source run", value: "multi_source", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "read graph", value: "read_graph" }
+        ]
+      : scenarioPick.value === "path_restore"
+        ? [
+            { label: "path query skeleton", value: "path_query", picked: true },
+            { label: "single-source run", value: "single_source" },
+            { label: "helper only", value: "helper_only" },
+            { label: "read graph", value: "read_graph" }
+          ]
+        : scenarioPick.value === "weighted_graph_read"
+          ? [
+              { label: "read graph", value: "read_graph", picked: true },
+              { label: "helper only", value: "helper_only" },
+              { label: "single-source run", value: "single_source" }
+            ]
+          : [
+              { label: "helper only", value: "helper_only", picked: true },
+              { label: "read graph", value: "read_graph" },
+              { label: "single-source run", value: "single_source" },
+              { label: "multi-source run", value: "multi_source" },
+              { label: "path query skeleton", value: "path_query" }
+            ],
+    {
+      title: "edulcni: dijkstra",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<DijkstraIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: dijkstra",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    graphMode: graphModePick.value,
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    valueType: valueType.trim(),
+    infExpression: infExpression.trim(),
+    sizeExpression,
+    edgeCountName,
+    graphName: graphName.trim(),
+    sourceName: suggestIdentifier(analysis, "source", "s"),
+    targetName: suggestIdentifier(analysis, "target", "t"),
+    resultName: suggestIdentifier(analysis, "result", "dijkstra_result"),
+    names: planDijkstraNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultToposortOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): ToposortOptions {
+  return {
+    application: "dag_order",
+    sourceMode: "existing_graph",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
+    graphName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "graph",
+    orderName: suggestIdentifier(analysis, "order", "topo_order"),
+    dagName: suggestIdentifier(analysis, "dag", "is_dag"),
+    names: planToposortNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptToposortOptions(
+  editor: vscode.TextEditor
+): Promise<ToposortOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<ToposortApplication>>(
+    TOPOSORT_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as ToposortApplication
+    })),
+    {
+      title: "edulcni: toposort",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<ToposortSourceMode>>(
+    [
+      { label: "existing adjacency list", value: "existing_graph", picked: true },
+      { label: "generated dependency edge loop", value: "read_edges" }
+    ],
+    {
+      title: "edulcni: toposort",
+      placeHolder: "Graph source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const graphName = await pickStringWithCustom(
+    "edulcni: toposort",
+    "Graph variable",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+    "Directed adjacency-list variable name"
+  );
+  if (graphName === undefined || graphName.trim() === "") {
+    return undefined;
+  }
+
+  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
+  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
+  if (sourcePick.value === "read_edges") {
+    const pickedSize = await pickStringWithCustom(
+      "edulcni: toposort",
+      "Node count expression",
+      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+      "Toposort node count expression"
+    );
+    if (pickedSize === undefined || pickedSize.trim() === "") {
+      return undefined;
+    }
+    sizeExpression = pickedSize.trim();
+
+    const pickedEdges = await pickStringWithCustom(
+      "edulcni: toposort",
+      "Edge count expression",
+      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
+      "Toposort edge count expression"
+    );
+    if (pickedEdges === undefined || pickedEdges.trim() === "") {
+      return undefined;
+    }
+    edgeCountName = pickedEdges.trim();
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<ToposortUsageMode>>(
+    scenarioPick.value === "cycle_detection"
+      ? [
+          { label: "cycle check", value: "cycle_check", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "read graph", value: "read_graph" },
+          { label: "sort and print order", value: "sort_order" }
+        ]
+      : scenarioPick.value === "order_validation"
+        ? [
+            { label: "validate supplied order", value: "validate_order", picked: true },
+            { label: "helper only", value: "helper_only" },
+            { label: "read graph", value: "read_graph" }
+          ]
+        : scenarioPick.value === "dependency_schedule"
+          ? [
+              { label: "sort and print order", value: "sort_order", picked: true },
+              { label: "read graph", value: "read_graph" },
+              { label: "cycle check", value: "cycle_check" },
+              { label: "helper only", value: "helper_only" }
+            ]
+          : [
+              { label: "helper only", value: "helper_only", picked: true },
+              { label: "read graph", value: "read_graph" },
+              { label: "sort and print order", value: "sort_order" },
+              { label: "cycle check", value: "cycle_check" },
+              { label: "validate supplied order", value: "validate_order" }
+            ],
+    {
+      title: "edulcni: toposort",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<ToposortIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: toposort",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    sizeExpression,
+    edgeCountName,
+    graphName: graphName.trim(),
+    orderName: suggestIdentifier(analysis, "order", "topo_order"),
+    dagName: suggestIdentifier(analysis, "dag", "is_dag"),
+    names: planToposortNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultKosarajuOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): KosarajuOptions {
+  return {
+    application: "scc_components",
+    sourceMode: "existing_graph",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    graphName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "graph",
+    resultName: suggestIdentifier(analysis, "scc", "kosaraju_result"),
+    names: planKosarajuNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptKosarajuOptions(
+  editor: vscode.TextEditor
+): Promise<KosarajuOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<KosarajuApplication>>(
+    KOSARAJU_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as KosarajuApplication
+    })),
+    {
+      title: "edulcni: kosaraju",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<KosarajuSourceMode>>(
+    [
+      { label: "existing directed graph", value: "existing_graph", picked: true },
+      { label: "generated directed edge loop", value: "read_edges" }
+    ],
+    {
+      title: "edulcni: kosaraju",
+      placeHolder: "Graph source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const graphName = await pickStringWithCustom(
+    "edulcni: kosaraju",
+    "Graph variable",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+    "Directed graph variable name"
+  );
+  if (graphName === undefined || graphName.trim() === "") {
+    return undefined;
+  }
+
+  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
+  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
+  if (sourcePick.value === "read_edges") {
+    const pickedSize = await pickStringWithCustom(
+      "edulcni: kosaraju",
+      "Node count expression",
+      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+      "Kosaraju node count expression"
+    );
+    if (pickedSize === undefined || pickedSize.trim() === "") {
+      return undefined;
+    }
+    sizeExpression = pickedSize.trim();
+
+    const pickedEdges = await pickStringWithCustom(
+      "edulcni: kosaraju",
+      "Edge count expression",
+      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
+      "Kosaraju edge count expression"
+    );
+    if (pickedEdges === undefined || pickedEdges.trim() === "") {
+      return undefined;
+    }
+    edgeCountName = pickedEdges.trim();
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<KosarajuUsageMode>>(
+    scenarioPick.value === "same_component"
+      ? [
+          { label: "same-component query loop", value: "same_component_queries", picked: true },
+          { label: "compute SCC", value: "compute_scc" },
+          { label: "helper only", value: "helper_only" },
+          { label: "read graph", value: "read_graph" }
+        ]
+      : scenarioPick.value === "condensation_dag"
+        ? [
+            { label: "compute SCC", value: "compute_scc", picked: true },
+            { label: "print components", value: "print_components" },
+            { label: "helper only", value: "helper_only" },
+            { label: "read graph", value: "read_graph" }
+          ]
+        : [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "read graph", value: "read_graph" },
+            { label: "compute SCC", value: "compute_scc" },
+            { label: "same-component query loop", value: "same_component_queries" },
+            { label: "print components", value: "print_components" }
+          ],
+    {
+      title: "edulcni: kosaraju",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<KosarajuIndexing>>(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: kosaraju",
+      placeHolder: "Input indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    sizeExpression,
+    edgeCountName,
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    graphName: graphName.trim(),
+    resultName: suggestIdentifier(analysis, "scc", "kosaraju_result"),
+    names: planKosarajuNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultMoOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MoOptions {
+  return {
+    application: "custom_callbacks",
+    sourceMode: "existing_queries",
+    indexing: "zero_based_half_open",
+    usageMode: "helper_only",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
+    valuesName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "a",
+    queriesName: "queries",
+    answersName: "answers",
+    valueType: "int",
+    answerType: "long long",
+    names: planMoNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<MoApplication>>(
+    MO_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as MoApplication
+    })),
+    {
+      title: "edulcni: mo",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<MoSourceMode>>(
+    [
+      { label: "existing query vector", value: "existing_queries", picked: true },
+      { label: "generated query read loop", value: "read_queries" }
+    ],
+    {
+      title: "edulcni: mo",
+      placeHolder: "Query source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: mo",
+    "Array length expression",
+    uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
+    "Mo array length expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const valuesName = await pickStringWithCustom(
+    "edulcni: mo",
+    "Values vector",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "a"]),
+    "Values vector used by add/remove callbacks"
+  );
+  if (valuesName === undefined || valuesName.trim() === "") {
+    return undefined;
+  }
+
+  let queryCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "q";
+  if (sourcePick.value === "read_queries") {
+    const pickedQueries = await pickStringWithCustom(
+      "edulcni: mo",
+      "Query count expression",
+      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "q"]),
+      "Mo query count expression"
+    );
+    if (pickedQueries === undefined || pickedQueries.trim() === "") {
+      return undefined;
+    }
+    queryCountName = pickedQueries.trim();
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<MoIndexing>>(
+    [
+      { label: "0-indexed [l, r)", value: "zero_based_half_open", picked: true },
+      { label: "1-indexed [l, r] input", value: "one_based_closed_input" }
+    ],
+    {
+      title: "edulcni: mo",
+      placeHolder: "Query indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<MoUsageMode>>(
+    scenarioPick.value === "distinct_values"
+      ? [
+          { label: "distinct-count skeleton", value: "distinct_count_skeleton", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "read queries", value: "read_queries" },
+          { label: "generic processor skeleton", value: "process_skeleton" }
+        ]
+      : scenarioPick.value === "custom_callbacks"
+        ? [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "generic processor skeleton", value: "process_skeleton" },
+            { label: "read queries", value: "read_queries" }
+          ]
+        : [
+            { label: "generic processor skeleton", value: "process_skeleton", picked: true },
+            { label: "helper only", value: "helper_only" },
+            { label: "read queries", value: "read_queries" },
+            { label: "distinct-count skeleton", value: "distinct_count_skeleton" }
+          ],
+    {
+      title: "edulcni: mo",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    sourceMode: sourcePick.value,
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    sizeExpression: sizeExpression.trim(),
+    queryCountName,
+    valuesName: valuesName.trim(),
+    queriesName: suggestIdentifier(analysis, "queries", "mo_queries"),
+    answersName: suggestIdentifier(analysis, "answers", "mo_answers"),
+    valueType: "int",
+    answerType: "long long",
+    names: planMoNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultMonotonicStackOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MonotonicStackOptions {
+  return {
+    application: "nearest_smaller",
+    direction: "left",
+    relation: "smaller",
+    strictness: "strict",
+    usageMode: "helper_only",
+    sourceName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "values",
+    resultName: "nearest",
+    valueType: "int",
+    names: planMonotonicStackNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptMonotonicStackOptions(
+  editor: vscode.TextEditor
+): Promise<MonotonicStackOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackApplication>>(
+    MONOTONIC_STACK_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as MonotonicStackApplication
+    })),
+    {
+      title: "edulcni: monotonic_stack",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const relationPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackRelation>>(
+    scenarioPick.value === "all_nearest"
+      ? [{ label: "all", value: "all", picked: true }]
+      : scenarioPick.value === "nearest_greater"
+        ? [
+            { label: "greater", value: "greater", picked: true },
+            { label: "smaller", value: "smaller" }
+          ]
+        : [
+            { label: "smaller", value: "smaller", picked: true },
+            { label: "greater", value: "greater" },
+            { label: "all", value: "all" }
+          ],
+    {
+      title: "edulcni: monotonic_stack",
+      placeHolder: "Relation",
+      ignoreFocusOut: true
+    }
+  );
+  if (!relationPick) {
+    return undefined;
+  }
+
+  const directionPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackDirection>>(
+    relationPick.value === "all"
+      ? [{ label: "both", value: "both", picked: true }]
+      : [
+          { label: "left", value: "left", picked: true },
+          { label: "right", value: "right" },
+          { label: "both", value: "both" }
+        ],
+    {
+      title: "edulcni: monotonic_stack",
+      placeHolder: "Direction",
+      ignoreFocusOut: true
+    }
+  );
+  if (!directionPick) {
+    return undefined;
+  }
+
+  const strictnessPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackStrictness>>(
+    [
+      { label: "strict", value: "strict", picked: true },
+      { label: "allow equal", value: "non_strict" }
+    ],
+    {
+      title: "edulcni: monotonic_stack",
+      placeHolder: "Strictness",
+      ignoreFocusOut: true
+    }
+  );
+  if (!strictnessPick) {
+    return undefined;
+  }
+
+  const sourceName = await pickStringWithCustom(
+    "edulcni: monotonic_stack",
+    "Source vector",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
+    "Source vector for nearest-index computation"
+  );
+  if (sourceName === undefined || sourceName.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackUsageMode>>(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "compute vector", value: "compute_vector" },
+      { label: "compute all", value: "compute_all" }
+    ],
+    {
+      title: "edulcni: monotonic_stack",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    direction: directionPick.value,
+    relation: relationPick.value,
+    strictness: strictnessPick.value,
+    usageMode: usagePick.value,
+    sourceName: sourceName.trim(),
+    resultName: suggestIdentifier(analysis, "nearest", "nearest_index"),
+    valueType: "int",
+    names: planMonotonicStackNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultGpHashTableOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): GpHashTableOptions {
+  return {
+    application: "hash_map",
+    usageMode: "helper_only",
+    keyType: "long long",
+    valueType: "int",
+    tableName: "table",
+    sourceName: bindingCandidates(analysis, "source_vector")[0]?.value ?? "values",
+    names: planGpHashTableNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptGpHashTableOptions(
+  editor: vscode.TextEditor
+): Promise<GpHashTableOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<GpHashTableApplication>>(
+    GP_HASH_TABLE_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as GpHashTableApplication
+    })),
+    {
+      title: "edulcni: gp_hash_table",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const keyDefaults =
+    scenarioPick.value === "pair_key"
+      ? ["std::pair<int, int>", "std::pair<long long, long long>"]
+      : ["long long", "int", "std::uint64_t", "std::string"];
+  const keyType = await pickStringWithCustom(
+    "edulcni: gp_hash_table",
+    "Key type",
+    keyDefaults,
+    "Hash-table key type"
+  );
+  if (keyType === undefined || keyType.trim() === "") {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: gp_hash_table",
+    "Value type",
+    ["int", "long long", "bool", "__gnu_pbds::null_type"],
+    "Hash-table value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<GpHashTableUsageMode>>(
+    scenarioPick.value === "hash_set"
+      ? [
+          { label: "declare set", value: "declare_set", picked: true },
+          { label: "helper only", value: "helper_only" },
+          { label: "declare map", value: "declare_map" }
+        ]
+      : scenarioPick.value === "frequency_table"
+        ? [
+            { label: "frequency loop", value: "frequency_loop", picked: true },
+            { label: "declare map", value: "declare_map" },
+            { label: "helper only", value: "helper_only" }
+          ]
+        : [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "declare map", value: "declare_map" },
+            { label: "declare set", value: "declare_set" },
+            { label: "frequency loop", value: "frequency_loop" }
+          ],
+    {
+      title: "edulcni: gp_hash_table",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const sourceName = await pickStringWithCustom(
+    "edulcni: gp_hash_table",
+    "Source vector",
+    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
+    "Source vector for frequency loop"
+  );
+  if (sourceName === undefined || sourceName.trim() === "") {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    usageMode: usagePick.value,
+    keyType: keyType.trim(),
+    valueType: valueType.trim(),
+    tableName: suggestIdentifier(analysis, "table", "hash_table"),
+    sourceName: sourceName.trim(),
+    names: planGpHashTableNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultOrderedSetOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): OrderedSetOptions {
+  return {
+    application: "order_statistics",
+    usageMode: "helper_only",
+    keyType: "int",
+    setName: "os",
+    names: planOrderedSetNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptOrderedSetOptions(
+  editor: vscode.TextEditor
+): Promise<OrderedSetOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<OrderedSetApplication>>(
+    ORDERED_SET_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as OrderedSetApplication
+    })),
+    {
+      title: "edulcni: ordered_set",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const keyType = await pickStringWithCustom(
+    "edulcni: ordered_set",
+    "Key type",
+    scenarioPick.value === "multiset_pairs"
+      ? ["int", "long long"]
+      : ["int", "long long", "std::pair<int, int>"],
+    "Ordered-set key type"
+  );
+  if (keyType === undefined || keyType.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<OrderedSetUsageMode>>(
+    scenarioPick.value === "kth_element"
+      ? [
+          { label: "kth query", value: "kth_query", picked: true },
+          { label: "declare set", value: "declare_set" },
+          { label: "helper only", value: "helper_only" }
+        ]
+      : scenarioPick.value === "rank_queries"
+        ? [
+            { label: "rank query", value: "rank_query", picked: true },
+            { label: "declare set", value: "declare_set" },
+            { label: "helper only", value: "helper_only" }
+          ]
+        : scenarioPick.value === "multiset_pairs"
+          ? [
+              { label: "pair-key multiset", value: "pair_multiset", picked: true },
+              { label: "helper only", value: "helper_only" }
+            ]
+          : [
+              { label: "helper only", value: "helper_only", picked: true },
+              { label: "declare set", value: "declare_set" },
+              { label: "rank query", value: "rank_query" },
+              { label: "kth query", value: "kth_query" },
+              { label: "pair-key multiset", value: "pair_multiset" }
+            ],
+    {
+      title: "edulcni: ordered_set",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    usageMode: usagePick.value,
+    keyType: keyType.trim(),
+    setName: suggestIdentifier(analysis, "os", "ordered_set"),
+    names: planOrderedSetNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultSetUtilsOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): SetUtilsOptions {
+  return {
+    application: "next_value",
+    lookup: "next",
+    target: "value",
+    usageMode: "helper_only",
+    containerName: "container",
+    keyName: "key",
+    iteratorName: "it",
+    resultName: "neighbor",
+    names: planSetUtilsNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtilsOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsApplication>>(
+    SET_UTILS_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as SetUtilsApplication
+    })),
+    {
+      title: "edulcni: set_utils",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const lookupPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsLookup>>(
+    scenarioPick.value === "prev_value"
+      ? [
+          { label: "previous", value: "prev", picked: true },
+          { label: "next", value: "next" }
+        ]
+      : [
+          { label: "next", value: "next", picked: true },
+          { label: "previous", value: "prev" }
+        ],
+    {
+      title: "edulcni: set_utils",
+      placeHolder: "Lookup direction",
+      ignoreFocusOut: true
+    }
+  );
+  if (!lookupPick) {
+    return undefined;
+  }
+
+  const targetPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsTarget>>(
+    scenarioPick.value === "iterator_navigation"
+      ? [
+          { label: "iterator", value: "iterator", picked: true },
+          { label: "value", value: "value" }
+        ]
+      : [
+          { label: "value", value: "value", picked: true },
+          { label: "iterator", value: "iterator" }
+        ],
+    {
+      title: "edulcni: set_utils",
+      placeHolder: "Lookup target",
+      ignoreFocusOut: true
+    }
+  );
+  if (!targetPick) {
+    return undefined;
+  }
+
+  const containerName = await pickStringWithCustom(
+    "edulcni: set_utils",
+    "Container variable",
+    ["container", "st", "mp", "s"],
+    "Ordered container variable"
+  );
+  if (containerName === undefined || containerName.trim() === "") {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsUsageMode>>(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "lookup snippet", value: "lookup_snippet" }
+    ],
+    {
+      title: "edulcni: set_utils",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    lookup: lookupPick.value,
+    target: targetPick.value,
+    usageMode: usagePick.value,
+    containerName: containerName.trim(),
+    keyName: suggestIdentifier(analysis, "key", "x"),
+    iteratorName: suggestIdentifier(analysis, "it", "iter"),
+    resultName: suggestIdentifier(analysis, "neighbor", "adjacent"),
+    names: planSetUtilsNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultFastAllocatorOptions(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): FastAllocatorOptions {
+  return {
+    application: "many_vectors",
+    usageMode: "helper_only",
+    valueType: "int",
+    containerName: "values",
+    arenaName: "arena",
+    capacityExpression: "1U << 26U",
+    edgeTypeName: "Edge",
+    names: planFastAllocatorNames(analysis, extraReserved),
+    includeUsageComment: true
+  };
+}
+
+async function promptFastAllocatorOptions(editor: vscode.TextEditor): Promise<FastAllocatorOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<FastAllocatorApplication>>(
+    FAST_ALLOCATOR_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as FastAllocatorApplication
+    })),
+    {
+      title: "edulcni: fast_allocator",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<FastAllocatorUsageMode>>(
+    scenarioPick.value === "graph_edges"
+      ? [
+          { label: "edge vector", value: "edge_vector", picked: true },
+          { label: "vector declaration", value: "vector_declaration" },
+          { label: "helper only", value: "helper_only" }
+        ]
+      : scenarioPick.value === "pool_reset"
+        ? [
+            { label: "arena reset", value: "arena_reset", picked: true },
+            { label: "helper only", value: "helper_only" },
+            { label: "vector declaration", value: "vector_declaration" }
+          ]
+        : [
+            { label: "helper only", value: "helper_only", picked: true },
+            { label: "vector declaration", value: "vector_declaration" },
+            { label: "edge vector", value: "edge_vector" },
+            { label: "arena reset", value: "arena_reset" }
+          ],
+    {
+      title: "edulcni: fast_allocator",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: fast_allocator",
+    "Value type",
+    ["int", "long long", "pair<int, int>", "Edge"],
+    "Vector value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const capacityExpression = await pickStringWithCustom(
+    "edulcni: fast_allocator",
+    "Arena capacity",
+    ["1U << 26U", "1U << 28U", "sizeof(Edge) * m * 2 + 1024"],
+    "Preallocated bytes"
+  );
+  if (capacityExpression === undefined || capacityExpression.trim() === "") {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    usageMode: usagePick.value,
+    valueType: valueType.trim(),
+    containerName: suggestIdentifier(analysis, "values", "pool_values"),
+    arenaName: suggestIdentifier(analysis, "arena", "pool"),
+    capacityExpression: capacityExpression.trim(),
+    edgeTypeName: suggestIdentifier(analysis, "Edge", "GraphEdge"),
+    names: planFastAllocatorNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultGeometryOptions(): GeometryOptions {
+  return {
+    application: "convex_hull",
+    usageMode: "helper_only",
+    valueType: "long long",
+    pointsName: "points",
+    resultName: "hull",
+    includeUsageComment: true
+  };
+}
+
+async function promptGeometryOptions(editor: vscode.TextEditor): Promise<GeometryOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<GeometryApplication>>(
+    GEOMETRY_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as GeometryApplication
+    })),
+    {
+      title: "edulcni: geometry",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<GeometryUsageMode>>(
+    scenarioPick.value === "orientation"
+      ? [
+          { label: "orientation check", value: "orientation_check", picked: true },
+          { label: "helper only", value: "helper_only" }
+        ]
+      : scenarioPick.value === "segment_intersection"
+        ? [
+            { label: "segment intersection", value: "segment_intersection", picked: true },
+            { label: "helper only", value: "helper_only" }
+          ]
+        : scenarioPick.value === "angle_sort"
+          ? [
+              { label: "sort points by angle", value: "sort_points", picked: true },
+              { label: "helper only", value: "helper_only" }
+            ]
+          : [
+              { label: "helper only", value: "helper_only", picked: true },
+              { label: "build convex hull", value: "build_hull" },
+              { label: "segment intersection", value: "segment_intersection" }
+            ],
+    {
+      title: "edulcni: geometry",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: geometry",
+    "Coordinate type",
+    ["long long", "int", "long double"],
+    "Point2 coordinate type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    usageMode: usagePick.value,
+    valueType: valueType.trim(),
+    pointsName: suggestIdentifier(analysis, "points", "pts"),
+    resultName: suggestIdentifier(analysis, "hull", "answer"),
+    includeUsageComment: usagePick.value === "helper_only"
+  };
+}
+
+function defaultHalfplaneIntersectionOptions(): HalfplaneIntersectionOptions {
+  return {
+    application: "convex_polygon",
+    usageMode: "helper_only",
+    halfplanesName: "halfplanes",
+    resultName: "polygon",
+    includeUsageComment: true
+  };
+}
+
+async function promptHalfplaneIntersectionOptions(
+  editor: vscode.TextEditor
+): Promise<HalfplaneIntersectionOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<HalfplaneIntersectionApplication>>(
+    HALFPLANE_INTERSECTION_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as HalfplaneIntersectionApplication
+    })),
+    {
+      title: "edulcni: halfplane_intersection",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<ValuePickItem<HalfplaneIntersectionUsageMode>>(
+    scenarioPick.value === "linear_constraints"
+      ? [
+          { label: "inequality box", value: "inequality_box", picked: true },
+          { label: "compute polygon", value: "compute_polygon" },
+          { label: "helper only", value: "helper_only" }
+        ]
+      : [
+          { label: "helper only", value: "helper_only", picked: true },
+          { label: "half-plane vector", value: "halfplane_vector" },
+          { label: "compute polygon", value: "compute_polygon" }
+        ],
+    {
+      title: "edulcni: halfplane_intersection",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    application: scenarioPick.value,
+    usageMode: usagePick.value,
+    halfplanesName: suggestIdentifier(analysis, "halfplanes", "planes"),
+    resultName: suggestIdentifier(analysis, "polygon", "poly"),
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -1005,6 +3635,190 @@ function defaultLinearSieveOptions(
     features: defaultLinearSieveFeatures(),
     names: planLinearSieveNames(analysis, extraReserved),
     includeUsageComment: true
+  };
+}
+
+function fenwickOperationsForApplication(
+  application: FenwickApplication
+): FenwickOperation[] {
+  if (application === "point_range") {
+    return ["sum", "xor", "custom_invertible"];
+  }
+  if (application === "range_point" || application === "range_sum") {
+    return ["sum"];
+  }
+  if (application === "frequency_kth" || application === "inversion_count") {
+    return ["sum"];
+  }
+  if (application === "prefix_minmax") {
+    return ["min", "max"];
+  }
+  return ["sum", "xor", "min", "max", "custom", "custom_invertible"];
+}
+
+function defaultOperationForApplication(
+  application: FenwickApplication
+): FenwickOperation {
+  if (application === "prefix_minmax") {
+    return "min";
+  }
+  return "sum";
+}
+
+async function promptFenwickOptions(
+  editor: vscode.TextEditor
+) {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<FenwickApplication>
+  >(
+    FENWICK_APPLICATION_SPEC.scenarios.map((scenario, index) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as FenwickApplication,
+      picked: index === 1
+    })),
+    {
+      title: "edulcni: fenwick",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
+  const application = scenarioPick.value;
+  const operationPick = await vscode.window.showQuickPick<
+    ValuePickItem<FenwickOperation>
+  >(
+    fenwickOperationsForApplication(application).map((operation) => ({
+      label: operation === "custom_invertible" ? "custom invertible" : operation,
+      value: operation,
+      picked: operation === defaultOperationForApplication(application)
+    })),
+    {
+      title: "edulcni: fenwick",
+      placeHolder: "Operation",
+      ignoreFocusOut: true
+    }
+  );
+  if (!operationPick) {
+    return undefined;
+  }
+
+  const sourcePick = await vscode.window.showQuickPick<
+    ValuePickItem<FenwickSourceMode>
+  >(
+    [
+      { label: "empty size", value: "empty", picked: true },
+      { label: "existing vector", value: "existing_vector" },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: fenwick",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourcePick) {
+    return undefined;
+  }
+
+  let sourceName = "";
+  if (sourcePick.value === "existing_vector") {
+    const pickedSource = await promptVectorName(
+      "edulcni: fenwick",
+      "Source vector",
+      analysis.vectorSymbols,
+      "Source vector variable name"
+    );
+    if (pickedSource === undefined || pickedSource.trim() === "") {
+      return undefined;
+    }
+    sourceName = pickedSource.trim();
+  }
+
+  const sourceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sourceName
+  );
+  const sizeDefaults =
+    sourcePick.value === "existing_vector" && sourceName !== ""
+      ? [`(int)${sourceName}.size()`, ...bindingCandidates(analysis, "size").map((item) => item.value)]
+      : bindingCandidates(analysis, "size").map((item) => item.value);
+  const sizeExpression = await pickStringWithCustom(
+    "edulcni: fenwick",
+    "Size expression",
+    uniqueValues([...sizeDefaults, "n"]),
+    "Fenwick size expression"
+  );
+  if (sizeExpression === undefined || sizeExpression.trim() === "") {
+    return undefined;
+  }
+
+  const valueType = await pickStringWithCustom(
+    "edulcni: fenwick",
+    "Value type",
+    uniqueValues([
+      vectorValueType(sourceSymbol?.type) ?? "",
+      application === "frequency_kth" ? "int" : "",
+      "long long",
+      "int"
+    ]),
+    "C++ value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
+    return undefined;
+  }
+
+  const indexingPick = await vscode.window.showQuickPick<
+    ValuePickItem<FenwickIndexing>
+  >(
+    [
+      { label: "0-indexed", value: "zero_based", picked: true },
+      { label: "1-indexed input, decrement in skeleton", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: fenwick",
+      placeHolder: "Indexing convention",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<FenwickUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "instance initialization", value: "instance" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: fenwick",
+      placeHolder: "Generated usage",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
+  return {
+    operations: [operationPick.value],
+    application,
+    sourceMode: sourcePick.value,
+    sourceName,
+    sizeExpression: sizeExpression.trim(),
+    valueType: valueType.trim(),
+    indexing: indexingPick.value,
+    usageMode: usagePick.value,
+    instanceName: suggestIdentifier(analysis, "fw", "fenwick"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
+    names: planFenwickNames(analysis),
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -1072,6 +3886,13 @@ function defaultImplicitTreapOptions(
     valueType: "ll",
     aggregate: "sum",
     features: defaultImplicitTreapFeatures(),
+    application: "range_query",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "treap",
+    answerName: "ans",
     names: planImplicitTreapNames(analysis, extraReserved),
     includeUsageComment: true
   };
@@ -1085,6 +3906,13 @@ function defaultSegmentTreeBeatsOptions(
     valueType: "ll",
     updates: defaultSegmentTreeBeatsUpdates(),
     queries: defaultSegmentTreeBeatsQueries(),
+    application: "add_clamp_queries",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "seg",
+    answerName: "ans",
     names: planSegmentTreeBeatsNames(analysis, extraReserved),
     includeUsageComment: true
   };
@@ -1101,7 +3929,14 @@ function defaultMergeSortTreeOptions(
   return {
     valueType: vectorValueType(sourceSymbol?.type) ?? "int",
     sourceName,
+    sizeExpression: sourceName === "a" ? "n" : `(int)${sourceName}.size()`,
     queries: defaultMergeSortTreeQueries(),
+    application: "range_threshold_count",
+    sourceMode: "existing_vector",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: "mst",
+    answerName: "ans",
     names: planMergeSortTreeNames(analysis, extraReserved),
     includeUsageComment: true
   };
@@ -1213,6 +4048,24 @@ async function promptSparseTableOptions(
   editor: vscode.TextEditor
 ): Promise<SparseTableOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = await vscode.window.showQuickPick<
+    ValuePickItem<SparseTableApplication>
+  >(
+    SPARSE_TABLE_APPLICATION_SPEC.scenarios.map((scenario) => ({
+      label: scenario.label,
+      description: scenario.description,
+      value: scenario.id as SparseTableApplication
+    })),
+    {
+      title: "edulcni: sparse_table",
+      placeHolder: "Application scenario",
+      ignoreFocusOut: true
+    }
+  );
+  if (!scenarioPick) {
+    return undefined;
+  }
+
   const sourceName = await promptVectorName(
     "edulcni: sparse_table",
     "Source vector",
@@ -1241,13 +4094,23 @@ async function promptSparseTableOptions(
     return undefined;
   }
 
+  const variantItems: ValuePickItem<SparseTableVariant>[] =
+    scenarioPick.value === "range_gcd_bitwise"
+      ? [
+          { label: "gcd", value: "gcd", picked: true },
+          { label: "bitwise and", value: "bit_and" },
+          { label: "bitwise or", value: "bit_or" }
+        ]
+      : scenarioPick.value === "custom_idempotent"
+        ? [{ label: "custom idempotent", value: "custom", picked: true }]
+        : [
+            { label: "min", value: "min", picked: true },
+            { label: "max", value: "max", picked: true }
+          ];
   const variantPicks = await vscode.window.showQuickPick<
     ValuePickItem<SparseTableVariant>
   >(
-    [
-      { label: "range minimum", value: "min", picked: true },
-      { label: "range maximum", value: "max", picked: true }
-    ],
+    variantItems,
     {
       title: "edulcni: sparse_table",
       placeHolder: "Variants to generate",
@@ -1259,15 +4122,84 @@ async function promptSparseTableOptions(
     return undefined;
   }
 
+  const sourceModePick = await vscode.window.showQuickPick<
+    ValuePickItem<SparseTableSourceMode>
+  >(
+    [
+      { label: "existing vector", value: "existing_vector", picked: true },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    {
+      title: "edulcni: sparse_table",
+      placeHolder: "Build source",
+      ignoreFocusOut: true
+    }
+  );
+  if (!sourceModePick) {
+    return undefined;
+  }
+
+  let sizeExpression: string | undefined;
+  if (sourceModePick.value === "read_loop") {
+    sizeExpression = await pickStringWithCustom(
+      "edulcni: sparse_table",
+      "Size expression",
+      sizeExpressionCandidates(analysis),
+      "Expression for generated vector size, for example n"
+    );
+    if (sizeExpression === undefined || sizeExpression.trim() === "") {
+      return undefined;
+    }
+  }
+
+  const indexingPick = await vscode.window.showQuickPick(
+    [
+      { label: "0-indexed", value: "zero_based" },
+      { label: "1-indexed input", value: "one_based_input" }
+    ],
+    {
+      title: "edulcni: sparse_table",
+      placeHolder: "Query indexing",
+      ignoreFocusOut: true
+    }
+  );
+  if (!indexingPick) {
+    return undefined;
+  }
+
+  const usagePick = await vscode.window.showQuickPick<
+    ValuePickItem<SparseTableUsageMode>
+  >(
+    [
+      { label: "helper only", value: "helper_only", picked: true },
+      { label: "build call", value: "build_call" },
+      { label: "query loop skeleton", value: "query_loop" }
+    ],
+    {
+      title: "edulcni: sparse_table",
+      placeHolder: "Usage output",
+      ignoreFocusOut: true
+    }
+  );
+  if (!usagePick) {
+    return undefined;
+  }
+
   return {
     valueType: valueType.trim(),
     sourceName: sourceName.trim(),
+    sizeExpression: sizeExpression?.trim(),
     variants:
       variantPicks.length === 0
         ? defaultSparseTableVariants()
         : variantPicks.map((item) => item.value),
+    application: scenarioPick.value,
+    sourceMode: sourceModePick.value,
+    indexing: indexingPick.value as "zero_based" | "one_based_input",
+    usageMode: usagePick.value,
+    answerName: "ans",
     names: planSparseTableNames(analysis),
-    includeUsageComment: true
+    includeUsageComment: usagePick.value === "helper_only"
   };
 }
 
@@ -2033,8 +4965,7 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "interactive / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const options = await promptSegmentTreeOptions(editor);
-        return options ? renderRecipeSnippet(renderSegmentTreeRecipe(options)) : undefined;
+        return promptSegmentTreeOptions(editor);
       }
     }
   ],
@@ -2121,8 +5052,8 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const analysis = analyzeCppDocument(editor.document.getText());
-        return renderRecipeSnippet(renderDsuRecipe(defaultDsuOptions(analysis)));
+        const options = await promptDsuOptions(editor);
+        return options ? renderRecipeSnippet(renderDsuRecipe(options)) : undefined;
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -2147,10 +5078,8 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const analysis = analyzeCppDocument(editor.document.getText());
-        return renderRecipeSnippet(
-          renderRollbackDsuRecipe(defaultRollbackDsuOptions(analysis))
-        );
+        const options = await promptRollbackDsuOptions(editor);
+        return options ? renderRecipeSnippet(renderRollbackDsuRecipe(options)) : undefined;
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -2177,8 +5106,8 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const analysis = analyzeCppDocument(editor.document.getText());
-        return renderRecipeSnippet(renderLcaRecipe(defaultLcaOptions(analysis)));
+        const options = await promptLcaOptions(editor);
+        return options ? renderRecipeSnippet(renderLcaRecipe(options)) : undefined;
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -2186,6 +5115,32 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
       ): RenderedSnippet {
         return renderRecipeSnippet(
           renderLcaRecipe(defaultLcaOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "hld",
+    {
+      catalogEntry: {
+        path: "/solvers/hld",
+        kind: "solver",
+        insertMode: "global",
+        generator: "hld",
+        label: "/solvers/hld",
+        description: "dynamic heavy-light decomposition helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptHldOptions(editor);
+        return options ? renderRecipeSnippet(renderHldRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderHldRecipe(defaultHldOptions(analysis, extraReserved))
         );
       }
     }
@@ -2203,8 +5158,8 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const analysis = analyzeCppDocument(editor.document.getText());
-        return renderRecipeSnippet(renderBfsRecipe(defaultBfsOptions(analysis)));
+        const options = await promptBfsOptions(editor);
+        return options ? renderRecipeSnippet(renderBfsRecipe(options)) : undefined;
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -2212,6 +5167,288 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
       ): RenderedSnippet {
         return renderRecipeSnippet(
           renderBfsRecipe(defaultBfsOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "dijkstra",
+    {
+      catalogEntry: {
+        path: "/solvers/dijkstra",
+        kind: "solver",
+        insertMode: "global",
+        generator: "dijkstra",
+        label: "/solvers/dijkstra",
+        description: "dynamic Dijkstra shortest path helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptDijkstraOptions(editor);
+        return options ? renderRecipeSnippet(renderDijkstraRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderDijkstraRecipe(defaultDijkstraOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "toposort",
+    {
+      catalogEntry: {
+        path: "/solvers/toposort",
+        kind: "solver",
+        insertMode: "global",
+        generator: "toposort",
+        label: "/solvers/toposort",
+        description: "dynamic topological sorting helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptToposortOptions(editor);
+        return options ? renderRecipeSnippet(renderToposortRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderToposortRecipe(defaultToposortOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "kosaraju",
+    {
+      catalogEntry: {
+        path: "/solvers/kosaraju",
+        kind: "solver",
+        insertMode: "global",
+        generator: "kosaraju",
+        label: "/solvers/kosaraju",
+        description: "dynamic Kosaraju SCC helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptKosarajuOptions(editor);
+        return options ? renderRecipeSnippet(renderKosarajuRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderKosarajuRecipe(defaultKosarajuOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "mo",
+    {
+      catalogEntry: {
+        path: "/solvers/mo",
+        kind: "solver",
+        insertMode: "global",
+        generator: "mo",
+        label: "/solvers/mo",
+        description: "dynamic Mo offline range query helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptMoOptions(editor);
+        return options ? renderRecipeSnippet(renderMoRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderMoRecipe(defaultMoOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "monotonic_stack",
+    {
+      catalogEntry: {
+        path: "/solvers/monotonic_stack",
+        kind: "solver",
+        insertMode: "global",
+        generator: "monotonic_stack",
+        label: "/solvers/monotonic_stack",
+        description: "dynamic monotonic stack nearest-index helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptMonotonicStackOptions(editor);
+        return options ? renderRecipeSnippet(renderMonotonicStackRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderMonotonicStackRecipe(
+            defaultMonotonicStackOptions(analysis, extraReserved)
+          )
+        );
+      }
+    }
+  ],
+  [
+    "gp_hash_table",
+    {
+      catalogEntry: {
+        path: "/solvers/gp_hash_table",
+        kind: "solver",
+        insertMode: "global",
+        generator: "gp_hash_table",
+        label: "/solvers/gp_hash_table",
+        description: "dynamic PBDS hash table helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptGpHashTableOptions(editor);
+        return options ? renderRecipeSnippet(renderGpHashTableRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderGpHashTableRecipe(defaultGpHashTableOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "ordered_set",
+    {
+      catalogEntry: {
+        path: "/solvers/ordered_set",
+        kind: "solver",
+        insertMode: "global",
+        generator: "ordered_set",
+        label: "/solvers/ordered_set",
+        description: "dynamic PBDS ordered set helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptOrderedSetOptions(editor);
+        return options ? renderRecipeSnippet(renderOrderedSetRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderOrderedSetRecipe(defaultOrderedSetOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "set_utils",
+    {
+      catalogEntry: {
+        path: "/solvers/set_utils",
+        kind: "solver",
+        insertMode: "global",
+        generator: "set_utils",
+        label: "/solvers/set_utils",
+        description: "dynamic ordered-container neighbor helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptSetUtilsOptions(editor);
+        return options ? renderRecipeSnippet(renderSetUtilsRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderSetUtilsRecipe(defaultSetUtilsOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "fast_allocator",
+    {
+      catalogEntry: {
+        path: "/solvers/fast_allocator",
+        kind: "solver",
+        insertMode: "global",
+        generator: "fast_allocator",
+        label: "/solvers/fast_allocator",
+        description: "dynamic arena-backed allocator helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptFastAllocatorOptions(editor);
+        return options ? renderRecipeSnippet(renderFastAllocatorRecipe(options)) : undefined;
+      },
+      defaultSnippet(
+        analysis: CppAnalysis,
+        extraReserved: string[]
+      ): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderFastAllocatorRecipe(defaultFastAllocatorOptions(analysis, extraReserved))
+        );
+      }
+    }
+  ],
+  [
+    "geometry",
+    {
+      catalogEntry: {
+        path: "/solvers/geometry",
+        kind: "solver",
+        insertMode: "global",
+        generator: "geometry",
+        label: "/solvers/geometry",
+        description: "dynamic 2D geometry helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptGeometryOptions(editor);
+        return options ? renderRecipeSnippet(renderGeometryRecipe(options)) : undefined;
+      },
+      defaultSnippet(): RenderedSnippet {
+        return renderRecipeSnippet(renderGeometryRecipe(defaultGeometryOptions()));
+      }
+    }
+  ],
+  [
+    "halfplane_intersection",
+    {
+      catalogEntry: {
+        path: "/solvers/halfplane_intersection",
+        kind: "solver",
+        insertMode: "global",
+        generator: "halfplane_intersection",
+        label: "/solvers/halfplane_intersection",
+        description: "dynamic half-plane intersection helper",
+        detail: "dynamic / solver"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptHalfplaneIntersectionOptions(editor);
+        return options
+          ? renderRecipeSnippet(renderHalfplaneIntersectionRecipe(options))
+          : undefined;
+      },
+      defaultSnippet(): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderHalfplaneIntersectionRecipe(defaultHalfplaneIntersectionOptions())
         );
       }
     }
@@ -2259,8 +5496,8 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / solver"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const analysis = analyzeCppDocument(editor.document.getText());
-        return renderRecipeSnippet(renderFenwickRecipe(defaultFenwickOptions(analysis)));
+        const options = await promptFenwickOptions(editor);
+        return options ? renderRecipeSnippet(renderFenwickRecipe(options)) : undefined;
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -2756,7 +5993,7 @@ async function insertSnippet(
     );
   }
 
-  const ok = await insertContent(editor, picked.insertMode, renderedSnippet.content);
+  const ok = await insertRenderedSnippet(editor, picked.insertMode, renderedSnippet);
   if (!ok) {
     vscode.window.showErrorMessage("edulcni: failed to insert snippet content.");
     return;

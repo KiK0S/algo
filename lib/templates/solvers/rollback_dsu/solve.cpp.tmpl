@@ -1,0 +1,32 @@
+{{className}} {{instanceName}}({{sizeExpression}});
+{{#if instanceOnly}}
+int snap = {{instanceName}}.snapshot();
+{{else}}
+vector<int> snapshots;
+int q;
+cin >> q;
+while (q--) {
+  int type;
+  cin >> type;
+  if (type == 1) {
+    int u, v;
+    cin >> u >> v;
+{{#if oneBasedInput}}
+    --u; --v;
+{{/if}}
+    {{instanceName}}.unite(u, v);
+  } else if (type == 2) {
+    snapshots.push_back({{instanceName}}.snapshot());
+  } else if (type == 3) {
+    if (!snapshots.empty()) { {{instanceName}}.rollback(snapshots.back()); snapshots.pop_back(); }
+  } else {
+    int u, v;
+    cin >> u >> v;
+{{#if oneBasedInput}}
+    --u; --v;
+{{/if}}
+    bool {{answerName}} = {{instanceName}}.same(u, v);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

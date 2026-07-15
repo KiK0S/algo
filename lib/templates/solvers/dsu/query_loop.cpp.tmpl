@@ -1,0 +1,24 @@
+{{className}} {{instanceName}}({{sizeExpression}});
+int q;
+cin >> q;
+while (q--) {
+  int type, u, v;
+  cin >> type >> u;
+  if (type == 3) {
+{{#if oneBasedInput}}
+    --u;
+{{/if}}
+    cout << {{instanceName}}.component_size(u) << '\n';
+    continue;
+  }
+  cin >> v;
+{{#if oneBasedInput}}
+  --u; --v;
+{{/if}}
+  if (type == 1) {
+    {{instanceName}}.unite(u, v);
+  } else {
+    bool {{answerName}} = {{instanceName}}.same(u, v);
+    cout << {{answerName}} << '\n';
+  }
+}

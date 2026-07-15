@@ -1,0 +1,56 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i) cin >> {{sourceName}}[i];
+{{/if}}
+{{className}}<{{valueType}}> {{instanceName}}({{constructorArg}});
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type, l, r;
+  {{valueType}} x;
+  cin >> type >> l >> r;
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+{{#if addUpdate}}
+  if (type == 1) {
+    cin >> x;
+    {{instanceName}}.{{addName}}(l, r, x);
+{{/if}}
+{{#if chminUpdate}}
+{{#if addUpdate}}
+  } else if (type == 2) {
+{{else}}
+  if (type == 1) {
+{{/if}}
+    cin >> x;
+    {{instanceName}}.{{chminName}}(l, r, x);
+{{/if}}
+{{#if chmaxUpdate}}
+{{#if hasPreviousBeforeChmax}}
+  } else if (type == {{chmaxType}}) {
+{{else}}
+  if (type == 1) {
+{{/if}}
+    cin >> x;
+    {{instanceName}}.{{chmaxName}}(l, r, x);
+{{/if}}
+{{#if hasUpdates}}
+  } else {
+{{else}}
+  {
+{{/if}}
+{{#if sumQuery}}
+    auto {{answerName}} = {{instanceName}}.{{querySumName}}(l, r);
+{{/if}}
+{{#if minQuery}}
+    auto {{answerName}} = {{instanceName}}.{{queryMinName}}(l, r);
+{{/if}}
+{{#if maxQuery}}
+    auto {{answerName}} = {{instanceName}}.{{queryMaxName}}(l, r);
+{{/if}}
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

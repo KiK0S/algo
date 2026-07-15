@@ -12,7 +12,9 @@ This folder captures the plan for moving solver and brick insertion onto the sam
   `/solvers/suffix_array`, `/solvers/twosat`, `/solvers/maxflow_dinic`, and
   `/solvers/mincost_maxflow`, `/solvers/hungarian`, `/solvers/kuhn`,
   `/solvers/segtree_beats`, `/solvers/implicit_treap`, `/solvers/fft_ntt`,
-  and `/solvers/poly_hash`, plus interactive brick generators for
+  `/solvers/poly_hash`, `/solvers/hld`, `/solvers/gp_hash_table`,
+  `/solvers/ordered_set`, `/solvers/set_utils`, `/solvers/fast_allocator`,
+  `/solvers/geometry`, and `/solvers/halfplane_intersection`, plus interactive brick generators for
   `/bricks/compress_unique` and `/bricks/read_vector`. Static segment-tree
   fallbacks such as
   `/solvers/segtree_point_update` and `/solvers/segtree_lazy_add_min` are
@@ -22,12 +24,6 @@ This folder captures the plan for moving solver and brick insertion onto the sam
 - `extension/src/core.ts` already analyzes the active C++ document for identifiers, constants, input variables, vector variables, aliases, and exported-name collisions.
 - `extension/src/extension.ts` dispatches generator ids through a generator registry.
 - Static solvers remain pasteable as plain code. They are unwrapped from headers and renamed if exported identifiers collide with the current file.
-- Static utility/graph solvers now include `/solvers/fast_allocator`,
-  `/solvers/monotonic_stack`, `/solvers/toposort`, `/solvers/kosaraju`,
-  `/solvers/dijkstra`, `/solvers/gp_hash_table`, `/solvers/ordered_set`, and
-  `/solvers/set_utils`; static offline-query solvers include `/solvers/mo`;
-  static geometry solvers include `/solvers/geometry` and
-  `/solvers/halfplane_intersection`; static tree solvers include `/solvers/hld`.
 
 ## Target Assembly Order
 
@@ -50,6 +46,7 @@ For ordinary contest insertion, some sections may be empty because the active fi
 - [02-bricks.md](./02-bricks.md): brick migration plan.
 - [03-legacy-cleanup.md](./03-legacy-cleanup.md): plan to remove top-level compatibility headers and classify everything as solver or brick.
 - [04-expansion-surfaces.md](./04-expansion-surfaces.md): structure-first expansion plan for prompts, application modes, custom escape hatches, and plug-and-play usage skeletons.
+- [smart-solver-pipeline.md](./smart-solver-pipeline.md): repeatable per-solver upgrade pipeline for scenario-driven smart generators.
 - [solvers/](./solvers): one work packet per solver snippet.
 
 ## Agent Rule
@@ -95,7 +92,7 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
   `/solvers/suffix_array`, `/solvers/twosat`, `/solvers/maxflow_dinic`,
   `/solvers/mincost_maxflow`, `/solvers/hungarian`, `/solvers/kuhn`,
   `/solvers/segtree_beats`, `/solvers/implicit_treap`, `/solvers/fft_ntt`,
-  `/solvers/poly_hash`, and `/solvers/modint` are completed
+  `/solvers/poly_hash`, `/solvers/modint`, and `/solvers/hld` are completed
   migrations: they have registry-backed
   dynamic generators, catalog metadata, pasteable fallbacks under
   `lib/solvers/`, and solver-path tests. Dedicated top-level compatibility
@@ -113,22 +110,19 @@ Final state rule: every insertable artifact lives under `lib/solvers/` or `lib/b
   monolith cleanup: remaining lazy min/max range assign/add variants and the
   max-subarray tree now have static solver fallbacks, and the top-level
   monolith is removed.
-- `/solvers/fast_allocator`, `/solvers/monotonic_stack`, `/solvers/toposort`,
-  `/solvers/kosaraju`, `/solvers/dijkstra`, `/solvers/gp_hash_table`, and
-  `/solvers/ordered_set`, and `/solvers/set_utils` are completed static solver
-  cleanups: they have catalog metadata, pasteable global fallbacks under
-  `lib/solvers/`, solver-path tests, and no dedicated top-level compatibility
-  headers.
-- `/solvers/hld` is a completed static tree solver cleanup with catalog
-  metadata, a pasteable global fallback under `lib/solvers/`, solver-path tests,
+- `/solvers/dijkstra`, `/solvers/toposort`, `/solvers/kosaraju`,
+  `/solvers/gp_hash_table`, `/solvers/ordered_set`, `/solvers/set_utils`,
+  `/solvers/fast_allocator`, `/solvers/geometry`,
+  `/solvers/halfplane_intersection`,
+  `/solvers/monotonic_stack`, and `/solvers/hld`
+  are completed smart solver migrations
+  with registry-backed dynamic generators, catalog metadata, pasteable global
+  fallbacks under `lib/solvers/`, solver-path tests,
   and no top-level compatibility header.
-- `/solvers/mo` is a completed static offline-query solver cleanup with catalog
-  metadata, a pasteable global fallback under `lib/solvers/`, solver-path tests,
-  and no top-level compatibility header.
-- `/solvers/geometry` and `/solvers/halfplane_intersection` are completed
-  static geometry solver cleanups with catalog metadata, pasteable global
-  fallbacks under `lib/solvers/`, solver-path tests, and no top-level
-  compatibility headers.
+- `/solvers/mo` is a completed smart offline-query solver migration with a
+  registry-backed dynamic generator, catalog metadata, a pasteable global
+  fallback under `lib/solvers/`, solver-path tests, and no top-level
+  compatibility header.
 
 ## Next-Agent Default
 

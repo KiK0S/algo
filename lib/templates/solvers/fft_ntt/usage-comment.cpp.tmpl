@@ -1,0 +1,23 @@
+/*
+Example:
+{{#if includeConvolution}}
+{{#if includeFft}}
+auto c = {{convolutionFftName}}(a, b);
+{{/if}}
+{{#if includeNtt}}
+auto c_mod = {{convolutionNttName}}(a, b);
+{{/if}}
+{{else}}
+Transform vectors must have power-of-two length.
+{{#if includeFft}}
+std::vector<std::complex<long double>> fa(n);
+{{fftTransformName}}(fa, false);
+{{fftTransformName}}(fa, true);
+{{/if}}
+{{#if includeNtt}}
+std::vector<int> fa(n);
+{{nttTransformName}}(fa, false);
+{{nttTransformName}}(fa, true);
+{{/if}}
+{{/if}}
+*/

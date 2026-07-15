@@ -1,0 +1,49 @@
+{{className}} {{instanceName}}({{sizeExpression}});
+{{#if readTree}}
+for (int i = 0; i + 1 < {{sizeExpression}}; ++i) {
+  int u, v;
+  cin >> u >> v;
+{{#if oneBasedInput}}
+  --u; --v;
+{{/if}}
+  {{instanceName}}.add_edge(u, v);
+}
+{{/if}}
+{{instanceName}}.build({{rootExpression}});
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type;
+  cin >> type;
+  if (type == 1) {
+    int u, v;
+    cin >> u >> v;
+{{#if oneBasedInput}}
+    --u; --v;
+{{/if}}
+    long long {{answerName}} = 0;
+    for (auto [l, r] : {{instanceName}}.path_segments(u, v, {{includeLca}})) {
+      // combine flattened range [l, r]
+    }
+    cout << {{answerName}} << '\n';
+  } else if (type == 2) {
+    int v;
+    cin >> v;
+{{#if oneBasedInput}}
+    --v;
+{{/if}}
+    auto seg = {{instanceName}}.subtree_segment(v);
+    // query flattened subtree range [seg.first, seg.second]
+  } else {
+    int u, v;
+    cin >> u >> v;
+{{#if oneBasedInput}}
+    --u; --v;
+{{/if}}
+    int c = {{instanceName}}.lca(u, v);
+    int {{answerName}} = c == -1 ? -1 : {{instanceName}}.depth(u) + {{instanceName}}.depth(v) - 2 * {{instanceName}}.depth(c);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

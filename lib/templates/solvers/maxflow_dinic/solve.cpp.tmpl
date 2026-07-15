@@ -1,0 +1,13 @@
+void {{solveName}}() {
+  int {{nodeCountName}}, {{edgeCountName}}, {{sourceName}}, {{sinkName}};
+  cin >> {{nodeCountName}} >> {{edgeCountName}} >> {{sourceName}} >> {{sinkName}};
+  {{className}}<{{capType}}> {{instanceName}}({{nodeCountName}});
+  for (int i = 0; i < {{edgeCountName}}; ++i) {
+    int {{fromName}}, {{toName}};
+    {{capType}} {{edgeCapName}};
+    cin >> {{fromName}} >> {{toName}} >> {{edgeCapName}};
+    {{instanceName}}.{{addEdgeName}}({{fromName}}, {{toName}}, {{edgeCapName}});
+  }
+  auto {{answerName}} = {{instanceName}}.{{maxFlowName}}({{sourceName}}, {{sinkName}});
+  cout << {{answerName}} << '\n';
+}

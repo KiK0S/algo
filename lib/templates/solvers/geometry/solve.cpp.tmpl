@@ -1,0 +1,13 @@
+{{#if orientationCheck}}
+int {{resultName}} = orientation(a, b, c);
+{{/if}}
+{{#if segmentIntersection}}
+auto {{resultName}} = segment_intersection(a, b, c, d);
+{{/if}}
+{{#if sortPoints}}
+{{pointType}} center(0, 0);
+sort_points_by_angle({{pointsName}}, center);
+{{/if}}
+{{#if buildHull}}
+std::vector<{{pointType}}> {{resultName}} = convex_hull({{pointsName}});
+{{/if}}

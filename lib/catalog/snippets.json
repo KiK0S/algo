@@ -5,7 +5,7 @@
     "insertMode": "global",
     "generator": "segtree",
     "label": "/solvers/segtree",
-    "description": "interactive inline segment tree generator",
+    "description": "interactive smart segment tree generator",
     "detail": "interactive / solver",
     "exports": [
       "t",
@@ -15,10 +15,57 @@
       "point_set",
       "point_add",
       "range_add",
-      "range_assign"
+      "range_assign",
+      "SegmentTree",
+      "MaxSubarrayNode",
+      "MaxSubarraySegTree",
+      "SegmentTreeBeats"
+    ],
+    "features": [
+      "point_set",
+      "point_add",
+      "range_add",
+      "range_assign",
+      "sum",
+      "min",
+      "max",
+      "custom",
+      "first_leq",
+      "max_subarray",
+      "beats"
+    ],
+    "applications": [
+      "point_query",
+      "lazy_range",
+      "lazy_minmax",
+      "max_subarray",
+      "beats"
+    ],
+    "aggregators": ["sum", "min", "max", "custom", "max_subarray", "beats"],
+    "constraints": [
+      "associative_merge",
+      "lazy_composition",
+      "monotone_for_descend",
+      "beats_invariants"
+    ],
+    "wrappers": [
+      "build_from_vector",
+      "read_loop",
+      "query_loop",
+      "iterative_class",
+      "recursive_globals",
+      "static_fallback_presets"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "sourceName",
+      "valueType",
+      "instanceName",
+      "answerName"
     ],
     "sections": [
-      "helpers"
+      "helpers",
+      "solve"
     ],
     "form": [
       "storageName",
@@ -26,7 +73,10 @@
       "valueType",
       "aggregate",
       "updates",
-      "customNode"
+      "customNode",
+      "application",
+      "sourceMode",
+      "usageMode"
     ],
     "render": {
       "style": "inline-global",
@@ -73,26 +123,79 @@
     "generator": "sparse_table",
     "source": "solvers/sparse_table.hpp",
     "label": "/solvers/sparse_table",
-    "description": "interactive sparse table generator",
+    "description": "interactive smart sparse table generator",
     "detail": "interactive / solver",
     "exports": [
-      "SparseMinOp",
-      "SparseMaxOp",
-      "SparseTable",
-      "SparseMinTable",
-      "SparseMaxTable"
+      "sparse_log",
+      "ensure_sparse_log",
+      "sparse_min",
+      "build_sparse_min",
+      "query_sparse_min",
+      "sparse_max",
+      "build_sparse_max",
+      "query_sparse_max",
+      "sparse_gcd",
+      "build_sparse_gcd",
+      "query_sparse_gcd",
+      "sparse_bit_and",
+      "build_sparse_bit_and",
+      "query_sparse_bit_and",
+      "sparse_bit_or",
+      "build_sparse_bit_or",
+      "query_sparse_bit_or",
+      "sparse_custom",
+      "build_sparse_custom",
+      "query_sparse_custom",
+      "sparse_combine"
     ],
     "features": [
       "min",
-      "max"
+      "max",
+      "gcd",
+      "bit_and",
+      "bit_or",
+      "custom"
+    ],
+    "applications": [
+      "range_minmax",
+      "range_gcd_bitwise",
+      "custom_idempotent"
+    ],
+    "aggregators": [
+      "min",
+      "max",
+      "gcd",
+      "bit_and",
+      "bit_or",
+      "custom"
+    ],
+    "constraints": [
+      "idempotent_operation",
+      "static_array",
+      "inclusive_range_query"
+    ],
+    "wrappers": [
+      "build_from_vector",
+      "read_loop",
+      "query_loop"
+    ],
+    "bindings": [
+      "sourceName",
+      "sizeExpression",
+      "valueType",
+      "answerName"
     ],
     "sections": [
-      "helpers"
+      "helpers",
+      "solve"
     ],
     "form": [
       "sourceName",
       "valueType",
-      "variants"
+      "variants",
+      "application",
+      "sourceMode",
+      "usageMode"
     ],
     "render": {
       "style": "inline-global",
@@ -130,7 +233,33 @@
       "restore_path",
       "visit_order"
     ],
-    "sections": ["helpers"]
+    "applications": [
+      "shortest_distances",
+      "multi_source",
+      "path_restore",
+      "traversal_order"
+    ],
+    "constraints": {
+      "graph": "unweighted",
+      "distance": "edge count",
+      "negativeWeights": "unsupported; use dijkstra/bellman-ford instead"
+    },
+    "wrappers": [
+      "helper_only",
+      "read_graph",
+      "single_source",
+      "multi_source",
+      "path_query"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "edgeCountName",
+      "graphName",
+      "sourceName",
+      "targetName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/linear_sieve",
@@ -163,13 +292,41 @@
       "FenwickXorOp",
       "FenwickMaxOp",
       "FenwickMinOp",
+      "FenwickCustomOp",
+      "FenwickCustomInvertibleOp",
       "Fenwick",
+      "RangeFenwick",
       "FenwickSumTree",
       "FenwickXorTree",
       "FenwickMaxTree",
-      "FenwickMinTree"
+      "FenwickMinTree",
+      "FenwickCustomTree",
+      "FenwickCustomInvertibleTree"
     ],
-    "features": ["sum", "xor", "max", "min", "range_query", "descend"],
+    "features": [
+      "sum",
+      "xor",
+      "max",
+      "min",
+      "custom",
+      "custom_invertible",
+      "range_query",
+      "range_update",
+      "descend"
+    ],
+    "applications": [
+      "point_prefix",
+      "point_range",
+      "range_point",
+      "range_sum",
+      "frequency_kth",
+      "inversion_count",
+      "prefix_minmax"
+    ],
+    "aggregators": ["sum", "xor", "min", "max", "custom", "custom_invertible"],
+    "constraints": ["inverse_for_range_query", "monotone_for_descend"],
+    "wrappers": ["build_from_vector", "read_loop", "query_loop", "range_update_sum"],
+    "bindings": ["sizeExpression", "sourceName", "valueType", "instanceName", "answerName"],
     "sections": ["helpers"]
   },
   {
@@ -217,10 +374,32 @@
     "generator": "dsu",
     "source": "solvers/dsu.hpp",
     "label": "/solvers/dsu",
-    "description": "dynamic disjoint set union helper",
+    "description": "smart disjoint set union helper",
     "detail": "dynamic / solver",
     "exports": ["Dsu"],
-    "sections": ["helpers"]
+    "features": [
+      "unite",
+      "same",
+      "component_size",
+      "component_count",
+      "kruskal",
+      "query_loop"
+    ],
+    "applications": [
+      "connectivity",
+      "kruskal",
+      "query_loop"
+    ],
+    "aggregators": ["component_size", "component_count"],
+    "constraints": ["undirected_edges", "zero_or_one_based_input"],
+    "wrappers": ["instance", "query_loop", "kruskal"],
+    "bindings": [
+      "sizeExpression",
+      "edgeCountName",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/rollback_dsu",
@@ -229,11 +408,24 @@
     "generator": "rollback_dsu",
     "source": "solvers/rollback_dsu.hpp",
     "label": "/solvers/rollback_dsu",
-    "description": "dynamic rollback disjoint set union helper",
+    "description": "smart rollback disjoint set union helper",
     "detail": "dynamic / solver",
     "exports": ["RollbackDsu"],
     "features": ["snapshot", "rollback", "component_count", "component_size"],
-    "sections": ["helpers"]
+    "applications": [
+      "snapshots",
+      "offline_dynamic_connectivity"
+    ],
+    "aggregators": ["component_size", "component_count"],
+    "constraints": ["rollback_no_path_compression", "snapshot_stack"],
+    "wrappers": ["instance", "snapshot_query_loop", "offline_dynamic_connectivity"],
+    "bindings": [
+      "sizeExpression",
+      "queryCountName",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/lca",
@@ -242,11 +434,26 @@
     "generator": "lca",
     "source": "solvers/lca_binary_lifting.hpp",
     "label": "/solvers/lca",
-    "description": "dynamic binary lifting LCA helper",
+    "description": "smart binary lifting LCA helper",
     "detail": "dynamic / solver",
     "exports": ["LcaBinaryLifting"],
-    "features": ["binary_lifting"],
-    "sections": ["helpers"]
+    "features": ["binary_lifting", "lca", "dist", "kth_ancestor", "forest"],
+    "applications": [
+      "lca_dist",
+      "kth_ancestor",
+      "tree_query_loop"
+    ],
+    "aggregators": ["lca", "dist", "kth_ancestor"],
+    "constraints": ["tree_or_forest", "binary_lifting", "unweighted_edges"],
+    "wrappers": ["instance", "read_tree", "query_loop"],
+    "bindings": [
+      "sizeExpression",
+      "rootExpression",
+      "queryCountName",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/twosat",
@@ -352,11 +559,38 @@
     "generator": "implicit_treap",
     "source": "solvers/implicit_treap.hpp",
     "label": "/solvers/implicit_treap",
-    "description": "dynamic implicit treap helper",
+    "description": "smart implicit treap helper",
     "detail": "dynamic / solver",
     "exports": ["TreapSumOp", "ImplicitTreap"],
-    "features": ["sum", "reverse", "range_add"],
-    "sections": ["helpers"]
+    "features": ["sum", "custom", "reverse", "range_add"],
+    "applications": [
+      "sequence_edit",
+      "range_query",
+      "range_lazy",
+      "custom_aggregate"
+    ],
+    "aggregators": ["sum", "custom"],
+    "constraints": [
+      "sequence_order",
+      "random_priority",
+      "lazy_push_before_descent",
+      "inclusive_range_query"
+    ],
+    "wrappers": [
+      "build_from_vector",
+      "read_loop",
+      "query_loop",
+      "range_reverse",
+      "range_add"
+    ],
+    "bindings": [
+      "sourceName",
+      "sizeExpression",
+      "valueType",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/merge_sort_tree",
@@ -365,7 +599,7 @@
     "generator": "merge_sort_tree",
     "source": "solvers/merge_sort_tree.hpp",
     "label": "/solvers/merge_sort_tree",
-    "description": "dynamic merge-sort tree helper",
+    "description": "smart merge-sort tree helper",
     "detail": "dynamic / solver",
     "exports": ["MergeSortTree"],
     "features": [
@@ -375,7 +609,36 @@
       "count_in_range",
       "exists"
     ],
-    "sections": ["helpers"]
+    "applications": [
+      "range_threshold_count",
+      "range_value_presence",
+      "range_value_band"
+    ],
+    "aggregators": [
+      "count_less",
+      "count_less_equal",
+      "count_equal",
+      "count_in_range",
+      "exists"
+    ],
+    "constraints": [
+      "static_array",
+      "ordered_values",
+      "inclusive_range_query"
+    ],
+    "wrappers": [
+      "build_from_vector",
+      "read_loop",
+      "query_loop"
+    ],
+    "bindings": [
+      "sourceName",
+      "sizeExpression",
+      "valueType",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/poly_hash",
@@ -504,11 +767,38 @@
     "generator": "segtree_beats",
     "source": "solvers/segtree_beats.hpp",
     "label": "/solvers/segtree_beats",
-    "description": "dynamic segment tree beats helper",
+    "description": "smart segment tree beats helper",
     "detail": "dynamic / solver",
     "exports": ["SegmentTreeBeats"],
     "features": ["chmin", "chmax", "add", "sum", "min", "max"],
-    "sections": ["helpers"]
+    "applications": [
+      "clamp_queries",
+      "add_clamp_queries",
+      "query_only"
+    ],
+    "aggregators": ["sum", "min", "max"],
+    "constraints": [
+      "beats_invariants",
+      "static_array",
+      "inclusive_range_query",
+      "ordered_minmax_second_extrema"
+    ],
+    "wrappers": [
+      "build_from_vector",
+      "read_loop",
+      "query_loop",
+      "range_chmin",
+      "range_chmax",
+      "range_add"
+    ],
+    "bindings": [
+      "sourceName",
+      "sizeExpression",
+      "valueType",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/fft_ntt",
@@ -536,26 +826,46 @@
     "path": "/solvers/fast_allocator",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "fast_allocator",
     "source": "solvers/fast_allocator.hpp",
     "label": "/solvers/fast_allocator",
-    "description": "arena-backed allocator helper",
-    "detail": "static / solver",
+    "description": "dynamic arena-backed allocator helper",
+    "detail": "dynamic / solver",
     "exports": [
       "FastAllocatorArena",
       "FastAllocator",
       "make_fast_allocator"
     ],
-    "features": ["arena", "allocator"],
-    "sections": ["helpers"]
+    "features": ["arena", "allocator", "vector", "reset"],
+    "applications": [
+      "many_vectors",
+      "graph_edges",
+      "pool_reset",
+      "custom_container"
+    ],
+    "wrappers": [
+      "helper_only",
+      "vector_declaration",
+      "edge_vector",
+      "arena_reset"
+    ],
+    "bindings": [
+      "valueType",
+      "capacityExpression",
+      "arenaName",
+      "containerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/monotonic_stack",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "monotonic_stack",
     "source": "solvers/monotonic_stack.hpp",
     "label": "/solvers/monotonic_stack",
-    "description": "nearest smaller/greater index helpers",
-    "detail": "static / solver",
+    "description": "dynamic monotonic stack nearest-index helper",
+    "detail": "dynamic / solver",
     "exports": [
       "nearest_left_by",
       "nearest_right_by",
@@ -566,49 +876,127 @@
       "NearestIndices",
       "nearest_all"
     ],
-    "features": ["nearest_left", "nearest_right", "smaller", "greater", "strict"],
-    "sections": ["helpers"]
+    "features": [
+      "nearest_left",
+      "nearest_right",
+      "smaller",
+      "greater",
+      "strict",
+      "non_strict"
+    ],
+    "applications": [
+      "nearest_smaller",
+      "nearest_greater",
+      "all_nearest",
+      "custom_comparator"
+    ],
+    "constraints": {
+      "time": "O(n)",
+      "output": "nearest index or -1 when absent"
+    },
+    "wrappers": [
+      "helper_only",
+      "compute_vector",
+      "compute_all"
+    ],
+    "bindings": [
+      "sourceName",
+      "resultName",
+      "valueType"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/toposort",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "toposort",
     "source": "solvers/toposort.hpp",
     "label": "/solvers/toposort",
-    "description": "topological sorting helper",
-    "detail": "static / solver",
+    "description": "dynamic topological sorting helper",
+    "detail": "dynamic / solver",
     "exports": [
       "toposort_add_edge",
       "topological_sort",
       "is_topological_order"
     ],
-    "features": ["sort", "cycle_detection", "order_validation"],
-    "sections": ["helpers"]
+    "features": ["sort", "cycle_detection", "order_validation", "dependency_schedule"],
+    "applications": [
+      "dag_order",
+      "cycle_detection",
+      "dependency_schedule",
+      "order_validation"
+    ],
+    "constraints": {
+      "graph": "directed",
+      "cycles": "topological order exists only for DAGs"
+    },
+    "wrappers": [
+      "helper_only",
+      "read_graph",
+      "sort_order",
+      "cycle_check",
+      "validate_order"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "edgeCountName",
+      "graphName",
+      "orderName",
+      "dagName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/kosaraju",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "kosaraju",
     "source": "solvers/kosaraju.hpp",
     "label": "/solvers/kosaraju",
-    "description": "Kosaraju SCC and condensation DAG helper",
-    "detail": "static / solver",
+    "description": "dynamic Kosaraju SCC helper",
+    "detail": "dynamic / solver",
     "exports": [
       "KosarajuResult",
       "kosaraju_add_edge",
       "kosaraju_scc"
     ],
-    "features": ["scc", "condensation_dag"],
-    "sections": ["helpers"]
+    "features": ["scc", "component_ids", "components", "condensation_dag"],
+    "applications": [
+      "scc_components",
+      "same_component",
+      "condensation_dag",
+      "two_sat_analysis"
+    ],
+    "constraints": {
+      "graph": "directed",
+      "condensation": "DAG ordered by component discovery in this helper"
+    },
+    "wrappers": [
+      "helper_only",
+      "read_graph",
+      "compute_scc",
+      "same_component_queries",
+      "print_components"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "edgeCountName",
+      "queryCountName",
+      "graphName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/dijkstra",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "dijkstra",
     "source": "solvers/dijkstra.hpp",
     "label": "/solvers/dijkstra",
-    "description": "Dijkstra shortest path helper",
-    "detail": "static / solver",
+    "description": "dynamic Dijkstra shortest path helper",
+    "detail": "dynamic / solver",
     "exports": [
       "DijkstraEdge",
       "DijkstraResult",
@@ -617,49 +1005,127 @@
       "dijkstra",
       "dijkstra_restore_path"
     ],
-    "features": ["single_source", "multi_source", "restore_path"],
-    "sections": ["helpers"]
+    "features": [
+      "weighted_graph",
+      "single_source",
+      "multi_source",
+      "restore_path",
+      "nonnegative_weights"
+    ],
+    "applications": [
+      "shortest_paths",
+      "multi_source",
+      "path_restore",
+      "weighted_graph_read"
+    ],
+    "constraints": {
+      "weights": "nonnegative",
+      "graph": "directed or undirected weighted adjacency list",
+      "negativeWeights": "skipped by helper; use Bellman-Ford/SPFA when required"
+    },
+    "wrappers": [
+      "helper_only",
+      "read_graph",
+      "single_source",
+      "multi_source",
+      "path_query"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "edgeCountName",
+      "graphName",
+      "sourceName",
+      "targetName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/gp_hash_table",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "gp_hash_table",
     "source": "solvers/gp_hash_table.hpp",
     "label": "/solvers/gp_hash_table",
-    "description": "PBDS hash table with splitmix hash helpers",
-    "detail": "static / solver",
+    "description": "dynamic PBDS hash table helper",
+    "detail": "dynamic / solver",
     "exports": [
       "SplitMix64Hash",
       "GpHash",
       "PairHash",
       "GpHashTable"
     ],
-    "features": ["pbds", "splitmix64", "pair_hash"],
-    "sections": ["includes", "helpers"]
+    "features": ["pbds", "splitmix64", "pair_hash", "hash_map", "hash_set"],
+    "applications": [
+      "hash_map",
+      "hash_set",
+      "frequency_table",
+      "pair_key"
+    ],
+    "constraints": {
+      "requires": "<ext/pb_ds/assoc_container.hpp>",
+      "namespace": "__gnu_pbds"
+    },
+    "wrappers": [
+      "helper_only",
+      "declare_map",
+      "declare_set",
+      "frequency_loop"
+    ],
+    "bindings": [
+      "keyType",
+      "valueType",
+      "tableName",
+      "sourceName"
+    ],
+    "sections": ["includes", "helpers", "solve"]
   },
   {
     "path": "/solvers/ordered_set",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "ordered_set",
     "source": "solvers/ordered_set.hpp",
     "label": "/solvers/ordered_set",
-    "description": "PBDS ordered set wrapper",
-    "detail": "static / solver",
+    "description": "dynamic PBDS ordered set helper",
+    "detail": "dynamic / solver",
     "exports": [
       "OrderedSetTree",
       "OrderedSet"
     ],
-    "features": ["pbds", "order_statistics"],
-    "sections": ["includes", "helpers"]
+    "features": ["pbds", "order_statistics", "rank", "kth"],
+    "applications": [
+      "order_statistics",
+      "kth_element",
+      "multiset_pairs",
+      "rank_queries"
+    ],
+    "constraints": {
+      "requires": "<ext/pb_ds/assoc_container.hpp> and <ext/pb_ds/tree_policy.hpp>",
+      "duplicates": "use pair-key mode for multiset semantics"
+    },
+    "wrappers": [
+      "helper_only",
+      "declare_set",
+      "rank_query",
+      "kth_query",
+      "pair_multiset"
+    ],
+    "bindings": [
+      "keyType",
+      "setName"
+    ],
+    "sections": ["includes", "helpers", "solve"]
   },
   {
     "path": "/solvers/set_utils",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "set_utils",
     "source": "solvers/set_utils.hpp",
     "label": "/solvers/set_utils",
     "description": "ordered container navigation helpers",
-    "detail": "static / solver",
+    "detail": "dynamic / solver",
     "exports": [
       "next_iterator",
       "prev_iterator",
@@ -667,28 +1133,79 @@
       "prev_value"
     ],
     "features": ["set", "map", "iterator", "neighbor"],
-    "sections": ["helpers"]
+    "applications": [
+      "next_value",
+      "prev_value",
+      "iterator_navigation",
+      "map_neighbor"
+    ],
+    "wrappers": [
+      "helper_only",
+      "lookup_snippet"
+    ],
+    "bindings": [
+      "containerName",
+      "keyName",
+      "iteratorName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/hld",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "hld",
     "source": "solvers/hld.hpp",
     "label": "/solvers/hld",
-    "description": "heavy-light decomposition helper",
-    "detail": "static / solver",
+    "description": "dynamic heavy-light decomposition helper",
+    "detail": "dynamic / solver",
     "exports": ["HeavyLightDecomposition"],
-    "features": ["tree", "path_segments", "subtree_segments", "lca"],
-    "sections": ["helpers"]
+    "applications": [
+      "path_query",
+      "subtree_query",
+      "lca_distance",
+      "build_tree"
+    ],
+    "features": [
+      "tree",
+      "path_segments",
+      "subtree_segments",
+      "lca",
+      "flattened_tree",
+      "vertex_values",
+      "edge_values"
+    ],
+    "constraints": {
+      "graph": "tree",
+      "pathQuery": "O(log n) flattened ranges",
+      "subtreeQuery": "O(1) range extraction after build",
+      "updates": "requires an external Fenwick or segment tree over hld.position(v)"
+    },
+    "wrappers": [
+      "helper_only",
+      "instance",
+      "read_tree",
+      "query_loop"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "rootExpression",
+      "queryCountName",
+      "instanceName",
+      "answerName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/mo",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "mo",
     "source": "solvers/mo.hpp",
     "label": "/solvers/mo",
-    "description": "Mo's algorithm query ordering and processor",
-    "detail": "static / solver",
+    "description": "dynamic Mo offline range query helper",
+    "detail": "dynamic / solver",
     "exports": [
       "MoQuery",
       "mo_default_block_size",
@@ -696,17 +1213,48 @@
       "mo_order",
       "mo_process"
     ],
-    "features": ["range_queries", "offline", "half_open_intervals"],
-    "sections": ["helpers"]
+    "features": [
+      "range_queries",
+      "offline",
+      "half_open_intervals",
+      "query_order",
+      "callback_processor"
+    ],
+    "applications": [
+      "distinct_values",
+      "range_frequency",
+      "range_aggregate",
+      "custom_callbacks"
+    ],
+    "constraints": {
+      "queries": "static offline range queries",
+      "interval": "normalized half-open [left, right)",
+      "updates": "not supported by this helper"
+    },
+    "wrappers": [
+      "helper_only",
+      "read_queries",
+      "process_skeleton",
+      "distinct_count_skeleton"
+    ],
+    "bindings": [
+      "sizeExpression",
+      "queryCountName",
+      "valuesName",
+      "queriesName",
+      "answersName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/geometry",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "geometry",
     "source": "solvers/geometry.hpp",
     "label": "/solvers/geometry",
-    "description": "2D geometry primitives and helpers",
-    "detail": "static / solver",
+    "description": "dynamic 2D geometry primitives and helpers",
+    "detail": "dynamic / solver",
     "exports": [
       "geometry_sign",
       "geometry_sign_eps",
@@ -726,16 +1274,35 @@
       "convex_hull"
     ],
     "features": ["point", "orientation", "segments", "angle_sort", "convex_hull"],
-    "sections": ["helpers"]
+    "applications": [
+      "orientation",
+      "segment_intersection",
+      "angle_sort",
+      "convex_hull"
+    ],
+    "wrappers": [
+      "helper_only",
+      "orientation_check",
+      "segment_intersection",
+      "sort_points",
+      "build_hull"
+    ],
+    "bindings": [
+      "valueType",
+      "pointsName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   },
   {
     "path": "/solvers/halfplane_intersection",
     "kind": "solver",
     "insertMode": "global",
+    "generator": "halfplane_intersection",
     "source": "solvers/halfplane_intersection.hpp",
     "label": "/solvers/halfplane_intersection",
-    "description": "half-plane intersection helper",
-    "detail": "static / solver",
+    "description": "dynamic half-plane intersection helper",
+    "detail": "dynamic / solver",
     "exports": [
       "Point2",
       "to_point_long_double",
@@ -748,6 +1315,21 @@
       "halfplane_intersection"
     ],
     "features": ["geometry", "convex_polygon", "linear_constraints"],
-    "sections": ["helpers"]
+    "applications": [
+      "convex_polygon",
+      "linear_constraints",
+      "clip_polygon"
+    ],
+    "wrappers": [
+      "helper_only",
+      "halfplane_vector",
+      "inequality_box",
+      "compute_polygon"
+    ],
+    "bindings": [
+      "halfplanesName",
+      "resultName"
+    ],
+    "sections": ["helpers", "solve"]
   }
 ]

@@ -1,0 +1,11 @@
+{{#if copySource}}
+auto {{valuesName}} = {{sourceName}};
+{{/if}}
+sort(all({{valuesName}}));
+{{valuesName}}.resize(unique(all({{valuesName}})) - {{valuesName}}.begin());
+auto {{idFunctionName}} = [&](auto x) {
+  return lower_bound(all({{valuesName}}), x) - {{valuesName}}.begin();
+};
+{{#if rewriteSource}}
+for (auto& x : {{sourceName}}) x = {{idFunctionName}}(x);
+{{/if}}

@@ -138,7 +138,7 @@ cd extension
 npm run build
 ```
 
-This copies `lib/bricks/`, `lib/solvers/`, and `lib/catalog/` to
+This copies `lib/bricks/`, `lib/solvers/`, `lib/templates/`, and `lib/catalog/` to
 `extension/library/` so `edulcni` always inserts from the bundled source, not
 the current workspace.
 

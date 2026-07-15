@@ -1,0 +1,59 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i) cin >> {{sourceName}}[i];
+{{/if}}
+{{className}}{{typeArgs}} {{instanceName}};
+{{#if assignSource}}
+{{instanceName}}.assign({{sourceName}}.begin(), {{sourceName}}.end());
+{{/if}}
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type;
+  cin >> type;
+  if (type == 1) {
+    int pos;
+    {{valueType}} x;
+    cin >> pos >> x;
+{{#if oneBased}}
+    --pos;
+{{/if}}
+    {{instanceName}}.insert(pos, x);
+  } else if (type == 2) {
+    int pos;
+    cin >> pos;
+{{#if oneBased}}
+    --pos;
+{{/if}}
+    {{instanceName}}.erase(pos);
+  } else if (type == 3) {
+    int l, r;
+    cin >> l >> r;
+{{#if oneBased}}
+    --l; --r;
+{{/if}}
+    auto {{answerName}} = {{instanceName}}.range_query(l, r);
+    cout << {{answerName}} << '\n';
+{{#if reverseFeature}}
+  } else if (type == 4) {
+    int l, r;
+    cin >> l >> r;
+{{#if oneBased}}
+    --l; --r;
+{{/if}}
+    {{instanceName}}.{{reverseName}}(l, r);
+{{/if}}
+{{#if rangeAddFeature}}
+  } else if (type == {{addQueryType}}) {
+    int l, r;
+    {{valueType}} delta;
+    cin >> l >> r >> delta;
+{{#if oneBased}}
+    --l; --r;
+{{/if}}
+    {{instanceName}}.{{addName}}(l, r, delta);
+{{/if}}
+  }
+}
+{{/if}}

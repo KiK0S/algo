@@ -1,0 +1,15 @@
+{{#if halfplaneVector}}
+std::vector<HalfPlane> {{halfplanesName}};
+{{halfplanesName}}.push_back(HalfPlane(0.0L, 0.0L, 1.0L, 0.0L));
+{{/if}}
+{{#if inequalityBox}}
+std::vector<HalfPlane> {{halfplanesName}} = {
+    HalfPlane::from_inequality(-1.0L, 0.0L, 0.0L),
+    HalfPlane::from_inequality(1.0L, 0.0L, 1.0L),
+    HalfPlane::from_inequality(0.0L, -1.0L, 0.0L),
+    HalfPlane::from_inequality(0.0L, 1.0L, 1.0L),
+};
+{{/if}}
+{{#if computePolygon}}
+std::vector<Point2<long double>> {{resultName}} = halfplane_intersection({{halfplanesName}});
+{{/if}}

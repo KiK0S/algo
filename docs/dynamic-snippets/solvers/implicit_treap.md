@@ -1,76 +1,69 @@
-# Implicit Treap Dynamic Plan
+# Implicit Treap
 
-Status: completed dynamic migration. The dynamic entry path is
-`/solvers/implicit_treap`; the pasteable fallback source is
-`lib/solvers/implicit_treap.hpp`; legacy `lib/treap.hpp` was removed after
-tests moved to the solver path.
+Status: active smart-runtime surface.
 
-## Existing Source
-
-- `lib/solvers/implicit_treap.hpp`
-- tests: `tests/treap_test.cpp`, `tests/solvers_structures_test.cpp`
-
-## Solver-Specific Choices
-
-Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
-
-- Which aggregate should default: sum, min, max, custom?
-- Which lazy features are wanted: reverse, add, assign, chmin/chmax future?
-- Should priorities be generated with fixed seed, `rng`, or passed externally?
-- Should output be a class, loose helper functions, or both?
-
-## Assumptions
-
-- Keep class output by default because treap ownership is cleaner there.
-- Default aggregate remains sum, matching current `TreapSumOp`.
-- Reverse should be considered a first dynamic feature even if the current static API already supports it or can be extended.
-
-The completed migration used these resolved choices:
+## Goal
 
 - Dynamic path: `/solvers/implicit_treap`.
 - Static fallback: `lib/solvers/implicit_treap.hpp`.
-- Default output: class-based sum treap with fixed xorshift priority seed.
-- Default lazy feature: range reverse.
-- Optional generated lazy feature: range add.
+- User-facing outcome: choose the sequence-maintenance scenario, optional lazy
+  operations, build source, and usage skeleton while keeping a compact class
+  helper.
 
-## Dynamic Options
+## Scenario Inventory
 
-- value type and aggregate op
-- lazy features: reverse, add, assign
-- operations: push_back, insert, erase, split, merge, range query, range update, to_vector
-- source: initial vector or empty treap
-- names: node, treap class, root, rng, operation helpers
+- Sequence editing: insert, erase, set, get, and materialize with `to_vector`.
+- Range aggregate queries over sequence positions.
+- Range lazy operations: reverse and range add.
+- Custom aggregate skeleton.
 
-## Sections
+Out of scope for this pass: range assign, min/max/chmin/chmax beats-like lazy
+tags, external priority injection, and persistent treaps.
 
-- data: optional source vector and treap variable
-- helpers: node, op, treap class/functions
-- solve: optional construction/build calls
+## Decision Tree
 
-## Implementation Plan
+- First choice: application scenario.
+- Aggregate: sum or custom aggregate skeleton.
+- Lazy features: none, reverse, range add, or both when the scenario needs lazy
+  operations.
+- Build source: empty treap, existing vector, or generated read loop.
+- Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
+- Usage output: helper only, instance/build skeleton, or query loop skeleton.
 
-1. Catalog `implicit_treap` as a dynamic generator with static fallback.
-2. Add prompt for aggregate and lazy features.
-3. Render only selected operations to keep output small.
-4. Use name planner for `Node`, `ImplicitTreap`, `merge`, `split`, and helper names.
-5. Add compile tests for default sum and one lazy feature.
+## Inputs And Outputs
 
-Completed in this migration:
+- Prefill source from detected vectors such as `a`, `v`, and `values`.
+- Infer value type from the selected vector when practical.
+- Prefill generated read-loop size from detected inputs and constants such as
+  `n`.
+- Reserve operation, class, node, split, merge, root, RNG, reverse, and add
+  names through the shared name planner.
+- Helpers insert globally; usage snippets insert into `solve()`.
 
-1. Added registry-backed dynamic renderer and prompt for `/solvers/implicit_treap`.
-2. Cataloged the solver with static fallback source `solvers/implicit_treap.hpp`.
-3. Added renderer, collision, metadata, and generated C++ compile tests.
-4. Moved `tests/treap_test.cpp` to the solver-path include.
-5. Removed the top-level legacy `lib/treap.hpp` compatibility header.
+## Generator Contract
 
-## Tests
+- Keep class output by default because treap ownership is cleaner there.
+- Keep inclusive `[l, r]` range APIs for query and lazy operations.
+- Keep fixed xorshift-style internal priority generation.
+- Keep static fallback pasteable.
+- Generate solve skeletons that build from an existing/read vector through
+  `assign(begin, end)` when requested.
 
-- Render default sum treap and compile insert/query scenario.
-- Render custom aggregate skeleton with TODO comments.
-- Collision test for `Node`, `merge`, `split`, `root`.
-- Re-run treap tests.
+## Acceptance Cases
 
-Future optional follow-ups:
+- Render default sum treap.
+- Render sequence-edit mode with no lazy features.
+- Render range-lazy mode with reverse and add.
+- Render custom aggregate skeleton.
+- Render read-loop/query-loop usage into `solve`.
+- Verify collision handling for op, class, node, split, merge, root, reverse,
+  and add names.
+- Compile generated default and range-add variants.
+- Verify catalog metadata includes applications, constraints, wrappers, and
+  bindings.
 
-- Add generated range-assign support when a concrete default API is chosen.
-- Add min/max/custom aggregate presets beyond the current custom skeleton.
+## Follow-Ups
+
+- Add range assign once a stable default tag-composition API is chosen.
+- Add min/max aggregate presets when the lazy-update semantics are clear.
+- Add cut/paste/rotate skeletons as separate scenario presets.

@@ -1,0 +1,18 @@
+void {{solveName}}() {
+  int {{nodeCountName}}, {{edgeCountName}}, {{sourceName}}, {{sinkName}};
+  cin >> {{nodeCountName}} >> {{edgeCountName}} >> {{sourceName}} >> {{sinkName}};
+{{#if fixedFlow}}
+  {{capType}} {{flowLimitName}};
+  cin >> {{flowLimitName}};
+{{/if}}
+  {{className}}<{{capType}}, {{costType}}> {{instanceName}}({{nodeCountName}});
+  for (int i = 0; i < {{edgeCountName}}; ++i) {
+    int {{fromName}}, {{toName}};
+    {{capType}} {{edgeCapName}};
+    {{costType}} {{edgeCostName}};
+    cin >> {{fromName}} >> {{toName}} >> {{edgeCapName}} >> {{edgeCostName}};
+    {{instanceName}}.{{addEdgeName}}({{fromName}}, {{toName}}, {{edgeCapName}}, {{edgeCostName}});
+  }
+  auto {{resultName}} = {{instanceName}}.{{#if fixedFlow}}{{minCostFlowName}}({{sourceName}}, {{sinkName}}, {{flowLimitName}}){{else}}{{minCostMaxFlowName}}({{sourceName}}, {{sinkName}}){{/if}};
+  cout << {{resultName}}.first << ' ' << {{resultName}}.second << '\n';
+}

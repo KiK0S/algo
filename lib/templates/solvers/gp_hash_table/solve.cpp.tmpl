@@ -1,0 +1,10 @@
+{{#if declareSet}}
+{{tableAliasName}}<{{keyType}}, __gnu_pbds::null_type> {{tableName}};
+{{else}}
+{{tableAliasName}}<{{keyType}}, {{#if frequencyLoop}}int{{else}}{{valueType}}{{/if}}> {{tableName}};
+{{#if frequencyLoop}}
+for (const auto& value : {{sourceName}}) {
+  ++{{tableName}}[value];
+}
+{{/if}}
+{{/if}}
