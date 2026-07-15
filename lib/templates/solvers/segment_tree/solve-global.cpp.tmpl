@@ -1,0 +1,39 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i) cin >> {{sourceName}}[i];
+{{/if}}
+{{initName}}({{sizeExpression}});
+{{#if hasSource}}
+if ({{sizeExpression}} > 0) {{buildName}}(1, 0, {{sizeExpression}} - 1, {{sourceName}});
+{{/if}}
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type, l, r;
+  {{valueType}} x;
+  cin >> type >> l >> r;
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+  if (type == 1) {
+    cin >> x;
+{{#if rangeAdd}}
+    {{rangeAddName}}(1, 0, {{sizeExpression}} - 1, l, r, x);
+{{else}}
+{{#if rangeAssign}}
+    {{rangeAssignName}}(1, 0, {{sizeExpression}} - 1, l, r, x);
+{{else}}
+{{#if pointAdd}}
+    {{pointAddName}}(1, 0, {{sizeExpression}} - 1, l, x);
+{{else}}
+    {{pointSetName}}(1, 0, {{sizeExpression}} - 1, l, x);
+{{/if}}
+{{/if}}
+{{/if}}
+  } else {
+    auto {{answerName}} = {{queryName}}(1, 0, {{sizeExpression}} - 1, l, r);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

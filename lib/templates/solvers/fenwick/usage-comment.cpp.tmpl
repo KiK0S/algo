@@ -1,0 +1,32 @@
+/*
+Example:
+{{#if sumOp}}
+{{sumAliasName}}<long long> fw(n);
+fw.add(i, value);
+auto pref = fw.prefix(r);
+auto range = fw.segment(l, r);
+auto first = fw.descend(target_prefix);
+{{else}}
+{{#if maxOp}}
+{{maxAliasName}}<int> fw(n, -1000000007);
+fw.add(i, value);
+auto pref_max = fw.prefix(r);
+auto first_gt = fw.descend(target);
+{{else}}
+{{#if minOp}}
+{{minAliasName}}<int> fw(n, 1000000007);
+fw.add(i, value);
+auto pref_min = fw.prefix(r);
+{{else}}
+{{#if xorOp}}
+{{xorAliasName}}<int> fw(n);
+fw.add(i, value);
+auto pref_xor = fw.prefix(r);
+auto range_xor = fw.segment(l, r);
+{{else}}
+{{className}}<long long, CustomOp> fw(n);
+{{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+*/

@@ -1,0 +1,13 @@
+/*
+Example:
+{{className}}<{{capType}}, {{costType}}> {{instanceName}}(n);
+{{instanceName}}.{{addEdgeName}}(u, v, cap, cost);
+auto {{resultName}} = {{instanceName}}.{{#if fixedFlow}}{{minCostFlowName}}(s, t, {{flowLimitName}}){{else}}{{minCostMaxFlowName}}(s, t){{/if}};
+// {{resultName}}.first is flow, {{resultName}}.second is cost.
+{{#if graphAccess}}
+auto edges = {{instanceName}}.{{graphName}}();
+{{/if}}
+{{#if potentialAccess}}
+{{instanceName}}.{{setPotentialName}}(s);
+{{/if}}
+*/

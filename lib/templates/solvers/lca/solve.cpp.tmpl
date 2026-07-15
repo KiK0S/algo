@@ -1,0 +1,34 @@
+{{className}} {{instanceName}}({{sizeExpression}});
+{{#if readTree}}
+for (int i = 0; i + 1 < {{sizeExpression}}; ++i) {
+  int u, v;
+  cin >> u >> v;
+{{#if oneBasedInput}}
+  --u; --v;
+{{/if}}
+  {{instanceName}}.add_edge(u, v);
+}
+{{/if}}
+{{instanceName}}.build({{rootExpression}});
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type, a, b;
+  cin >> type >> a >> b;
+{{#if oneBasedInput}}
+  --a;
+  if (type != 3) --b;
+{{/if}}
+  if (type == 1) {
+    int {{answerName}} = {{instanceName}}.lca(a, b);
+    cout << {{answerName}} << '\n';
+  } else if (type == 2) {
+    int {{answerName}} = {{instanceName}}.dist(a, b);
+    cout << {{answerName}} << '\n';
+  } else {
+    int {{answerName}} = {{instanceName}}.kth_ancestor(a, b);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

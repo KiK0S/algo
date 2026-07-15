@@ -1,0 +1,15 @@
+vector<int> {{logName}};
+
+void {{ensureLogName}}(int n) {
+  if (static_cast<int>({{logName}}.size()) > n) {
+    return;
+  }
+  int start = static_cast<int>({{logName}}.size());
+  if (start < 2) {
+    start = 2;
+  }
+  {{logName}}.resize(n + 1, 0);
+  for (int i = start; i <= n; ++i) {
+    {{logName}}[i] = {{logName}}[i / 2] + 1;
+  }
+}

@@ -1,0 +1,19 @@
+/*
+Example:
+auto {{resultName}} = {{buildCall}};
+{{#if strippedFeature}}
+auto {{saName}} = {{removeEmptySuffixName}}({{resultName}});
+{{else}}
+const auto& {{saName}} = {{resultName}}.sa;
+{{/if}}
+{{#if rankFeature}}
+const auto& {{rankName}} = {{resultName}}.rank;
+{{/if}}
+{{#if lcpFeature}}
+const auto& {{lcpName}} = {{resultName}}.lcp;
+{{/if}}
+{{#if lcpRmqFeature}}
+{{buildLcpMinName}}({{resultName}}.lcp);
+int common = {{lcpRangeQueryName}}(i, j, {{resultName}});
+{{/if}}
+*/

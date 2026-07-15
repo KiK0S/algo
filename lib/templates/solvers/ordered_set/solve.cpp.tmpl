@@ -1,0 +1,16 @@
+{{#if pairMultiset}}
+{{className}}<std::pair<{{keyType}}, int>> {{setName}};
+{{else}}
+{{className}}<{{keyType}}> {{setName}};
+{{#if rankQuery}}
+int x;
+cin >> x;
+cout << {{setName}}.order_of_key(x) << '\n';
+{{/if}}
+{{#if kthQuery}}
+int k;
+cin >> k;
+auto value = {{setName}}.find_by_order(k);
+if (value.has_value()) cout << *value << '\n';
+{{/if}}
+{{/if}}

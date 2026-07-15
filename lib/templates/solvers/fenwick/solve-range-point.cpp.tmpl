@@ -1,0 +1,22 @@
+{{aliasName}}<{{valueType}}> {{instanceName}}({{sizeExpression}});
+{{#if queryLoop}}
+for (int qi = 0; qi < q; ++qi) {
+  int type, l, r, idx;
+  {{valueType}} x;
+  cin >> type;
+  if (type == 1) {
+    cin >> l >> r >> x;
+{{#if oneBased}}
+    --l; --r;
+{{/if}}
+    {{instanceName}}.add(l, x);
+    {{instanceName}}.add(r + 1, -x);
+  } else {
+    cin >> idx;
+{{#if oneBased}}
+    --idx;
+{{/if}}
+    cout << {{instanceName}}.prefix(idx) << '\n';
+  }
+}
+{{/if}}

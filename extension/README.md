@@ -17,6 +17,16 @@ Header source:
 - `npm run build` syncs `../lib/` into `extension/library/` automatically.
 - This keeps behavior consistent across all workspaces/projects.
 
+Generator templates:
+
+- Generated C++ lives under `lib/templates/`; TypeScript prepares template
+  values, selects optional sections, and applies collision-safe identifier
+  renames.
+- Templates support `{{name}}`, `{{#if name}}...{{else}}...{{/if}}`, and
+  `{{#unless name}}...{{/unless}}` without an external runtime dependency.
+- Treat `lib/templates/` as source and `extension/library/templates/` as the
+  build-generated bundled copy.
+
 Local development:
 
 1. `cd extension`

@@ -1,0 +1,25 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i) cin >> {{sourceName}}[i];
+{{/if}}
+{{aliasName}}<{{valueType}}> {{instanceName}}({{constructorArg}});
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type, l, r;
+  {{valueType}} x;
+  cin >> type >> l >> r;
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+  if (type == 1) {
+    cin >> x;
+    {{instanceName}}.point_set(l, x);
+  } else {
+    ++r;
+    auto {{answerName}} = {{instanceName}}.query(l, r);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

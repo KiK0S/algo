@@ -1,0 +1,16 @@
+/*
+Example:
+{{#if minimalRecurrence}}
+auto c = {{berlekampMasseyName}}<{{valueType}}>({{sequenceName}});
+{{/if}}
+{{#if standaloneKthTerm}}
+std::vector<{{valueType}}> c = {}; // recurrence coefficients
+{{/if}}
+{{#if kthTerm}}
+std::vector<{{valueType}}> init({{sequenceName}}.begin(), {{sequenceName}}.begin() + c.size());
+auto ans = {{linearRecurrenceKthName}}<{{valueType}}>(init, c, {{indexName}});
+{{/if}}
+{{#if oneShotKth}}
+auto same = {{berlekampMasseyKthName}}<{{valueType}}>({{sequenceName}}, {{indexName}});
+{{/if}}
+*/

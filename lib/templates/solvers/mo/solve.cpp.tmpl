@@ -1,0 +1,42 @@
+{{#if readQueries}}
+std::vector<{{queryStructName}}> {{queriesName}};
+{{queriesName}}.reserve({{queryCountName}});
+for (int i = 0; i < {{queryCountName}}; ++i) {
+  int l, r;
+  cin >> l >> r;
+{{#if oneBasedClosedInput}}
+  --l;
+{{/if}}
+  {{queriesName}}.push_back({{queryStructName}}(l, r));
+}
+{{/if}}
+{{#unless readQueriesOnly}}
+{{#if distinctCount}}
+std::unordered_map<int, int> freq;
+int distinct = 0;
+auto add = [&](int index) {
+  if (++freq[{{valuesName}}[index]] == 1) ++distinct;
+};
+auto remove = [&](int index) {
+  if (--freq[{{valuesName}}[index]] == 0) --distinct;
+};
+auto get_answer = [&]() { return distinct; };
+std::vector<int> {{answersName}} = {{processName}}({{sizeExpression}}, {{queriesName}}, add, add, remove, remove, get_answer);
+{{else}}
+{{answerType}} current_answer{};
+auto add_left = [&](int index) {
+  // include index on the left
+};
+auto add_right = [&](int index) {
+  // include index on the right
+};
+auto remove_left = [&](int index) {
+  // remove index from the left
+};
+auto remove_right = [&](int index) {
+  // remove index from the right
+};
+auto get_answer = [&]() { return current_answer; };
+std::vector<{{answerType}}> {{answersName}} = {{processName}}({{sizeExpression}}, {{queriesName}}, add_left, add_right, remove_left, remove_right, get_answer);
+{{/if}}
+{{/unless}}

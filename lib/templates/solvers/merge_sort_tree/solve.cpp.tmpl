@@ -1,0 +1,38 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i) cin >> {{sourceName}}[i];
+{{/if}}
+{{className}}<{{valueType}}> {{instanceName}}({{sourceName}});
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int l, r;
+{{#if rangeQuery}}
+  {{valueType}} low, high;
+  cin >> l >> r >> low >> high;
+{{else}}
+  {{valueType}} x;
+  cin >> l >> r >> x;
+{{/if}}
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+{{#if countLessQuery}}
+  auto {{answerName}} = {{instanceName}}.{{countLessName}}(l, r, x);
+{{/if}}
+{{#if countLessEqualQuery}}
+  auto {{answerName}} = {{instanceName}}.{{countLessEqualName}}(l, r, x);
+{{/if}}
+{{#if countEqualQuery}}
+  auto {{answerName}} = {{instanceName}}.{{countEqualName}}(l, r, x);
+{{/if}}
+{{#if rangeQuery}}
+  auto {{answerName}} = {{instanceName}}.{{countInRangeName}}(l, r, low, high);
+{{/if}}
+{{#if existsQuery}}
+  bool {{answerName}} = {{instanceName}}.{{existsName}}(l, r, x);
+{{/if}}
+  cout << {{answerName}} << '\n';
+}
+{{/if}}

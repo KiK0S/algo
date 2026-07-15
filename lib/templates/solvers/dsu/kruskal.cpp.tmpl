@@ -1,0 +1,14 @@
+{{className}} {{instanceName}}({{sizeExpression}});
+struct Edge { int u, v; long long w; };
+vector<Edge> edges({{edgeCountName}});
+for (auto& e : edges) cin >> e.u >> e.v >> e.w;
+{{#if oneBasedInput}}
+for (auto& e : edges) { --e.u; --e.v; }
+{{/if}}
+sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b) {
+  return a.w < b.w;
+});
+long long mst_weight = 0;
+for (const auto& e : edges) {
+  if ({{instanceName}}.unite(e.u, e.v)) mst_weight += e.w;
+}

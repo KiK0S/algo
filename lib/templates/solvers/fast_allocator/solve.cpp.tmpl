@@ -1,0 +1,16 @@
+{{arenaClassName}} {{arenaName}}({{capacityExpression}});
+{{#if arenaReset}}
+{{arenaName}}.reset({{capacityExpression}});
+{{else}}
+{{#if edgeVector}}
+struct {{edgeTypeName}} {
+  int to;
+  int w;
+};
+using {{edgeTypeName}}Alloc = {{allocatorClassName}}<{{edgeTypeName}}>;
+std::vector<{{edgeTypeName}}, {{edgeTypeName}}Alloc> {{containerName}}{ {{edgeTypeName}}Alloc({{arenaName}}) };
+{{else}}
+using Alloc = {{allocatorClassName}}<{{valueType}}>;
+std::vector<{{valueType}}, Alloc> {{containerName}}{Alloc({{arenaName}})};
+{{/if}}
+{{/if}}

@@ -7,7 +7,7 @@ const thisDir = path.dirname(thisFile);
 const extensionRoot = path.resolve(thisDir, "..");
 const sourceRoot = path.resolve(extensionRoot, "..", "lib");
 const targetRoot = path.resolve(extensionRoot, "library");
-const bundledEntries = ["bricks", "solvers", "catalog"];
+const bundledEntries = ["bricks", "solvers", "templates", "catalog"];
 
 async function ensureSourceExists() {
   const sourceStat = await stat(sourceRoot);

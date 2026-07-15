@@ -1,0 +1,17 @@
+/*
+Half-open [l, r) substring hashes:
+{{className}} hash({{sourceName}});
+auto value = hash.hash_substring(l, r);
+{{#if equalFeature}}
+bool same = hash.equal_substrings(l1, r1, l2, r2);
+{{/if}}
+{{#if concatFeature}}
+auto joined = hash.concat(left_hash, right_hash, right_length);
+{{/if}}
+{{#if reverseFeature}}
+bool palindrome = hash.is_palindrome(l, r);
+{{/if}}
+{{#if lcpFeature}}
+int common = hash.lcp(i, j);
+{{/if}}
+*/

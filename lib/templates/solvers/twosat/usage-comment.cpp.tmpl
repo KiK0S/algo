@@ -1,0 +1,18 @@
+/*
+Example:
+{{className}} sat(n);
+sat.{{addOrName}}(a, true, b, false);
+sat.{{addImplicationName}}(a, true, c, true);
+{{#if xorFeature}}
+sat.{{addXorName}}(x, true, y, true);
+{{/if}}
+{{#if equalFeature}}
+sat.{{addEqualName}}(u, true, v, true);
+{{/if}}
+{{#if forceFeature}}
+sat.{{addTrueName}}(forced_var);
+{{/if}}
+if (sat.{{solveName}}()) {
+  auto assign = sat.{{assignmentName}}();
+}
+*/

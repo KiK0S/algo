@@ -1,0 +1,19 @@
+/*
+Inclusive [l, r] queries:
+{{className}}<{{valueType}}> mst({{sourceName}});
+{{#if countLess}}
+auto lt = mst.{{countLessName}}(l, r, x);
+{{/if}}
+{{#if countLessEqual}}
+auto le = mst.{{countLessEqualName}}(l, r, x);
+{{/if}}
+{{#if countEqual}}
+auto eq = mst.{{countEqualName}}(l, r, x);
+{{/if}}
+{{#if countInRange}}
+auto inside = mst.{{countInRangeName}}(l, r, low, high);
+{{/if}}
+{{#if exists}}
+bool found = mst.{{existsName}}(l, r, x);
+{{/if}}
+*/

@@ -1,0 +1,35 @@
+{{#if readGraph}}
+std::vector<std::vector<int>> {{graphName}}({{sizeExpression}});
+for (int i = 0; i < {{edgeCountName}}; ++i) {
+  int before, after;
+  cin >> before >> after;
+{{#if oneBasedInput}}
+  --before; --after;
+{{/if}}
+  {{addEdgeName}}({{graphName}}, before, after);
+}
+{{/if}}
+{{#unless readGraphOnly}}
+{{#if validateOrder}}
+std::vector<int> {{orderName}}({{sizeExpression}});
+for (int& v : {{orderName}}) cin >> v;
+{{#if oneBasedInput}}
+for (int& v : {{orderName}}) --v;
+{{/if}}
+bool valid = {{validateName}}({{graphName}}, {{orderName}});
+cout << valid << '\n';
+{{else}}
+bool {{dagName}} = false;
+std::vector<int> {{orderName}} = {{sortName}}({{graphName}}, &{{dagName}});
+{{#if cycleCheck}}
+cout << {{dagName}} << '\n';
+{{else}}
+if (!{{dagName}}) {
+  cout << "IMPOSSIBLE\n";
+} else {
+  for (int v : {{orderName}}) cout << v << ' ';
+  cout << '\n';
+}
+{{/if}}
+{{/if}}
+{{/unless}}

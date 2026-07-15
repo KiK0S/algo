@@ -103,5 +103,5 @@ points at the replacement, migrated tests include the replacement path, and no
 - All current top-level headers are represented under `lib/solvers/` or `lib/bricks/`.
 - Tests include only solver/brick paths.
 - `README.md` and `Agents.md` no longer say top-level headers remain available for compatibility.
-- `extension/scripts/sync-library.mjs` only needs to sync `bricks`, `solvers`, and `catalog`.
+- `extension/scripts/sync-library.mjs` syncs `bricks`, `solvers`, `templates`, and `catalog`.
 - `find lib -maxdepth 1 -name '*.hpp'` returns no insertable compatibility headers.

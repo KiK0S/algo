@@ -1,0 +1,5 @@
+{{#if allResult}}
+auto {{resultName}} = {{callName}}({{sourceName}}, {{strict}});
+{{else}}
+std::vector<int> {{resultName}} = {{callName}}({{sourceName}}, {{strict}});
+{{/if}}
