@@ -1,6 +1,6 @@
 # Geometry Solver Migration
 
-Status: completed static solver cleanup. The browse path is `/solvers/geometry`;
+Status: completed smart solver migration. The browse path is `/solvers/geometry`;
 the pasteable fallback source is `lib/solvers/geometry.hpp`; legacy
 `lib/geometry.hpp` was removed after tests moved to the solver path.
 
@@ -10,12 +10,17 @@ Completed migration:
    convex-hull helpers as the static solver fallback.
 2. Moved the pasteable source to `lib/solvers/geometry.hpp` and stripped the
    header guard plus `edulcni` namespace to match solver snippet conventions.
-3. Added catalog metadata for `/solvers/geometry` with explicit exports.
-4. Moved `tests/geometry_test.cpp` to the solver-path include and global helper
+3. Added catalog metadata for `/solvers/geometry` with explicit exports and
+   dynamic generator metadata.
+4. Added a registry-backed generator with helper-only output plus usage
+   snippets for orientation checks, segment intersection, angle sorting, and
+   convex hull construction.
+5. Moved `tests/geometry_test.cpp` to the solver-path include and global helper
    names.
-5. Removed the top-level legacy compatibility header.
+6. Removed the top-level legacy compatibility header.
 
-Future dynamic work:
+Dynamic choices:
 
-- Add a registry-backed generator only if geometry feature groups need to be
-  selected independently for shorter insertions.
+- Scenario: orientation, segment intersection, angle sorting, or convex hull.
+- Usage mode: helper-only or a solve-section snippet for the selected scenario.
+- Bindings: coordinate type, points vector, and result variable.

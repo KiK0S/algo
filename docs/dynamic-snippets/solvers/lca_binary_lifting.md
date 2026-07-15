@@ -1,87 +1,60 @@
-# LCA Dynamic Plan
+# LCA Binary Lifting
 
-Status: completed binary-lifting migration. The dynamic entry path is
-`/solvers/lca`; the pasteable fallback source is
-`lib/solvers/lca_binary_lifting.hpp`; legacy `lib/lca.hpp` was removed after
-tests moved to the solver path.
+Status: active smart-runtime surface.
 
-## Existing Source
-
-- `lib/solvers/lca_binary_lifting.hpp`
-- removed legacy library header with RMQ approach: `lib/lca.hpp`
-- related dependency: `/solvers/sparse_table`
-- tests: `tests/lca_test.cpp`, `tests/solvers_structures_test.cpp`
-
-## Historical Alignment
-
-The completed migration used these resolved choices:
+## Goal
 
 - Dynamic path: `/solvers/lca`.
-- Default approach: binary lifting.
-- Generated shape: pasteable global helper class named `LcaBinaryLifting`.
-- Generated sections: `helpers`.
 - Static fallback: `lib/solvers/lca_binary_lifting.hpp`.
-- Public helpers: `add_edge`, `build`, `parent`, `depth`, `component`,
-  `kth_ancestor`, `lca`, and `dist`.
-- Graph input generation and solve-call insertion remain outside the default
-  paste fragment.
+- User-facing outcome: choose LCA/distance, kth ancestor, or a tree query-loop
+  scenario and emit the binary-lifting helper plus optional solve skeleton.
 
-## Solver-Specific Choices
+## Scenario Inventory
 
-Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
+- LCA and distance queries.
+- Kth ancestor queries.
+- Generated tree read/build/query loop.
 
-- Should the dynamic path be `/solvers/lca` with binary lifting and RMQ variants, or keep `/solvers/lca_binary_lifting` as one entry?
-- Which approach should default: binary lifting or Euler tour plus RMQ?
-- Which DFS precomputes are needed: parent, depth, height, subtree size, component id, tin/tout, order, subtree min/custom value?
-- Should graph input be generated or use an existing adjacency list?
-- Should the generated code be a class or global arrays/functions?
+Out of scope for this pass: Euler-tour RMQ LCA, weighted path aggregates, and
+subtree traversal metadata.
 
-## Assumptions
+## Decision Tree
 
-- Use one generator named `lca` and keep static `/solvers/lca_binary_lifting` as fallback.
-- Binary lifting remains the first default because current solver tests use it.
-- Future RMQ mode should request the dynamic sparse table dependency.
-- Future richer traversal features should use a shared tree traversal renderer
-  that bricks can also use.
+- First choice: application scenario.
+- Build source: empty helper or generated tree read loop.
+- Node count binding from active-file inputs/constants.
+- Root expression, defaulting to `0`.
+- Indexing: 0-indexed or 1-indexed input adjustment.
+- Usage output: helper only, instance skeleton, read tree + build, or query
+  loop skeleton.
 
-## Dynamic Options
+## Inputs And Outputs
 
-- approach: binary lifting, Euler RMQ
-- graph source: existing `g`, generated read-tree, weighted tree future option
-- root: existing scalar, literal `0`, custom
-- forest support: yes/no
-- precompute fields: parent, depth, height, subtree size, component, tin/tout, euler order, custom subtree aggregate
-- functions: `lca`, `dist`, `kth_ancestor`, `is_ancestor`, `path_min` future option
-- names: graph, parent, depth, up, first, euler, rmq, dfs/build/query helpers
+- Prefill node count from detected `n`, constants, and annotated inputs.
+- Prefill query count from detected `q`, `m`, and similar symbols.
+- Reserve the generated class name through the shared name planner.
+- Helpers insert globally; usage snippets insert into `solve()`.
 
-## Sections
+## Generator Contract
 
-- data: optional `n`, graph, value array for subtree aggregate
-- helpers: DFS/precompute, LCA storage, query helpers
-- solve: optional build call
+- Keep the binary-lifting class API: `add_edge`, `build`, `parent`, `depth`,
+  `component`, `kth_ancestor`, `lca`, and `dist`.
+- Keep forest-safe behavior where disconnected LCA returns `-1`.
+- Generated query loop uses type `1` for LCA, type `2` for distance, and type
+  `3` for kth ancestor.
+- Keep static fallback pasteable.
 
-## Implementation Plan
+## Acceptance Cases
 
-Completed:
+- Render helper-only binary lifting.
+- Render instance, tree-read, and query-loop usage sections.
+- Verify collision handling for `LcaBinaryLifting`.
+- Compile generated helper output.
+- Verify catalog metadata includes applications, constraints, wrappers, and
+  bindings.
 
-1. Render binary lifting mode using selected precompute fields.
-2. Add catalog metadata for `/solvers/lca` and fallback source mapping to
-   `lib/solvers/lca_binary_lifting.hpp`.
-3. Move or remove top-level `lib/lca.hpp` references in the same migration
-   once the dynamic entry and solver fallback cover them.
-4. Add extension renderer, collision, catalog, guardrail, and generated compile
-   tests.
+## Follow-Ups
 
-Future:
-
-1. Build a tree precompute recipe independent of LCA.
-2. Render RMQ mode using Euler tour and sparse-table dependency.
-3. Make graph/read-tree input an optional dependency instead of baked-in code.
-
-## Tests
-
-- Render binary lifting default helper.
-- Collision test for `LcaBinaryLifting`.
-- Compile generated binary lifting snippet.
-- Re-run current LCA tests.
-- Future: render RMQ mode and verify sparse table dependency is inserted once.
+- Add Euler-tour RMQ mode after dependency prompts can compose sparse table
+  variants cleanly.
+- Add weighted edge aggregates as a separate scenario.

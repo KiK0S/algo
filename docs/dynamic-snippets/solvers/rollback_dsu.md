@@ -1,58 +1,58 @@
-# Rollback DSU Dynamic Plan
+# Rollback DSU
 
-Status: completed dynamic migration. The dynamic entry path is
-`/solvers/rollback_dsu`; the pasteable fallback source is
-`lib/solvers/rollback_dsu.hpp`. There was no top-level
-`lib/rollback_dsu.hpp` compatibility header to remove.
+Status: active smart-runtime surface.
 
-## Existing Source
+## Goal
 
-- `lib/solvers/rollback_dsu.hpp`
-- tests: `tests/dsu_test.cpp`, `tests/solvers_structures_test.cpp`
+- Dynamic path: `/solvers/rollback_dsu`.
+- Static fallback: `lib/solvers/rollback_dsu.hpp`.
+- User-facing outcome: choose snapshot/rollback or offline dynamic connectivity
+  direction and emit the rollback DSU class plus optional solve skeleton.
 
-## Solver-Specific Choices
+## Scenario Inventory
 
-Resolve these from the assumptions, settled defaults, existing code, and tests first. Ask the user only if a choice remains a genuine blocker:
+- Explicit snapshots and rollback for recursive search/backtracking.
+- Snapshot query loop with unite, snapshot, rollback, and same queries.
+- Offline dynamic connectivity scaffold direction.
 
-Resolved choices:
+Out of scope for this pass: full segment-tree-over-time edge interval scaffold,
+parity rollback DSU, and weighted rollback DSU.
 
-- Rollback DSU stays a class.
-- Default features include parent, size, component count, snapshot, rollback,
-  rollback-to-snapshot, unite, same, and component size.
-- Snapshots are explicit integer stack-length tokens from `snapshot()`.
-- The generator follows class-based DSU naming, not the short DSU brick.
+## Decision Tree
 
-## Assumptions
+- First choice: snapshots or offline dynamic connectivity direction.
+- Node count binding from active-file inputs/constants.
+- Query count binding for generated skeletons.
+- Indexing: 0-indexed or 1-indexed input adjustment.
+- Usage output: helper only, instance skeleton, or snapshot query loop.
 
-- Keep class output by default.
-- Default features: parent, size, component count, snapshot, rollback, unite, same.
-- Parity/bipartite DSU is a future optional variant.
+## Inputs And Outputs
 
-## Dynamic Options
+- Prefill node count from `n` and constants.
+- Prefill query count from `q`, `m`, and similar symbols.
+- Reserve the generated class name through the shared name planner.
+- Helpers insert globally; usage snippets insert into `solve()`.
 
-- size source: existing `n`, custom expression
-- features: snapshot, rollback one step, rollback to snapshot, component count, sizes, parity future
-- output: class or global helper block
-- names: class, parent, size, history, snapshot, rollback, unite
+## Generator Contract
 
-## Sections
+- Keep rollback DSU path separate from plain `/solvers/dsu`.
+- Keep no path compression in rollback `find`.
+- Preserve `snapshot()`, `rollback()`, and `rollback(snapshot_id)` APIs.
+- Generated snapshot query loop uses type `1` unite, type `2` snapshot, type
+  `3` rollback latest snapshot, and type `4` same query.
+- Keep static fallback pasteable.
 
-- data: optional DSU instance declaration
-- helpers: DSU class/functions
-- solve: optional construction with selected `n`
+## Acceptance Cases
 
-## Completed In This Migration
+- Render helper-only rollback DSU.
+- Render instance and snapshot query-loop usage sections.
+- Verify collision handling for `RollbackDsu`.
+- Compile generated helper output.
+- Verify catalog metadata includes applications, constraints, wrappers, and
+  bindings.
 
-1. Added the `rollback_dsu` generator with static fallback metadata.
-2. Preserved history, snapshot, rollback, component count, and component size in
-   the generated default class output.
-3. Added collision-aware class naming with the shared name planner.
-4. Added generated render and compile tests for default class output.
-5. Added catalog metadata at `/solvers/rollback_dsu`.
+## Follow-Ups
 
-## Tests
-
-- Render default rollback DSU and compile snapshot/rollback scenario.
-- Collision test for `RollbackDsu`, with method/private names scoped inside the
-  generated class.
-- Re-run structures tests.
+- Add full offline dynamic connectivity scaffold once dependency/section
+  generation for recursive drivers is mature.
+- Add parity rollback DSU as a separate mode.

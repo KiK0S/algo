@@ -53,6 +53,19 @@ function compileSource(name, source) {
   subprocess.execFileSync(exe, [], { stdio: "inherit" });
 }
 
+function compilerHasHeader(header) {
+  const result = subprocess.spawnSync(
+    "g++",
+    ["-std=c++17", "-x", "c++", "-E", "-"],
+    {
+      input: `#include <${header}>\n`,
+      encoding: "utf8",
+      stdio: ["pipe", "ignore", "ignore"]
+    }
+  );
+  return result.status === 0;
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -370,10 +383,91 @@ function lcaOptions(overrides = {}) {
   };
 }
 
+function hldOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planHldNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
 function bfsOptions(overrides = {}) {
   const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
   return {
     names: core.planBfsNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function dijkstraOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planDijkstraNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function toposortOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planToposortNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function kosarajuOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planKosarajuNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function moOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planMoNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function monotonicStackOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planMonotonicStackNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function gpHashTableOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planGpHashTableNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function orderedSetOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planOrderedSetNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function setUtilsOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planSetUtilsNames(analysis),
     includeUsageComment: true,
     ...overrides
   };
@@ -562,6 +656,29 @@ function polyHashOptions(overrides = {}) {
   };
 }
 
+function fastAllocatorOptions(overrides = {}) {
+  const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
+  return {
+    names: core.planFastAllocatorNames(analysis),
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function geometryOptions(overrides = {}) {
+  return {
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
+function halfplaneIntersectionOptions(overrides = {}) {
+  return {
+    includeUsageComment: true,
+    ...overrides
+  };
+}
+
 function segtreeBeatsOptions(overrides = {}) {
   const analysis = core.analyzeCppDocument(overrides.existingText ?? "");
   return {
@@ -604,6 +721,12 @@ function testCollisionNames() {
   assert.equal(names.buildName, "build_segtree");
   assert.equal(names.queryName, "seg_get");
   assert.equal(names.firstLeqName, "seg_first_leq");
+
+  const maxSubarrayNames = core.planSegmentTreeNames(
+    core.analyzeCppDocument("struct MaxSubarrayNode {}; class MaxSubarraySegTree {};")
+  );
+  assert.equal(maxSubarrayNames.maxSubarrayNodeName, "SegmentMaxSubarrayNode");
+  assert.equal(maxSubarrayNames.maxSubarrayClassName, "SegmentMaxSubarrayTree");
 }
 
 function testSharedNamePlanner() {
@@ -646,6 +769,11 @@ void solve() {
   assert.deepEqual(analysis.vectorSymbols.map((symbol) => symbol.name), ["a", "b"]);
   assert.deepEqual(analysis.stringSymbols.map((symbol) => symbol.name), ["s", "t"]);
   assert.equal(core.sizeExpressionCandidates(analysis).includes("E9"), true);
+
+  const sizeCandidates = core.bindingCandidates(analysis, "size");
+  assert.equal(sizeCandidates[0].value, "n");
+  const vectorCandidates = core.bindingCandidates(analysis, "source_vector");
+  assert.equal(vectorCandidates[0].value, "a");
 }
 
 function testSectionDetection() {
@@ -787,11 +915,36 @@ function testRecipeMetadata() {
     "SegmentMaxTree"
   ]);
 
+  const maxSubarrayRecipe = core.renderSegmentTreeRecipe(
+    segmentOptions({ application: "max_subarray", usageMode: "instance" })
+  );
+  assert.deepEqual(maxSubarrayRecipe.exports, [
+    "MaxSubarrayNode",
+    "MaxSubarraySegTree"
+  ]);
+  assert.deepEqual(Object.keys(maxSubarrayRecipe.sections), ["helpers", "solve"]);
+  assert.match(maxSubarrayRecipe.sections.helpers[0], /class MaxSubarraySegTree/);
+
   const beatsRecipe = core.renderSegmentTreeBeatsRecipe(
     segtreeBeatsOptions({ includeUsageComment: false })
   );
   assert.deepEqual(beatsRecipe.exports, ["SegmentTreeBeats"]);
   assert.deepEqual(Object.keys(beatsRecipe.sections), ["helpers"]);
+
+  const beatsUsageRecipe = core.renderSegmentTreeBeatsRecipe(
+    segtreeBeatsOptions({
+      sourceMode: "read_loop",
+      sourceName: "a",
+      sizeExpression: "n",
+      indexing: "one_based_input",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(beatsUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(beatsUsageRecipe.sections.solve[0], /vector<ll> a\(n\);/);
+  assert.match(beatsUsageRecipe.sections.solve[0], /--l; --r;/);
+  assert.match(beatsUsageRecipe.sections.solve[0], /seg\.query_sum\(l, r\)/);
 
   const beatsSumOnlyRecipe = core.renderSegmentTreeBeatsRecipe(
     segtreeBeatsOptions({
@@ -831,15 +984,85 @@ function testRecipeMetadata() {
   assert.deepEqual(dsuRecipe.exports, ["Dsu"]);
   assert.deepEqual(Object.keys(dsuRecipe.sections), ["helpers"]);
 
+  const dsuQueryRecipe = core.renderDsuRecipe(
+    dsuOptions({
+      usageMode: "query_loop",
+      sizeExpression: "n",
+      indexing: "one_based_input",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(dsuQueryRecipe.sections), ["helpers", "solve"]);
+  assert.match(dsuQueryRecipe.sections.solve[0], /Dsu dsu\(n\);/);
+  assert.match(dsuQueryRecipe.sections.solve[0], /--u; --v;/);
+
+  const dsuKruskalRecipe = core.renderDsuRecipe(
+    dsuOptions({
+      usageMode: "kruskal",
+      sizeExpression: "n",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.match(dsuKruskalRecipe.sections.solve[0], /struct Edge/);
+  assert.match(dsuKruskalRecipe.sections.solve[0], /vector<Edge> edges\(m\);/);
+
   const rollbackDsuRecipe = core.renderRollbackDsuRecipe(
     rollbackDsuOptions({ includeUsageComment: false })
   );
   assert.deepEqual(rollbackDsuRecipe.exports, ["RollbackDsu"]);
   assert.deepEqual(Object.keys(rollbackDsuRecipe.sections), ["helpers"]);
 
+  const rollbackUsageRecipe = core.renderRollbackDsuRecipe(
+    rollbackDsuOptions({
+      usageMode: "query_loop",
+      sizeExpression: "n",
+      indexing: "one_based_input",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(rollbackUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(rollbackUsageRecipe.sections.solve[0], /vector<int> snapshots;/);
+  assert.match(rollbackUsageRecipe.sections.solve[0], /dsu\.rollback\(snapshots\.back\(\)\)/);
+
   const lcaRecipe = core.renderLcaRecipe(lcaOptions({ includeUsageComment: false }));
   assert.deepEqual(lcaRecipe.exports, ["LcaBinaryLifting"]);
   assert.deepEqual(Object.keys(lcaRecipe.sections), ["helpers"]);
+
+  const lcaUsageRecipe = core.renderLcaRecipe(
+    lcaOptions({
+      usageMode: "query_loop",
+      sourceMode: "read_tree",
+      sizeExpression: "n",
+      rootExpression: "0",
+      indexing: "one_based_input",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(lcaUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(lcaUsageRecipe.sections.solve[0], /LcaBinaryLifting lca\(n\);/);
+  assert.match(lcaUsageRecipe.sections.solve[0], /--u; --v;/);
+  assert.match(lcaUsageRecipe.sections.solve[0], /lca\.kth_ancestor\(a, b\)/);
+
+  const hldRecipe = core.renderHldRecipe(hldOptions({ includeUsageComment: false }));
+  assert.deepEqual(hldRecipe.exports, ["HeavyLightDecomposition"]);
+  assert.deepEqual(Object.keys(hldRecipe.sections), ["helpers"]);
+
+  const hldUsageRecipe = core.renderHldRecipe(
+    hldOptions({
+      usageMode: "query_loop",
+      sourceMode: "read_tree",
+      sizeExpression: "n",
+      rootExpression: "0",
+      indexing: "one_based_input",
+      valueMode: "edge_values",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(hldUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(hldUsageRecipe.sections.solve[0], /HeavyLightDecomposition hld\(n\);/);
+  assert.match(hldUsageRecipe.sections.solve[0], /--u; --v;/);
+  assert.match(hldUsageRecipe.sections.solve[0], /hld\.path_segments\(u, v, false\)/);
 
   const bfsRecipe = core.renderBfsRecipe(bfsOptions({ includeUsageComment: false }));
   assert.deepEqual(bfsRecipe.exports, [
@@ -851,6 +1074,293 @@ function testRecipeMetadata() {
     "bfs_restore_path_to_root"
   ]);
   assert.deepEqual(Object.keys(bfsRecipe.sections), ["helpers"]);
+
+  const bfsUsageRecipe = core.renderBfsRecipe(
+    bfsOptions({
+      usageMode: "path_query",
+      sourceMode: "read_edges",
+      graphMode: "undirected",
+      indexing: "one_based_input",
+      sizeExpression: "n",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(bfsUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(bfsUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
+  assert.match(bfsUsageRecipe.sections.solve[0], /for \(int i = 0; i < m; \+\+i\)/);
+  assert.match(bfsUsageRecipe.sections.solve[0], /--u; --v;/);
+  assert.match(bfsUsageRecipe.sections.solve[0], /auto path = bfs_restore_path\(source, target, result\);/);
+
+  const dijkstraRecipe = core.renderDijkstraRecipe(
+    dijkstraOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(dijkstraRecipe.exports, [
+    "DijkstraEdge",
+    "DijkstraResult",
+    "dijkstra_add_edge",
+    "dijkstra_multi_source",
+    "dijkstra",
+    "dijkstra_restore_path"
+  ]);
+  assert.deepEqual(Object.keys(dijkstraRecipe.sections), ["helpers"]);
+
+  const dijkstraUsageRecipe = core.renderDijkstraRecipe(
+    dijkstraOptions({
+      usageMode: "path_query",
+      sourceMode: "read_edges",
+      graphMode: "undirected",
+      indexing: "one_based_input",
+      valueType: "long long",
+      infExpression: "INF",
+      sizeExpression: "n",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(dijkstraUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(dijkstraUsageRecipe.sections.solve[0], /std::vector<std::vector<DijkstraEdge<long long>>> graph\(n\);/);
+  assert.match(dijkstraUsageRecipe.sections.solve[0], /int u, v; long long w;/);
+  assert.match(dijkstraUsageRecipe.sections.solve[0], /dijkstra_add_edge\(graph, u, v, w, true\);/);
+  assert.match(dijkstraUsageRecipe.sections.solve[0], /auto path = dijkstra_restore_path\(source, target, result\);/);
+
+  const toposortRecipe = core.renderToposortRecipe(
+    toposortOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(toposortRecipe.exports, [
+    "toposort_add_edge",
+    "topological_sort",
+    "is_topological_order"
+  ]);
+  assert.deepEqual(Object.keys(toposortRecipe.sections), ["helpers"]);
+
+  const toposortUsageRecipe = core.renderToposortRecipe(
+    toposortOptions({
+      usageMode: "sort_order",
+      sourceMode: "read_edges",
+      indexing: "one_based_input",
+      sizeExpression: "n",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(toposortUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
+  assert.match(toposortUsageRecipe.sections.solve[0], /--before; --after;/);
+  assert.match(toposortUsageRecipe.sections.solve[0], /toposort_add_edge\(graph, before, after\);/);
+  assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<int> order = topological_sort\(graph, &dag\);/);
+
+  const kosarajuRecipe = core.renderKosarajuRecipe(
+    kosarajuOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(kosarajuRecipe.exports, [
+    "KosarajuResult",
+    "kosaraju_add_edge",
+    "kosaraju_scc"
+  ]);
+  assert.deepEqual(Object.keys(kosarajuRecipe.sections), ["helpers"]);
+
+  const kosarajuUsageRecipe = core.renderKosarajuRecipe(
+    kosarajuOptions({
+      usageMode: "same_component_queries",
+      sourceMode: "read_edges",
+      indexing: "one_based_input",
+      sizeExpression: "n",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(kosarajuUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(kosarajuUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
+  assert.match(kosarajuUsageRecipe.sections.solve[0], /--from; --to;/);
+  assert.match(kosarajuUsageRecipe.sections.solve[0], /kosaraju_add_edge\(graph, from, to\);/);
+  assert.match(kosarajuUsageRecipe.sections.solve[0], /KosarajuResult scc = kosaraju_scc\(graph\);/);
+  assert.match(kosarajuUsageRecipe.sections.solve[0], /scc\.component_of\[a\] == scc\.component_of\[b\]/);
+
+  const moRecipe = core.renderMoRecipe(moOptions({ includeUsageComment: false }));
+  assert.deepEqual(moRecipe.exports, [
+    "MoQuery",
+    "mo_default_block_size",
+    "normalize_mo_query",
+    "mo_order",
+    "mo_process"
+  ]);
+  assert.deepEqual(Object.keys(moRecipe.sections), ["helpers"]);
+
+  const moUsageRecipe = core.renderMoRecipe(
+    moOptions({
+      usageMode: "distinct_count_skeleton",
+      sourceMode: "read_queries",
+      indexing: "one_based_closed_input",
+      sizeExpression: "n",
+      queryCountName: "q",
+      valuesName: "a",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(moUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(moUsageRecipe.sections.solve[0], /std::vector<MoQuery> queries;/);
+  assert.match(moUsageRecipe.sections.solve[0], /--l;/);
+  assert.match(moUsageRecipe.sections.solve[0], /std::unordered_map<int, int> freq;/);
+  assert.match(moUsageRecipe.sections.solve[0], /std::vector<int> answers = mo_process\(n, queries, add, add, remove, remove, get_answer\);/);
+
+  const monotonicRecipe = core.renderMonotonicStackRecipe(
+    monotonicStackOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(monotonicRecipe.exports, [
+    "nearest_left_by",
+    "nearest_right_by",
+    "nearest_smaller_left",
+    "nearest_smaller_right",
+    "nearest_greater_left",
+    "nearest_greater_right",
+    "NearestIndices",
+    "nearest_all"
+  ]);
+  assert.deepEqual(Object.keys(monotonicRecipe.sections), ["helpers"]);
+
+  const monotonicUsageRecipe = core.renderMonotonicStackRecipe(
+    monotonicStackOptions({
+      usageMode: "compute_vector",
+      relation: "greater",
+      direction: "right",
+      strictness: "non_strict",
+      sourceName: "a",
+      resultName: "nearest",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(monotonicUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(monotonicUsageRecipe.sections.solve[0], /std::vector<int> nearest = nearest_greater_right\(a, false\);/);
+
+  const gpHashRecipe = core.renderGpHashTableRecipe(
+    gpHashTableOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(gpHashRecipe.exports, [
+    "SplitMix64Hash",
+    "GpHash",
+    "PairHash",
+    "GpHashTable"
+  ]);
+  assert.deepEqual(Object.keys(gpHashRecipe.sections), ["helpers"]);
+
+  const gpHashUsageRecipe = core.renderGpHashTableRecipe(
+    gpHashTableOptions({
+      usageMode: "frequency_loop",
+      keyType: "long long",
+      sourceName: "a",
+      tableName: "freq",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(gpHashUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(gpHashUsageRecipe.sections.solve[0], /GpHashTable<long long, int> freq;/);
+  assert.match(gpHashUsageRecipe.sections.solve[0], /for \(const auto& value : a\)/);
+  assert.match(gpHashUsageRecipe.sections.solve[0], /\+\+freq\[value\];/);
+
+  const orderedSetRecipe = core.renderOrderedSetRecipe(
+    orderedSetOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(orderedSetRecipe.exports, ["OrderedSetTree", "OrderedSet"]);
+  assert.deepEqual(Object.keys(orderedSetRecipe.sections), ["helpers"]);
+
+  const orderedSetUsageRecipe = core.renderOrderedSetRecipe(
+    orderedSetOptions({
+      usageMode: "kth_query",
+      keyType: "int",
+      setName: "os",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(orderedSetUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(orderedSetUsageRecipe.sections.solve[0], /OrderedSet<int> os;/);
+  assert.match(orderedSetUsageRecipe.sections.solve[0], /auto value = os\.find_by_order\(k\);/);
+
+  const setUtilsRecipe = core.renderSetUtilsRecipe(
+    setUtilsOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(setUtilsRecipe.exports, [
+    "next_iterator",
+    "prev_iterator",
+    "next_value",
+    "prev_value"
+  ]);
+  assert.deepEqual(Object.keys(setUtilsRecipe.sections), ["helpers"]);
+
+  const setUtilsUsageRecipe = core.renderSetUtilsRecipe(
+    setUtilsOptions({
+      lookup: "prev",
+      target: "value",
+      usageMode: "lookup_snippet",
+      containerName: "positions",
+      keyName: "x",
+      resultName: "neighbor",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(setUtilsUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(setUtilsUsageRecipe.sections.solve[0], /auto neighbor = prev_value\(positions, x\);/);
+
+  const fastAllocatorRecipe = core.renderFastAllocatorRecipe(
+    fastAllocatorOptions({ includeUsageComment: false })
+  );
+  assert.deepEqual(fastAllocatorRecipe.exports, [
+    "FastAllocatorArena",
+    "FastAllocator",
+    "make_fast_allocator"
+  ]);
+  assert.deepEqual(Object.keys(fastAllocatorRecipe.sections), ["helpers"]);
+
+  const fastAllocatorUsageRecipe = core.renderFastAllocatorRecipe(
+    fastAllocatorOptions({
+      usageMode: "vector_declaration",
+      valueType: "long long",
+      arenaName: "pool",
+      containerName: "values",
+      capacityExpression: "1U << 20U",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(fastAllocatorUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(fastAllocatorUsageRecipe.sections.solve[0], /FastAllocatorArena pool\(1U << 20U\);/);
+  assert.match(fastAllocatorUsageRecipe.sections.solve[0], /std::vector<long long, Alloc> values/);
+
+  const geometryRecipe = core.renderGeometryRecipe(
+    geometryOptions({ includeUsageComment: false })
+  );
+  assert.equal(geometryRecipe.exports.includes("Point2"), true);
+  assert.equal(geometryRecipe.exports.includes("convex_hull"), true);
+  assert.deepEqual(Object.keys(geometryRecipe.sections), ["helpers"]);
+
+  const geometryHullRecipe = core.renderGeometryRecipe(
+    geometryOptions({
+      usageMode: "build_hull",
+      valueType: "long long",
+      pointsName: "points",
+      resultName: "hull",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(geometryHullRecipe.sections), ["helpers", "solve"]);
+  assert.match(geometryHullRecipe.sections.solve[0], /std::vector<Point2<long long>> hull = convex_hull\(points\);/);
+
+  const halfplaneRecipe = core.renderHalfplaneIntersectionRecipe(
+    halfplaneIntersectionOptions({ includeUsageComment: false })
+  );
+  assert.equal(halfplaneRecipe.exports.includes("HalfPlane"), true);
+  assert.equal(halfplaneRecipe.exports.includes("halfplane_intersection"), true);
+  assert.deepEqual(Object.keys(halfplaneRecipe.sections), ["helpers"]);
+
+  const halfplaneUsageRecipe = core.renderHalfplaneIntersectionRecipe(
+    halfplaneIntersectionOptions({
+      usageMode: "compute_polygon",
+      halfplanesName: "planes",
+      resultName: "poly",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(halfplaneUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(halfplaneUsageRecipe.sections.solve[0], /std::vector<Point2<long double>> poly = halfplane_intersection\(planes\);/);
 
   const linearSieveRecipe = core.renderLinearSieveRecipe(
     linearSieveOptions({ includeUsageComment: false })
@@ -900,6 +1410,49 @@ function testRecipeMetadata() {
     "Fenwick",
     "FenwickSumTree"
   ]);
+
+  const customFenwickRecipe = core.renderFenwickRecipe(
+    fenwickOptions({
+      operations: ["custom"],
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(customFenwickRecipe.exports, [
+    "FenwickCustomOp",
+    "Fenwick",
+    "FenwickCustomTree"
+  ]);
+  assert.match(customFenwickRecipe.sections.helpers[0], /kHasInverse = false/);
+  assert.doesNotMatch(customFenwickRecipe.sections.helpers[0], /static T inverse/);
+
+  const customInvertibleFenwickRecipe = core.renderFenwickRecipe(
+    fenwickOptions({
+      operations: ["custom_invertible"],
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(customInvertibleFenwickRecipe.exports, [
+    "FenwickCustomInvertibleOp",
+    "Fenwick",
+    "FenwickCustomInvertibleTree"
+  ]);
+  assert.match(customInvertibleFenwickRecipe.sections.helpers[0], /kHasInverse = true/);
+  assert.match(customInvertibleFenwickRecipe.sections.helpers[0], /static T inverse/);
+
+  const usageRecipe = core.renderFenwickRecipe(
+    fenwickOptions({
+      operations: ["sum"],
+      application: "point_prefix",
+      sourceMode: "existing_vector",
+      sourceName: "a",
+      sizeExpression: "(int)a.size()",
+      valueType: "int",
+      usageMode: "instance",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(usageRecipe.sections), ["helpers", "solve"]);
+  assert.match(usageRecipe.sections.solve[0], /FenwickSumTree<int> fw\(\(int\)a\.size\(\)\);/);
 
   const modIntRecipe = core.renderModIntRecipe(
     modIntOptions({ includeUsageComment: false })
@@ -1017,11 +1570,45 @@ function testRecipeMetadata() {
   assert.deepEqual(treapRecipe.exports, ["TreapSumOp", "ImplicitTreap"]);
   assert.deepEqual(Object.keys(treapRecipe.sections), ["helpers"]);
 
+  const treapUsageRecipe = core.renderImplicitTreapRecipe(
+    implicitTreapOptions({
+      features: ["reverse", "range_add"],
+      sourceMode: "read_loop",
+      sourceName: "a",
+      sizeExpression: "n",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(treapUsageRecipe.sections), ["helpers", "solve"]);
+  assert.match(treapUsageRecipe.sections.solve[0], /vector<ll> a\(n\);/);
+  assert.match(treapUsageRecipe.sections.solve[0], /treap\.assign\(a\.begin\(\), a\.end\(\)\);/);
+  assert.match(treapUsageRecipe.sections.solve[0], /treap\.add\(l, r, delta\);/);
+
   const mergeSortTreeRecipe = core.renderMergeSortTreeRecipe(
     mergeSortTreeOptions({ includeUsageComment: false })
   );
   assert.deepEqual(mergeSortTreeRecipe.exports, ["MergeSortTree"]);
   assert.deepEqual(Object.keys(mergeSortTreeRecipe.sections), ["helpers"]);
+
+  const mergeSortTreeUsageRecipe = core.renderMergeSortTreeRecipe(
+    mergeSortTreeOptions({
+      queries: ["count_in_range"],
+      sourceMode: "read_loop",
+      sizeExpression: "n",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(mergeSortTreeUsageRecipe.sections), [
+    "helpers",
+    "solve"
+  ]);
+  assert.match(mergeSortTreeUsageRecipe.sections.solve[0], /vector<int> a\(n\);/);
+  assert.match(
+    mergeSortTreeUsageRecipe.sections.solve[0],
+    /mst\.count_in_range\(l, r, low, high\)/
+  );
 
   const existsOnlyMergeSortTreeRecipe = core.renderMergeSortTreeRecipe(
     mergeSortTreeOptions({
@@ -1122,8 +1709,26 @@ function testBundledCatalogGuardrails() {
   assert.equal(sparseEntry.kind, "solver");
   assert.equal(sparseEntry.generator, "sparse_table");
   assert.equal(sparseEntry.source, "solvers/sparse_table.hpp");
-  assert.deepEqual(sparseEntry.features, ["min", "max"]);
-  assert.deepEqual(sparseEntry.sections, ["helpers"]);
+  assert.deepEqual(sparseEntry.features, [
+    "min",
+    "max",
+    "gcd",
+    "bit_and",
+    "bit_or",
+    "custom"
+  ]);
+  assert.deepEqual(sparseEntry.applications, [
+    "range_minmax",
+    "range_gcd_bitwise",
+    "custom_idempotent"
+  ]);
+  assert.deepEqual(sparseEntry.bindings, [
+    "sourceName",
+    "sizeExpression",
+    "valueType",
+    "answerName"
+  ]);
+  assert.deepEqual(sparseEntry.sections, ["helpers", "solve"]);
 
   const dsuEntry = entries.find((entry) => entry.path === "/solvers/dsu");
   assert.ok(dsuEntry);
@@ -1131,7 +1736,18 @@ function testBundledCatalogGuardrails() {
   assert.equal(dsuEntry.generator, "dsu");
   assert.equal(dsuEntry.source, "solvers/dsu.hpp");
   assert.deepEqual(dsuEntry.exports, ["Dsu"]);
-  assert.deepEqual(dsuEntry.sections, ["helpers"]);
+  assert.deepEqual(dsuEntry.applications, [
+    "connectivity",
+    "kruskal",
+    "query_loop"
+  ]);
+  assert.deepEqual(dsuEntry.bindings, [
+    "sizeExpression",
+    "edgeCountName",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(dsuEntry.sections, ["helpers", "solve"]);
 
   const rollbackDsuEntry = entries.find(
     (entry) => entry.path === "/solvers/rollback_dsu"
@@ -1147,7 +1763,17 @@ function testBundledCatalogGuardrails() {
     "component_count",
     "component_size"
   ]);
-  assert.deepEqual(rollbackDsuEntry.sections, ["helpers"]);
+  assert.deepEqual(rollbackDsuEntry.applications, [
+    "snapshots",
+    "offline_dynamic_connectivity"
+  ]);
+  assert.deepEqual(rollbackDsuEntry.bindings, [
+    "sizeExpression",
+    "queryCountName",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(rollbackDsuEntry.sections, ["helpers", "solve"]);
 
   const lcaEntry = entries.find((entry) => entry.path === "/solvers/lca");
   assert.ok(lcaEntry);
@@ -1155,8 +1781,56 @@ function testBundledCatalogGuardrails() {
   assert.equal(lcaEntry.generator, "lca");
   assert.equal(lcaEntry.source, "solvers/lca_binary_lifting.hpp");
   assert.deepEqual(lcaEntry.exports, ["LcaBinaryLifting"]);
-  assert.deepEqual(lcaEntry.features, ["binary_lifting"]);
-  assert.deepEqual(lcaEntry.sections, ["helpers"]);
+  assert.deepEqual(lcaEntry.features, [
+    "binary_lifting",
+    "lca",
+    "dist",
+    "kth_ancestor",
+    "forest"
+  ]);
+  assert.deepEqual(lcaEntry.applications, [
+    "lca_dist",
+    "kth_ancestor",
+    "tree_query_loop"
+  ]);
+  assert.deepEqual(lcaEntry.bindings, [
+    "sizeExpression",
+    "rootExpression",
+    "queryCountName",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(lcaEntry.sections, ["helpers", "solve"]);
+
+  const hldEntry = entries.find((entry) => entry.path === "/solvers/hld");
+  assert.ok(hldEntry);
+  assert.equal(hldEntry.kind, "solver");
+  assert.equal(hldEntry.generator, "hld");
+  assert.equal(hldEntry.source, "solvers/hld.hpp");
+  assert.deepEqual(hldEntry.exports, ["HeavyLightDecomposition"]);
+  assert.deepEqual(hldEntry.features, [
+    "tree",
+    "path_segments",
+    "subtree_segments",
+    "lca",
+    "flattened_tree",
+    "vertex_values",
+    "edge_values"
+  ]);
+  assert.deepEqual(hldEntry.applications, [
+    "path_query",
+    "subtree_query",
+    "lca_distance",
+    "build_tree"
+  ]);
+  assert.deepEqual(hldEntry.bindings, [
+    "sizeExpression",
+    "rootExpression",
+    "queryCountName",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(hldEntry.sections, ["helpers", "solve"]);
 
   const bfsEntry = entries.find((entry) => entry.path === "/solvers/bfs");
   assert.ok(bfsEntry);
@@ -1178,7 +1852,270 @@ function testBundledCatalogGuardrails() {
     "restore_path",
     "visit_order"
   ]);
-  assert.deepEqual(bfsEntry.sections, ["helpers"]);
+  assert.deepEqual(bfsEntry.applications, [
+    "shortest_distances",
+    "multi_source",
+    "path_restore",
+    "traversal_order"
+  ]);
+  assert.deepEqual(bfsEntry.bindings, [
+    "sizeExpression",
+    "edgeCountName",
+    "graphName",
+    "sourceName",
+    "targetName",
+    "resultName"
+  ]);
+  assert.deepEqual(bfsEntry.sections, ["helpers", "solve"]);
+
+  const dijkstraEntry = entries.find((entry) => entry.path === "/solvers/dijkstra");
+  assert.ok(dijkstraEntry);
+  assert.equal(dijkstraEntry.kind, "solver");
+  assert.equal(dijkstraEntry.generator, "dijkstra");
+  assert.equal(dijkstraEntry.source, "solvers/dijkstra.hpp");
+  assert.deepEqual(dijkstraEntry.exports, [
+    "DijkstraEdge",
+    "DijkstraResult",
+    "dijkstra_add_edge",
+    "dijkstra_multi_source",
+    "dijkstra",
+    "dijkstra_restore_path"
+  ]);
+  assert.deepEqual(dijkstraEntry.features, [
+    "weighted_graph",
+    "single_source",
+    "multi_source",
+    "restore_path",
+    "nonnegative_weights"
+  ]);
+  assert.deepEqual(dijkstraEntry.applications, [
+    "shortest_paths",
+    "multi_source",
+    "path_restore",
+    "weighted_graph_read"
+  ]);
+  assert.deepEqual(dijkstraEntry.bindings, [
+    "sizeExpression",
+    "edgeCountName",
+    "graphName",
+    "sourceName",
+    "targetName",
+    "resultName"
+  ]);
+  assert.deepEqual(dijkstraEntry.sections, ["helpers", "solve"]);
+
+  const toposortEntry = entries.find((entry) => entry.path === "/solvers/toposort");
+  assert.ok(toposortEntry);
+  assert.equal(toposortEntry.kind, "solver");
+  assert.equal(toposortEntry.generator, "toposort");
+  assert.equal(toposortEntry.source, "solvers/toposort.hpp");
+  assert.deepEqual(toposortEntry.exports, [
+    "toposort_add_edge",
+    "topological_sort",
+    "is_topological_order"
+  ]);
+  assert.deepEqual(toposortEntry.features, [
+    "sort",
+    "cycle_detection",
+    "order_validation",
+    "dependency_schedule"
+  ]);
+  assert.deepEqual(toposortEntry.applications, [
+    "dag_order",
+    "cycle_detection",
+    "dependency_schedule",
+    "order_validation"
+  ]);
+  assert.deepEqual(toposortEntry.bindings, [
+    "sizeExpression",
+    "edgeCountName",
+    "graphName",
+    "orderName",
+    "dagName"
+  ]);
+  assert.deepEqual(toposortEntry.sections, ["helpers", "solve"]);
+
+  const kosarajuEntry = entries.find((entry) => entry.path === "/solvers/kosaraju");
+  assert.ok(kosarajuEntry);
+  assert.equal(kosarajuEntry.kind, "solver");
+  assert.equal(kosarajuEntry.generator, "kosaraju");
+  assert.equal(kosarajuEntry.source, "solvers/kosaraju.hpp");
+  assert.deepEqual(kosarajuEntry.exports, [
+    "KosarajuResult",
+    "kosaraju_add_edge",
+    "kosaraju_scc"
+  ]);
+  assert.deepEqual(kosarajuEntry.features, [
+    "scc",
+    "component_ids",
+    "components",
+    "condensation_dag"
+  ]);
+  assert.deepEqual(kosarajuEntry.applications, [
+    "scc_components",
+    "same_component",
+    "condensation_dag",
+    "two_sat_analysis"
+  ]);
+  assert.deepEqual(kosarajuEntry.bindings, [
+    "sizeExpression",
+    "edgeCountName",
+    "queryCountName",
+    "graphName",
+    "resultName"
+  ]);
+  assert.deepEqual(kosarajuEntry.sections, ["helpers", "solve"]);
+
+  const moEntry = entries.find((entry) => entry.path === "/solvers/mo");
+  assert.ok(moEntry);
+  assert.equal(moEntry.kind, "solver");
+  assert.equal(moEntry.generator, "mo");
+  assert.equal(moEntry.source, "solvers/mo.hpp");
+  assert.deepEqual(moEntry.exports, [
+    "MoQuery",
+    "mo_default_block_size",
+    "normalize_mo_query",
+    "mo_order",
+    "mo_process"
+  ]);
+  assert.deepEqual(moEntry.features, [
+    "range_queries",
+    "offline",
+    "half_open_intervals",
+    "query_order",
+    "callback_processor"
+  ]);
+  assert.deepEqual(moEntry.applications, [
+    "distinct_values",
+    "range_frequency",
+    "range_aggregate",
+    "custom_callbacks"
+  ]);
+  assert.deepEqual(moEntry.bindings, [
+    "sizeExpression",
+    "queryCountName",
+    "valuesName",
+    "queriesName",
+    "answersName"
+  ]);
+  assert.deepEqual(moEntry.sections, ["helpers", "solve"]);
+
+  const monotonicEntry = entries.find(
+    (entry) => entry.path === "/solvers/monotonic_stack"
+  );
+  assert.ok(monotonicEntry);
+  assert.equal(monotonicEntry.kind, "solver");
+  assert.equal(monotonicEntry.generator, "monotonic_stack");
+  assert.equal(monotonicEntry.source, "solvers/monotonic_stack.hpp");
+  assert.deepEqual(monotonicEntry.exports, [
+    "nearest_left_by",
+    "nearest_right_by",
+    "nearest_smaller_left",
+    "nearest_smaller_right",
+    "nearest_greater_left",
+    "nearest_greater_right",
+    "NearestIndices",
+    "nearest_all"
+  ]);
+  assert.deepEqual(monotonicEntry.features, [
+    "nearest_left",
+    "nearest_right",
+    "smaller",
+    "greater",
+    "strict",
+    "non_strict"
+  ]);
+  assert.deepEqual(monotonicEntry.applications, [
+    "nearest_smaller",
+    "nearest_greater",
+    "all_nearest",
+    "custom_comparator"
+  ]);
+  assert.deepEqual(monotonicEntry.bindings, [
+    "sourceName",
+    "resultName",
+    "valueType"
+  ]);
+  assert.deepEqual(monotonicEntry.sections, ["helpers", "solve"]);
+
+  const gpHashEntry = entries.find((entry) => entry.path === "/solvers/gp_hash_table");
+  assert.ok(gpHashEntry);
+  assert.equal(gpHashEntry.kind, "solver");
+  assert.equal(gpHashEntry.generator, "gp_hash_table");
+  assert.equal(gpHashEntry.source, "solvers/gp_hash_table.hpp");
+  assert.deepEqual(gpHashEntry.exports, [
+    "SplitMix64Hash",
+    "GpHash",
+    "PairHash",
+    "GpHashTable"
+  ]);
+  assert.deepEqual(gpHashEntry.features, [
+    "pbds",
+    "splitmix64",
+    "pair_hash",
+    "hash_map",
+    "hash_set"
+  ]);
+  assert.deepEqual(gpHashEntry.applications, [
+    "hash_map",
+    "hash_set",
+    "frequency_table",
+    "pair_key"
+  ]);
+  assert.deepEqual(gpHashEntry.bindings, [
+    "keyType",
+    "valueType",
+    "tableName",
+    "sourceName"
+  ]);
+  assert.deepEqual(gpHashEntry.sections, ["includes", "helpers", "solve"]);
+
+  const orderedSetEntry = entries.find((entry) => entry.path === "/solvers/ordered_set");
+  assert.ok(orderedSetEntry);
+  assert.equal(orderedSetEntry.kind, "solver");
+  assert.equal(orderedSetEntry.generator, "ordered_set");
+  assert.equal(orderedSetEntry.source, "solvers/ordered_set.hpp");
+  assert.deepEqual(orderedSetEntry.exports, ["OrderedSetTree", "OrderedSet"]);
+  assert.deepEqual(orderedSetEntry.features, [
+    "pbds",
+    "order_statistics",
+    "rank",
+    "kth"
+  ]);
+  assert.deepEqual(orderedSetEntry.applications, [
+    "order_statistics",
+    "kth_element",
+    "multiset_pairs",
+    "rank_queries"
+  ]);
+  assert.deepEqual(orderedSetEntry.bindings, ["keyType", "setName"]);
+  assert.deepEqual(orderedSetEntry.sections, ["includes", "helpers", "solve"]);
+
+  const setUtilsEntry = entries.find((entry) => entry.path === "/solvers/set_utils");
+  assert.ok(setUtilsEntry);
+  assert.equal(setUtilsEntry.kind, "solver");
+  assert.equal(setUtilsEntry.generator, "set_utils");
+  assert.equal(setUtilsEntry.source, "solvers/set_utils.hpp");
+  assert.deepEqual(setUtilsEntry.exports, [
+    "next_iterator",
+    "prev_iterator",
+    "next_value",
+    "prev_value"
+  ]);
+  assert.deepEqual(setUtilsEntry.features, ["set", "map", "iterator", "neighbor"]);
+  assert.deepEqual(setUtilsEntry.applications, [
+    "next_value",
+    "prev_value",
+    "iterator_navigation",
+    "map_neighbor"
+  ]);
+  assert.deepEqual(setUtilsEntry.bindings, [
+    "containerName",
+    "keyName",
+    "iteratorName",
+    "resultName"
+  ]);
+  assert.deepEqual(setUtilsEntry.sections, ["helpers", "solve"]);
 
   const linearSieveEntry = entries.find(
     (entry) => entry.path === "/solvers/linear_sieve"
@@ -1209,20 +2146,31 @@ function testBundledCatalogGuardrails() {
     "FenwickXorOp",
     "FenwickMaxOp",
     "FenwickMinOp",
+    "FenwickCustomOp",
+    "FenwickCustomInvertibleOp",
     "Fenwick",
+    "RangeFenwick",
     "FenwickSumTree",
     "FenwickXorTree",
     "FenwickMaxTree",
-    "FenwickMinTree"
+    "FenwickMinTree",
+    "FenwickCustomTree",
+    "FenwickCustomInvertibleTree"
   ]);
   assert.deepEqual(fenwickEntry.features, [
     "sum",
     "xor",
     "max",
     "min",
+    "custom",
+    "custom_invertible",
     "range_query",
+    "range_update",
     "descend"
   ]);
+  assert.equal(fenwickEntry.applications.includes("range_sum"), true);
+  assert.equal(fenwickEntry.aggregators.includes("custom_invertible"), true);
+  assert.equal(fenwickEntry.bindings.includes("sourceName"), true);
   assert.deepEqual(fenwickEntry.sections, ["helpers"]);
 
   const modIntEntry = entries.find((entry) => entry.path === "/solvers/modint");
@@ -1340,8 +2288,21 @@ function testBundledCatalogGuardrails() {
   assert.equal(treapEntry.generator, "implicit_treap");
   assert.equal(treapEntry.source, "solvers/implicit_treap.hpp");
   assert.deepEqual(treapEntry.exports, ["TreapSumOp", "ImplicitTreap"]);
-  assert.deepEqual(treapEntry.features, ["sum", "reverse", "range_add"]);
-  assert.deepEqual(treapEntry.sections, ["helpers"]);
+  assert.deepEqual(treapEntry.features, ["sum", "custom", "reverse", "range_add"]);
+  assert.deepEqual(treapEntry.applications, [
+    "sequence_edit",
+    "range_query",
+    "range_lazy",
+    "custom_aggregate"
+  ]);
+  assert.deepEqual(treapEntry.bindings, [
+    "sourceName",
+    "sizeExpression",
+    "valueType",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(treapEntry.sections, ["helpers", "solve"]);
 
   const mergeSortTreeEntry = entries.find(
     (entry) => entry.path === "/solvers/merge_sort_tree"
@@ -1358,7 +2319,19 @@ function testBundledCatalogGuardrails() {
     "count_in_range",
     "exists"
   ]);
-  assert.deepEqual(mergeSortTreeEntry.sections, ["helpers"]);
+  assert.deepEqual(mergeSortTreeEntry.applications, [
+    "range_threshold_count",
+    "range_value_presence",
+    "range_value_band"
+  ]);
+  assert.deepEqual(mergeSortTreeEntry.bindings, [
+    "sourceName",
+    "sizeExpression",
+    "valueType",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(mergeSortTreeEntry.sections, ["helpers", "solve"]);
 
   const polyHashEntry = entries.find((entry) => entry.path === "/solvers/poly_hash");
   assert.ok(polyHashEntry);
@@ -1395,6 +2368,34 @@ function testBundledCatalogGuardrails() {
     "lcp_rmq"
   ]);
   assert.deepEqual(suffixEntry.sections, ["helpers"]);
+
+  const segtreeEntry = entries.find((entry) => entry.path === "/solvers/segtree");
+  assert.ok(segtreeEntry);
+  assert.equal(segtreeEntry.kind, "solver");
+  assert.equal(segtreeEntry.generator, "segtree");
+  assert.deepEqual(segtreeEntry.applications, [
+    "point_query",
+    "lazy_range",
+    "lazy_minmax",
+    "max_subarray",
+    "beats"
+  ]);
+  assert.deepEqual(segtreeEntry.aggregators, [
+    "sum",
+    "min",
+    "max",
+    "custom",
+    "max_subarray",
+    "beats"
+  ]);
+  assert.deepEqual(segtreeEntry.bindings, [
+    "sizeExpression",
+    "sourceName",
+    "valueType",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(segtreeEntry.sections, ["helpers", "solve"]);
 
   const pointSegtreeEntry = entries.find(
     (entry) => entry.path === "/solvers/segtree_point_update"
@@ -1487,7 +2488,19 @@ function testBundledCatalogGuardrails() {
     "min",
     "max"
   ]);
-  assert.deepEqual(beatsEntry.sections, ["helpers"]);
+  assert.deepEqual(beatsEntry.applications, [
+    "clamp_queries",
+    "add_clamp_queries",
+    "query_only"
+  ]);
+  assert.deepEqual(beatsEntry.bindings, [
+    "sourceName",
+    "sizeExpression",
+    "valueType",
+    "instanceName",
+    "answerName"
+  ]);
+  assert.deepEqual(beatsEntry.sections, ["helpers", "solve"]);
 
   const fftNttEntry = entries.find((entry) => entry.path === "/solvers/fft_ntt");
   assert.ok(fftNttEntry);
@@ -1511,6 +2524,90 @@ function testBundledCatalogGuardrails() {
     "mod_998244353"
   ]);
   assert.deepEqual(fftNttEntry.sections, ["helpers"]);
+
+  const fastAllocatorEntry = entries.find(
+    (entry) => entry.path === "/solvers/fast_allocator"
+  );
+  assert.ok(fastAllocatorEntry);
+  assert.equal(fastAllocatorEntry.kind, "solver");
+  assert.equal(fastAllocatorEntry.generator, "fast_allocator");
+  assert.equal(fastAllocatorEntry.source, "solvers/fast_allocator.hpp");
+  assert.deepEqual(fastAllocatorEntry.exports, [
+    "FastAllocatorArena",
+    "FastAllocator",
+    "make_fast_allocator"
+  ]);
+  assert.deepEqual(fastAllocatorEntry.features, [
+    "arena",
+    "allocator",
+    "vector",
+    "reset"
+  ]);
+  assert.deepEqual(fastAllocatorEntry.applications, [
+    "many_vectors",
+    "graph_edges",
+    "pool_reset",
+    "custom_container"
+  ]);
+  assert.deepEqual(fastAllocatorEntry.bindings, [
+    "valueType",
+    "capacityExpression",
+    "arenaName",
+    "containerName"
+  ]);
+  assert.deepEqual(fastAllocatorEntry.sections, ["helpers", "solve"]);
+
+  const geometryEntry = entries.find((entry) => entry.path === "/solvers/geometry");
+  assert.ok(geometryEntry);
+  assert.equal(geometryEntry.kind, "solver");
+  assert.equal(geometryEntry.generator, "geometry");
+  assert.equal(geometryEntry.source, "solvers/geometry.hpp");
+  assert.equal(geometryEntry.exports.includes("Point2"), true);
+  assert.equal(geometryEntry.exports.includes("convex_hull"), true);
+  assert.deepEqual(geometryEntry.features, [
+    "point",
+    "orientation",
+    "segments",
+    "angle_sort",
+    "convex_hull"
+  ]);
+  assert.deepEqual(geometryEntry.applications, [
+    "orientation",
+    "segment_intersection",
+    "angle_sort",
+    "convex_hull"
+  ]);
+  assert.deepEqual(geometryEntry.bindings, [
+    "valueType",
+    "pointsName",
+    "resultName"
+  ]);
+  assert.deepEqual(geometryEntry.sections, ["helpers", "solve"]);
+
+  const halfplaneEntry = entries.find(
+    (entry) => entry.path === "/solvers/halfplane_intersection"
+  );
+  assert.ok(halfplaneEntry);
+  assert.equal(halfplaneEntry.kind, "solver");
+  assert.equal(halfplaneEntry.generator, "halfplane_intersection");
+  assert.equal(halfplaneEntry.source, "solvers/halfplane_intersection.hpp");
+  assert.equal(halfplaneEntry.exports.includes("HalfPlane"), true);
+  assert.equal(halfplaneEntry.exports.includes("halfplane_intersection"), true);
+  assert.deepEqual(halfplaneEntry.features, [
+    "geometry",
+    "convex_polygon",
+    "linear_constraints"
+  ]);
+  assert.deepEqual(halfplaneEntry.applications, [
+    "convex_polygon",
+    "linear_constraints",
+    "clip_polygon"
+  ]);
+  assert.deepEqual(halfplaneEntry.bindings, [
+    "halfplanesName",
+    "resultName"
+  ]);
+  assert.deepEqual(halfplaneEntry.sections, ["helpers", "solve"]);
 }
 
 function testCompletedMigrationGuardrails() {
@@ -1831,6 +2928,19 @@ function testGeneratedSegmentTrees() {
   );
 
   compileGenerated(
+    "max_subarray_generated",
+    segmentOptions({ application: "max_subarray" }),
+    `
+  vector<int> a = {2, -5, 4, 3, -1};
+  MaxSubarraySegTree<int> st(a);
+  assert(st.max_sum(0, 4) == 7);
+  st.point_set(1, 6);
+  assert(st.max_sum(0, 4) == 15);
+  assert(st.get(2, 3).best == 7);
+`
+  );
+
+  compileGenerated(
     "custom_point_add",
     segmentOptions({
       aggregate: "custom",
@@ -1993,15 +3103,42 @@ function testSparseTableRenderer() {
   assert.doesNotMatch(maxOnly, /build_sparse_min/);
   assert.match(maxOnly, /build_sparse_max/);
 
+  const gcdBitwise = core.renderSparseTable(
+    sparseOptions({
+      variants: ["gcd", "bit_and", "bit_or"],
+      includeUsageComment: false
+    })
+  );
+  assert.match(gcdBitwise, /void build_sparse_gcd/);
+  assert.match(gcdBitwise, /return gcd\(lhs, rhs\);/);
+  assert.match(gcdBitwise, /void build_sparse_bit_and/);
+  assert.match(gcdBitwise, /void build_sparse_bit_or/);
+
+  const customRecipe = core.renderSparseTableRecipe(
+    sparseOptions({
+      variants: ["custom"],
+      usageMode: "query_loop",
+      sourceMode: "read_loop",
+      sizeExpression: "n",
+      includeUsageComment: false
+    })
+  );
+  assert.deepEqual(Object.keys(customRecipe.sections), ["helpers", "solve"]);
+  assert.match(customRecipe.sections.helpers[0], /int sparse_combine\(int lhs, int rhs\)/);
+  assert.match(customRecipe.sections.solve[0], /vector<int> a\(n\);/);
+  assert.match(customRecipe.sections.solve[0], /query_sparse_custom\(l, r\)/);
+
   const collisionOptions = sparseOptions({
     existingText:
-      "int sparse_log; int ensure_sparse_log; int build_sparse_min; int query_sparse_min; int sparse_max;"
+      "int sparse_log; int ensure_sparse_log; int build_sparse_min; int query_sparse_min; int sparse_max; int sparse_gcd; int sparse_combine;"
   });
   assert.equal(collisionOptions.names.logName, "sparse_log2");
   assert.equal(collisionOptions.names.ensureLogName, "ensure_sparse_log2");
   assert.equal(collisionOptions.names.buildMinName, "build_sparse_min2");
   assert.equal(collisionOptions.names.queryMinName, "query_sparse_min2");
   assert.equal(collisionOptions.names.maxTableName, "sparse_max2");
+  assert.equal(collisionOptions.names.gcdTableName, "sparse_gcd2");
+  assert.equal(collisionOptions.names.customCombineName, "sparse_combine2");
   assert.match(core.renderSparseTable(collisionOptions), /sparse_log2/);
   assert.match(core.renderSparseTable(collisionOptions), /build_sparse_min2/);
 }
@@ -2017,6 +3154,16 @@ function testDsuRenderer() {
   const usageContent = core.renderDsu(dsuOptions());
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /Dsu dsu\(n\);/);
+
+  const kruskalRecipe = core.renderDsuRecipe(
+    dsuOptions({
+      usageMode: "kruskal",
+      edgeCountName: "m",
+      includeUsageComment: false
+    })
+  );
+  assert.match(kruskalRecipe.sections.solve[0], /sort\(edges\.begin\(\), edges\.end\(\)/);
+  assert.match(kruskalRecipe.sections.solve[0], /mst_weight \+= e\.w;/);
 
   const collisionOptions = dsuOptions({
     existingText: "class Dsu {}; int dsu;"
@@ -2041,6 +3188,15 @@ function testRollbackDsuRenderer() {
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /RollbackDsu dsu\(n\);/);
   assert.match(usageContent, /dsu.rollback\(snap\);/);
+
+  const queryLoopRecipe = core.renderRollbackDsuRecipe(
+    rollbackDsuOptions({
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.match(queryLoopRecipe.sections.solve[0], /snapshots\.push_back\(dsu\.snapshot\(\)\);/);
+  assert.match(queryLoopRecipe.sections.solve[0], /bool ans = dsu\.same\(u, v\);/);
 
   const collisionOptions = rollbackDsuOptions({
     existingText:
@@ -2067,6 +3223,19 @@ function testLcaRenderer() {
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /LcaBinaryLifting lca\(n\);/);
 
+  const readTreeRecipe = core.renderLcaRecipe(
+    lcaOptions({
+      usageMode: "read_tree",
+      sourceMode: "read_tree",
+      sizeExpression: "n",
+      rootExpression: "root",
+      includeUsageComment: false
+    })
+  );
+  assert.match(readTreeRecipe.sections.solve[0], /for \(int i = 0; i \+ 1 < n; \+\+i\)/);
+  assert.match(readTreeRecipe.sections.solve[0], /lca\.add_edge\(u, v\);/);
+  assert.match(readTreeRecipe.sections.solve[0], /lca\.build\(root\);/);
+
   const collisionOptions = lcaOptions({
     existingText: "class LcaBinaryLifting {}; int LcaBinaryLifting2;"
   });
@@ -2075,6 +3244,44 @@ function testLcaRenderer() {
   assert.match(
     core.renderLca(collisionOptions),
     /explicit LcaBinaryLifting3\(int n = 0\)/
+  );
+}
+
+function testHldRenderer() {
+  const defaultContent = core.renderHld(hldOptions({ includeUsageComment: false }));
+  assert.match(defaultContent, /class HeavyLightDecomposition/);
+  assert.match(defaultContent, /explicit HeavyLightDecomposition\(int n = 0\)/);
+  assert.match(defaultContent, /void add_edge\(int u, int v, bool undirected = true\)/);
+  assert.match(defaultContent, /std::pair<int, int> subtree_segment\(int v\) const/);
+  assert.match(defaultContent, /std::vector<std::pair<int, int>> path_segments/);
+  assert.match(defaultContent, /int lca\(int a, int b\) const/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderHld(hldOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /HeavyLightDecomposition hld\(n\);/);
+
+  const readTreeRecipe = core.renderHldRecipe(
+    hldOptions({
+      usageMode: "read_tree",
+      sourceMode: "read_tree",
+      sizeExpression: "n",
+      rootExpression: "root",
+      includeUsageComment: false
+    })
+  );
+  assert.match(readTreeRecipe.sections.solve[0], /for \(int i = 0; i \+ 1 < n; \+\+i\)/);
+  assert.match(readTreeRecipe.sections.solve[0], /hld\.add_edge\(u, v\);/);
+  assert.match(readTreeRecipe.sections.solve[0], /hld\.build\(root\);/);
+
+  const collisionOptions = hldOptions({
+    existingText: "class HeavyLightDecomposition {}; int HeavyLightDecomposition2;"
+  });
+  assert.equal(collisionOptions.names.className, "HeavyLightDecomposition3");
+  assert.match(core.renderHld(collisionOptions), /class HeavyLightDecomposition3/);
+  assert.match(
+    core.renderHld(collisionOptions),
+    /explicit HeavyLightDecomposition3\(int n = 0\)/
   );
 }
 
@@ -2091,6 +3298,18 @@ function testBfsRenderer() {
   const usageContent = core.renderBfs(bfsOptions());
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /auto result = bfs\(graph, source\);/);
+
+  const multiSourceRecipe = core.renderBfsRecipe(
+    bfsOptions({
+      usageMode: "multi_source",
+      sourceMode: "existing_graph",
+      indexing: "one_based_input",
+      includeUsageComment: false
+    })
+  );
+  assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
+  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.match(multiSourceRecipe.sections.solve[0], /auto result = bfs_multi_source\(graph, sources\);/);
 
   const collisionOptions = bfsOptions({
     existingText:
@@ -2112,6 +3331,332 @@ function testBfsRenderer() {
   assert.match(collisionContent, /inline BfsSearchResult run_bfs/);
   assert.match(collisionContent, /bfs_get_path/);
   assert.match(collisionContent, /bfs_get_path_to_root/);
+}
+
+function testDijkstraRenderer() {
+  const defaultContent = core.renderDijkstra(
+    dijkstraOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /template <typename Weight>/);
+  assert.match(defaultContent, /struct DijkstraEdge/);
+  assert.match(defaultContent, /struct DijkstraResult/);
+  assert.match(defaultContent, /void dijkstra_add_edge/);
+  assert.match(defaultContent, /DijkstraResult<Weight> dijkstra_multi_source/);
+  assert.match(defaultContent, /DijkstraResult<Weight> dijkstra\(/);
+  assert.match(defaultContent, /std::vector<int> dijkstra_restore_path/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderDijkstra(dijkstraOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto result = dijkstra\(graph, source/);
+
+  const multiSourceRecipe = core.renderDijkstraRecipe(
+    dijkstraOptions({
+      usageMode: "multi_source",
+      sourceMode: "existing_graph",
+      indexing: "one_based_input",
+      valueType: "long long",
+      includeUsageComment: false
+    })
+  );
+  assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
+  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.match(multiSourceRecipe.sections.solve[0], /auto result = dijkstra_multi_source\(graph, sources/);
+
+  const collisionOptions = dijkstraOptions({
+    existingText:
+      "struct DijkstraEdge {}; struct DijkstraResult {}; int dijkstra_add_edge; int dijkstra_multi_source; int dijkstra; int dijkstra_restore_path;"
+  });
+  assert.equal(collisionOptions.names.edgeStructName, "ShortestPathEdge");
+  assert.equal(collisionOptions.names.resultStructName, "ShortestPathResult");
+  assert.equal(collisionOptions.names.addEdgeName, "weighted_graph_add_edge");
+  assert.equal(collisionOptions.names.multiSourceName, "dijkstra_from_sources");
+  assert.equal(collisionOptions.names.singleSourceName, "run_dijkstra");
+  assert.equal(collisionOptions.names.restorePathName, "dijkstra_get_path");
+  const collisionContent = core.renderDijkstra(collisionOptions);
+  assert.match(collisionContent, /struct ShortestPathEdge/);
+  assert.match(collisionContent, /struct ShortestPathResult/);
+  assert.match(collisionContent, /void weighted_graph_add_edge/);
+  assert.match(collisionContent, /ShortestPathResult<Weight> dijkstra_from_sources/);
+  assert.match(collisionContent, /ShortestPathResult<Weight> run_dijkstra/);
+  assert.match(collisionContent, /dijkstra_get_path/);
+}
+
+function testToposortRenderer() {
+  const defaultContent = core.renderToposort(
+    toposortOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /inline void toposort_add_edge/);
+  assert.match(defaultContent, /inline std::vector<int> topological_sort/);
+  assert.match(defaultContent, /inline bool is_topological_order/);
+  assert.match(defaultContent, /std::queue<int> q/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderToposort(toposortOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto order = topological_sort\(graph, &dag\);/);
+
+  const validateRecipe = core.renderToposortRecipe(
+    toposortOptions({
+      usageMode: "validate_order",
+      sourceMode: "existing_graph",
+      indexing: "one_based_input",
+      sizeExpression: "n",
+      includeUsageComment: false
+    })
+  );
+  assert.match(validateRecipe.sections.solve[0], /std::vector<int> order\(n\);/);
+  assert.match(validateRecipe.sections.solve[0], /for \(int& v : order\) --v;/);
+  assert.match(validateRecipe.sections.solve[0], /bool valid = is_topological_order\(graph, order\);/);
+
+  const collisionOptions = toposortOptions({
+    existingText: "int toposort_add_edge; int topological_sort; int is_topological_order;"
+  });
+  assert.equal(collisionOptions.names.addEdgeName, "dag_add_edge");
+  assert.equal(collisionOptions.names.sortName, "dag_topological_sort");
+  assert.equal(collisionOptions.names.validateName, "dag_is_topological_order");
+  const collisionContent = core.renderToposort(collisionOptions);
+  assert.match(collisionContent, /inline void dag_add_edge/);
+  assert.match(collisionContent, /inline std::vector<int> dag_topological_sort/);
+  assert.match(collisionContent, /inline bool dag_is_topological_order/);
+}
+
+function testKosarajuRenderer() {
+  const defaultContent = core.renderKosaraju(
+    kosarajuOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /struct KosarajuResult/);
+  assert.match(defaultContent, /inline void kosaraju_add_edge/);
+  assert.match(defaultContent, /inline KosarajuResult kosaraju_scc/);
+  assert.match(defaultContent, /condensation_dag/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderKosaraju(kosarajuOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto scc = kosaraju_scc\(graph\);/);
+
+  const printRecipe = core.renderKosarajuRecipe(
+    kosarajuOptions({
+      usageMode: "print_components",
+      sourceMode: "existing_graph",
+      includeUsageComment: false
+    })
+  );
+  assert.match(printRecipe.sections.solve[0], /KosarajuResult scc = kosaraju_scc\(graph\);/);
+  assert.match(printRecipe.sections.solve[0], /for \(const auto& component : scc\.components\)/);
+
+  const collisionOptions = kosarajuOptions({
+    existingText: "struct KosarajuResult {}; int kosaraju_add_edge; int kosaraju_scc;"
+  });
+  assert.equal(collisionOptions.names.resultStructName, "SccResult");
+  assert.equal(collisionOptions.names.addEdgeName, "scc_add_edge");
+  assert.equal(collisionOptions.names.sccName, "build_scc");
+  const collisionContent = core.renderKosaraju(collisionOptions);
+  assert.match(collisionContent, /struct SccResult/);
+  assert.match(collisionContent, /inline void scc_add_edge/);
+  assert.match(collisionContent, /inline SccResult build_scc/);
+}
+
+function testMoRenderer() {
+  const defaultContent = core.renderMo(moOptions({ includeUsageComment: false }));
+  assert.match(defaultContent, /struct MoQuery/);
+  assert.match(defaultContent, /inline int mo_default_block_size/);
+  assert.match(defaultContent, /inline MoQuery normalize_mo_query/);
+  assert.match(defaultContent, /inline std::vector<int> mo_order/);
+  assert.match(defaultContent, /inline std::vector<typename std::invoke_result<GetAnswer>::type> mo_process/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderMo(moOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto order = mo_order\(queries, n\);/);
+
+  const genericRecipe = core.renderMoRecipe(
+    moOptions({
+      usageMode: "process_skeleton",
+      sourceMode: "existing_queries",
+      answerType: "long long",
+      includeUsageComment: false
+    })
+  );
+  assert.match(genericRecipe.sections.solve[0], /long long current_answer\{\};/);
+  assert.match(genericRecipe.sections.solve[0], /auto add_left = /);
+  assert.match(genericRecipe.sections.solve[0], /std::vector<long long> answers = mo_process/);
+
+  const collisionOptions = moOptions({
+    existingText:
+      "struct MoQuery {}; int mo_default_block_size; int normalize_mo_query; int mo_order; int mo_process;"
+  });
+  assert.equal(collisionOptions.names.queryStructName, "OfflineRangeQuery");
+  assert.equal(collisionOptions.names.blockSizeName, "offline_range_block_size");
+  assert.equal(collisionOptions.names.normalizeName, "normalize_offline_range_query");
+  assert.equal(collisionOptions.names.orderName, "offline_range_order");
+  assert.equal(collisionOptions.names.processName, "process_offline_ranges");
+  const collisionContent = core.renderMo(collisionOptions);
+  assert.match(collisionContent, /struct OfflineRangeQuery/);
+  assert.match(collisionContent, /inline int offline_range_block_size/);
+  assert.match(collisionContent, /inline OfflineRangeQuery normalize_offline_range_query/);
+  assert.match(collisionContent, /inline std::vector<int> offline_range_order/);
+  assert.match(collisionContent, /process_offline_ranges/);
+}
+
+function testMonotonicStackRenderer() {
+  const defaultContent = core.renderMonotonicStack(
+    monotonicStackOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /inline std::vector<int> nearest_left_by/);
+  assert.match(defaultContent, /inline std::vector<int> nearest_right_by/);
+  assert.match(defaultContent, /inline std::vector<int> nearest_smaller_left/);
+  assert.match(defaultContent, /struct NearestIndices/);
+  assert.match(defaultContent, /inline NearestIndices<T> nearest_all/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderMonotonicStack(monotonicStackOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto nearest = nearest_smaller_left\(values, true\);/);
+
+  const allRecipe = core.renderMonotonicStackRecipe(
+    monotonicStackOptions({
+      usageMode: "compute_all",
+      relation: "all",
+      direction: "both",
+      sourceName: "a",
+      resultName: "all_nearest",
+      includeUsageComment: false
+    })
+  );
+  assert.match(allRecipe.sections.solve[0], /auto all_nearest = nearest_all\(a, true\);/);
+
+  const collisionOptions = monotonicStackOptions({
+    existingText:
+      "int nearest_left_by; int nearest_right_by; int nearest_smaller_left; int nearest_smaller_right; int nearest_greater_left; int nearest_greater_right; struct NearestIndices {}; int nearest_all;"
+  });
+  assert.equal(collisionOptions.names.nearestLeftByName, "nearest_left_with");
+  assert.equal(collisionOptions.names.nearestRightByName, "nearest_right_with");
+  assert.equal(collisionOptions.names.nearestSmallerLeftName, "nearest_less_left");
+  assert.equal(collisionOptions.names.nearestSmallerRightName, "nearest_less_right");
+  assert.equal(collisionOptions.names.nearestGreaterLeftName, "nearest_more_left");
+  assert.equal(collisionOptions.names.nearestGreaterRightName, "nearest_more_right");
+  assert.equal(collisionOptions.names.nearestStructName, "AllNearestIndices");
+  assert.equal(collisionOptions.names.nearestAllName, "build_nearest_indices");
+  const collisionContent = core.renderMonotonicStack(collisionOptions);
+  assert.match(collisionContent, /nearest_left_with/);
+  assert.match(collisionContent, /nearest_right_with/);
+  assert.match(collisionContent, /struct AllNearestIndices/);
+  assert.match(collisionContent, /build_nearest_indices/);
+}
+
+function testGpHashTableRenderer() {
+  const defaultContent = core.renderGpHashTable(
+    gpHashTableOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /struct SplitMix64Hash/);
+  assert.match(defaultContent, /struct GpHash/);
+  assert.match(defaultContent, /struct PairHash/);
+  assert.match(defaultContent, /using GpHashTable = __gnu_pbds::gp_hash_table/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderGpHashTable(gpHashTableOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /GpHashTable<long long, int> table;/);
+
+  const setRecipe = core.renderGpHashTableRecipe(
+    gpHashTableOptions({
+      usageMode: "declare_set",
+      keyType: "int",
+      tableName: "seen",
+      includeUsageComment: false
+    })
+  );
+  assert.match(setRecipe.sections.solve[0], /GpHashTable<int, __gnu_pbds::null_type> seen;/);
+
+  const collisionOptions = gpHashTableOptions({
+    existingText: "struct SplitMix64Hash {}; int GpHash; int PairHash; int GpHashTable;"
+  });
+  assert.equal(collisionOptions.names.splitMixName, "SplitMix64Hasher");
+  assert.equal(collisionOptions.names.hashName, "SafeHash");
+  assert.equal(collisionOptions.names.pairHashName, "SafePairHash");
+  assert.equal(collisionOptions.names.tableAliasName, "SafeHashTable");
+  const collisionContent = core.renderGpHashTable(collisionOptions);
+  assert.match(collisionContent, /struct SplitMix64Hasher/);
+  assert.match(collisionContent, /struct SafeHash/);
+  assert.match(collisionContent, /struct SafePairHash/);
+  assert.match(collisionContent, /using SafeHashTable = __gnu_pbds::gp_hash_table/);
+}
+
+function testOrderedSetRenderer() {
+  const defaultContent = core.renderOrderedSet(
+    orderedSetOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /using OrderedSetTree =/);
+  assert.match(defaultContent, /class OrderedSet/);
+  assert.match(defaultContent, /order_of_key/);
+  assert.match(defaultContent, /find_by_order/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderOrderedSet(orderedSetOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /OrderedSet<int> os;/);
+
+  const pairRecipe = core.renderOrderedSetRecipe(
+    orderedSetOptions({
+      usageMode: "pair_multiset",
+      keyType: "int",
+      setName: "ms",
+      includeUsageComment: false
+    })
+  );
+  assert.match(pairRecipe.sections.solve[0], /OrderedSet<std::pair<int, int>> ms;/);
+
+  const collisionOptions = orderedSetOptions({
+    existingText: "int OrderedSetTree; class OrderedSet {};"
+  });
+  assert.equal(collisionOptions.names.treeAliasName, "OrderStatisticTree");
+  assert.equal(collisionOptions.names.className, "OrderStatisticSet");
+  const collisionContent = core.renderOrderedSet(collisionOptions);
+  assert.match(collisionContent, /using OrderStatisticTree =/);
+  assert.match(collisionContent, /class OrderStatisticSet/);
+}
+
+function testSetUtilsRenderer() {
+  const defaultContent = core.renderSetUtils(
+    setUtilsOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /std::optional<typename Container::iterator> next_iterator/);
+  assert.match(defaultContent, /std::optional<typename Container::const_iterator> prev_iterator/);
+  assert.match(defaultContent, /std::optional<typename Container::value_type> next_value/);
+  assert.match(defaultContent, /std::optional<typename Container::value_type> prev_value/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderSetUtils(setUtilsOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /auto neighbor = next_value\(container, key\);/);
+
+  const iteratorRecipe = core.renderSetUtilsRecipe(
+    setUtilsOptions({
+      lookup: "prev",
+      target: "iterator",
+      usageMode: "lookup_snippet",
+      containerName: "st",
+      iteratorName: "it",
+      resultName: "before",
+      includeUsageComment: false
+    })
+  );
+  assert.match(iteratorRecipe.sections.solve[0], /auto before = prev_iterator\(st, it\);/);
+  assert.match(iteratorRecipe.sections.solve[0], /if \(before\.has_value\(\)\)/);
+
+  const collisionOptions = setUtilsOptions({
+    existingText: "int next_iterator; int prev_iterator; int next_value; int prev_value;"
+  });
+  assert.equal(collisionOptions.names.nextIteratorName, "container_next_iterator");
+  assert.equal(collisionOptions.names.prevIteratorName, "container_prev_iterator");
+  assert.equal(collisionOptions.names.nextValueName, "container_next_value");
+  assert.equal(collisionOptions.names.prevValueName, "container_prev_value");
+  const collisionContent = core.renderSetUtils(collisionOptions);
+  assert.match(collisionContent, /container_next_iterator/);
+  assert.match(collisionContent, /container_prev_iterator/);
+  assert.match(collisionContent, /container_next_value/);
+  assert.match(collisionContent, /container_prev_value/);
 }
 
 function testLinearSieveRenderer() {
@@ -2187,17 +3732,28 @@ function testFenwickRenderer() {
 
   const collisionOptions = fenwickOptions({
     existingText:
-      "struct FenwickSumOp {}; struct FenwickXorOp {}; struct FenwickMaxOp {}; struct FenwickMinOp {}; class Fenwick {}; int FenwickSumTree; int FenwickXorTree; int FenwickMaxTree; int FenwickMinTree;"
+      "struct FenwickSumOp {}; struct FenwickXorOp {}; struct FenwickMaxOp {}; struct FenwickMinOp {}; struct FenwickCustomOp {}; struct FenwickCustomInvertibleOp {}; class Fenwick {}; class RangeFenwick {}; int FenwickSumTree; int FenwickXorTree; int FenwickMaxTree; int FenwickMinTree; int FenwickCustomTree; int FenwickCustomInvertibleTree;"
   });
   assert.equal(collisionOptions.names.sumOpName, "FenwickSumOp2");
   assert.equal(collisionOptions.names.xorOpName, "FenwickXorOp2");
   assert.equal(collisionOptions.names.maxOpName, "FenwickMaxOp2");
   assert.equal(collisionOptions.names.minOpName, "FenwickMinOp2");
+  assert.equal(collisionOptions.names.customOpName, "FenwickCustomOp2");
+  assert.equal(
+    collisionOptions.names.customInvertibleOpName,
+    "FenwickCustomInvertibleOp2"
+  );
   assert.equal(collisionOptions.names.className, "Fenwick2");
+  assert.equal(collisionOptions.names.rangeClassName, "RangeFenwick2");
   assert.equal(collisionOptions.names.sumAliasName, "FenwickSumTree2");
   assert.equal(collisionOptions.names.xorAliasName, "FenwickXorTree2");
   assert.equal(collisionOptions.names.maxAliasName, "FenwickMaxTree2");
   assert.equal(collisionOptions.names.minAliasName, "FenwickMinTree2");
+  assert.equal(collisionOptions.names.customAliasName, "FenwickCustomTree2");
+  assert.equal(
+    collisionOptions.names.customInvertibleAliasName,
+    "FenwickCustomInvertibleTree2"
+  );
   const collisionContent = core.renderFenwick(collisionOptions);
   assert.match(collisionContent, /struct FenwickSumOp2/);
   assert.match(collisionContent, /class Fenwick2/);
@@ -2586,6 +4142,20 @@ function testImplicitTreapRenderer() {
   assert.match(usageContent, /ImplicitTreap<ll> treap;/);
   assert.match(usageContent, /treap\.reverse\(l, r\);/);
 
+  const queryLoopRecipe = core.renderImplicitTreapRecipe(
+    implicitTreapOptions({
+      sourceMode: "existing_vector",
+      sourceName: "a",
+      indexing: "one_based_input",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.match(queryLoopRecipe.sections.solve[0], /ImplicitTreap<ll> treap;/);
+  assert.match(queryLoopRecipe.sections.solve[0], /treap\.assign\(a\.begin\(\), a\.end\(\)\);/);
+  assert.match(queryLoopRecipe.sections.solve[0], /--l; --r;/);
+  assert.match(queryLoopRecipe.sections.solve[0], /auto ans = treap\.range_query\(l, r\);/);
+
   const addContent = core.renderImplicitTreap(
     implicitTreapOptions({
       features: ["reverse", "range_add"],
@@ -2641,6 +4211,20 @@ function testMergeSortTreeRenderer() {
   const usageContent = core.renderMergeSortTree(mergeSortTreeOptions());
   assert.match(usageContent, /\/\*\nInclusive \[l, r\] queries:/);
   assert.match(usageContent, /MergeSortTree<int> mst\(a\);/);
+
+  const queryLoopRecipe = core.renderMergeSortTreeRecipe(
+    mergeSortTreeOptions({
+      queries: ["exists"],
+      sourceMode: "read_loop",
+      sizeExpression: "n",
+      indexing: "one_based_input",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.match(queryLoopRecipe.sections.solve[0], /cin >> q;/);
+  assert.match(queryLoopRecipe.sections.solve[0], /--l; --r;/);
+  assert.match(queryLoopRecipe.sections.solve[0], /bool ans = mst\.exists\(l, r, x\);/);
 
   const existsOnlyContent = core.renderMergeSortTree(
     mergeSortTreeOptions({
@@ -2837,6 +4421,116 @@ function testFftNttRenderer() {
   assert.match(collisionContent, /int ntt_pow2/);
 }
 
+function testFastAllocatorRenderer() {
+  const defaultContent = core.renderFastAllocator(
+    fastAllocatorOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /class FastAllocatorArena/);
+  assert.match(defaultContent, /class FastAllocator/);
+  assert.match(defaultContent, /make_fast_allocator/);
+  assert.match(defaultContent, /void\* allocate\(std::size_t bytes/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderFastAllocator(fastAllocatorOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /FastAllocatorArena arena\(1U << 26U\);/);
+  assert.match(usageContent, /std::vector<int, Alloc> values/);
+
+  const edgeRecipe = core.renderFastAllocatorRecipe(
+    fastAllocatorOptions({
+      usageMode: "edge_vector",
+      arenaName: "arena",
+      containerName: "edges",
+      edgeTypeName: "Edge",
+      capacityExpression: "sizeof(Edge) * m * 2 + 1024",
+      includeUsageComment: false
+    })
+  );
+  assert.match(edgeRecipe.sections.solve[0], /struct Edge/);
+  assert.match(edgeRecipe.sections.solve[0], /std::vector<Edge, EdgeAlloc> edges/);
+
+  const collisionOptions = fastAllocatorOptions({
+    existingText: "class FastAllocatorArena {}; class FastAllocator {}; int make_fast_allocator;"
+  });
+  assert.equal(collisionOptions.names.arenaClassName, "FastArena");
+  assert.equal(collisionOptions.names.allocatorClassName, "ArenaAllocator");
+  assert.equal(collisionOptions.names.factoryName, "make_arena_allocator");
+  const collisionContent = core.renderFastAllocator(collisionOptions);
+  assert.match(collisionContent, /class FastArena/);
+  assert.match(collisionContent, /class ArenaAllocator/);
+  assert.match(collisionContent, /make_arena_allocator/);
+}
+
+function testGeometryRenderer() {
+  const defaultContent = core.renderGeometry(
+    geometryOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /struct Point2/);
+  assert.match(defaultContent, /int orientation/);
+  assert.match(defaultContent, /segment_intersection/);
+  assert.match(defaultContent, /sort_points_by_angle/);
+  assert.match(defaultContent, /convex_hull/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderGeometry(geometryOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /convex_hull\(points\)/);
+
+  const segmentRecipe = core.renderGeometryRecipe(
+    geometryOptions({
+      usageMode: "segment_intersection",
+      resultName: "inter",
+      includeUsageComment: false
+    })
+  );
+  assert.match(segmentRecipe.sections.solve[0], /auto inter = segment_intersection\(a, b, c, d\);/);
+
+  const sortRecipe = core.renderGeometryRecipe(
+    geometryOptions({
+      usageMode: "sort_points",
+      valueType: "long double",
+      pointsName: "pts",
+      includeUsageComment: false
+    })
+  );
+  assert.match(sortRecipe.sections.solve[0], /Point2<long double> center/);
+  assert.match(sortRecipe.sections.solve[0], /sort_points_by_angle\(pts, center\);/);
+}
+
+function testHalfplaneIntersectionRenderer() {
+  const defaultContent = core.renderHalfplaneIntersection(
+    halfplaneIntersectionOptions({ includeUsageComment: false })
+  );
+  assert.match(defaultContent, /struct HalfPlane/);
+  assert.match(defaultContent, /from_inequality/);
+  assert.match(defaultContent, /halfplane_intersection/);
+  assert.doesNotMatch(defaultContent, /Example:/);
+
+  const usageContent = core.renderHalfplaneIntersection(halfplaneIntersectionOptions());
+  assert.match(usageContent, /\/\*\nExample:/);
+  assert.match(usageContent, /halfplane_intersection\(halfplanes\)/);
+
+  const inequalityRecipe = core.renderHalfplaneIntersectionRecipe(
+    halfplaneIntersectionOptions({
+      usageMode: "inequality_box",
+      halfplanesName: "planes",
+      includeUsageComment: false
+    })
+  );
+  assert.match(inequalityRecipe.sections.solve[0], /std::vector<HalfPlane> planes =/);
+  assert.match(inequalityRecipe.sections.solve[0], /HalfPlane::from_inequality/);
+
+  const vectorRecipe = core.renderHalfplaneIntersectionRecipe(
+    halfplaneIntersectionOptions({
+      usageMode: "halfplane_vector",
+      halfplanesName: "planes",
+      includeUsageComment: false
+    })
+  );
+  assert.match(vectorRecipe.sections.solve[0], /std::vector<HalfPlane> planes;/);
+  assert.match(vectorRecipe.sections.solve[0], /planes\.push_back/);
+}
+
 function testSegmentTreeBeatsRenderer() {
   const defaultContent = core.renderSegmentTreeBeats(
     segtreeBeatsOptions({ includeUsageComment: false })
@@ -2854,6 +4548,21 @@ function testSegmentTreeBeatsRenderer() {
   const usageContent = core.renderSegmentTreeBeats(segtreeBeatsOptions());
   assert.match(usageContent, /\/\*\nInclusive \[l, r\] ranges:/);
   assert.match(usageContent, /SegmentTreeBeats<ll> seg\(values\);/);
+
+  const queryLoopRecipe = core.renderSegmentTreeBeatsRecipe(
+    segtreeBeatsOptions({
+      updates: ["add", "chmin"],
+      queries: ["min"],
+      sourceMode: "existing_vector",
+      sourceName: "a",
+      usageMode: "query_loop",
+      includeUsageComment: false
+    })
+  );
+  assert.match(queryLoopRecipe.sections.solve[0], /SegmentTreeBeats<ll> seg\(a\);/);
+  assert.match(queryLoopRecipe.sections.solve[0], /seg\.add\(l, r, x\);/);
+  assert.match(queryLoopRecipe.sections.solve[0], /seg\.chmin\(l, r, x\);/);
+  assert.match(queryLoopRecipe.sections.solve[0], /seg\.query_min\(l, r\);/);
 
   const sumOnlyContent = core.renderSegmentTreeBeats(
     segtreeBeatsOptions({
@@ -2950,14 +4659,14 @@ function testGeneratedBerlekampMasseyCompiles() {
 }
 
 function testGeneratedSparseTableCompiles() {
-  const generated = core.renderSparseTable(
+  const generatedMinMax = core.renderSparseTable(
     sparseOptions({ includeUsageComment: false })
   );
-  const source = [
+  const minMaxSource = [
     "#include <bits/stdc++.h>",
     "using namespace std;",
     "",
-    generated,
+    generatedMinMax,
     "int main() {",
     "  vector<int> a = {5, 2, 7, 3, 9, 1, 4};",
     "  build_sparse_min(a);",
@@ -2971,7 +4680,33 @@ function testGeneratedSparseTableCompiles() {
     "  return 0;",
     "}"
   ].join("\n");
-  compileSource("sparse_table_generated", source);
+  compileSource("sparse_table_generated", minMaxSource);
+
+  const generatedExtra = core.renderSparseTable(
+    sparseOptions({
+      variants: ["gcd", "bit_and", "bit_or", "custom"],
+      includeUsageComment: false
+    })
+  );
+  const extraSource = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generatedExtra,
+    "int main() {",
+    "  vector<int> a = {12, 6, 10, 14};",
+    "  build_sparse_gcd(a);",
+    "  build_sparse_bit_and(a);",
+    "  build_sparse_bit_or(a);",
+    "  build_sparse_custom(a);",
+    "  assert(query_sparse_gcd(0, 2) == 2);",
+    "  assert(query_sparse_bit_and(0, 1) == 4);",
+    "  assert(query_sparse_bit_or(1, 3) == 14);",
+    "  assert(query_sparse_custom(0, 3) == 6);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("sparse_table_extra_generated", extraSource);
 }
 
 function testGeneratedDsuCompiles() {
@@ -3072,6 +4807,45 @@ function testGeneratedLcaCompiles() {
   compileSource("lca_generated", source);
 }
 
+function testGeneratedHldCompiles() {
+  const generated = core.renderHld(hldOptions({ includeUsageComment: false }));
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  HeavyLightDecomposition hld(7);",
+    "  hld.add_edge(0, 1);",
+    "  hld.add_edge(0, 2);",
+    "  hld.add_edge(1, 3);",
+    "  hld.add_edge(1, 4);",
+    "  hld.add_edge(2, 5);",
+    "  hld.add_edge(2, 6);",
+    "  hld.build(0);",
+    "  assert(hld.lca(3, 4) == 1);",
+    "  assert(hld.lca(3, 6) == 0);",
+    "  assert(hld.subtree_size(1) == 3);",
+    "  auto seg = hld.subtree_segment(2);",
+    "  assert(seg.second - seg.first + 1 == 3);",
+    "  vector<int> base(7);",
+    "  for (int v = 0; v < 7; ++v) base[hld.position(v)] = v + 1;",
+    "  int sum = 0;",
+    "  for (auto [l, r] : hld.path_segments(3, 6, true)) {",
+    "    for (int i = l; i <= r; ++i) sum += base[i];",
+    "  }",
+    "  assert(sum == 17);",
+    "  int edge_sum = 0;",
+    "  for (auto [l, r] : hld.path_segments(3, 6, false)) {",
+    "    for (int i = l; i <= r; ++i) edge_sum += base[i];",
+    "  }",
+    "  assert(edge_sum == 16);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("hld_generated", source);
+}
+
 function testGeneratedBfsCompiles() {
   const generated = core.renderBfs(bfsOptions({ includeUsageComment: false }));
   const source = [
@@ -3096,6 +4870,268 @@ function testGeneratedBfsCompiles() {
     "}"
   ].join("\n");
   compileSource("bfs_generated", source);
+}
+
+function testGeneratedDijkstraCompiles() {
+  const generated = core.renderDijkstra(
+    dijkstraOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  const long long inf = numeric_limits<long long>::max();",
+    "  vector<vector<DijkstraEdge<long long>>> graph(6);",
+    "  dijkstra_add_edge(graph, 0, 1, 10);",
+    "  dijkstra_add_edge(graph, 0, 2, 3);",
+    "  dijkstra_add_edge(graph, 2, 1, 1);",
+    "  dijkstra_add_edge(graph, 1, 3, 2);",
+    "  dijkstra_add_edge(graph, 2, 3, 8);",
+    "  dijkstra_add_edge(graph, 3, 5, 2);",
+    "  dijkstra_add_edge(graph, 1, 5, 10);",
+    "  dijkstra_add_edge(graph, 0, 4, -100);",
+    "  const DijkstraResult<long long> single = dijkstra(graph, 0, inf);",
+    "  assert(single.distance[5] == 8);",
+    "  assert(single.distance[4] == inf);",
+    "  assert((dijkstra_restore_path(0, 5, single) == vector<int>{0, 2, 1, 3, 5}));",
+    "  const DijkstraResult<long long> multi = dijkstra_multi_source(graph, vector<int>{0, 4}, inf);",
+    "  assert(multi.distance[4] == 0);",
+    "  assert(multi.distance[5] == 8);",
+    "  vector<vector<DijkstraEdge<long long>>> undirected(3);",
+    "  dijkstra_add_edge(undirected, 0, 1, 7, true);",
+    "  dijkstra_add_edge(undirected, 1, 2, 5, true);",
+    "  assert(dijkstra(undirected, 2, inf).distance[0] == 12);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("dijkstra_generated", source);
+}
+
+function testGeneratedToposortCompiles() {
+  const generated = core.renderToposort(
+    toposortOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  vector<vector<int>> graph(6);",
+    "  toposort_add_edge(graph, 5, 2);",
+    "  toposort_add_edge(graph, 5, 0);",
+    "  toposort_add_edge(graph, 4, 0);",
+    "  toposort_add_edge(graph, 4, 1);",
+    "  toposort_add_edge(graph, 2, 3);",
+    "  toposort_add_edge(graph, 3, 1);",
+    "  bool dag = false;",
+    "  vector<int> order = topological_sort(graph, &dag);",
+    "  assert(dag);",
+    "  assert(is_topological_order(graph, order));",
+    "  vector<vector<int>> cyclic(3);",
+    "  toposort_add_edge(cyclic, 0, 1);",
+    "  toposort_add_edge(cyclic, 1, 2);",
+    "  toposort_add_edge(cyclic, 2, 0);",
+    "  order = topological_sort(cyclic, &dag);",
+    "  assert(!dag);",
+    "  assert(order.empty());",
+    "  assert(!is_topological_order(graph, vector<int>{0, 1, 2}));",
+    "  toposort_add_edge(graph, -1, 0);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("toposort_generated", source);
+}
+
+function testGeneratedKosarajuCompiles() {
+  const generated = core.renderKosaraju(
+    kosarajuOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  vector<vector<int>> graph(8);",
+    "  kosaraju_add_edge(graph, 0, 1);",
+    "  kosaraju_add_edge(graph, 1, 2);",
+    "  kosaraju_add_edge(graph, 2, 0);",
+    "  kosaraju_add_edge(graph, 2, 3);",
+    "  kosaraju_add_edge(graph, 3, 4);",
+    "  kosaraju_add_edge(graph, 4, 5);",
+    "  kosaraju_add_edge(graph, 5, 3);",
+    "  kosaraju_add_edge(graph, 6, 5);",
+    "  kosaraju_add_edge(graph, 6, 7);",
+    "  kosaraju_add_edge(graph, 7, 6);",
+    "  KosarajuResult scc = kosaraju_scc(graph);",
+    "  assert(scc.component_count == 3);",
+    "  assert(scc.component_of[0] == scc.component_of[1]);",
+    "  assert(scc.component_of[3] == scc.component_of[5]);",
+    "  assert(scc.component_of[6] == scc.component_of[7]);",
+    "  assert(scc.component_of[0] != scc.component_of[3]);",
+    "  assert((int)scc.components.size() == scc.component_count);",
+    "  assert((int)scc.condensation_dag.size() == scc.component_count);",
+    "  kosaraju_add_edge(graph, -1, 0);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("kosaraju_generated", source);
+}
+
+function testGeneratedMoCompiles() {
+  const generated = core.renderMo(moOptions({ includeUsageComment: false }));
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  vector<int> values = {1, 2, 1, 3, 2, 4, 1};",
+    "  vector<MoQuery> queries = {{0, 3}, {2, 7}, {-4, 2}, {5, 1}};",
+    "  vector<int> freq(10, 0);",
+    "  int distinct = 0;",
+    "  auto add = [&](int idx) { if (++freq[values[idx]] == 1) ++distinct; };",
+    "  auto remove = [&](int idx) { if (--freq[values[idx]] == 0) --distinct; };",
+    "  auto answer = [&]() { return distinct; };",
+    "  vector<int> got = mo_process((int)values.size(), queries, add, add, remove, remove, answer);",
+    "  assert((got == vector<int>{2, 4, 2, 3}));",
+    "  vector<int> order = mo_order(queries, (int)values.size());",
+    "  sort(order.begin(), order.end());",
+    "  assert((order == vector<int>{0, 1, 2, 3}));",
+    "  assert(normalize_mo_query(MoQuery(5, 1), 7).left == 1);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("mo_generated", source);
+}
+
+function testGeneratedMonotonicStackCompiles() {
+  const generated = core.renderMonotonicStack(
+    monotonicStackOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  vector<int> values = {5, 2, 4, 4, 1, 3};",
+    "  assert((nearest_smaller_left(values, true) == vector<int>{-1, -1, 1, 1, -1, 4}));",
+    "  assert((nearest_greater_right(values, true) == vector<int>{-1, 2, -1, -1, 5, -1}));",
+    "  assert((nearest_smaller_left(values, false) == vector<int>{-1, -1, 1, 2, -1, 4}));",
+    "  auto all = nearest_all(values, true);",
+    "  assert(all.left_smaller == nearest_smaller_left(values, true));",
+    "  assert(all.right_greater == nearest_greater_right(values, true));",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("monotonic_stack_generated", source);
+}
+
+function testGeneratedGpHashTableCompiles() {
+  if (!compilerHasHeader("ext/pb_ds/assoc_container.hpp")) {
+    return;
+  }
+  const generated = core.renderGpHashTable(
+    gpHashTableOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "#include <ext/pb_ds/assoc_container.hpp>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  GpHashTable<long long, int> table;",
+    "  table[5] = 11;",
+    "  table[5] += 4;",
+    "  assert(table[5] == 15);",
+    "  using Key = pair<int, int>;",
+    "  GpHashTable<Key, int, PairHash<int, int>> pair_table;",
+    "  pair_table[{1, 2}] = 7;",
+    "  assert(pair_table[{1, 2}] == 7);",
+    "  GpHashTable<int, __gnu_pbds::null_type> seen;",
+    "  seen.insert(3);",
+    "  assert(seen.find(3) != seen.end());",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("gp_hash_table_generated", source);
+}
+
+function testGeneratedOrderedSetCompiles() {
+  if (
+    !compilerHasHeader("ext/pb_ds/assoc_container.hpp") ||
+    !compilerHasHeader("ext/pb_ds/tree_policy.hpp")
+  ) {
+    return;
+  }
+  const generated = core.renderOrderedSet(
+    orderedSetOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "#include <ext/pb_ds/assoc_container.hpp>",
+    "#include <ext/pb_ds/tree_policy.hpp>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  OrderedSet<int> os;",
+    "  assert(os.insert(8));",
+    "  assert(os.insert(3));",
+    "  assert(os.insert(10));",
+    "  assert(!os.insert(8));",
+    "  assert(os.order_of_key(9) == 2);",
+    "  assert(os.find_by_order(1).value() == 8);",
+    "  OrderedSet<pair<int, int>> ms;",
+    "  ms.insert({5, 0});",
+    "  ms.insert({5, 1});",
+    "  assert(ms.size() == 2);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("ordered_set_generated", source);
+}
+
+function testGeneratedSetUtilsCompiles() {
+  const generated = core.renderSetUtils(
+    setUtilsOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  set<int> st = {2, 4, 8};",
+    "  auto it = st.find(4);",
+    "  auto nxt = next_iterator(st, it);",
+    "  auto prv = prev_iterator(st, it);",
+    "  assert(nxt.has_value() && *nxt == st.find(8));",
+    "  assert(prv.has_value() && *prv == st.find(2));",
+    "  assert(!next_iterator(st, st.find(8)).has_value());",
+    "  assert(!prev_iterator(st, st.begin()).has_value());",
+    "  assert(next_value(st, 4).value() == 8);",
+    "  assert(prev_value(st, 4).value() == 2);",
+    "  assert(!next_value(st, 8).has_value());",
+    "  assert(!prev_value(st, 2).has_value());",
+    "",
+    "  multiset<int> ms = {1, 1, 3};",
+    "  assert(next_value(ms, 1).value() == 3);",
+    "",
+    "  map<int, string> mp = {{2, \"two\"}, {5, \"five\"}};",
+    "  auto nextPair = next_value(mp, 2);",
+    "  assert(nextPair.has_value());",
+    "  assert(nextPair->first == 5);",
+    "  assert(nextPair->second == \"five\");",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("set_utils_generated", source);
 }
 
 function testGeneratedLinearSieveCompiles() {
@@ -3125,6 +5161,25 @@ function testGeneratedLinearSieveCompiles() {
 function testGeneratedFenwickCompiles() {
   const generated = core.renderFenwick(
     fenwickOptions({ includeUsageComment: false })
+  );
+  const customGenerated = core.renderFenwick(
+    fenwickOptions({
+      operations: ["custom"],
+      includeUsageComment: false
+    })
+  );
+  const customInvertibleGenerated = core.renderFenwick(
+    fenwickOptions({
+      operations: ["custom_invertible"],
+      includeUsageComment: false
+    })
+  );
+  const rangeGenerated = core.renderFenwick(
+    fenwickOptions({
+      operations: ["sum"],
+      application: "range_sum",
+      includeUsageComment: false
+    })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -3158,6 +5213,61 @@ function testGeneratedFenwickCompiles() {
     "}"
   ].join("\n");
   compileSource("fenwick_generated", source);
+
+  compileSource(
+    "fenwick_custom_generated",
+    [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      customGenerated,
+      "int main() {",
+      "  FenwickCustomTree<int> custom(4);",
+      "  custom.add(0, 2);",
+      "  custom.add(1, 3);",
+      "  assert(custom.prefix(1) == 5);",
+      "  return 0;",
+      "}"
+    ].join("\n")
+  );
+
+  compileSource(
+    "fenwick_custom_invertible_generated",
+    [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      customInvertibleGenerated,
+      "int main() {",
+      "  FenwickCustomInvertibleTree<int> custom_inv(4);",
+      "  custom_inv.add(0, 2);",
+      "  custom_inv.add(1, 3);",
+      "  custom_inv.add(2, 5);",
+      "  assert(custom_inv.segment(1, 2) == 8);",
+      "  return 0;",
+      "}"
+    ].join("\n")
+  );
+
+  compileSource(
+    "fenwick_range_generated",
+    [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      rangeGenerated,
+      "int main() {",
+      "  RangeFenwick<int> range(6);",
+      "  range.add(1, 3, 4);",
+      "  range.add(2, 5, 2);",
+      "  assert(range.sum(0, 0) == 0);",
+      "  assert(range.sum(1, 1) == 4);",
+      "  assert(range.sum(2, 3) == 12);",
+      "  assert(range.sum(4, 5) == 4);",
+      "  return 0;",
+      "}"
+    ].join("\n")
+  );
 }
 
 function testGeneratedModIntCompiles() {
@@ -3861,6 +5971,119 @@ function testGeneratedFftNttCompiles() {
   }
 }
 
+function testGeneratedFastAllocatorCompiles() {
+  {
+    const generated = core.renderFastAllocator(
+      fastAllocatorOptions({ includeUsageComment: false })
+    );
+    const source = [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      generated,
+      "int main() {",
+      "  FastAllocatorArena arena(1U << 20U);",
+      "  vector<int, FastAllocator<int>> values{FastAllocator<int>(arena)};",
+      "  for (int i = 0; i < 20000; ++i) values.push_back(i);",
+      "  assert(values[12345] == 12345);",
+      "  using Pair = pair<int, int>;",
+      "  vector<Pair, FastAllocator<Pair>> edges{make_fast_allocator<Pair>(arena)};",
+      "  edges.push_back({3, 7});",
+      "  assert(edges[0].second == 7);",
+      "  const size_t before = arena.remaining();",
+      "  arena.reset();",
+      "  assert(arena.remaining() >= before);",
+      "  return 0;",
+      "}"
+    ].join("\n");
+    compileSource("fast_allocator_generated", source);
+  }
+
+  {
+    const generated = core.renderFastAllocator(
+      fastAllocatorOptions({
+        usageMode: "edge_vector",
+        arenaName: "pool",
+        containerName: "edges",
+        edgeTypeName: "Edge",
+        capacityExpression: "1U << 20U",
+        includeUsageComment: false
+      })
+    );
+    const source = [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      generated,
+      "int main() {",
+      "  edges.push_back({1, 5});",
+      "  assert(edges[0].to == 1);",
+      "  assert(edges[0].w == 5);",
+      "  return 0;",
+      "}"
+    ].join("\n");
+    compileSource("fast_allocator_usage_generated", source);
+  }
+}
+
+function testGeneratedGeometryCompiles() {
+  {
+    const generated = core.renderGeometry(
+      geometryOptions({ includeUsageComment: false })
+    );
+    const source = [
+      "#include <bits/stdc++.h>",
+      "using namespace std;",
+      "",
+      generated,
+      "int main() {",
+      "  using P = Point2<long long>;",
+      "  assert(orientation(P(0, 0), P(2, 0), P(1, 1)) == 1);",
+      "  assert(segments_intersect(P(0, 0), P(2, 2), P(0, 2), P(2, 0)));",
+      "  auto inter = segment_intersection(P(0, 0), P(2, 2), P(0, 2), P(2, 0));",
+      "  assert(inter.size() == 1);",
+      "  vector<P> points = {P(0, 0), P(2, 0), P(2, 2), P(0, 2), P(1, 1)};",
+      "  vector<P> hull = convex_hull(points);",
+      "  assert((hull == vector<P>{P(0, 0), P(2, 0), P(2, 2), P(0, 2)}));",
+      "  sort_points_by_angle(points, P(0, 0));",
+      "  return 0;",
+      "}"
+    ].join("\n");
+    compileSource("geometry_generated", source);
+  }
+}
+
+function testGeneratedHalfplaneIntersectionCompiles() {
+  const generated = core.renderHalfplaneIntersection(
+    halfplaneIntersectionOptions({ includeUsageComment: false })
+  );
+  const source = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "",
+    generated,
+    "int main() {",
+    "  vector<HalfPlane> halfplanes = {",
+    "      HalfPlane(0.0L, 0.0L, 1.0L, 0.0L),",
+    "      HalfPlane(1.0L, 0.0L, 1.0L, 1.0L),",
+    "      HalfPlane(1.0L, 1.0L, 0.0L, 1.0L),",
+    "      HalfPlane(0.0L, 1.0L, 0.0L, 0.0L),",
+    "  };",
+    "  vector<Point2<long double>> polygon = halfplane_intersection(halfplanes);",
+    "  assert(polygon.size() == 4);",
+    "  vector<HalfPlane> box = {",
+    "      HalfPlane::from_inequality(-1.0L, 0.0L, 0.0L),",
+    "      HalfPlane::from_inequality(1.0L, 0.0L, 1.0L),",
+    "      HalfPlane::from_inequality(0.0L, -1.0L, 0.0L),",
+    "      HalfPlane::from_inequality(0.0L, 1.0L, 1.0L),",
+    "  };",
+    "  assert(halfplane_intersection(box).size() == 4);",
+    "  return 0;",
+    "}"
+  ].join("\n");
+  compileSource("halfplane_intersection_generated", source);
+}
+
 testTokenScanner();
 testCollisionNames();
 testSharedNamePlanner();
@@ -3884,7 +6107,16 @@ testSparseTableRenderer();
 testDsuRenderer();
 testRollbackDsuRenderer();
 testLcaRenderer();
+testHldRenderer();
 testBfsRenderer();
+testDijkstraRenderer();
+testToposortRenderer();
+testKosarajuRenderer();
+testMoRenderer();
+testMonotonicStackRenderer();
+testGpHashTableRenderer();
+testOrderedSetRenderer();
+testSetUtilsRenderer();
 testLinearSieveRenderer();
 testFenwickRenderer();
 testModIntRenderer();
@@ -3898,13 +6130,25 @@ testMergeSortTreeRenderer();
 testSuffixArrayRenderer();
 testPolyHashRenderer();
 testFftNttRenderer();
+testFastAllocatorRenderer();
+testGeometryRenderer();
+testHalfplaneIntersectionRenderer();
 testSegmentTreeBeatsRenderer();
 testGeneratedBerlekampMasseyCompiles();
 testGeneratedSparseTableCompiles();
 testGeneratedDsuCompiles();
 testGeneratedRollbackDsuCompiles();
 testGeneratedLcaCompiles();
+testGeneratedHldCompiles();
 testGeneratedBfsCompiles();
+testGeneratedDijkstraCompiles();
+testGeneratedToposortCompiles();
+testGeneratedKosarajuCompiles();
+testGeneratedMoCompiles();
+testGeneratedMonotonicStackCompiles();
+testGeneratedGpHashTableCompiles();
+testGeneratedOrderedSetCompiles();
+testGeneratedSetUtilsCompiles();
 testGeneratedLinearSieveCompiles();
 testGeneratedFenwickCompiles();
 testGeneratedModIntCompiles();
@@ -3918,3 +6162,6 @@ testGeneratedMergeSortTreeCompiles();
 testGeneratedSuffixArrayCompiles();
 testGeneratedPolyHashCompiles();
 testGeneratedFftNttCompiles();
+testGeneratedFastAllocatorCompiles();
+testGeneratedGeometryCompiles();
+testGeneratedHalfplaneIntersectionCompiles();

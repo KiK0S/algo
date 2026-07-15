@@ -1,51 +1,57 @@
-# DSU Dynamic Plan
+# DSU
 
-Status: completed dynamic migration. Future agents should not pick this as the
-next migration packet unless they are changing the DSU API or adding optional
-features.
+Status: active smart-runtime surface.
 
-## Existing Source
-
-- `lib/solvers/dsu.hpp`
-- tests: `tests/dsu_test.cpp`
-- legacy `lib/dsu.hpp` was removed after the solver-path test was migrated.
-
-## Historical Alignment
-
-The completed migration used these resolved choices:
+## Goal
 
 - Dynamic path: `/solvers/dsu`.
-- Generated output: a pasteable global `Dsu` helper class, not a full solution.
-- Keep the API from the old top-level header body: `reset`, `size`,
-  `components`, `find`, `unite`, `same`, `component_size`, and `parents`.
-- Keep the static pasteable fallback at `lib/solvers/dsu.hpp`.
-- Keep the usage block comment in generated snippets by default.
-- Keep the short inline DSU snippet separate as `/bricks/dsu_short`.
+- Static fallback: `lib/solvers/dsu.hpp`.
+- User-facing outcome: choose connectivity, Kruskal, or query-loop usage and
+  emit the DSU class plus optional solve skeleton.
 
-## Dynamic Options
+## Scenario Inventory
 
-- class name, planned through the shared name planner
-- optional usage block comment
+- Plain connectivity and component maintenance.
+- Online type-coded unite/same/component-size queries.
+- Kruskal MST skeleton.
 
-## Sections
+Out of scope for this pass: parity DSU, weighted/potential DSU, and rollback;
+rollback remains `/solvers/rollback_dsu`.
 
-- helpers: DSU class and optional usage block comment
+## Decision Tree
 
-## Implementation Plan
+- First choice: application scenario.
+- Node count binding: detected `n`/constants or custom expression.
+- Optional edge count binding for Kruskal.
+- Indexing: 0-indexed or 1-indexed input adjustment in generated usage.
+- Usage output: helper only, instance skeleton, query loop, or Kruskal skeleton.
 
-Completed in this migration:
+## Inputs And Outputs
 
-1. Added the `dsu` generator and registered it through the shared registry.
-2. Added catalog metadata at `/solvers/dsu`, with static fallback source
-   `solvers/dsu.hpp`.
-3. Rendered the DSU class as a section-based helper recipe.
-4. Preserved the pasteable fallback under `lib/solvers/dsu.hpp`.
-5. Removed the top-level `lib/dsu.hpp` compatibility header after moving the
-   C++ test include.
+- Prefill node count from detected inputs and constants.
+- Prefill edge/query count from detected `m`, `q`, and similar symbols.
+- Reserve the generated class name through the shared name planner.
+- Helpers insert globally; usage snippets insert into `solve()`.
 
-## Tests
+## Generator Contract
 
-- Render default DSU helper.
-- Render collision case for `Dsu`.
-- Compile generated DSU helper.
-- Re-run `tests/dsu_test.cpp`.
+- Keep the current `Dsu` API: `reset`, `size`, `components`, `find`, `unite`,
+  `same`, `component_size`, and `parents`.
+- Keep static fallback pasteable.
+- Generated query loop uses type `1` for unite, type `2` for same, and type `3`
+  for component size.
+- Kruskal skeleton emits a local `Edge` struct and sorted edge loop.
+
+## Acceptance Cases
+
+- Render helper-only DSU.
+- Render instance, query-loop, and Kruskal usage sections.
+- Verify collision handling for `Dsu`.
+- Compile generated helper output.
+- Verify catalog metadata includes applications, constraints, wrappers, and
+  bindings.
+
+## Follow-Ups
+
+- Add parity DSU as a separate DSU mode.
+- Add weighted/potential DSU for equation constraints.

@@ -50,6 +50,59 @@ export interface RenderedRecipe {
   dependencies: DynamicDependency[];
 }
 
+export type BindingCandidateKind =
+  | "size"
+  | "value"
+  | "index"
+  | "query_count"
+  | "source_vector"
+  | "answer";
+
+export interface BindingCandidate {
+  label: string;
+  value: string;
+  kind: BindingCandidateKind;
+  detail?: string;
+  score: number;
+}
+
+export interface BindingField {
+  id: string;
+  label: string;
+  kind: BindingCandidateKind;
+  required: boolean;
+  defaultValue?: string;
+}
+
+export interface DecisionChoice {
+  id: string;
+  label: string;
+  description?: string;
+  next?: string;
+}
+
+export interface DecisionNode {
+  id: string;
+  label: string;
+  choices: DecisionChoice[];
+  multi?: boolean;
+}
+
+export interface UsageSection {
+  id: string;
+  label: string;
+  section: SolutionSection;
+}
+
+export interface SolverApplicationSpec {
+  path: string;
+  title: string;
+  scenarios: DecisionChoice[];
+  decisions: DecisionNode[];
+  bindings: BindingField[];
+  usageSections: UsageSection[];
+}
+
 export interface AnnotatedSymbol {
   name: string;
   kind: "const" | "input";
@@ -82,6 +135,15 @@ export interface CppAnalysis {
   sections: CppSectionSpan[];
 }
 
+export type SegmentTreeApplication =
+  | "point_query"
+  | "lazy_range"
+  | "lazy_minmax"
+  | "max_subarray"
+  | "beats";
+export type SegmentTreeSourceMode = "empty" | "existing_vector" | "read_loop";
+export type SegmentTreeIndexing = "zero_based" | "one_based_input";
+export type SegmentTreeUsageMode = "helper_only" | "instance" | "query_loop";
 export type SegmentAggregate = "sum" | "min" | "max" | "custom";
 export type SegmentUpdateOp =
   | "point_set"
@@ -117,6 +179,8 @@ export interface SegmentTreeNames {
   sumAliasName: string;
   minAliasName: string;
   maxAliasName: string;
+  maxSubarrayNodeName: string;
+  maxSubarrayClassName: string;
 }
 
 export interface SegmentTreeCustomOptions {
@@ -132,6 +196,13 @@ export interface SegmentTreeOptions {
   aggregate: SegmentAggregate;
   updates: SegmentUpdateOp[];
   descends?: SegmentDescendQuery[];
+  application?: SegmentTreeApplication;
+  sourceMode?: SegmentTreeSourceMode;
+  sourceName?: string;
+  indexing?: SegmentTreeIndexing;
+  usageMode?: SegmentTreeUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: SegmentTreeNames;
   outputMode?: SegmentTreeOutputMode;
   custom?: SegmentTreeCustomOptions;
@@ -139,6 +210,13 @@ export interface SegmentTreeOptions {
 
 export type SegmentTreeBeatsUpdate = "chmin" | "chmax" | "add";
 export type SegmentTreeBeatsQuery = "sum" | "min" | "max";
+export type SegmentTreeBeatsApplication =
+  | "clamp_queries"
+  | "add_clamp_queries"
+  | "query_only";
+export type SegmentTreeBeatsSourceMode = "empty" | "existing_vector" | "read_loop";
+export type SegmentTreeBeatsIndexing = "zero_based" | "one_based_input";
+export type SegmentTreeBeatsUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface SegmentTreeBeatsNames {
   className: string;
@@ -155,6 +233,14 @@ export interface SegmentTreeBeatsOptions {
   valueType: string;
   updates: SegmentTreeBeatsUpdate[];
   queries: SegmentTreeBeatsQuery[];
+  application?: SegmentTreeBeatsApplication;
+  sourceMode?: SegmentTreeBeatsSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  indexing?: SegmentTreeBeatsIndexing;
+  usageMode?: SegmentTreeBeatsUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: SegmentTreeBeatsNames;
   includeUsageComment: boolean;
 }
@@ -165,6 +251,13 @@ export type MergeSortTreeQuery =
   | "count_equal"
   | "count_in_range"
   | "exists";
+export type MergeSortTreeApplication =
+  | "range_threshold_count"
+  | "range_value_presence"
+  | "range_value_band";
+export type MergeSortTreeSourceMode = "existing_vector" | "read_loop";
+export type MergeSortTreeIndexing = "zero_based" | "one_based_input";
+export type MergeSortTreeUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface MergeSortTreeNames {
   className: string;
@@ -186,7 +279,14 @@ export interface MergeSortTreeNames {
 export interface MergeSortTreeOptions {
   valueType: string;
   sourceName: string;
+  sizeExpression?: string;
   queries: MergeSortTreeQuery[];
+  application?: MergeSortTreeApplication;
+  sourceMode?: MergeSortTreeSourceMode;
+  indexing?: MergeSortTreeIndexing;
+  usageMode?: MergeSortTreeUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: MergeSortTreeNames;
   includeUsageComment: boolean;
 }
@@ -209,7 +309,18 @@ export interface DsuNames {
   className: string;
 }
 
+export type DsuApplication = "connectivity" | "kruskal" | "query_loop";
+export type DsuIndexing = "zero_based" | "one_based_input";
+export type DsuUsageMode = "helper_only" | "instance" | "query_loop" | "kruskal";
+
 export interface DsuOptions {
+  application?: DsuApplication;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  indexing?: DsuIndexing;
+  usageMode?: DsuUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: DsuNames;
   includeUsageComment: boolean;
 }
@@ -218,7 +329,20 @@ export interface RollbackDsuNames {
   className: string;
 }
 
+export type RollbackDsuApplication =
+  | "snapshots"
+  | "offline_dynamic_connectivity";
+export type RollbackDsuIndexing = "zero_based" | "one_based_input";
+export type RollbackDsuUsageMode = "helper_only" | "instance" | "query_loop";
+
 export interface RollbackDsuOptions {
+  application?: RollbackDsuApplication;
+  sizeExpression?: string;
+  queryCountName?: string;
+  indexing?: RollbackDsuIndexing;
+  usageMode?: RollbackDsuUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: RollbackDsuNames;
   includeUsageComment: boolean;
 }
@@ -227,8 +351,51 @@ export interface LcaNames {
   className: string;
 }
 
+export type LcaApplication = "lca_dist" | "kth_ancestor" | "tree_query_loop";
+export type LcaSourceMode = "empty" | "read_tree";
+export type LcaIndexing = "zero_based" | "one_based_input";
+export type LcaUsageMode = "helper_only" | "instance" | "read_tree" | "query_loop";
+
 export interface LcaOptions {
+  application?: LcaApplication;
+  sourceMode?: LcaSourceMode;
+  sizeExpression?: string;
+  rootExpression?: string;
+  queryCountName?: string;
+  indexing?: LcaIndexing;
+  usageMode?: LcaUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: LcaNames;
+  includeUsageComment: boolean;
+}
+
+export interface HldNames {
+  className: string;
+}
+
+export type HldApplication =
+  | "path_query"
+  | "subtree_query"
+  | "lca_distance"
+  | "build_tree";
+export type HldSourceMode = "empty" | "read_tree";
+export type HldIndexing = "zero_based" | "one_based_input";
+export type HldValueMode = "vertex_values" | "edge_values";
+export type HldUsageMode = "helper_only" | "instance" | "read_tree" | "query_loop";
+
+export interface HldOptions {
+  application?: HldApplication;
+  sourceMode?: HldSourceMode;
+  sizeExpression?: string;
+  rootExpression?: string;
+  queryCountName?: string;
+  indexing?: HldIndexing;
+  valueMode?: HldValueMode;
+  usageMode?: HldUsageMode;
+  instanceName?: string;
+  answerName?: string;
+  names: HldNames;
   includeUsageComment: boolean;
 }
 
@@ -241,8 +408,368 @@ export interface BfsNames {
   restorePathToRootName: string;
 }
 
+export type BfsApplication =
+  | "shortest_distances"
+  | "multi_source"
+  | "path_restore"
+  | "traversal_order";
+export type BfsSourceMode = "existing_graph" | "read_edges";
+export type BfsGraphMode = "directed" | "undirected";
+export type BfsIndexing = "zero_based" | "one_based_input";
+export type BfsUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "single_source"
+  | "multi_source"
+  | "path_query";
+
 export interface BfsOptions {
+  application?: BfsApplication;
+  sourceMode?: BfsSourceMode;
+  graphMode?: BfsGraphMode;
+  indexing?: BfsIndexing;
+  usageMode?: BfsUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  sourceName?: string;
+  targetName?: string;
+  resultName?: string;
   names: BfsNames;
+  includeUsageComment: boolean;
+}
+
+export interface DijkstraNames {
+  edgeStructName: string;
+  resultStructName: string;
+  addEdgeName: string;
+  multiSourceName: string;
+  singleSourceName: string;
+  restorePathName: string;
+}
+
+export type DijkstraApplication =
+  | "shortest_paths"
+  | "multi_source"
+  | "path_restore"
+  | "weighted_graph_read";
+export type DijkstraSourceMode = "existing_graph" | "read_edges";
+export type DijkstraGraphMode = "directed" | "undirected";
+export type DijkstraIndexing = "zero_based" | "one_based_input";
+export type DijkstraUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "single_source"
+  | "multi_source"
+  | "path_query";
+
+export interface DijkstraOptions {
+  application?: DijkstraApplication;
+  sourceMode?: DijkstraSourceMode;
+  graphMode?: DijkstraGraphMode;
+  indexing?: DijkstraIndexing;
+  usageMode?: DijkstraUsageMode;
+  valueType?: string;
+  infExpression?: string;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  sourceName?: string;
+  targetName?: string;
+  resultName?: string;
+  names: DijkstraNames;
+  includeUsageComment: boolean;
+}
+
+export interface ToposortNames {
+  addEdgeName: string;
+  sortName: string;
+  validateName: string;
+}
+
+export type ToposortApplication =
+  | "dag_order"
+  | "cycle_detection"
+  | "dependency_schedule"
+  | "order_validation";
+export type ToposortSourceMode = "existing_graph" | "read_edges";
+export type ToposortIndexing = "zero_based" | "one_based_input";
+export type ToposortUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "sort_order"
+  | "cycle_check"
+  | "validate_order";
+
+export interface ToposortOptions {
+  application?: ToposortApplication;
+  sourceMode?: ToposortSourceMode;
+  indexing?: ToposortIndexing;
+  usageMode?: ToposortUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  graphName?: string;
+  orderName?: string;
+  dagName?: string;
+  names: ToposortNames;
+  includeUsageComment: boolean;
+}
+
+export interface KosarajuNames {
+  resultStructName: string;
+  addEdgeName: string;
+  sccName: string;
+}
+
+export type KosarajuApplication =
+  | "scc_components"
+  | "same_component"
+  | "condensation_dag"
+  | "two_sat_analysis";
+export type KosarajuSourceMode = "existing_graph" | "read_edges";
+export type KosarajuIndexing = "zero_based" | "one_based_input";
+export type KosarajuUsageMode =
+  | "helper_only"
+  | "read_graph"
+  | "compute_scc"
+  | "same_component_queries"
+  | "print_components";
+
+export interface KosarajuOptions {
+  application?: KosarajuApplication;
+  sourceMode?: KosarajuSourceMode;
+  indexing?: KosarajuIndexing;
+  usageMode?: KosarajuUsageMode;
+  sizeExpression?: string;
+  edgeCountName?: string;
+  queryCountName?: string;
+  graphName?: string;
+  resultName?: string;
+  names: KosarajuNames;
+  includeUsageComment: boolean;
+}
+
+export interface MoNames {
+  queryStructName: string;
+  blockSizeName: string;
+  normalizeName: string;
+  orderName: string;
+  processName: string;
+}
+
+export type MoApplication =
+  | "distinct_values"
+  | "range_frequency"
+  | "range_aggregate"
+  | "custom_callbacks";
+export type MoSourceMode = "existing_queries" | "read_queries";
+export type MoIndexing = "zero_based_half_open" | "one_based_closed_input";
+export type MoUsageMode =
+  | "helper_only"
+  | "read_queries"
+  | "process_skeleton"
+  | "distinct_count_skeleton";
+
+export interface MoOptions {
+  application?: MoApplication;
+  sourceMode?: MoSourceMode;
+  indexing?: MoIndexing;
+  usageMode?: MoUsageMode;
+  sizeExpression?: string;
+  queryCountName?: string;
+  valuesName?: string;
+  queriesName?: string;
+  answersName?: string;
+  valueType?: string;
+  answerType?: string;
+  names: MoNames;
+  includeUsageComment: boolean;
+}
+
+export interface MonotonicStackNames {
+  nearestLeftByName: string;
+  nearestRightByName: string;
+  nearestSmallerLeftName: string;
+  nearestSmallerRightName: string;
+  nearestGreaterLeftName: string;
+  nearestGreaterRightName: string;
+  nearestStructName: string;
+  nearestAllName: string;
+}
+
+export type MonotonicStackApplication =
+  | "nearest_smaller"
+  | "nearest_greater"
+  | "all_nearest"
+  | "custom_comparator";
+export type MonotonicStackDirection = "left" | "right" | "both";
+export type MonotonicStackRelation = "smaller" | "greater" | "all";
+export type MonotonicStackStrictness = "strict" | "non_strict";
+export type MonotonicStackUsageMode = "helper_only" | "compute_vector" | "compute_all";
+
+export interface MonotonicStackOptions {
+  application?: MonotonicStackApplication;
+  direction?: MonotonicStackDirection;
+  relation?: MonotonicStackRelation;
+  strictness?: MonotonicStackStrictness;
+  usageMode?: MonotonicStackUsageMode;
+  sourceName?: string;
+  resultName?: string;
+  valueType?: string;
+  names: MonotonicStackNames;
+  includeUsageComment: boolean;
+}
+
+export interface GpHashTableNames {
+  splitMixName: string;
+  hashName: string;
+  pairHashName: string;
+  tableAliasName: string;
+}
+
+export type GpHashTableApplication =
+  | "hash_map"
+  | "hash_set"
+  | "frequency_table"
+  | "pair_key";
+export type GpHashTableUsageMode =
+  | "helper_only"
+  | "declare_map"
+  | "declare_set"
+  | "frequency_loop";
+
+export interface GpHashTableOptions {
+  application?: GpHashTableApplication;
+  usageMode?: GpHashTableUsageMode;
+  keyType?: string;
+  valueType?: string;
+  tableName?: string;
+  sourceName?: string;
+  names: GpHashTableNames;
+  includeUsageComment: boolean;
+}
+
+export interface OrderedSetNames {
+  treeAliasName: string;
+  className: string;
+}
+
+export type OrderedSetApplication =
+  | "order_statistics"
+  | "kth_element"
+  | "multiset_pairs"
+  | "rank_queries";
+export type OrderedSetUsageMode =
+  | "helper_only"
+  | "declare_set"
+  | "rank_query"
+  | "kth_query"
+  | "pair_multiset";
+
+export interface OrderedSetOptions {
+  application?: OrderedSetApplication;
+  usageMode?: OrderedSetUsageMode;
+  keyType?: string;
+  setName?: string;
+  names: OrderedSetNames;
+  includeUsageComment: boolean;
+}
+
+export interface SetUtilsNames {
+  nextIteratorName: string;
+  prevIteratorName: string;
+  nextValueName: string;
+  prevValueName: string;
+}
+
+export type SetUtilsApplication =
+  | "next_value"
+  | "prev_value"
+  | "iterator_navigation"
+  | "map_neighbor";
+export type SetUtilsLookup = "next" | "prev";
+export type SetUtilsTarget = "value" | "iterator";
+export type SetUtilsUsageMode = "helper_only" | "lookup_snippet";
+
+export interface SetUtilsOptions {
+  application?: SetUtilsApplication;
+  lookup?: SetUtilsLookup;
+  target?: SetUtilsTarget;
+  usageMode?: SetUtilsUsageMode;
+  containerName?: string;
+  keyName?: string;
+  iteratorName?: string;
+  resultName?: string;
+  names: SetUtilsNames;
+  includeUsageComment: boolean;
+}
+
+export interface FastAllocatorNames {
+  arenaClassName: string;
+  allocatorClassName: string;
+  factoryName: string;
+}
+
+export type FastAllocatorApplication =
+  | "many_vectors"
+  | "graph_edges"
+  | "pool_reset"
+  | "custom_container";
+export type FastAllocatorUsageMode =
+  | "helper_only"
+  | "vector_declaration"
+  | "edge_vector"
+  | "arena_reset";
+
+export interface FastAllocatorOptions {
+  application?: FastAllocatorApplication;
+  usageMode?: FastAllocatorUsageMode;
+  valueType?: string;
+  containerName?: string;
+  arenaName?: string;
+  capacityExpression?: string;
+  edgeTypeName?: string;
+  names: FastAllocatorNames;
+  includeUsageComment: boolean;
+}
+
+export type GeometryApplication =
+  | "orientation"
+  | "segment_intersection"
+  | "angle_sort"
+  | "convex_hull";
+export type GeometryUsageMode =
+  | "helper_only"
+  | "orientation_check"
+  | "segment_intersection"
+  | "sort_points"
+  | "build_hull";
+
+export interface GeometryOptions {
+  application?: GeometryApplication;
+  usageMode?: GeometryUsageMode;
+  valueType?: string;
+  pointAliasName?: string;
+  pointsName?: string;
+  resultName?: string;
+  includeUsageComment: boolean;
+}
+
+export type HalfplaneIntersectionApplication =
+  | "convex_polygon"
+  | "linear_constraints"
+  | "clip_polygon";
+export type HalfplaneIntersectionUsageMode =
+  | "helper_only"
+  | "halfplane_vector"
+  | "inequality_box"
+  | "compute_polygon";
+
+export interface HalfplaneIntersectionOptions {
+  application?: HalfplaneIntersectionApplication;
+  usageMode?: HalfplaneIntersectionUsageMode;
+  halfplanesName?: string;
+  resultName?: string;
   includeUsageComment: boolean;
 }
 
@@ -260,22 +787,53 @@ export interface LinearSieveOptions {
   includeUsageComment: boolean;
 }
 
-export type FenwickOperation = "sum" | "xor" | "max" | "min";
+export type FenwickOperation =
+  | "sum"
+  | "xor"
+  | "max"
+  | "min"
+  | "custom"
+  | "custom_invertible";
+export type FenwickApplication =
+  | "point_prefix"
+  | "point_range"
+  | "range_point"
+  | "range_sum"
+  | "frequency_kth"
+  | "inversion_count"
+  | "prefix_minmax";
+export type FenwickSourceMode = "empty" | "existing_vector" | "read_loop";
+export type FenwickIndexing = "zero_based" | "one_based_input";
+export type FenwickUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface FenwickNames {
   className: string;
+  rangeClassName: string;
   sumOpName: string;
   xorOpName: string;
   maxOpName: string;
   minOpName: string;
+  customOpName: string;
+  customInvertibleOpName: string;
   sumAliasName: string;
   xorAliasName: string;
   maxAliasName: string;
   minAliasName: string;
+  customAliasName: string;
+  customInvertibleAliasName: string;
 }
 
 export interface FenwickOptions {
   operations: FenwickOperation[];
+  application?: FenwickApplication;
+  sourceMode?: FenwickSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  valueType?: string;
+  indexing?: FenwickIndexing;
+  usageMode?: FenwickUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: FenwickNames;
   includeUsageComment: boolean;
 }
@@ -485,6 +1043,14 @@ export interface KuhnOptions {
 
 export type ImplicitTreapAggregate = "sum" | "custom";
 export type ImplicitTreapFeature = "reverse" | "range_add";
+export type ImplicitTreapApplication =
+  | "sequence_edit"
+  | "range_query"
+  | "range_lazy"
+  | "custom_aggregate";
+export type ImplicitTreapSourceMode = "empty" | "existing_vector" | "read_loop";
+export type ImplicitTreapIndexing = "zero_based" | "one_based_input";
+export type ImplicitTreapUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface ImplicitTreapNames {
   sumOpName: string;
@@ -503,11 +1069,26 @@ export interface ImplicitTreapOptions {
   valueType: string;
   aggregate: ImplicitTreapAggregate;
   features: ImplicitTreapFeature[];
+  application?: ImplicitTreapApplication;
+  sourceMode?: ImplicitTreapSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  indexing?: ImplicitTreapIndexing;
+  usageMode?: ImplicitTreapUsageMode;
+  instanceName?: string;
+  answerName?: string;
   names: ImplicitTreapNames;
   includeUsageComment: boolean;
 }
 
-export type SparseTableVariant = "min" | "max";
+export type SparseTableApplication =
+  | "range_minmax"
+  | "range_gcd_bitwise"
+  | "custom_idempotent";
+export type SparseTableVariant = "min" | "max" | "gcd" | "bit_and" | "bit_or" | "custom";
+export type SparseTableSourceMode = "existing_vector" | "read_loop";
+export type SparseTableIndexing = "zero_based" | "one_based_input";
+export type SparseTableUsageMode = "helper_only" | "build_call" | "query_loop";
 
 export interface SparseTableNames {
   logName: string;
@@ -518,12 +1099,31 @@ export interface SparseTableNames {
   maxTableName: string;
   buildMaxName: string;
   queryMaxName: string;
+  gcdTableName: string;
+  buildGcdName: string;
+  queryGcdName: string;
+  bitAndTableName: string;
+  buildBitAndName: string;
+  queryBitAndName: string;
+  bitOrTableName: string;
+  buildBitOrName: string;
+  queryBitOrName: string;
+  customTableName: string;
+  buildCustomName: string;
+  queryCustomName: string;
+  customCombineName: string;
 }
 
 export interface SparseTableOptions {
   valueType: string;
   sourceName: string;
+  sizeExpression?: string;
   variants: SparseTableVariant[];
+  application?: SparseTableApplication;
+  sourceMode?: SparseTableSourceMode;
+  indexing?: SparseTableIndexing;
+  usageMode?: SparseTableUsageMode;
+  answerName?: string;
   names: SparseTableNames;
   includeUsageComment: boolean;
 }
@@ -639,6 +1239,7 @@ export interface RenderedSnippet {
   content: string;
   renames: IdentifierRename[];
   exports: string[];
+  recipe?: RenderedRecipe;
 }
 
 const CPP_KEYWORDS = new Set([
@@ -1198,6 +1799,75 @@ export function sizeExpressionCandidates(analysis: CppAnalysis): string[] {
   return result;
 }
 
+function candidateScore(name: string, preferred: string[]): number {
+  const exactIndex = preferred.indexOf(name);
+  if (exactIndex !== -1) {
+    return 100 - exactIndex;
+  }
+  if (/^n(?:$|[A-Z_])/.test(name)) {
+    return 80;
+  }
+  if (/^(?:q|queries|query_count)$/.test(name)) {
+    return 75;
+  }
+  if (/^(?:a|arr|v|values)$/.test(name)) {
+    return 70;
+  }
+  if (/^(?:ans|answer|res|result)$/.test(name)) {
+    return 65;
+  }
+  return 10;
+}
+
+export function bindingCandidates(
+  analysis: CppAnalysis,
+  kind: BindingCandidateKind
+): BindingCandidate[] {
+  const candidates: BindingCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (
+    value: string,
+    candidateKind: BindingCandidateKind,
+    preferred: string[],
+    detail?: string
+  ) => {
+    const trimmed = value.trim();
+    if (trimmed === "" || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
+    candidates.push({
+      label: trimmed,
+      value: trimmed,
+      kind: candidateKind,
+      detail,
+      score: candidateScore(trimmed, preferred)
+    });
+  };
+
+  if (kind === "size" || kind === "query_count" || kind === "index") {
+    const preferred =
+      kind === "query_count"
+        ? ["q", "m", "queries"]
+        : kind === "index"
+          ? ["i", "idx", "pos", "l", "r"]
+          : ["n", "N", "sz", "size"];
+    for (const value of sizeExpressionCandidates(analysis)) {
+      add(value, kind, preferred);
+    }
+  }
+
+  if (kind === "source_vector" || kind === "value" || kind === "answer") {
+    const preferred =
+      kind === "answer" ? ["ans", "answer", "res"] : ["a", "arr", "v", "values"];
+    for (const symbol of analysis.vectorSymbols) {
+      add(symbol.name, "source_vector", preferred, symbol.type);
+    }
+  }
+
+  return candidates.sort((lhs, rhs) => rhs.score - lhs.score || lhs.label.localeCompare(rhs.label));
+}
+
 export function sanitizeIdentifier(value: string, fallback: string): string {
   const trimmed = value.trim();
   return isIdentifier(trimmed) && !CPP_KEYWORDS.has(trimmed) ? trimmed : fallback;
@@ -1387,7 +2057,9 @@ export function planSegmentTreeNames(
     maxOpName: planner.reserve("SegmentMaxOp", "PointSegmentMaxOp"),
     sumAliasName: planner.reserve("SegmentSumTree", "PointSegmentSumTree"),
     minAliasName: planner.reserve("SegmentMinTree", "PointSegmentMinTree"),
-    maxAliasName: planner.reserve("SegmentMaxTree", "PointSegmentMaxTree")
+    maxAliasName: planner.reserve("SegmentMaxTree", "PointSegmentMaxTree"),
+    maxSubarrayNodeName: planner.reserve("MaxSubarrayNode", "SegmentMaxSubarrayNode"),
+    maxSubarrayClassName: planner.reserve("MaxSubarraySegTree", "SegmentMaxSubarrayTree")
   };
 }
 
@@ -1522,7 +2194,8 @@ export function renderRecipeSnippet(
   return {
     content: composeRecipeSections(recipe, selectedSections),
     renames: [],
-    exports: recipe.exports
+    exports: recipe.exports,
+    recipe
   };
 }
 
@@ -1560,6 +2233,9 @@ export function mergeRenderedRecipes(recipes: RenderedRecipe[]): RenderedRecipe 
 
 function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
   const names = options.names;
+  if (options.application === "max_subarray") {
+    return [names.maxSubarrayNodeName, names.maxSubarrayClassName];
+  }
   if (options.outputMode === "iterative_class") {
     return [
       names.sumOpName,
@@ -1618,10 +2294,244 @@ function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
 }
 
 export function renderSegmentTreeRecipe(options: SegmentTreeOptions): RenderedRecipe {
+  const helpers =
+    options.application === "max_subarray"
+      ? renderMaxSubarraySegmentTree(options)
+      : renderSegmentTree(options);
+  const solve = renderSegmentTreeUsage(options);
+  const sections: Partial<Record<SolutionSection, string[]>> = { helpers: [helpers] };
+  if (solve !== "") {
+    sections.solve = [solve];
+  }
   return createRenderedRecipe(
-    { helpers: [renderSegmentTree(options)] },
+    sections,
     segmentTreeExportedNames(options)
   );
+}
+
+function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
+  if (!options.usageMode || options.usageMode === "helper_only") {
+    return "";
+  }
+
+  const n = options.sizeExpression.trim() || "n";
+  const source = options.sourceName?.trim();
+  const valueType = options.valueType.trim() || "int";
+  const instance = sanitizeIdentifier(options.instanceName ?? "seg", "seg");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+
+  if (options.sourceMode === "read_loop" && source) {
+    pushLine(lines, `vector<${valueType}> ${source}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${n}; ++i) cin >> ${source}[i];`);
+  }
+
+  if (options.application === "max_subarray") {
+    if (source) {
+      pushLine(lines, `${options.names.maxSubarrayClassName}<${valueType}> ${instance}(${source});`);
+    } else {
+      pushLine(lines, `${options.names.maxSubarrayClassName}<${valueType}> ${instance}(${n});`);
+    }
+    if (options.usageMode === "query_loop") {
+      pushLine(lines, "int q;");
+      pushLine(lines, "cin >> q;");
+      pushLine(lines, "while (q--) {");
+      pushLine(lines, "  int type, l, r;");
+      pushLine(lines, `  ${valueType} x;`);
+      pushLine(lines, "  cin >> type >> l >> r;");
+      if (options.indexing === "one_based_input") {
+        pushLine(lines, "  --l; --r;");
+      }
+      pushLine(lines, "  if (type == 1) {");
+      pushLine(lines, "    cin >> x;");
+      pushLine(lines, `    ${instance}.point_set(l, x);`);
+      pushLine(lines, "  } else {");
+      pushLine(lines, `    auto ${answer} = ${instance}.max_sum(l, r);`);
+      pushLine(lines, `    cout << ${answer} << '\\n';`);
+      pushLine(lines, "  }");
+      pushLine(lines, "}");
+    }
+    return lines.join("\n");
+  }
+
+  if (options.outputMode === "iterative_class") {
+    const alias =
+      options.aggregate === "min"
+        ? options.names.minAliasName
+        : options.aggregate === "max"
+          ? options.names.maxAliasName
+          : options.names.sumAliasName;
+    if (source) {
+      pushLine(lines, `${alias}<${valueType}> ${instance}(${source});`);
+    } else {
+      pushLine(lines, `${alias}<${valueType}> ${instance}(${n});`);
+    }
+    if (options.usageMode === "query_loop") {
+      pushLine(lines, "int q;");
+      pushLine(lines, "cin >> q;");
+      pushLine(lines, "while (q--) {");
+      pushLine(lines, "  int type, l, r;");
+      pushLine(lines, `  ${valueType} x;`);
+      pushLine(lines, "  cin >> type >> l >> r;");
+      if (options.indexing === "one_based_input") {
+        pushLine(lines, "  --l; --r;");
+      }
+      pushLine(lines, "  if (type == 1) {");
+      pushLine(lines, "    cin >> x;");
+      pushLine(lines, `    ${instance}.point_set(l, x);`);
+      pushLine(lines, "  } else {");
+      pushLine(lines, "    ++r;");
+      pushLine(lines, `    auto ${answer} = ${instance}.query(l, r);`);
+      pushLine(lines, `    cout << ${answer} << '\\n';`);
+      pushLine(lines, "  }");
+      pushLine(lines, "}");
+    }
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `${options.names.initName}(${n});`);
+  if (source) {
+    pushLine(lines, `if (${n} > 0) ${options.names.buildName}(1, 0, ${n} - 1, ${source});`);
+  }
+  if (options.usageMode === "query_loop") {
+    pushLine(lines, "int q;");
+    pushLine(lines, "cin >> q;");
+    pushLine(lines, "while (q--) {");
+    pushLine(lines, "  int type, l, r;");
+    pushLine(lines, `  ${valueType} x;`);
+    pushLine(lines, "  cin >> type >> l >> r;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --l; --r;");
+    }
+    pushLine(lines, "  if (type == 1) {");
+    pushLine(lines, "    cin >> x;");
+    if (hasUpdate(options, "range_add")) {
+      pushLine(lines, `    ${options.names.rangeAddName}(1, 0, ${n} - 1, l, r, x);`);
+    } else if (hasUpdate(options, "range_assign")) {
+      pushLine(lines, `    ${options.names.rangeAssignName}(1, 0, ${n} - 1, l, r, x);`);
+    } else if (hasUpdate(options, "point_add")) {
+      pushLine(lines, `    ${options.names.pointAddName}(1, 0, ${n} - 1, l, x);`);
+    } else {
+      pushLine(lines, `    ${options.names.pointSetName}(1, 0, ${n} - 1, l, x);`);
+    }
+    pushLine(lines, "  } else {");
+    pushLine(lines, `    auto ${answer} = ${options.names.queryName}(1, 0, ${n} - 1, l, r);`);
+    pushLine(lines, `    cout << ${answer} << '\\n';`);
+    pushLine(lines, "  }");
+    pushLine(lines, "}");
+  }
+
+  return lines.join("\n");
+}
+
+function renderMaxSubarraySegmentTree(options: SegmentTreeOptions): string {
+  const names = options.names;
+  const lines: string[] = [];
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `struct ${names.maxSubarrayNodeName} {`);
+  pushLine(lines, "  T sum;");
+  pushLine(lines, "  T prefix;");
+  pushLine(lines, "  T suffix;");
+  pushLine(lines, "  T best;");
+  pushLine(lines, "  bool valid;");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `class ${names.maxSubarrayClassName} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, `  using Node = ${names.maxSubarrayNodeName}<T>;`);
+  pushLine(lines);
+  pushLine(lines, `  explicit ${names.maxSubarrayClassName}(int n = 0) : n_(n < 0 ? 0 : n) { init_storage(); }`);
+  pushLine(lines);
+  pushLine(lines, `  explicit ${names.maxSubarrayClassName}(const std::vector<T>& values) : n_(0) { build(values); }`);
+  pushLine(lines);
+  pushLine(lines, "  void reset(int n) {");
+  pushLine(lines, "    n_ = n < 0 ? 0 : n;");
+  pushLine(lines, "    init_storage();");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void build(const std::vector<T>& values) {");
+  pushLine(lines, "    n_ = static_cast<int>(values.size());");
+  pushLine(lines, "    init_storage();");
+  pushLine(lines, "    if (n_ > 0) build_rec(1, 0, n_ - 1, values);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int size() const { return n_; }");
+  pushLine(lines);
+  pushLine(lines, "  void point_set(int idx, const T& value) {");
+  pushLine(lines, "    if (idx < 0 || idx >= n_) return;");
+  pushLine(lines, "    point_set_rec(1, 0, n_ - 1, idx, value);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  Node get(int left, int right) const {");
+  pushLine(lines, "    if (!normalize_range(left, right)) return neutral_node();");
+  pushLine(lines, "    return get_rec(1, 0, n_ - 1, left, right);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  T max_sum(int left, int right) const { return get(left, right).best; }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  int n_;");
+  pushLine(lines, "  std::vector<Node> tree_;");
+  pushLine(lines);
+  pushLine(lines, "  static Node neutral_node() { return Node{T(0), T(0), T(0), T(0), false}; }");
+  pushLine(lines);
+  pushLine(lines, "  static Node make_leaf(const T& value) {");
+  pushLine(lines, "    return Node{value, value, value, value, true};");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  static Node combine(const Node& lhs, const Node& rhs) {");
+  pushLine(lines, "    if (!lhs.valid) return rhs;");
+  pushLine(lines, "    if (!rhs.valid) return lhs;");
+  pushLine(lines, "    Node result;");
+  pushLine(lines, "    result.valid = true;");
+  pushLine(lines, "    result.sum = lhs.sum + rhs.sum;");
+  pushLine(lines, "    result.prefix = std::max(lhs.prefix, lhs.sum + rhs.prefix);");
+  pushLine(lines, "    result.suffix = std::max(rhs.suffix, rhs.sum + lhs.suffix);");
+  pushLine(lines, "    result.best = std::max(std::max(lhs.best, rhs.best), lhs.suffix + rhs.prefix);");
+  pushLine(lines, "    return result;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void init_storage() { tree_.assign(4 * std::max(1, n_), neutral_node()); }");
+  pushLine(lines);
+  pushLine(lines, "  bool normalize_range(int& left, int& right) const {");
+  pushLine(lines, "    if (n_ == 0 || left > right || right < 0 || left >= n_) return false;");
+  pushLine(lines, "    if (left < 0) left = 0;");
+  pushLine(lines, "    if (right >= n_) right = n_ - 1;");
+  pushLine(lines, "    return left <= right;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void build_rec(int v, int tl, int tr, const std::vector<T>& values) {");
+  pushLine(lines, "    if (tl == tr) {");
+  pushLine(lines, "      tree_[v] = make_leaf(values[tl]);");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    int tm = (tl + tr) / 2;");
+  pushLine(lines, "    build_rec(v * 2, tl, tm, values);");
+  pushLine(lines, "    build_rec(v * 2 + 1, tm + 1, tr, values);");
+  pushLine(lines, "    tree_[v] = combine(tree_[v * 2], tree_[v * 2 + 1]);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void point_set_rec(int v, int tl, int tr, int idx, const T& value) {");
+  pushLine(lines, "    if (tl == tr) {");
+  pushLine(lines, "      tree_[v] = make_leaf(value);");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    int tm = (tl + tr) / 2;");
+  pushLine(lines, "    if (idx <= tm) point_set_rec(v * 2, tl, tm, idx, value);");
+  pushLine(lines, "    else point_set_rec(v * 2 + 1, tm + 1, tr, idx, value);");
+  pushLine(lines, "    tree_[v] = combine(tree_[v * 2], tree_[v * 2 + 1]);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  Node get_rec(int v, int tl, int tr, int l, int r) const {");
+  pushLine(lines, "    if (tl > r || l > tr) return neutral_node();");
+  pushLine(lines, "    if (l <= tl && tr <= r) return tree_[v];");
+  pushLine(lines, "    int tm = (tl + tr) / 2;");
+  pushLine(lines, "    return combine(get_rec(v * 2, tl, tm, l, r),");
+  pushLine(lines, "                   get_rec(v * 2 + 1, tm + 1, tr, l, r));");
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+  return `${lines.join("\n")}\n`;
 }
 
 function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
@@ -1746,6 +2656,9 @@ function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
 }
 
 export function renderSegmentTree(options: SegmentTreeOptions): string {
+  if (options.application === "max_subarray") {
+    return renderMaxSubarraySegmentTree(options);
+  }
   if (options.outputMode === "iterative_class") {
     return renderIterativeSegmentTree(options);
   }
@@ -2075,7 +2988,7 @@ function segmentTreeBeatsUpdateSet(
 function segmentTreeBeatsQuerySet(
   queries: SegmentTreeBeatsQuery[]
 ): Set<SegmentTreeBeatsQuery> {
-  return new Set(queries);
+  return new Set(queries.length === 0 ? defaultSegmentTreeBeatsQueries() : queries);
 }
 
 function segmentTreeBeatsExports(options: SegmentTreeBeatsOptions): string[] {
@@ -2110,6 +3023,95 @@ function renderSegmentTreeBeatsUsage(
     lines.push(`auto mx = seg.${names.queryMaxName}(l, r);`);
   }
   lines.push("*/");
+  return lines.join("\n");
+}
+
+function firstSegmentTreeBeatsQuery(
+  queries: Set<SegmentTreeBeatsQuery>
+): SegmentTreeBeatsQuery {
+  for (const query of ["sum", "min", "max"] as const) {
+    if (queries.has(query)) {
+      return query;
+    }
+  }
+  return "sum";
+}
+
+function renderSegmentTreeBeatsUsageSnippet(
+  options: SegmentTreeBeatsOptions,
+  updates: Set<SegmentTreeBeatsUpdate>,
+  queries: Set<SegmentTreeBeatsQuery>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const source = options.sourceName?.trim() || "a";
+  const n = options.sizeExpression?.trim() || "n";
+  const instance = sanitizeIdentifier(options.instanceName ?? "seg", "seg");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+
+  if (options.sourceMode === "read_loop") {
+    pushLine(lines, `vector<${options.valueType}> ${source}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${n}; ++i) cin >> ${source}[i];`);
+  }
+  if (options.sourceMode === "existing_vector" || options.sourceMode === "read_loop") {
+    pushLine(lines, `${names.className}<${options.valueType}> ${instance}(${source});`);
+  } else {
+    pushLine(lines, `${names.className}<${options.valueType}> ${instance}(${n});`);
+  }
+
+  if (usageMode !== "query_loop") {
+    return lines.join("\n");
+  }
+
+  const query = firstSegmentTreeBeatsQuery(queries);
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type, l, r;");
+  pushLine(lines, `  ${options.valueType} x;`);
+  pushLine(lines, "  cin >> type >> l >> r;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "  --l; --r;");
+  }
+  let openedBranch = false;
+  const pushUpdateBranch = (
+    condition: string,
+    methodName: string,
+    readValue = true
+  ) => {
+    pushLine(lines, openedBranch ? `  } else if (${condition}) {` : `  if (${condition}) {`);
+    openedBranch = true;
+    if (readValue) {
+      pushLine(lines, "    cin >> x;");
+    }
+    pushLine(lines, `    ${instance}.${methodName}(l, r, x);`);
+  };
+  if (updates.has("add")) {
+    pushUpdateBranch("type == 1", names.addName);
+  }
+  if (updates.has("chmin")) {
+    pushUpdateBranch(updates.has("add") ? "type == 2" : "type == 1", names.chminName);
+  }
+  if (updates.has("chmax")) {
+    const typeNumber = updates.has("add") && updates.has("chmin") ? 3 : updates.has("add") || updates.has("chmin") ? 2 : 1;
+    pushUpdateBranch(`type == ${typeNumber}`, names.chmaxName);
+  }
+  pushLine(lines, openedBranch ? "  } else {" : "  {");
+  if (query === "sum") {
+    pushLine(lines, `    auto ${answer} = ${instance}.${names.querySumName}(l, r);`);
+  } else if (query === "min") {
+    pushLine(lines, `    auto ${answer} = ${instance}.${names.queryMinName}(l, r);`);
+  } else {
+    pushLine(lines, `    auto ${answer} = ${instance}.${names.queryMaxName}(l, r);`);
+  }
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
   return lines.join("\n");
 }
 
@@ -2513,8 +3515,11 @@ export function renderSegmentTreeBeatsRecipe(
     pushLine(lines, renderSegmentTreeBeatsUsage(options, updates, queries));
   }
 
+  const usage = renderSegmentTreeBeatsUsageSnippet(options, updates, queries);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === ""
+      ? { helpers: [lines.join("\n")] }
+      : { helpers: [lines.join("\n")], solve: [usage] },
     segmentTreeBeatsExports(options)
   );
 }
@@ -2563,15 +3568,78 @@ export function planDsuNames(
 }
 
 function renderDsuUsage(options: DsuOptions): string {
+  const instance = options.instanceName ?? "dsu";
+  const n = options.sizeExpression ?? "n";
   return [
     "/*",
     "Example:",
-    `${options.names.className} dsu(n);`,
-    "dsu.unite(u, v);",
-    "if (dsu.same(u, v)) {",
+    `${options.names.className} ${instance}(${n});`,
+    `${instance}.unite(u, v);`,
+    `if (${instance}.same(u, v)) {`,
     "}",
     "*/"
   ].join("\n");
+}
+
+function renderDsuUsageSnippet(options: DsuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const className = options.names.className;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const instance = sanitizeIdentifier(options.instanceName ?? "dsu", "dsu");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+
+  pushLine(lines, `${className} ${instance}(${n});`);
+  if (usageMode === "instance") {
+    return lines.join("\n");
+  }
+
+  if (usageMode === "kruskal") {
+    pushLine(lines, "struct Edge { int u, v; long long w; };");
+    pushLine(lines, `vector<Edge> edges(${m});`);
+    pushLine(lines, `for (auto& e : edges) cin >> e.u >> e.v >> e.w;`);
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "for (auto& e : edges) { --e.u; --e.v; }");
+    }
+    pushLine(lines, "sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b) {");
+    pushLine(lines, "  return a.w < b.w;");
+    pushLine(lines, "});");
+    pushLine(lines, "long long mst_weight = 0;");
+    pushLine(lines, "for (const auto& e : edges) {");
+    pushLine(lines, `  if (${instance}.unite(e.u, e.v)) mst_weight += e.w;`);
+    pushLine(lines, "}");
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type, u, v;");
+  pushLine(lines, "  cin >> type >> u;");
+  pushLine(lines, "  if (type == 3) {");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --u;");
+  }
+  pushLine(lines, `    cout << ${instance}.component_size(u) << '\\n';`);
+  pushLine(lines, "    continue;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  cin >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "  --u; --v;");
+  }
+  pushLine(lines, "  if (type == 1) {");
+  pushLine(lines, `    ${instance}.unite(u, v);`);
+  pushLine(lines, "  } else {");
+  pushLine(lines, `    bool ${answer} = ${instance}.same(u, v);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  return lines.join("\n");
 }
 
 export function renderDsuRecipe(options: DsuOptions): RenderedRecipe {
@@ -2647,7 +3715,11 @@ export function renderDsuRecipe(options: DsuOptions): RenderedRecipe {
     pushLine(lines, renderDsuUsage(options));
   }
 
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderDsuUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderDsu(options: DsuOptions): string {
@@ -2666,15 +3738,64 @@ export function planRollbackDsuNames(
 
 function renderRollbackDsuUsage(options: RollbackDsuOptions): string {
   const className = options.names.className;
+  const instance = options.instanceName ?? "dsu";
+  const n = options.sizeExpression ?? "n";
   return [
     "/*",
     "Example:",
-    `${className} dsu(n);`,
-    "int snap = dsu.snapshot();",
-    "dsu.unite(u, v);",
-    "dsu.rollback(snap);",
+    `${className} ${instance}(${n});`,
+    `int snap = ${instance}.snapshot();`,
+    `${instance}.unite(u, v);`,
+    `${instance}.rollback(snap);`,
     "*/"
   ].join("\n");
+}
+
+function renderRollbackDsuUsageSnippet(options: RollbackDsuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const className = options.names.className;
+  const n = options.sizeExpression?.trim() || "n";
+  const instance = sanitizeIdentifier(options.instanceName ?? "dsu", "dsu");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+  pushLine(lines, `${className} ${instance}(${n});`);
+  if (usageMode === "instance") {
+    pushLine(lines, `int snap = ${instance}.snapshot();`);
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "vector<int> snapshots;");
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type;");
+  pushLine(lines, "  cin >> type;");
+  pushLine(lines, "  if (type == 1) {");
+  pushLine(lines, "    int u, v;");
+  pushLine(lines, "    cin >> u >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --u; --v;");
+  }
+  pushLine(lines, `    ${instance}.unite(u, v);`);
+  pushLine(lines, "  } else if (type == 2) {");
+  pushLine(lines, `    snapshots.push_back(${instance}.snapshot());`);
+  pushLine(lines, "  } else if (type == 3) {");
+  pushLine(lines, `    if (!snapshots.empty()) { ${instance}.rollback(snapshots.back()); snapshots.pop_back(); }`);
+  pushLine(lines, "  } else {");
+  pushLine(lines, "    int u, v;");
+  pushLine(lines, "    cin >> u >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --u; --v;");
+  }
+  pushLine(lines, `    bool ${answer} = ${instance}.same(u, v);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  return lines.join("\n");
 }
 
 export function renderRollbackDsuRecipe(
@@ -2788,7 +3909,11 @@ export function renderRollbackDsuRecipe(
     pushLine(lines, renderRollbackDsuUsage(options));
   }
 
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderRollbackDsuUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderRollbackDsu(options: RollbackDsuOptions): string {
@@ -2807,17 +3932,78 @@ export function planLcaNames(
 
 function renderLcaUsage(options: LcaOptions): string {
   const className = options.names.className;
+  const instance = options.instanceName ?? "lca";
+  const n = options.sizeExpression ?? "n";
+  const root = options.rootExpression ?? "root";
   return [
     "/*",
     "Example:",
-    `${className} lca(n);`,
-    "lca.add_edge(u, v);",
-    "lca.build(root);",
-    "int c = lca.lca(a, b);",
-    "int d = lca.dist(a, b);",
-    "int p = lca.kth_ancestor(v, k);",
+    `${className} ${instance}(${n});`,
+    `${instance}.add_edge(u, v);`,
+    `${instance}.build(${root});`,
+    `int c = ${instance}.lca(a, b);`,
+    `int d = ${instance}.dist(a, b);`,
+    `int p = ${instance}.kth_ancestor(v, k);`,
     "*/"
   ].join("\n");
+}
+
+function renderLcaUsageSnippet(options: LcaOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const className = options.names.className;
+  const n = options.sizeExpression?.trim() || "n";
+  const root = options.rootExpression?.trim() || "0";
+  const instance = sanitizeIdentifier(options.instanceName ?? "lca", "lca");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+  pushLine(lines, `${className} ${instance}(${n});`);
+
+  if (usageMode === "instance") {
+    pushLine(lines, `${instance}.build(${root});`);
+    return lines.join("\n");
+  }
+
+  if (options.sourceMode === "read_tree" || usageMode === "read_tree" || usageMode === "query_loop") {
+    pushLine(lines, `for (int i = 0; i + 1 < ${n}; ++i) {`);
+    pushLine(lines, "  int u, v;");
+    pushLine(lines, "  cin >> u >> v;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --u; --v;");
+    }
+    pushLine(lines, `  ${instance}.add_edge(u, v);`);
+    pushLine(lines, "}");
+  }
+  pushLine(lines, `${instance}.build(${root});`);
+
+  if (usageMode !== "query_loop") {
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type, a, b;");
+  pushLine(lines, "  cin >> type >> a >> b;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "  --a;");
+    pushLine(lines, "  if (type != 3) --b;");
+  }
+  pushLine(lines, "  if (type == 1) {");
+  pushLine(lines, `    int ${answer} = ${instance}.lca(a, b);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  } else if (type == 2) {");
+  pushLine(lines, `    int ${answer} = ${instance}.dist(a, b);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  } else {");
+  pushLine(lines, `    int ${answer} = ${instance}.kth_ancestor(a, b);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  return lines.join("\n");
 }
 
 export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
@@ -2966,11 +4152,346 @@ export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
     pushLine(lines, renderLcaUsage(options));
   }
 
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, [className]);
+  const usage = renderLcaUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [className]
+  );
 }
 
 export function renderLca(options: LcaOptions): string {
   return composeRecipeSections(renderLcaRecipe(options));
+}
+
+export function planHldNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): HldNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    className: planner.reserve("HeavyLightDecomposition")
+  };
+}
+
+function renderHldUsage(options: HldOptions): string {
+  const className = options.names.className;
+  const instance = options.instanceName ?? "hld";
+  const n = options.sizeExpression ?? "n";
+  const root = options.rootExpression ?? "root";
+  return [
+    "/*",
+    "Example:",
+    `${className} ${instance}(${n});`,
+    `${instance}.add_edge(u, v);`,
+    `${instance}.build(${root});`,
+    `for (auto [l, r] : ${instance}.path_segments(a, b, true)) {`,
+    "}",
+    `auto subtree = ${instance}.subtree_segment(v);`,
+    `int c = ${instance}.lca(a, b);`,
+    "*/"
+  ].join("\n");
+}
+
+function renderHldUsageSnippet(options: HldOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const className = options.names.className;
+  const n = options.sizeExpression?.trim() || "n";
+  const root = options.rootExpression?.trim() || "0";
+  const instance = sanitizeIdentifier(options.instanceName ?? "hld", "hld");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const includeLca = options.valueMode === "edge_values" ? "false" : "true";
+  const lines: string[] = [];
+
+  pushLine(lines, `${className} ${instance}(${n});`);
+  if (usageMode === "instance") {
+    pushLine(lines, `${instance}.build(${root});`);
+    return lines.join("\n");
+  }
+
+  if (options.sourceMode === "read_tree" || usageMode === "read_tree" || usageMode === "query_loop") {
+    pushLine(lines, `for (int i = 0; i + 1 < ${n}; ++i) {`);
+    pushLine(lines, "  int u, v;");
+    pushLine(lines, "  cin >> u >> v;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --u; --v;");
+    }
+    pushLine(lines, `  ${instance}.add_edge(u, v);`);
+    pushLine(lines, "}");
+  }
+  pushLine(lines, `${instance}.build(${root});`);
+
+  if (usageMode !== "query_loop") {
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type;");
+  pushLine(lines, "  cin >> type;");
+  pushLine(lines, "  if (type == 1) {");
+  pushLine(lines, "    int u, v;");
+  pushLine(lines, "    cin >> u >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --u; --v;");
+  }
+  pushLine(lines, `    long long ${answer} = 0;`);
+  pushLine(lines, `    for (auto [l, r] : ${instance}.path_segments(u, v, ${includeLca})) {`);
+  pushLine(lines, "      // combine flattened range [l, r]");
+  pushLine(lines, "    }");
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  } else if (type == 2) {");
+  pushLine(lines, "    int v;");
+  pushLine(lines, "    cin >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --v;");
+  }
+  pushLine(lines, `    auto seg = ${instance}.subtree_segment(v);`);
+  pushLine(lines, "    // query flattened subtree range [seg.first, seg.second]");
+  pushLine(lines, "  } else {");
+  pushLine(lines, "    int u, v;");
+  pushLine(lines, "    cin >> u >> v;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --u; --v;");
+  }
+  pushLine(lines, `    int c = ${instance}.lca(u, v);`);
+  pushLine(lines, `    int ${answer} = c == -1 ? -1 : ${instance}.depth(u) + ${instance}.depth(v) - 2 * ${instance}.depth(c);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  return lines.join("\n");
+}
+
+export function renderHldRecipe(options: HldOptions): RenderedRecipe {
+  const className = options.names.className;
+  const lines: string[] = [];
+
+  pushLine(lines, `class ${className} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, `  explicit ${className}(int n = 0) : n_(0), root_(0), timer_(0) {`);
+  pushLine(lines, "    reset(n);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void reset(int n) {");
+  pushLine(lines, "    n_ = (n < 0 ? 0 : n);");
+  pushLine(lines, "    root_ = 0;");
+  pushLine(lines, "    timer_ = 0;");
+  pushLine(lines, "    graph_.assign(n_, std::vector<int>());");
+  pushLine(lines, "    parent_.assign(n_, -1);");
+  pushLine(lines, "    depth_.assign(n_, 0);");
+  pushLine(lines, "    subtree_size_.assign(n_, 0);");
+  pushLine(lines, "    heavy_.assign(n_, -1);");
+  pushLine(lines, "    head_.assign(n_, 0);");
+  pushLine(lines, "    pos_.assign(n_, -1);");
+  pushLine(lines, "    order_.assign(n_, -1);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int size() const { return n_; }");
+  pushLine(lines);
+  pushLine(lines, "  void add_edge(int u, int v, bool undirected = true) {");
+  pushLine(lines, "    if (u < 0 || u >= n_ || v < 0 || v >= n_) {");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    graph_[u].push_back(v);");
+  pushLine(lines, "    if (undirected && u != v) {");
+  pushLine(lines, "      graph_[v].push_back(u);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void build(int root = 0) {");
+  pushLine(lines, "    if (n_ == 0) {");
+  pushLine(lines, "      return;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (root < 0 || root >= n_) {");
+  pushLine(lines, "      root = 0;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    root_ = root;");
+  pushLine(lines);
+  pushLine(lines, "    std::fill(parent_.begin(), parent_.end(), -1);");
+  pushLine(lines, "    std::fill(depth_.begin(), depth_.end(), 0);");
+  pushLine(lines, "    std::fill(subtree_size_.begin(), subtree_size_.end(), 0);");
+  pushLine(lines, "    std::fill(heavy_.begin(), heavy_.end(), -1);");
+  pushLine(lines, "    std::fill(head_.begin(), head_.end(), 0);");
+  pushLine(lines, "    std::fill(pos_.begin(), pos_.end(), -1);");
+  pushLine(lines, "    std::fill(order_.begin(), order_.end(), -1);");
+  pushLine(lines);
+  pushLine(lines, "    dfs_size(root_, -1);");
+  pushLine(lines, "    timer_ = 0;");
+  pushLine(lines, "    dfs_decompose(root_, root_);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int root() const { return root_; }");
+  pushLine(lines);
+  pushLine(lines, "  const std::vector<std::vector<int>>& graph() const { return graph_; }");
+  pushLine(lines);
+  pushLine(lines, "  int parent(int v) const { return vertex_ok(v) ? parent_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int depth(int v) const { return vertex_ok(v) ? depth_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int heavy_child(int v) const { return vertex_ok(v) ? heavy_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int head(int v) const { return vertex_ok(v) ? head_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int position(int v) const { return vertex_ok(v) ? pos_[v] : -1; }");
+  pushLine(lines);
+  pushLine(lines, "  int vertex_at(int pos) const {");
+  pushLine(lines, "    if (pos < 0 || pos >= n_) {");
+  pushLine(lines, "      return -1;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return order_[pos];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int subtree_size(int v) const { return vertex_ok(v) ? subtree_size_[v] : 0; }");
+  pushLine(lines);
+  pushLine(lines, "  std::pair<int, int> subtree_segment(int v) const {");
+  pushLine(lines, "    if (!vertex_ok(v) || pos_[v] == -1) {");
+  pushLine(lines, "      return std::make_pair(-1, -2);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return std::make_pair(pos_[v], pos_[v] + subtree_size_[v] - 1);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  int lca(int a, int b) const {");
+  pushLine(lines, "    if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {");
+  pushLine(lines, "      return -1;");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    int u = a;");
+  pushLine(lines, "    int v = b;");
+  pushLine(lines, "    while (head_[u] != head_[v]) {");
+  pushLine(lines, "      if (depth_[head_[u]] > depth_[head_[v]]) {");
+  pushLine(lines, "        u = parent_[head_[u]];");
+  pushLine(lines, "      } else {");
+  pushLine(lines, "        v = parent_[head_[v]];");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return (depth_[u] < depth_[v] ? u : v);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<std::pair<int, int>> path_segments(int a, int b,");
+  pushLine(lines, "                                                  bool include_lca = true) const {");
+  pushLine(lines, "    if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {");
+  pushLine(lines, "      return {};");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    std::vector<std::pair<int, int>> left_segments;");
+  pushLine(lines, "    std::vector<std::pair<int, int>> right_segments;");
+  pushLine(lines);
+  pushLine(lines, "    int u = a;");
+  pushLine(lines, "    int v = b;");
+  pushLine(lines, "    while (head_[u] != head_[v]) {");
+  pushLine(lines, "      if (depth_[head_[u]] >= depth_[head_[v]]) {");
+  pushLine(lines, "        left_segments.push_back(std::make_pair(pos_[head_[u]], pos_[u]));");
+  pushLine(lines, "        u = parent_[head_[u]];");
+  pushLine(lines, "      } else {");
+  pushLine(lines, "        right_segments.push_back(std::make_pair(pos_[head_[v]], pos_[v]));");
+  pushLine(lines, "        v = parent_[head_[v]];");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    if (depth_[u] > depth_[v]) {");
+  pushLine(lines, "      std::swap(u, v);");
+  pushLine(lines, "      std::swap(left_segments, right_segments);");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    const int l = pos_[u] + (include_lca ? 0 : 1);");
+  pushLine(lines, "    if (l <= pos_[v]) {");
+  pushLine(lines, "      right_segments.push_back(std::make_pair(l, pos_[v]));");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    std::vector<std::pair<int, int>> segments;");
+  pushLine(lines, "    segments.reserve(left_segments.size() + right_segments.size());");
+  pushLine(lines, "    for (const std::pair<int, int>& seg : left_segments) {");
+  pushLine(lines, "      segments.push_back(seg);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int i = static_cast<int>(right_segments.size()) - 1; i >= 0; --i) {");
+  pushLine(lines, "      segments.push_back(right_segments[i]);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return segments;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  template <typename Func>");
+  pushLine(lines, "  void for_each_path_segment(int a, int b, const Func& fn,");
+  pushLine(lines, "                             bool include_lca = true) const {");
+  pushLine(lines, "    const std::vector<std::pair<int, int>> segments =");
+  pushLine(lines, "        path_segments(a, b, include_lca);");
+  pushLine(lines, "    for (const std::pair<int, int>& seg : segments) {");
+  pushLine(lines, "      fn(seg.first, seg.second);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  int n_;");
+  pushLine(lines, "  int root_;");
+  pushLine(lines, "  int timer_;");
+  pushLine(lines, "  std::vector<std::vector<int>> graph_;");
+  pushLine(lines, "  std::vector<int> parent_;");
+  pushLine(lines, "  std::vector<int> depth_;");
+  pushLine(lines, "  std::vector<int> subtree_size_;");
+  pushLine(lines, "  std::vector<int> heavy_;");
+  pushLine(lines, "  std::vector<int> head_;");
+  pushLine(lines, "  std::vector<int> pos_;");
+  pushLine(lines, "  std::vector<int> order_;");
+  pushLine(lines);
+  pushLine(lines, "  bool vertex_ok(int v) const { return v >= 0 && v < n_; }");
+  pushLine(lines);
+  pushLine(lines, "  int dfs_size(int v, int parent) {");
+  pushLine(lines, "    parent_[v] = parent;");
+  pushLine(lines, "    subtree_size_[v] = 1;");
+  pushLine(lines, "    int best_size = 0;");
+  pushLine(lines, "    int best_child = -1;");
+  pushLine(lines);
+  pushLine(lines, "    for (int to : graph_[v]) {");
+  pushLine(lines, "      if (to == parent) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      depth_[to] = depth_[v] + 1;");
+  pushLine(lines, "      const int child_size = dfs_size(to, v);");
+  pushLine(lines, "      subtree_size_[v] += child_size;");
+  pushLine(lines, "      if (child_size > best_size) {");
+  pushLine(lines, "        best_size = child_size;");
+  pushLine(lines, "        best_child = to;");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "    heavy_[v] = best_child;");
+  pushLine(lines, "    return subtree_size_[v];");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void dfs_decompose(int v, int head) {");
+  pushLine(lines, "    head_[v] = head;");
+  pushLine(lines, "    pos_[v] = timer_;");
+  pushLine(lines, "    order_[timer_] = v;");
+  pushLine(lines, "    ++timer_;");
+  pushLine(lines);
+  pushLine(lines, "    if (heavy_[v] != -1) {");
+  pushLine(lines, "      dfs_decompose(heavy_[v], head);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    for (int to : graph_[v]) {");
+  pushLine(lines, "      if (to == parent_[v] || to == heavy_[v]) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      dfs_decompose(to, to);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderHldUsage(options));
+  }
+
+  const usage = renderHldUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [className]
+  );
+}
+
+export function renderHld(options: HldOptions): string {
+  return composeRecipeSections(renderHldRecipe(options));
 }
 
 export function planBfsNames(
@@ -2993,15 +4514,83 @@ export function planBfsNames(
 
 function renderBfsUsage(options: BfsOptions): string {
   const names = options.names;
+  const graph = options.graphName ?? "graph";
+  const source = options.sourceName ?? "source";
+  const target = options.targetName ?? "target";
+  const result = options.resultName ?? "result";
   return [
     "/*",
     "Example:",
-    "std::vector<std::vector<int>> graph(n);",
-    `${names.addEdgeName}(graph, u, v, true);`,
-    `auto result = ${names.singleSourceName}(graph, source);`,
-    `auto path = ${names.restorePathName}(source, target, result);`,
+    `std::vector<std::vector<int>> ${graph}(n);`,
+    `${names.addEdgeName}(${graph}, u, v, true);`,
+    `auto ${result} = ${names.singleSourceName}(${graph}, ${source});`,
+    `auto path = ${names.restorePathName}(${source}, ${target}, ${result});`,
     "*/"
   ].join("\n");
+}
+
+function renderBfsUsageSnippet(options: BfsOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const graph = sanitizeIdentifier(options.graphName ?? "graph", "graph");
+  const source = sanitizeIdentifier(options.sourceName ?? "source", "source");
+  const target = sanitizeIdentifier(options.targetName ?? "target", "target");
+  const result = sanitizeIdentifier(options.resultName ?? "result", "result");
+  const undirected = options.graphMode === "undirected" ? "true" : "false";
+  const lines: string[] = [];
+
+  if (options.sourceMode !== "existing_graph") {
+    pushLine(lines, `std::vector<std::vector<int>> ${graph}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${m}; ++i) {`);
+    pushLine(lines, "  int u, v;");
+    pushLine(lines, "  cin >> u >> v;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --u; --v;");
+    }
+    pushLine(lines, `  ${names.addEdgeName}(${graph}, u, v, ${undirected});`);
+    pushLine(lines, "}");
+  }
+
+  if (usageMode === "read_graph") {
+    return lines.join("\n");
+  }
+
+  if (usageMode === "multi_source") {
+    pushLine(lines, "int k;");
+    pushLine(lines, "cin >> k;");
+    pushLine(lines, "std::vector<int> sources(k);");
+    pushLine(lines, "for (int& v : sources) cin >> v;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "for (int& v : sources) --v;");
+    }
+    pushLine(lines, `auto ${result} = ${names.multiSourceName}(${graph}, sources);`);
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `int ${source};`);
+  pushLine(lines, `cin >> ${source};`);
+  if (usageMode === "path_query") {
+    pushLine(lines, `int ${target};`);
+    pushLine(lines, `cin >> ${target};`);
+  }
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, `--${source};`);
+    if (usageMode === "path_query") {
+      pushLine(lines, `--${target};`);
+    }
+  }
+  pushLine(lines, `auto ${result} = ${names.singleSourceName}(${graph}, ${source});`);
+  if (usageMode === "path_query") {
+    pushLine(lines, `auto path = ${names.restorePathName}(${source}, ${target}, ${result});`);
+    pushLine(lines, `cout << ${result}.distance[${target}] << '\\n';`);
+  }
+  return lines.join("\n");
 }
 
 export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
@@ -3128,8 +4717,9 @@ export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
     pushLine(lines, renderBfsUsage(options));
   }
 
+  const usage = renderBfsUsageSnippet(options);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
     [
       names.resultStructName,
       names.addEdgeName,
@@ -3143,6 +4733,2206 @@ export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
 
 export function renderBfs(options: BfsOptions): string {
   return composeRecipeSections(renderBfsRecipe(options));
+}
+
+export function planDijkstraNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): DijkstraNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    edgeStructName: planner.reserve("DijkstraEdge", "ShortestPathEdge"),
+    resultStructName: planner.reserve("DijkstraResult", "ShortestPathResult"),
+    addEdgeName: planner.reserve("dijkstra_add_edge", "weighted_graph_add_edge"),
+    multiSourceName: planner.reserve("dijkstra_multi_source", "dijkstra_from_sources"),
+    singleSourceName: planner.reserve("dijkstra", "run_dijkstra"),
+    restorePathName: planner.reserve("dijkstra_restore_path", "dijkstra_get_path")
+  };
+}
+
+function renderDijkstraUsage(options: DijkstraOptions): string {
+  const names = options.names;
+  const weight = options.valueType ?? "long long";
+  const graph = options.graphName ?? "graph";
+  const source = options.sourceName ?? "source";
+  const target = options.targetName ?? "target";
+  const result = options.resultName ?? "result";
+  const inf = options.infExpression ?? "numeric_limits<long long>::max()";
+  return [
+    "/*",
+    "Example:",
+    `std::vector<std::vector<${names.edgeStructName}<${weight}>>> ${graph}(n);`,
+    `${names.addEdgeName}(${graph}, u, v, w, true);`,
+    `auto ${result} = ${names.singleSourceName}(${graph}, ${source}, ${inf});`,
+    `auto path = ${names.restorePathName}(${source}, ${target}, ${result});`,
+    "*/"
+  ].join("\n");
+}
+
+function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const weight = options.valueType?.trim() || "long long";
+  const inf = options.infExpression?.trim() || `std::numeric_limits<${weight}>::max()`;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const graph = sanitizeIdentifier(options.graphName ?? "graph", "graph");
+  const source = sanitizeIdentifier(options.sourceName ?? "source", "source");
+  const target = sanitizeIdentifier(options.targetName ?? "target", "target");
+  const result = sanitizeIdentifier(options.resultName ?? "result", "result");
+  const undirected = options.graphMode === "undirected" ? "true" : "false";
+  const lines: string[] = [];
+
+  if (options.sourceMode !== "existing_graph") {
+    pushLine(lines, `std::vector<std::vector<${names.edgeStructName}<${weight}>>> ${graph}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${m}; ++i) {`);
+    pushLine(lines, `  int u, v; ${weight} w;`);
+    pushLine(lines, "  cin >> u >> v >> w;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --u; --v;");
+    }
+    pushLine(lines, `  ${names.addEdgeName}(${graph}, u, v, w, ${undirected});`);
+    pushLine(lines, "}");
+  }
+
+  if (usageMode === "read_graph") {
+    return lines.join("\n");
+  }
+
+  if (usageMode === "multi_source") {
+    pushLine(lines, "int k;");
+    pushLine(lines, "cin >> k;");
+    pushLine(lines, "std::vector<int> sources(k);");
+    pushLine(lines, "for (int& v : sources) cin >> v;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "for (int& v : sources) --v;");
+    }
+    pushLine(lines, `auto ${result} = ${names.multiSourceName}(${graph}, sources, ${inf});`);
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `int ${source};`);
+  pushLine(lines, `cin >> ${source};`);
+  if (usageMode === "path_query") {
+    pushLine(lines, `int ${target};`);
+    pushLine(lines, `cin >> ${target};`);
+  }
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, `--${source};`);
+    if (usageMode === "path_query") {
+      pushLine(lines, `--${target};`);
+    }
+  }
+  pushLine(lines, `auto ${result} = ${names.singleSourceName}(${graph}, ${source}, ${inf});`);
+  if (usageMode === "path_query") {
+    pushLine(lines, `auto path = ${names.restorePathName}(${source}, ${target}, ${result});`);
+    pushLine(lines, `cout << ${result}.distance[${target}] << '\\n';`);
+  }
+  return lines.join("\n");
+}
+
+export function renderDijkstraRecipe(options: DijkstraOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, "template <typename Weight>");
+  pushLine(lines, `struct ${names.edgeStructName} {`);
+  pushLine(lines, "  int to;");
+  pushLine(lines, "  Weight weight;");
+  pushLine(lines);
+  pushLine(lines, `  ${names.edgeStructName}(int to_ = 0, const Weight& weight_ = Weight())`);
+  pushLine(lines, "      : to(to_), weight(weight_) {}");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename Weight>");
+  pushLine(lines, `struct ${names.resultStructName} {`);
+  pushLine(lines, "  std::vector<Weight> distance;");
+  pushLine(lines, "  std::vector<int> parent;");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename Weight, typename WeightArg>");
+  pushLine(lines, `void ${names.addEdgeName}(std::vector<std::vector<${names.edgeStructName}<Weight>>>& graph,`);
+  pushLine(lines, "                       int from, int to, const WeightArg& weight,");
+  pushLine(lines, "                       bool undirected = false) {");
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  if (from < 0 || from >= n || to < 0 || to >= n) {");
+  pushLine(lines, "    return;");
+  pushLine(lines, "  }");
+  pushLine(lines, `  graph[from].push_back(${names.edgeStructName}<Weight>(to, static_cast<Weight>(weight)));`);
+  pushLine(lines, "  if (undirected && from != to) {");
+  pushLine(lines, `    graph[to].push_back(${names.edgeStructName}<Weight>(from, static_cast<Weight>(weight)));`);
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Weight>");
+  pushLine(lines, `${names.resultStructName}<Weight> ${names.multiSourceName}(`);
+  pushLine(lines, `    const std::vector<std::vector<${names.edgeStructName}<Weight>>>& graph,`);
+  pushLine(lines, "    const std::vector<int>& sources,");
+  pushLine(lines, "    Weight inf = std::numeric_limits<Weight>::max()) {");
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, `  ${names.resultStructName}<Weight> result;`);
+  pushLine(lines, "  result.distance.assign(n, inf);");
+  pushLine(lines, "  result.parent.assign(n, -1);");
+  pushLine(lines);
+  pushLine(lines, "  using Node = std::pair<Weight, int>;");
+  pushLine(lines, "  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pq;");
+  pushLine(lines);
+  pushLine(lines, "  for (int source : sources) {");
+  pushLine(lines, "    if (source < 0 || source >= n || result.distance[source] == Weight(0)) {");
+  pushLine(lines, "      continue;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    result.distance[source] = Weight(0);");
+  pushLine(lines, "    pq.push(Node(Weight(0), source));");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  while (!pq.empty()) {");
+  pushLine(lines, "    const Weight dist = pq.top().first;");
+  pushLine(lines, "    const int v = pq.top().second;");
+  pushLine(lines, "    pq.pop();");
+  pushLine(lines);
+  pushLine(lines, "    if (dist != result.distance[v]) {");
+  pushLine(lines, "      continue;");
+  pushLine(lines, "    }");
+  pushLine(lines, `    for (const ${names.edgeStructName}<Weight>& edge : graph[v]) {`);
+  pushLine(lines, "      if (edge.to < 0 || edge.to >= n || edge.weight < Weight(0)) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      const Weight candidate = dist + edge.weight;");
+  pushLine(lines, "      if (candidate < result.distance[edge.to]) {");
+  pushLine(lines, "        result.distance[edge.to] = candidate;");
+  pushLine(lines, "        result.parent[edge.to] = v;");
+  pushLine(lines, "        pq.push(Node(candidate, edge.to));");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  return result;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Weight>");
+  pushLine(lines, `${names.resultStructName}<Weight> ${names.singleSourceName}(`);
+  pushLine(lines, `    const std::vector<std::vector<${names.edgeStructName}<Weight>>>& graph, int source,`);
+  pushLine(lines, "    Weight inf = std::numeric_limits<Weight>::max()) {");
+  pushLine(lines, `  return ${names.multiSourceName}(graph, std::vector<int>(1, source), inf);`);
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Weight>");
+  pushLine(lines, `std::vector<int> ${names.restorePathName}(int source, int target,`);
+  pushLine(lines, `                                       const ${names.resultStructName}<Weight>& result) {`);
+  pushLine(lines, "  const int n = static_cast<int>(result.parent.size());");
+  pushLine(lines, "  if (source < 0 || source >= n || target < 0 || target >= n) {");
+  pushLine(lines, "    return {};");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<int> path;");
+  pushLine(lines, "  int current = target;");
+  pushLine(lines, "  int steps = 0;");
+  pushLine(lines, "  while (current != -1 && steps <= n) {");
+  pushLine(lines, "    path.push_back(current);");
+  pushLine(lines, "    current = result.parent[current];");
+  pushLine(lines, "    ++steps;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  if (path.empty() || path.back() != source) {");
+  pushLine(lines, "    return {};");
+  pushLine(lines, "  }");
+  pushLine(lines, "  std::reverse(path.begin(), path.end());");
+  pushLine(lines, "  return path;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderDijkstraUsage(options));
+  }
+
+  const usage = renderDijkstraUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [
+      names.edgeStructName,
+      names.resultStructName,
+      names.addEdgeName,
+      names.multiSourceName,
+      names.singleSourceName,
+      names.restorePathName
+    ]
+  );
+}
+
+export function renderDijkstra(options: DijkstraOptions): string {
+  return composeRecipeSections(renderDijkstraRecipe(options));
+}
+
+export function planToposortNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): ToposortNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    addEdgeName: planner.reserve("toposort_add_edge", "dag_add_edge"),
+    sortName: planner.reserve("topological_sort", "dag_topological_sort"),
+    validateName: planner.reserve("is_topological_order", "dag_is_topological_order")
+  };
+}
+
+function renderToposortUsage(options: ToposortOptions): string {
+  const names = options.names;
+  const graph = options.graphName ?? "graph";
+  const order = options.orderName ?? "order";
+  const dag = options.dagName ?? "dag";
+  return [
+    "/*",
+    "Example:",
+    `std::vector<std::vector<int>> ${graph}(n);`,
+    `${names.addEdgeName}(${graph}, before, after);`,
+    `bool ${dag} = false;`,
+    `auto ${order} = ${names.sortName}(${graph}, &${dag});`,
+    `if (!${dag}) {`,
+    "}",
+    "*/"
+  ].join("\n");
+}
+
+function renderToposortUsageSnippet(options: ToposortOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const graph = sanitizeIdentifier(options.graphName ?? "graph", "graph");
+  const order = sanitizeIdentifier(options.orderName ?? "order", "order");
+  const dag = sanitizeIdentifier(options.dagName ?? "dag", "dag");
+  const lines: string[] = [];
+
+  if (options.sourceMode !== "existing_graph") {
+    pushLine(lines, `std::vector<std::vector<int>> ${graph}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${m}; ++i) {`);
+    pushLine(lines, "  int before, after;");
+    pushLine(lines, "  cin >> before >> after;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --before; --after;");
+    }
+    pushLine(lines, `  ${names.addEdgeName}(${graph}, before, after);`);
+    pushLine(lines, "}");
+  }
+
+  if (usageMode === "read_graph") {
+    return lines.join("\n");
+  }
+
+  if (usageMode === "validate_order") {
+    pushLine(lines, `std::vector<int> ${order}(${n});`);
+    pushLine(lines, `for (int& v : ${order}) cin >> v;`);
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, `for (int& v : ${order}) --v;`);
+    }
+    pushLine(lines, `bool valid = ${names.validateName}(${graph}, ${order});`);
+    pushLine(lines, "cout << valid << '\\n';");
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `bool ${dag} = false;`);
+  pushLine(lines, `std::vector<int> ${order} = ${names.sortName}(${graph}, &${dag});`);
+  if (usageMode === "cycle_check") {
+    pushLine(lines, `cout << ${dag} << '\\n';`);
+    return lines.join("\n");
+  }
+  pushLine(lines, `if (!${dag}) {`);
+  pushLine(lines, "  cout << \"IMPOSSIBLE\\n\";");
+  pushLine(lines, "} else {");
+  pushLine(lines, `  for (int v : ${order}) cout << v << ' ';`);
+  pushLine(lines, "  cout << '\\n';");
+  pushLine(lines, "}");
+  return lines.join("\n");
+}
+
+export function renderToposortRecipe(options: ToposortOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, `inline void ${names.addEdgeName}(std::vector<std::vector<int>>& graph, int from, int to) {`);
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  if (from < 0 || from >= n || to < 0 || to >= n) {");
+  pushLine(lines, "    return;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  graph[from].push_back(to);");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `inline std::vector<int> ${names.sortName}(const std::vector<std::vector<int>>& graph,`);
+  pushLine(lines, "                                         bool* is_dag = nullptr) {");
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  std::vector<int> indegree(n, 0);");
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to >= 0 && to < n) {");
+  pushLine(lines, "        ++indegree[to];");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::queue<int> q;");
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    if (indegree[v] == 0) {");
+  pushLine(lines, "      q.push(v);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<int> order;");
+  pushLine(lines, "  order.reserve(n);");
+  pushLine(lines, "  while (!q.empty()) {");
+  pushLine(lines, "    const int v = q.front();");
+  pushLine(lines, "    q.pop();");
+  pushLine(lines, "    order.push_back(v);");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to < 0 || to >= n) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      --indegree[to];");
+  pushLine(lines, "      if (indegree[to] == 0) {");
+  pushLine(lines, "        q.push(to);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  const bool dag = static_cast<int>(order.size()) == n;");
+  pushLine(lines, "  if (is_dag != nullptr) {");
+  pushLine(lines, "    *is_dag = dag;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  if (!dag) {");
+  pushLine(lines, "    return {};");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return order;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `inline bool ${names.validateName}(const std::vector<std::vector<int>>& graph,`);
+  pushLine(lines, "                                 const std::vector<int>& order) {");
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  if (static_cast<int>(order.size()) != n) {");
+  pushLine(lines, "    return false;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<int> position(n, -1);");
+  pushLine(lines, "  for (int i = 0; i < n; ++i) {");
+  pushLine(lines, "    const int v = order[i];");
+  pushLine(lines, "    if (v < 0 || v >= n || position[v] != -1) {");
+  pushLine(lines, "      return false;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    position[v] = i;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to < 0 || to >= n) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      if (position[v] > position[to]) {");
+  pushLine(lines, "        return false;");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return true;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderToposortUsage(options));
+  }
+
+  const usage = renderToposortUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [names.addEdgeName, names.sortName, names.validateName]
+  );
+}
+
+export function renderToposort(options: ToposortOptions): string {
+  return composeRecipeSections(renderToposortRecipe(options));
+}
+
+export function planKosarajuNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): KosarajuNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    resultStructName: planner.reserve("KosarajuResult", "SccResult"),
+    addEdgeName: planner.reserve("kosaraju_add_edge", "scc_add_edge"),
+    sccName: planner.reserve("kosaraju_scc", "build_scc")
+  };
+}
+
+function renderKosarajuUsage(options: KosarajuOptions): string {
+  const names = options.names;
+  const graph = options.graphName ?? "graph";
+  const result = options.resultName ?? "scc";
+  return [
+    "/*",
+    "Example:",
+    `std::vector<std::vector<int>> ${graph}(n);`,
+    `${names.addEdgeName}(${graph}, from, to);`,
+    `auto ${result} = ${names.sccName}(${graph});`,
+    `int comp = ${result}.component_of[v];`,
+    "*/"
+  ].join("\n");
+}
+
+function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const n = options.sizeExpression?.trim() || "n";
+  const m = options.edgeCountName?.trim() || "m";
+  const graph = sanitizeIdentifier(options.graphName ?? "graph", "graph");
+  const result = sanitizeIdentifier(options.resultName ?? "scc", "scc");
+  const lines: string[] = [];
+
+  if (options.sourceMode !== "existing_graph") {
+    pushLine(lines, `std::vector<std::vector<int>> ${graph}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${m}; ++i) {`);
+    pushLine(lines, "  int from, to;");
+    pushLine(lines, "  cin >> from >> to;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --from; --to;");
+    }
+    pushLine(lines, `  ${names.addEdgeName}(${graph}, from, to);`);
+    pushLine(lines, "}");
+  }
+
+  if (usageMode === "read_graph") {
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `${names.resultStructName} ${result} = ${names.sccName}(${graph});`);
+  if (usageMode === "compute_scc") {
+    pushLine(lines, `cout << ${result}.component_count << '\\n';`);
+    return lines.join("\n");
+  }
+  if (usageMode === "print_components") {
+    pushLine(lines, `for (const auto& component : ${result}.components) {`);
+    pushLine(lines, "  for (int v : component) cout << v << ' ';");
+    pushLine(lines, "  cout << '\\n';");
+    pushLine(lines, "}");
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int a, b;");
+  pushLine(lines, "  cin >> a >> b;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "  --a; --b;");
+  }
+  pushLine(lines, `  cout << (${result}.component_of[a] == ${result}.component_of[b]) << '\\n';`);
+  pushLine(lines, "}");
+  return lines.join("\n");
+}
+
+export function renderKosarajuRecipe(options: KosarajuOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, `struct ${names.resultStructName} {`);
+  pushLine(lines, "  int component_count;");
+  pushLine(lines, "  std::vector<int> component_of;");
+  pushLine(lines, "  std::vector<std::vector<int>> components;");
+  pushLine(lines, "  std::vector<std::vector<int>> condensation_dag;");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, `inline void ${names.addEdgeName}(std::vector<std::vector<int>>& graph, int from, int to) {`);
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  if (from < 0 || from >= n || to < 0 || to >= n) {");
+  pushLine(lines, "    return;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  graph[from].push_back(to);");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `inline ${names.resultStructName} ${names.sccName}(const std::vector<std::vector<int>>& graph) {`);
+  pushLine(lines, "  const int n = static_cast<int>(graph.size());");
+  pushLine(lines, "  std::vector<std::vector<int>> reverse_graph(n);");
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to >= 0 && to < n) {");
+  pushLine(lines, "        reverse_graph[to].push_back(v);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<char> used(n, 0);");
+  pushLine(lines, "  std::vector<int> order;");
+  pushLine(lines, "  order.reserve(n);");
+  pushLine(lines);
+  pushLine(lines, "  std::function<void(int)> dfs1 = [&](int v) {");
+  pushLine(lines, "    used[v] = 1;");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to < 0 || to >= n || used[to]) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      dfs1(to);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    order.push_back(v);");
+  pushLine(lines, "  };");
+  pushLine(lines);
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    if (!used[v]) {");
+  pushLine(lines, "      dfs1(v);");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  ${names.resultStructName} result;`);
+  pushLine(lines, "  result.component_of.assign(n, -1);");
+  pushLine(lines, "  result.component_count = 0;");
+  pushLine(lines);
+  pushLine(lines, "  std::function<void(int, int)> dfs2 = [&](int v, int comp) {");
+  pushLine(lines, "    result.component_of[v] = comp;");
+  pushLine(lines, "    result.components[comp].push_back(v);");
+  pushLine(lines, "    for (int to : reverse_graph[v]) {");
+  pushLine(lines, "      if (result.component_of[to] == -1) {");
+  pushLine(lines, "        dfs2(to, comp);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  };");
+  pushLine(lines);
+  pushLine(lines, "  for (int i = n - 1; i >= 0; --i) {");
+  pushLine(lines, "    const int v = order[i];");
+  pushLine(lines, "    if (result.component_of[v] != -1) {");
+  pushLine(lines, "      continue;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    result.components.push_back(std::vector<int>());");
+  pushLine(lines, "    dfs2(v, result.component_count);");
+  pushLine(lines, "    ++result.component_count;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  result.condensation_dag.assign(result.component_count, std::vector<int>());");
+  pushLine(lines, "  for (int v = 0; v < n; ++v) {");
+  pushLine(lines, "    const int from_comp = result.component_of[v];");
+  pushLine(lines, "    for (int to : graph[v]) {");
+  pushLine(lines, "      if (to < 0 || to >= n) {");
+  pushLine(lines, "        continue;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      const int to_comp = result.component_of[to];");
+  pushLine(lines, "      if (from_comp != to_comp) {");
+  pushLine(lines, "        result.condensation_dag[from_comp].push_back(to_comp);");
+  pushLine(lines, "      }");
+  pushLine(lines, "    }");
+  pushLine(lines, "  }");
+  pushLine(lines, "  for (int comp = 0; comp < result.component_count; ++comp) {");
+  pushLine(lines, "    std::vector<int>& edges = result.condensation_dag[comp];");
+  pushLine(lines, "    std::sort(edges.begin(), edges.end());");
+  pushLine(lines, "    edges.erase(std::unique(edges.begin(), edges.end()), edges.end());");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  return result;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderKosarajuUsage(options));
+  }
+
+  const usage = renderKosarajuUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [names.resultStructName, names.addEdgeName, names.sccName]
+  );
+}
+
+export function renderKosaraju(options: KosarajuOptions): string {
+  return composeRecipeSections(renderKosarajuRecipe(options));
+}
+
+export function planMoNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MoNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    queryStructName: planner.reserve("MoQuery", "OfflineRangeQuery"),
+    blockSizeName: planner.reserve("mo_default_block_size", "offline_range_block_size"),
+    normalizeName: planner.reserve("normalize_mo_query", "normalize_offline_range_query"),
+    orderName: planner.reserve("mo_order", "offline_range_order"),
+    processName: planner.reserve("mo_process", "process_offline_ranges")
+  };
+}
+
+function renderMoUsage(options: MoOptions): string {
+  const names = options.names;
+  const queries = options.queriesName ?? "queries";
+  return [
+    "/*",
+    "Example:",
+    `std::vector<${names.queryStructName}> ${queries};`,
+    `${queries}.push_back(${names.queryStructName}(l, r));  // [l, r)`,
+    `auto order = ${names.orderName}(${queries}, n);`,
+    "*/"
+  ].join("\n");
+}
+
+function renderMoUsageSnippet(options: MoOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const n = options.sizeExpression?.trim() || "n";
+  const q = options.queryCountName?.trim() || "q";
+  const values = sanitizeIdentifier(options.valuesName ?? "a", "a");
+  const queries = sanitizeIdentifier(options.queriesName ?? "queries", "queries");
+  const answers = sanitizeIdentifier(options.answersName ?? "answers", "answers");
+  const answerType = options.answerType?.trim() || "long long";
+  const lines: string[] = [];
+
+  if (options.sourceMode !== "existing_queries") {
+    pushLine(lines, `std::vector<${names.queryStructName}> ${queries};`);
+    pushLine(lines, `${queries}.reserve(${q});`);
+    pushLine(lines, `for (int i = 0; i < ${q}; ++i) {`);
+    pushLine(lines, "  int l, r;");
+    pushLine(lines, "  cin >> l >> r;");
+    if (options.indexing === "one_based_closed_input") {
+      pushLine(lines, "  --l;");
+    }
+    pushLine(lines, `  ${queries}.push_back(${names.queryStructName}(l, r));`);
+    pushLine(lines, "}");
+  }
+
+  if (usageMode === "read_queries") {
+    return lines.join("\n");
+  }
+
+  if (usageMode === "distinct_count_skeleton") {
+    pushLine(lines, "std::unordered_map<int, int> freq;");
+    pushLine(lines, "int distinct = 0;");
+    pushLine(lines, "auto add = [&](int index) {");
+    pushLine(lines, `  if (++freq[${values}[index]] == 1) ++distinct;`);
+    pushLine(lines, "};");
+    pushLine(lines, "auto remove = [&](int index) {");
+    pushLine(lines, `  if (--freq[${values}[index]] == 0) --distinct;`);
+    pushLine(lines, "};");
+    pushLine(lines, "auto get_answer = [&]() { return distinct; };");
+    pushLine(lines, `std::vector<int> ${answers} = ${names.processName}(${n}, ${queries}, add, add, remove, remove, get_answer);`);
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `${answerType} current_answer{};`);
+  pushLine(lines, "auto add_left = [&](int index) {");
+  pushLine(lines, "  // include index on the left");
+  pushLine(lines, "};");
+  pushLine(lines, "auto add_right = [&](int index) {");
+  pushLine(lines, "  // include index on the right");
+  pushLine(lines, "};");
+  pushLine(lines, "auto remove_left = [&](int index) {");
+  pushLine(lines, "  // remove index from the left");
+  pushLine(lines, "};");
+  pushLine(lines, "auto remove_right = [&](int index) {");
+  pushLine(lines, "  // remove index from the right");
+  pushLine(lines, "};");
+  pushLine(lines, "auto get_answer = [&]() { return current_answer; };");
+  pushLine(lines, `std::vector<${answerType}> ${answers} = ${names.processName}(${n}, ${queries}, add_left, add_right, remove_left, remove_right, get_answer);`);
+  return lines.join("\n");
+}
+
+export function renderMoRecipe(options: MoOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, `struct ${names.queryStructName} {`);
+  pushLine(lines, "  int left;");
+  pushLine(lines, "  int right;  // [left, right)");
+  pushLine(lines);
+  pushLine(lines, `  ${names.queryStructName}(int left_ = 0, int right_ = 0) : left(left_), right(right_) {}`);
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, `inline int ${names.blockSizeName}(int n, int q) {`);
+  pushLine(lines, "  const int safe_n = std::max(1, n);");
+  pushLine(lines, "  const int safe_q = std::max(1, q);");
+  pushLine(lines, "  const int block_from_n = static_cast<int>(std::sqrt(static_cast<double>(safe_n)));");
+  pushLine(lines, "  const int block_from_ratio =");
+  pushLine(lines, "      static_cast<int>(safe_n / std::max(1.0, std::sqrt(static_cast<double>(safe_q))));");
+  pushLine(lines, "  return std::max(1, std::max(block_from_n, block_from_ratio));");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `inline ${names.queryStructName} ${names.normalizeName}(${names.queryStructName} query, int n) {`);
+  pushLine(lines, "  query.left = std::max(0, std::min(query.left, n));");
+  pushLine(lines, "  query.right = std::max(0, std::min(query.right, n));");
+  pushLine(lines, "  if (query.left > query.right) {");
+  pushLine(lines, "    std::swap(query.left, query.right);");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return query;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, `inline std::vector<int> ${names.orderName}(const std::vector<${names.queryStructName}>& queries, int n,`);
+  pushLine(lines, "                                 int block_size = -1) {");
+  pushLine(lines, "  const int q = static_cast<int>(queries.size());");
+  pushLine(lines, "  if (block_size <= 0) {");
+  pushLine(lines, `    block_size = ${names.blockSizeName}(n, q);`);
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  std::vector<${names.queryStructName}> normalized(q);`);
+  pushLine(lines, "  for (int i = 0; i < q; ++i) {");
+  pushLine(lines, `    normalized[i] = ${names.normalizeName}(queries[i], n);`);
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::vector<int> order(q);");
+  pushLine(lines, "  std::iota(order.begin(), order.end(), 0);");
+  pushLine(lines, "  std::sort(order.begin(), order.end(), [&](int lhs_idx, int rhs_idx) {");
+  pushLine(lines, "    const auto& lhs = normalized[lhs_idx];");
+  pushLine(lines, "    const auto& rhs = normalized[rhs_idx];");
+  pushLine(lines, "    const int lhs_block = lhs.left / block_size;");
+  pushLine(lines, "    const int rhs_block = rhs.left / block_size;");
+  pushLine(lines, "    if (lhs_block != rhs_block) {");
+  pushLine(lines, "      return lhs_block < rhs_block;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if ((lhs_block & 1) == 0) {");
+  pushLine(lines, "      return lhs.right < rhs.right;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return lhs.right > rhs.right;");
+  pushLine(lines, "  });");
+  pushLine(lines, "  return order;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename AddLeft, typename AddRight, typename RemoveLeft, typename RemoveRight,");
+  pushLine(lines, "          typename GetAnswer>");
+  pushLine(lines, `inline std::vector<typename std::invoke_result<GetAnswer>::type> ${names.processName}(`);
+  pushLine(lines, `    int n, const std::vector<${names.queryStructName}>& queries, const AddLeft& add_left,`);
+  pushLine(lines, "    const AddRight& add_right, const RemoveLeft& remove_left,");
+  pushLine(lines, "    const RemoveRight& remove_right, const GetAnswer& get_answer,");
+  pushLine(lines, "    int block_size = -1) {");
+  pushLine(lines, "  using Answer = typename std::invoke_result<GetAnswer>::type;");
+  pushLine(lines, "  const int q = static_cast<int>(queries.size());");
+  pushLine(lines, "  std::vector<Answer> answers(static_cast<std::size_t>(q));");
+  pushLine(lines, "  if (q == 0) {");
+  pushLine(lines, "    return answers;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  std::vector<${names.queryStructName}> normalized(q);`);
+  pushLine(lines, "  for (int i = 0; i < q; ++i) {");
+  pushLine(lines, `    normalized[i] = ${names.normalizeName}(queries[i], n);`);
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, `  const std::vector<int> order = ${names.orderName}(normalized, n, block_size);`);
+  pushLine(lines, "  int cur_left = 0;");
+  pushLine(lines, "  int cur_right = 0;");
+  pushLine(lines);
+  pushLine(lines, "  for (int index : order) {");
+  pushLine(lines, "    const auto query = normalized[index];");
+  pushLine(lines, "    while (cur_left > query.left) {");
+  pushLine(lines, "      add_left(--cur_left);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    while (cur_right < query.right) {");
+  pushLine(lines, "      add_right(cur_right++);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    while (cur_left < query.left) {");
+  pushLine(lines, "      remove_left(cur_left++);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    while (cur_right > query.right) {");
+  pushLine(lines, "      remove_right(--cur_right);");
+  pushLine(lines, "    }");
+  pushLine(lines, "    answers[index] = get_answer();");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return answers;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderMoUsage(options));
+  }
+
+  const usage = renderMoUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [names.queryStructName, names.blockSizeName, names.normalizeName, names.orderName, names.processName]
+  );
+}
+
+export function renderMo(options: MoOptions): string {
+  return composeRecipeSections(renderMoRecipe(options));
+}
+
+export function planMonotonicStackNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): MonotonicStackNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    nearestLeftByName: planner.reserve("nearest_left_by", "nearest_left_with"),
+    nearestRightByName: planner.reserve("nearest_right_by", "nearest_right_with"),
+    nearestSmallerLeftName: planner.reserve("nearest_smaller_left", "nearest_less_left"),
+    nearestSmallerRightName: planner.reserve("nearest_smaller_right", "nearest_less_right"),
+    nearestGreaterLeftName: planner.reserve("nearest_greater_left", "nearest_more_left"),
+    nearestGreaterRightName: planner.reserve("nearest_greater_right", "nearest_more_right"),
+    nearestStructName: planner.reserve("NearestIndices", "AllNearestIndices"),
+    nearestAllName: planner.reserve("nearest_all", "build_nearest_indices")
+  };
+}
+
+function monotonicStackCall(options: MonotonicStackOptions): string {
+  const names = options.names;
+  const source = options.sourceName?.trim() || "values";
+  const strict = options.strictness === "non_strict" ? "false" : "true";
+  const relation = options.relation ?? "smaller";
+  const direction = options.direction ?? "left";
+  if (relation === "all" || direction === "both") {
+    return `${names.nearestAllName}(${source}, ${strict})`;
+  }
+  if (relation === "greater" && direction === "right") {
+    return `${names.nearestGreaterRightName}(${source}, ${strict})`;
+  }
+  if (relation === "greater") {
+    return `${names.nearestGreaterLeftName}(${source}, ${strict})`;
+  }
+  if (direction === "right") {
+    return `${names.nearestSmallerRightName}(${source}, ${strict})`;
+  }
+  return `${names.nearestSmallerLeftName}(${source}, ${strict})`;
+}
+
+function renderMonotonicStackUsage(options: MonotonicStackOptions): string {
+  const source = options.sourceName ?? "values";
+  const result = options.resultName ?? "nearest";
+  return [
+    "/*",
+    "Example:",
+    `auto ${result} = ${monotonicStackCall({ ...options, sourceName: source })};`,
+    "*/"
+  ].join("\n");
+}
+
+function renderMonotonicStackUsageSnippet(options: MonotonicStackOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  const result = sanitizeIdentifier(options.resultName ?? "nearest", "nearest");
+  const call = monotonicStackCall(options);
+  if (usageMode === "compute_all" || options.relation === "all" || options.direction === "both") {
+    return `auto ${result} = ${call};`;
+  }
+  return `std::vector<int> ${result} = ${call};`;
+}
+
+export function renderMonotonicStackRecipe(
+  options: MonotonicStackOptions
+): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, "template <typename T, typename Compare>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestLeftByName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                        Compare compare, bool strict = true) {");
+  pushLine(lines, "  const int n = static_cast<int>(values.size());");
+  pushLine(lines, "  std::vector<int> result(n, -1);");
+  pushLine(lines, "  std::vector<int> st;");
+  pushLine(lines, "  st.reserve(n);");
+  pushLine(lines);
+  pushLine(lines, "  for (int i = 0; i < n; ++i) {");
+  pushLine(lines, "    while (!st.empty()) {");
+  pushLine(lines, "      const int j = st.back();");
+  pushLine(lines, "      const bool keep = strict ? compare(values[j], values[i])");
+  pushLine(lines, "                               : !compare(values[i], values[j]);");
+  pushLine(lines, "      if (keep) {");
+  pushLine(lines, "        break;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      st.pop_back();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (!st.empty()) {");
+  pushLine(lines, "      result[i] = st.back();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    st.push_back(i);");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return result;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T, typename Compare>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestRightByName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                         Compare compare, bool strict = true) {");
+  pushLine(lines, "  const int n = static_cast<int>(values.size());");
+  pushLine(lines, "  std::vector<int> result(n, -1);");
+  pushLine(lines, "  std::vector<int> st;");
+  pushLine(lines, "  st.reserve(n);");
+  pushLine(lines);
+  pushLine(lines, "  for (int i = n - 1; i >= 0; --i) {");
+  pushLine(lines, "    while (!st.empty()) {");
+  pushLine(lines, "      const int j = st.back();");
+  pushLine(lines, "      const bool keep = strict ? compare(values[j], values[i])");
+  pushLine(lines, "                               : !compare(values[i], values[j]);");
+  pushLine(lines, "      if (keep) {");
+  pushLine(lines, "        break;");
+  pushLine(lines, "      }");
+  pushLine(lines, "      st.pop_back();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (!st.empty()) {");
+  pushLine(lines, "      result[i] = st.back();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    st.push_back(i);");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return result;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestSmallerLeftName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                             bool strict = true) {");
+  pushLine(lines, `  return ${names.nearestLeftByName}(values, std::less<T>(), strict);`);
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestSmallerRightName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                              bool strict = true) {");
+  pushLine(lines, `  return ${names.nearestRightByName}(values, std::less<T>(), strict);`);
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestGreaterLeftName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                             bool strict = true) {");
+  pushLine(lines, `  return ${names.nearestLeftByName}(values, std::greater<T>(), strict);`);
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline std::vector<int> ${names.nearestGreaterRightName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                              bool strict = true) {");
+  pushLine(lines, `  return ${names.nearestRightByName}(values, std::greater<T>(), strict);`);
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `struct ${names.nearestStructName} {`);
+  pushLine(lines, "  std::vector<int> left_smaller;");
+  pushLine(lines, "  std::vector<int> right_smaller;");
+  pushLine(lines, "  std::vector<int> left_greater;");
+  pushLine(lines, "  std::vector<int> right_greater;");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline ${names.nearestStructName}<T> ${names.nearestAllName}(const std::vector<T>& values,`);
+  pushLine(lines, "                                     bool strict = true) {");
+  pushLine(lines, `  ${names.nearestStructName}<T> result;`);
+  pushLine(lines, `  result.left_smaller = ${names.nearestSmallerLeftName}(values, strict);`);
+  pushLine(lines, `  result.right_smaller = ${names.nearestSmallerRightName}(values, strict);`);
+  pushLine(lines, `  result.left_greater = ${names.nearestGreaterLeftName}(values, strict);`);
+  pushLine(lines, `  result.right_greater = ${names.nearestGreaterRightName}(values, strict);`);
+  pushLine(lines, "  return result;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderMonotonicStackUsage(options));
+  }
+
+  const usage = renderMonotonicStackUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [
+      names.nearestLeftByName,
+      names.nearestRightByName,
+      names.nearestSmallerLeftName,
+      names.nearestSmallerRightName,
+      names.nearestGreaterLeftName,
+      names.nearestGreaterRightName,
+      names.nearestStructName,
+      names.nearestAllName
+    ]
+  );
+}
+
+export function renderMonotonicStack(options: MonotonicStackOptions): string {
+  return composeRecipeSections(renderMonotonicStackRecipe(options));
+}
+
+export function planGpHashTableNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): GpHashTableNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    splitMixName: planner.reserve("SplitMix64Hash", "SplitMix64Hasher"),
+    hashName: planner.reserve("GpHash", "SafeHash"),
+    pairHashName: planner.reserve("PairHash", "SafePairHash"),
+    tableAliasName: planner.reserve("GpHashTable", "SafeHashTable")
+  };
+}
+
+function renderGpHashTableUsage(options: GpHashTableOptions): string {
+  const table = options.tableName ?? "table";
+  const keyType = options.keyType ?? "long long";
+  const valueType = options.valueType ?? "int";
+  const names = options.names;
+  return [
+    "/*",
+    "Example:",
+    `${names.tableAliasName}<${keyType}, ${valueType}> ${table};`,
+    `${table}[key] += delta;`,
+    "*/"
+  ].join("\n");
+}
+
+function renderGpHashTableUsageSnippet(options: GpHashTableOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  const names = options.names;
+  const keyType = options.keyType?.trim() || "long long";
+  const valueType = options.valueType?.trim() || "int";
+  const table = sanitizeIdentifier(options.tableName ?? "table", "table");
+  const source = sanitizeIdentifier(options.sourceName ?? "values", "values");
+  if (usageMode === "declare_set") {
+    return `${names.tableAliasName}<${keyType}, __gnu_pbds::null_type> ${table};`;
+  }
+  if (usageMode === "frequency_loop") {
+    return [
+      `${names.tableAliasName}<${keyType}, int> ${table};`,
+      `for (const auto& value : ${source}) {`,
+      `  ++${table}[value];`,
+      "}"
+    ].join("\n");
+  }
+  return `${names.tableAliasName}<${keyType}, ${valueType}> ${table};`;
+}
+
+export function renderGpHashTableRecipe(options: GpHashTableOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, `struct ${names.splitMixName} {`);
+  pushLine(lines, "  static std::uint64_t mix(std::uint64_t x) {");
+  pushLine(lines, "    x += 0x9e3779b97f4a7c15ULL;");
+  pushLine(lines, "    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;");
+  pushLine(lines, "    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;");
+  pushLine(lines, "    x ^= (x >> 31);");
+  pushLine(lines, "    return x;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::size_t operator()(std::uint64_t x) const {");
+  pushLine(lines, "    return static_cast<std::size_t>(mix(x));");
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename Key>");
+  pushLine(lines, `struct ${names.hashName} {`);
+  pushLine(lines, "  std::size_t operator()(const Key& key) const {");
+  pushLine(lines, "    const std::uint64_t base = static_cast<std::uint64_t>(std::hash<Key>()(key));");
+  pushLine(lines, `    return static_cast<std::size_t>(${names.splitMixName}::mix(base));`);
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename First, typename Second,");
+  pushLine(lines, `          typename FirstHash = ${names.hashName}<First>,`);
+  pushLine(lines, `          typename SecondHash = ${names.hashName}<Second>>`);
+  pushLine(lines, `struct ${names.pairHashName} {`);
+  pushLine(lines, "  std::size_t operator()(const std::pair<First, Second>& value) const {");
+  pushLine(lines, "    const std::uint64_t h1 = static_cast<std::uint64_t>(FirstHash()(value.first));");
+  pushLine(lines, "    const std::uint64_t h2 = static_cast<std::uint64_t>(SecondHash()(value.second));");
+  pushLine(lines, "    return static_cast<std::size_t>(");
+  pushLine(lines, `        ${names.splitMixName}::mix(h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2))));`);
+  pushLine(lines, "  }");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename Key, typename Value,");
+  pushLine(lines, `          typename Hash = ${names.hashName}<Key>>`);
+  pushLine(lines, `using ${names.tableAliasName} = __gnu_pbds::gp_hash_table<Key, Value, Hash>;`);
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderGpHashTableUsage(options));
+  }
+
+  const usage = renderGpHashTableUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [names.splitMixName, names.hashName, names.pairHashName, names.tableAliasName]
+  );
+}
+
+export function renderGpHashTable(options: GpHashTableOptions): string {
+  return composeRecipeSections(renderGpHashTableRecipe(options));
+}
+
+export function planOrderedSetNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): OrderedSetNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    treeAliasName: planner.reserve("OrderedSetTree", "OrderStatisticTree"),
+    className: planner.reserve("OrderedSet", "OrderStatisticSet")
+  };
+}
+
+function renderOrderedSetUsage(options: OrderedSetOptions): string {
+  const className = options.names.className;
+  const keyType = options.keyType ?? "int";
+  const setName = options.setName ?? "os";
+  return [
+    "/*",
+    "Example:",
+    `${className}<${keyType}> ${setName};`,
+    `${setName}.insert(x);`,
+    `int less_count = ${setName}.order_of_key(x);`,
+    `auto kth = ${setName}.find_by_order(k);`,
+    "*/"
+  ].join("\n");
+}
+
+function renderOrderedSetUsageSnippet(options: OrderedSetOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  const className = options.names.className;
+  const keyType = options.keyType?.trim() || "int";
+  const setName = sanitizeIdentifier(options.setName ?? "os", "os");
+  if (usageMode === "pair_multiset") {
+    return `${className}<std::pair<${keyType}, int>> ${setName};`;
+  }
+  const lines: string[] = [`${className}<${keyType}> ${setName};`];
+  if (usageMode === "rank_query") {
+    pushLine(lines, "int x;");
+    pushLine(lines, "cin >> x;");
+    pushLine(lines, `cout << ${setName}.order_of_key(x) << '\\n';`);
+  } else if (usageMode === "kth_query") {
+    pushLine(lines, "int k;");
+    pushLine(lines, "cin >> k;");
+    pushLine(lines, `auto value = ${setName}.find_by_order(k);`);
+    pushLine(lines, "if (value.has_value()) cout << *value << '\\n';");
+  }
+  return lines.join("\n");
+}
+
+export function renderOrderedSetRecipe(options: OrderedSetOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, "template <typename Key, typename Compare = std::less<Key>>");
+  pushLine(lines, `using ${names.treeAliasName} =`);
+  pushLine(lines, "    __gnu_pbds::tree<Key, __gnu_pbds::null_type, Compare, __gnu_pbds::rb_tree_tag,");
+  pushLine(lines, "                     __gnu_pbds::tree_order_statistics_node_update>;");
+  pushLine(lines);
+  pushLine(lines, "template <typename Key, typename Compare = std::less<Key>>");
+  pushLine(lines, `class ${names.className} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, "  using key_type = Key;");
+  pushLine(lines, `  using tree_type = ${names.treeAliasName}<Key, Compare>;`);
+  pushLine(lines, "  using iterator = typename tree_type::iterator;");
+  pushLine(lines, "  using const_iterator = typename tree_type::const_iterator;");
+  pushLine(lines);
+  pushLine(lines, "  bool insert(const Key& key) { return tree_.insert(key).second; }");
+  pushLine(lines);
+  pushLine(lines, "  bool erase(const Key& key) { return tree_.erase(key) > 0; }");
+  pushLine(lines);
+  pushLine(lines, "  void clear() { tree_.clear(); }");
+  pushLine(lines);
+  pushLine(lines, "  int size() const { return static_cast<int>(tree_.size()); }");
+  pushLine(lines);
+  pushLine(lines, "  bool empty() const { return tree_.empty(); }");
+  pushLine(lines);
+  pushLine(lines, "  bool contains(const Key& key) const { return tree_.find(key) != tree_.end(); }");
+  pushLine(lines);
+  pushLine(lines, "  int order_of_key(const Key& key) const {");
+  pushLine(lines, "    return static_cast<int>(tree_.order_of_key(key));");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::optional<Key> find_by_order(int order) const {");
+  pushLine(lines, "    if (order < 0 || order >= size()) {");
+  pushLine(lines, "      return std::nullopt;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    const const_iterator it = tree_.find_by_order(order);");
+  pushLine(lines, "    if (it == tree_.end()) {");
+  pushLine(lines, "      return std::nullopt;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return *it;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  iterator find(const Key& key) { return tree_.find(key); }");
+  pushLine(lines);
+  pushLine(lines, "  const_iterator find(const Key& key) const { return tree_.find(key); }");
+  pushLine(lines);
+  pushLine(lines, "  iterator lower_bound(const Key& key) { return tree_.lower_bound(key); }");
+  pushLine(lines);
+  pushLine(lines, "  const_iterator lower_bound(const Key& key) const { return tree_.lower_bound(key); }");
+  pushLine(lines);
+  pushLine(lines, "  iterator upper_bound(const Key& key) { return tree_.upper_bound(key); }");
+  pushLine(lines);
+  pushLine(lines, "  const_iterator upper_bound(const Key& key) const { return tree_.upper_bound(key); }");
+  pushLine(lines);
+  pushLine(lines, "  iterator begin() { return tree_.begin(); }");
+  pushLine(lines);
+  pushLine(lines, "  const_iterator begin() const { return tree_.begin(); }");
+  pushLine(lines);
+  pushLine(lines, "  iterator end() { return tree_.end(); }");
+  pushLine(lines);
+  pushLine(lines, "  const_iterator end() const { return tree_.end(); }");
+  pushLine(lines);
+  pushLine(lines, "  tree_type& raw() { return tree_; }");
+  pushLine(lines);
+  pushLine(lines, "  const tree_type& raw() const { return tree_; }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  tree_type tree_;");
+  pushLine(lines, "};");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderOrderedSetUsage(options));
+  }
+
+  const usage = renderOrderedSetUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [names.treeAliasName, names.className]
+  );
+}
+
+export function renderOrderedSet(options: OrderedSetOptions): string {
+  return composeRecipeSections(renderOrderedSetRecipe(options));
+}
+
+export function planSetUtilsNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): SetUtilsNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    nextIteratorName: planner.reserve("next_iterator", "container_next_iterator"),
+    prevIteratorName: planner.reserve("prev_iterator", "container_prev_iterator"),
+    nextValueName: planner.reserve("next_value", "container_next_value"),
+    prevValueName: planner.reserve("prev_value", "container_prev_value")
+  };
+}
+
+function setUtilsCall(options: SetUtilsOptions): string {
+  const names = options.names;
+  const container = options.containerName?.trim() || "container";
+  if (options.target === "iterator") {
+    const iterator = options.iteratorName?.trim() || "it";
+    return options.lookup === "prev"
+      ? `${names.prevIteratorName}(${container}, ${iterator})`
+      : `${names.nextIteratorName}(${container}, ${iterator})`;
+  }
+  const key = options.keyName?.trim() || "key";
+  return options.lookup === "prev"
+    ? `${names.prevValueName}(${container}, ${key})`
+    : `${names.nextValueName}(${container}, ${key})`;
+}
+
+function renderSetUtilsUsage(options: SetUtilsOptions): string {
+  const result = options.resultName ?? "neighbor";
+  return [
+    "/*",
+    "Example:",
+    `auto ${result} = ${setUtilsCall(options)};`,
+    `if (${result}.has_value()) {`,
+    "}",
+    "*/"
+  ].join("\n");
+}
+
+function renderSetUtilsUsageSnippet(options: SetUtilsOptions): string {
+  if ((options.usageMode ?? "helper_only") === "helper_only") {
+    return "";
+  }
+  const result = sanitizeIdentifier(options.resultName ?? "neighbor", "neighbor");
+  return [
+    `auto ${result} = ${setUtilsCall(options)};`,
+    `if (${result}.has_value()) {`,
+    `  // use *${result}`,
+    "}"
+  ].join("\n");
+}
+
+export function renderSetUtilsRecipe(options: SetUtilsOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, "template <typename Container>");
+  pushLine(lines, `inline std::optional<typename Container::iterator> ${names.nextIteratorName}(`);
+  pushLine(lines, "    Container& container, typename Container::iterator it) {");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  ++it;");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return it;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Container>");
+  pushLine(lines, `inline std::optional<typename Container::const_iterator> ${names.nextIteratorName}(`);
+  pushLine(lines, "    const Container& container, typename Container::const_iterator it) {");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  ++it;");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return it;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Container>");
+  pushLine(lines, `inline std::optional<typename Container::iterator> ${names.prevIteratorName}(`);
+  pushLine(lines, "    Container& container, typename Container::iterator it) {");
+  pushLine(lines, "  if (container.empty() || it == container.begin()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    auto last = container.end();");
+  pushLine(lines, "    --last;");
+  pushLine(lines, "    return last;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  --it;");
+  pushLine(lines, "  return it;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Container>");
+  pushLine(lines, `inline std::optional<typename Container::const_iterator> ${names.prevIteratorName}(`);
+  pushLine(lines, "    const Container& container, typename Container::const_iterator it) {");
+  pushLine(lines, "  if (container.empty() || it == container.begin()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    auto last = container.end();");
+  pushLine(lines, "    --last;");
+  pushLine(lines, "    return last;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  --it;");
+  pushLine(lines, "  return it;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Container, typename Key>");
+  pushLine(lines, `inline std::optional<typename Container::value_type> ${names.nextValueName}(`);
+  pushLine(lines, "    const Container& container, const Key& key) {");
+  pushLine(lines, "  const auto it = container.upper_bound(key);");
+  pushLine(lines, "  if (it == container.end()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  return *it;");
+  pushLine(lines, "}");
+  pushLine(lines);
+  pushLine(lines, "template <typename Container, typename Key>");
+  pushLine(lines, `inline std::optional<typename Container::value_type> ${names.prevValueName}(`);
+  pushLine(lines, "    const Container& container, const Key& key) {");
+  pushLine(lines, "  auto it = container.lower_bound(key);");
+  pushLine(lines, "  if (it == container.begin()) {");
+  pushLine(lines, "    return std::nullopt;");
+  pushLine(lines, "  }");
+  pushLine(lines, "  --it;");
+  pushLine(lines, "  return *it;");
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderSetUtilsUsage(options));
+  }
+
+  const usage = renderSetUtilsUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [
+      names.nextIteratorName,
+      names.prevIteratorName,
+      names.nextValueName,
+      names.prevValueName
+    ]
+  );
+}
+
+export function renderSetUtils(options: SetUtilsOptions): string {
+  return composeRecipeSections(renderSetUtilsRecipe(options));
+}
+
+export function planFastAllocatorNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): FastAllocatorNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    arenaClassName: planner.reserveExport("FastAllocatorArena", "FastArena"),
+    allocatorClassName: planner.reserveExport("FastAllocator", "ArenaAllocator"),
+    factoryName: planner.reserveExport("make_fast_allocator", "make_arena_allocator")
+  };
+}
+
+function renderFastAllocatorUsage(options: FastAllocatorOptions): string {
+  const names = options.names;
+  const arena = sanitizeIdentifier(options.arenaName ?? "arena", "arena");
+  const container = sanitizeIdentifier(options.containerName ?? "values", "values");
+  const valueType = options.valueType?.trim() || "int";
+  const capacity = (options.capacityExpression ?? "1U << 26U").trim() || "1U << 26U";
+  const edgeType = sanitizeIdentifier(options.edgeTypeName ?? "Edge", "Edge");
+  return [
+    "/*",
+    "Example:",
+    `${names.arenaClassName} ${arena}(${capacity});`,
+    `using Alloc = ${names.allocatorClassName}<${valueType}>;`,
+    `std::vector<${valueType}, Alloc> ${container}{Alloc(${arena})};`,
+    "*/"
+  ].join("\n");
+}
+
+function renderFastAllocatorUsageSnippet(options: FastAllocatorOptions): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+  const names = options.names;
+  const arena = sanitizeIdentifier(options.arenaName ?? "arena", "arena");
+  const container = sanitizeIdentifier(options.containerName ?? "values", "values");
+  const valueType = options.valueType?.trim() || "int";
+  const capacity = (options.capacityExpression ?? "1U << 26U").trim() || "1U << 26U";
+  const edgeType = sanitizeIdentifier(options.edgeTypeName ?? "Edge", "Edge");
+  const lines: string[] = [];
+
+  pushLine(lines, `${names.arenaClassName} ${arena}(${capacity});`);
+  if (usageMode === "arena_reset") {
+    pushLine(lines, `${arena}.reset(${capacity});`);
+    return lines.join("\n");
+  }
+  if (usageMode === "edge_vector") {
+    pushLine(lines, `struct ${edgeType} {`);
+    pushLine(lines, "  int to;");
+    pushLine(lines, "  int w;");
+    pushLine(lines, "};");
+    pushLine(lines, `using ${edgeType}Alloc = ${names.allocatorClassName}<${edgeType}>;`);
+    pushLine(lines, `std::vector<${edgeType}, ${edgeType}Alloc> ${container}{${edgeType}Alloc(${arena})};`);
+    return lines.join("\n");
+  }
+  pushLine(lines, `using Alloc = ${names.allocatorClassName}<${valueType}>;`);
+  pushLine(lines, `std::vector<${valueType}, Alloc> ${container}{Alloc(${arena})};`);
+  return lines.join("\n");
+}
+
+export function renderFastAllocatorRecipe(options: FastAllocatorOptions): RenderedRecipe {
+  const names = options.names;
+  const lines: string[] = [];
+
+  pushLine(lines, `class ${names.arenaClassName} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, `  explicit ${names.arenaClassName}(std::size_t capacity_bytes = 0)`);
+  pushLine(lines, "      : storage_(capacity_bytes), offset_(capacity_bytes) {}");
+  pushLine(lines);
+  pushLine(lines, "  void reset() { offset_ = storage_.size(); }");
+  pushLine(lines);
+  pushLine(lines, "  void reset(std::size_t capacity_bytes) {");
+  pushLine(lines, "    storage_.assign(capacity_bytes, 0U);");
+  pushLine(lines, "    offset_ = capacity_bytes;");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  std::size_t capacity() const { return storage_.size(); }");
+  pushLine(lines);
+  pushLine(lines, "  std::size_t remaining() const { return offset_; }");
+  pushLine(lines);
+  pushLine(lines, "  void* allocate(std::size_t bytes,");
+  pushLine(lines, "                 std::size_t alignment = alignof(std::max_align_t)) {");
+  pushLine(lines, "    if (bytes == 0) {");
+  pushLine(lines, "      return nullptr;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (alignment == 0 || (alignment & (alignment - 1)) != 0) {");
+  pushLine(lines, "      throw std::bad_alloc();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (bytes > offset_) {");
+  pushLine(lines, "      throw std::bad_alloc();");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    std::size_t pos = offset_ - bytes;");
+  pushLine(lines, "    pos &= ~(alignment - 1);");
+  pushLine(lines, "    if (pos > offset_ || offset_ - pos < bytes) {");
+  pushLine(lines, "      throw std::bad_alloc();");
+  pushLine(lines, "    }");
+  pushLine(lines);
+  pushLine(lines, "    offset_ = pos;");
+  pushLine(lines, "    return static_cast<void*>(storage_.data() + offset_);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  std::vector<unsigned char> storage_;");
+  pushLine(lines, "  std::size_t offset_;");
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `class ${names.allocatorClassName} {`);
+  pushLine(lines, " public:");
+  pushLine(lines, "  using value_type = T;");
+  pushLine(lines);
+  pushLine(lines, `  ${names.allocatorClassName}() noexcept : arena_(nullptr) {}`);
+  pushLine(lines);
+  pushLine(lines, `  explicit ${names.allocatorClassName}(${names.arenaClassName}& arena) noexcept : arena_(&arena) {}`);
+  pushLine(lines);
+  pushLine(lines, "  template <typename U>");
+  pushLine(lines, `  ${names.allocatorClassName}(const ${names.allocatorClassName}<U>& other) noexcept : arena_(other.arena()) {}`);
+  pushLine(lines);
+  pushLine(lines, "  T* allocate(std::size_t n) {");
+  pushLine(lines, "    if (n == 0) {");
+  pushLine(lines, "      return nullptr;");
+  pushLine(lines, "    }");
+  pushLine(lines, "    if (arena_ == nullptr ||");
+  pushLine(lines, "        n > std::numeric_limits<std::size_t>::max() / sizeof(T)) {");
+  pushLine(lines, "      throw std::bad_alloc();");
+  pushLine(lines, "    }");
+  pushLine(lines, "    return static_cast<T*>(arena_->allocate(n * sizeof(T), alignof(T)));");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  void deallocate(T*, std::size_t) noexcept {}");
+  pushLine(lines);
+  pushLine(lines, "  template <typename U>");
+  pushLine(lines, "  struct rebind {");
+  pushLine(lines, `    using other = ${names.allocatorClassName}<U>;`);
+  pushLine(lines, "  };");
+  pushLine(lines);
+  pushLine(lines, `  ${names.arenaClassName}* arena() const noexcept { return arena_; }`);
+  pushLine(lines);
+  pushLine(lines, "  template <typename U>");
+  pushLine(lines, `  bool operator==(const ${names.allocatorClassName}<U>& other) const noexcept {`);
+  pushLine(lines, "    return arena_ == other.arena();");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, "  template <typename U>");
+  pushLine(lines, `  bool operator!=(const ${names.allocatorClassName}<U>& other) const noexcept {`);
+  pushLine(lines, "    return !(*this == other);");
+  pushLine(lines, "  }");
+  pushLine(lines);
+  pushLine(lines, " private:");
+  pushLine(lines, "  template <typename>");
+  pushLine(lines, `  friend class ${names.allocatorClassName};`);
+  pushLine(lines);
+  pushLine(lines, `  ${names.arenaClassName}* arena_;`);
+  pushLine(lines, "};");
+  pushLine(lines);
+  pushLine(lines, "template <typename T>");
+  pushLine(lines, `inline ${names.allocatorClassName}<T> ${names.factoryName}(${names.arenaClassName}& arena) {`);
+  pushLine(lines, `  return ${names.allocatorClassName}<T>(arena);`);
+  pushLine(lines, "}");
+
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, renderFastAllocatorUsage(options));
+  }
+
+  const usage = renderFastAllocatorUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    [
+      names.arenaClassName,
+      names.allocatorClassName,
+      names.factoryName
+    ]
+  );
+}
+
+export function renderFastAllocator(options: FastAllocatorOptions): string {
+  return composeRecipeSections(renderFastAllocatorRecipe(options));
+}
+
+const GEOMETRY_HELPERS = String.raw`template <typename T>
+int geometry_sign(const T& value) {
+  return (T(0) < value) - (value < T(0));
+}
+
+inline int geometry_sign_eps(long double value, long double eps = 1e-12L) {
+  return (value > eps) - (value < -eps);
+}
+
+template <typename T>
+struct Point2 {
+  using Value = T;
+  T x;
+  T y;
+
+  Point2(const T& x_ = T(), const T& y_ = T()) : x(x_), y(y_) {}
+
+  bool operator==(const Point2& other) const {
+    return x == other.x && y == other.y;
+  }
+
+  bool operator!=(const Point2& other) const { return !(*this == other); }
+
+  bool operator<(const Point2& other) const {
+    if (x != other.x) {
+      return x < other.x;
+    }
+    return y < other.y;
+  }
+
+  Point2 operator+(const Point2& other) const {
+    return Point2(x + other.x, y + other.y);
+  }
+
+  Point2 operator-(const Point2& other) const {
+    return Point2(x - other.x, y - other.y);
+  }
+
+  Point2 operator*(const T& scale) const { return Point2(x * scale, y * scale); }
+
+  Point2 operator/(const T& scale) const { return Point2(x / scale, y / scale); }
+
+  T dot(const Point2& other) const { return x * other.x + y * other.y; }
+
+  T cross(const Point2& other) const { return x * other.y - y * other.x; }
+
+  T cross(const Point2& a, const Point2& b) const { return (a - *this).cross(b - *this); }
+
+  T norm2() const { return x * x + y * y; }
+};
+
+template <typename T>
+inline Point2<long double> to_point_long_double(const Point2<T>& p) {
+  return Point2<long double>(static_cast<long double>(p.x),
+                             static_cast<long double>(p.y));
+}
+
+template <typename T>
+inline long double cross_ld(const Point2<T>& a, const Point2<T>& b) {
+  return static_cast<long double>(a.x) * static_cast<long double>(b.y) -
+         static_cast<long double>(a.y) * static_cast<long double>(b.x);
+}
+
+template <typename T>
+inline long double cross_ld(const Point2<T>& a, const Point2<T>& b,
+                            const Point2<T>& c) {
+  return cross_ld(b - a, c - a);
+}
+
+template <typename T>
+inline int orientation(const Point2<T>& a, const Point2<T>& b, const Point2<T>& c,
+                       long double eps = 1e-12L) {
+  return geometry_sign_eps(cross_ld(a, b, c), eps);
+}
+
+template <typename T>
+inline bool on_segment(const Point2<T>& a, const Point2<T>& b, const Point2<T>& p,
+                       long double eps = 1e-12L) {
+  if (orientation(a, b, p, eps) != 0) {
+    return false;
+  }
+  const long double px = static_cast<long double>(p.x);
+  const long double py = static_cast<long double>(p.y);
+  return std::min(static_cast<long double>(a.x), static_cast<long double>(b.x)) - eps <=
+             px &&
+         px <=
+             std::max(static_cast<long double>(a.x), static_cast<long double>(b.x)) + eps &&
+         std::min(static_cast<long double>(a.y), static_cast<long double>(b.y)) - eps <=
+             py &&
+         py <=
+             std::max(static_cast<long double>(a.y), static_cast<long double>(b.y)) + eps;
+}
+
+template <typename T>
+inline bool segments_intersect(const Point2<T>& a, const Point2<T>& b, const Point2<T>& c,
+                               const Point2<T>& d, long double eps = 1e-12L) {
+  const int o1 = orientation(a, b, c, eps);
+  const int o2 = orientation(a, b, d, eps);
+  const int o3 = orientation(c, d, a, eps);
+  const int o4 = orientation(c, d, b, eps);
+
+  if (o1 * o2 < 0 && o3 * o4 < 0) {
+    return true;
+  }
+  return (o1 == 0 && on_segment(a, b, c, eps)) ||
+         (o2 == 0 && on_segment(a, b, d, eps)) ||
+         (o3 == 0 && on_segment(c, d, a, eps)) ||
+         (o4 == 0 && on_segment(c, d, b, eps));
+}
+
+template <typename T>
+inline bool line_intersection(const Point2<T>& a, const Point2<T>& b, const Point2<T>& c,
+                              const Point2<T>& d, Point2<long double>& out,
+                              long double eps = 1e-12L) {
+  const Point2<long double> aa = to_point_long_double(a);
+  const Point2<long double> bb = to_point_long_double(b);
+  const Point2<long double> cc = to_point_long_double(c);
+  const Point2<long double> dd = to_point_long_double(d);
+
+  const Point2<long double> ab = bb - aa;
+  const Point2<long double> cd = dd - cc;
+  const long double denom = cross_ld(ab, cd);
+  if (std::fabs(denom) <= eps) {
+    out = Point2<long double>(0.0L, 0.0L);
+    return false;
+  }
+
+  const long double t = cross_ld(cc - aa, cd) / denom;
+  out = Point2<long double>(aa.x + ab.x * t, aa.y + ab.y * t);
+  return true;
+}
+
+inline bool point_equal_eps(const Point2<long double>& a, const Point2<long double>& b,
+                            long double eps = 1e-12L) {
+  return std::fabs(a.x - b.x) <= eps && std::fabs(a.y - b.y) <= eps;
+}
+
+template <typename T>
+inline std::vector<Point2<long double>> segment_intersection(
+    const Point2<T>& a, const Point2<T>& b, const Point2<T>& c, const Point2<T>& d,
+    long double eps = 1e-12L) {
+  if (!segments_intersect(a, b, c, d, eps)) {
+    return {};
+  }
+
+  const int o1 = orientation(a, b, c, eps);
+  const int o2 = orientation(a, b, d, eps);
+  if (o1 == 0 && o2 == 0) {
+    std::vector<Point2<long double>> common;
+    auto add_if_unique = [&](const Point2<long double>& p) {
+      for (const Point2<long double>& existing : common) {
+        if (point_equal_eps(existing, p, eps)) {
+          return;
+        }
+      }
+      common.push_back(p);
+    };
+
+    if (on_segment(a, b, c, eps)) {
+      add_if_unique(to_point_long_double(c));
+    }
+    if (on_segment(a, b, d, eps)) {
+      add_if_unique(to_point_long_double(d));
+    }
+    if (on_segment(c, d, a, eps)) {
+      add_if_unique(to_point_long_double(a));
+    }
+    if (on_segment(c, d, b, eps)) {
+      add_if_unique(to_point_long_double(b));
+    }
+
+    std::sort(common.begin(), common.end(),
+              [&](const Point2<long double>& lhs, const Point2<long double>& rhs) {
+                if (std::fabs(lhs.x - rhs.x) > eps) {
+                  return lhs.x < rhs.x;
+                }
+                return lhs.y < rhs.y - eps;
+              });
+    return common;
+  }
+
+  Point2<long double> inter;
+  if (!line_intersection(a, b, c, d, inter, eps)) {
+    return {};
+  }
+  return {inter};
+}
+
+template <typename T>
+inline int vector_halfplane(const Point2<T>& v) {
+  return (v.y > T(0) || (v.y == T(0) && v.x >= T(0))) ? 0 : 1;
+}
+
+template <typename T>
+inline bool angle_less(const Point2<T>& lhs, const Point2<T>& rhs,
+                       long double eps = 1e-12L) {
+  const int half_lhs = vector_halfplane(lhs);
+  const int half_rhs = vector_halfplane(rhs);
+  if (half_lhs != half_rhs) {
+    return half_lhs < half_rhs;
+  }
+
+  const long double cr = cross_ld(lhs, rhs);
+  const int sign = geometry_sign_eps(cr, eps);
+  if (sign != 0) {
+    return sign > 0;
+  }
+
+  const long double dist_lhs =
+      static_cast<long double>(lhs.x) * lhs.x + static_cast<long double>(lhs.y) * lhs.y;
+  const long double dist_rhs =
+      static_cast<long double>(rhs.x) * rhs.x + static_cast<long double>(rhs.y) * rhs.y;
+  return dist_lhs < dist_rhs;
+}
+
+template <typename T>
+inline void sort_vectors_by_angle(std::vector<Point2<T>>& vectors,
+                                  long double eps = 1e-12L) {
+  std::sort(vectors.begin(), vectors.end(),
+            [&](const Point2<T>& lhs, const Point2<T>& rhs) {
+              return angle_less(lhs, rhs, eps);
+            });
+}
+
+template <typename T>
+inline void sort_points_by_angle(std::vector<Point2<T>>& points, const Point2<T>& center,
+                                 long double eps = 1e-12L) {
+  std::sort(points.begin(), points.end(),
+            [&](const Point2<T>& lhs, const Point2<T>& rhs) {
+              return angle_less(lhs - center, rhs - center, eps);
+            });
+}
+
+template <typename T>
+inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
+                                          long double eps = 1e-12L) {
+  if (points.size() <= 1) {
+    return points;
+  }
+
+  std::sort(points.begin(), points.end());
+  points.erase(std::unique(points.begin(), points.end()), points.end());
+  if (points.size() <= 1) {
+    return points;
+  }
+
+  std::vector<Point2<T>> lower;
+  std::vector<Point2<T>> upper;
+
+  for (const Point2<T>& p : points) {
+    while (lower.size() >= 2 &&
+           geometry_sign_eps(cross_ld(lower[lower.size() - 2], lower.back(), p), eps) <=
+               0) {
+      lower.pop_back();
+    }
+    lower.push_back(p);
+  }
+
+  for (int i = static_cast<int>(points.size()) - 1; i >= 0; --i) {
+    const Point2<T>& p = points[i];
+    while (upper.size() >= 2 &&
+           geometry_sign_eps(cross_ld(upper[upper.size() - 2], upper.back(), p), eps) <=
+               0) {
+      upper.pop_back();
+    }
+    upper.push_back(p);
+  }
+
+  lower.pop_back();
+  upper.pop_back();
+  lower.insert(lower.end(), upper.begin(), upper.end());
+  return lower;
+}`;
+
+const GEOMETRY_EXPORTS = [
+  "geometry_sign",
+  "geometry_sign_eps",
+  "Point2",
+  "to_point_long_double",
+  "cross_ld",
+  "orientation",
+  "on_segment",
+  "segments_intersect",
+  "line_intersection",
+  "point_equal_eps",
+  "segment_intersection",
+  "vector_halfplane",
+  "angle_less",
+  "sort_vectors_by_angle",
+  "sort_points_by_angle",
+  "convex_hull"
+];
+
+function renderGeometryUsage(options: GeometryOptions): string {
+  const pointType = `Point2<${options.valueType?.trim() || "long long"}>`;
+  const points = sanitizeIdentifier(options.pointsName ?? "points", "points");
+  const result = sanitizeIdentifier(options.resultName ?? "answer", "answer");
+  const usage = options.usageMode ?? "helper_only";
+  if (usage === "orientation_check") {
+    return `int ${result} = orientation(a, b, c);`;
+  }
+  if (usage === "segment_intersection") {
+    return `auto ${result} = segment_intersection(a, b, c, d);`;
+  }
+  if (usage === "sort_points") {
+    return [
+      `${pointType} center(0, 0);`,
+      `sort_points_by_angle(${points}, center);`
+    ].join("\n");
+  }
+  if (usage === "build_hull") {
+    return `std::vector<${pointType}> ${result} = convex_hull(${points});`;
+  }
+  return "";
+}
+
+export function renderGeometryRecipe(options: GeometryOptions): RenderedRecipe {
+  const lines = [GEOMETRY_HELPERS];
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, "/*");
+    pushLine(lines, "Example:");
+    pushLine(lines, "std::vector<Point2<long long>> hull = convex_hull(points);");
+    pushLine(lines, "*/");
+  }
+  const usage = renderGeometryUsage(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    GEOMETRY_EXPORTS
+  );
+}
+
+export function renderGeometry(options: GeometryOptions): string {
+  return composeRecipeSections(renderGeometryRecipe(options));
+}
+
+const HALFPLANE_INTERSECTION_HELPERS = String.raw`template <typename T>
+struct Point2 {
+  using Value = T;
+  T x;
+  T y;
+
+  Point2(const T& x_ = T(), const T& y_ = T()) : x(x_), y(y_) {}
+
+  bool operator==(const Point2& other) const {
+    return x == other.x && y == other.y;
+  }
+
+  bool operator!=(const Point2& other) const { return !(*this == other); }
+
+  bool operator<(const Point2& other) const {
+    if (x != other.x) {
+      return x < other.x;
+    }
+    return y < other.y;
+  }
+
+  Point2 operator+(const Point2& other) const {
+    return Point2(x + other.x, y + other.y);
+  }
+
+  Point2 operator-(const Point2& other) const {
+    return Point2(x - other.x, y - other.y);
+  }
+
+  Point2 operator*(const T& scale) const { return Point2(x * scale, y * scale); }
+
+  Point2 operator/(const T& scale) const { return Point2(x / scale, y / scale); }
+
+  T dot(const Point2& other) const { return x * other.x + y * other.y; }
+
+  T cross(const Point2& other) const { return x * other.y - y * other.x; }
+
+  T cross(const Point2& a, const Point2& b) const { return (a - *this).cross(b - *this); }
+
+  T norm2() const { return x * x + y * y; }
+};
+
+template <typename T>
+inline Point2<long double> to_point_long_double(const Point2<T>& p) {
+  return Point2<long double>(static_cast<long double>(p.x),
+                             static_cast<long double>(p.y));
+}
+
+template <typename T>
+inline long double cross_ld(const Point2<T>& a, const Point2<T>& b) {
+  return static_cast<long double>(a.x) * static_cast<long double>(b.y) -
+         static_cast<long double>(a.y) * static_cast<long double>(b.x);
+}
+
+template <typename T>
+inline bool line_intersection(const Point2<T>& a, const Point2<T>& b,
+                              const Point2<T>& c, const Point2<T>& d,
+                              Point2<long double>& out,
+                              long double eps = 1e-12L) {
+  const Point2<long double> aa = to_point_long_double(a);
+  const Point2<long double> bb = to_point_long_double(b);
+  const Point2<long double> cc = to_point_long_double(c);
+  const Point2<long double> dd = to_point_long_double(d);
+
+  const Point2<long double> ab = bb - aa;
+  const Point2<long double> cd = dd - cc;
+  const long double denom = cross_ld(ab, cd);
+  if (std::fabs(denom) <= eps) {
+    out = Point2<long double>(0.0L, 0.0L);
+    return false;
+  }
+
+  const long double t = cross_ld(cc - aa, cd) / denom;
+  out = Point2<long double>(aa.x + ab.x * t, aa.y + ab.y * t);
+  return true;
+}
+
+struct HalfPlane {
+  Point2<long double> point;
+  Point2<long double> direction;
+  long double angle;
+
+  HalfPlane(const Point2<long double>& point_ = Point2<long double>(),
+            const Point2<long double>& through = Point2<long double>(1.0L, 0.0L))
+      : point(point_), direction(through - point_), angle(0.0L) {
+    normalize();
+  }
+
+  HalfPlane(long double x1, long double y1, long double x2, long double y2)
+      : point(x1, y1), direction(x2 - x1, y2 - y1), angle(0.0L) {
+    normalize();
+  }
+
+  static HalfPlane from_inequality(long double a, long double b, long double c) {
+    if (std::fabs(a) <= 1e-18L && std::fabs(b) <= 1e-18L) {
+      return HalfPlane(Point2<long double>(0.0L, 0.0L),
+                       Point2<long double>(1.0L, 0.0L));
+    }
+
+    Point2<long double> p;
+    if (std::fabs(a) > std::fabs(b)) {
+      p = Point2<long double>(c / a, 0.0L);
+    } else {
+      p = Point2<long double>(0.0L, c / b);
+    }
+    const Point2<long double> dir(-b, a);
+    return HalfPlane(p, p + dir);
+  }
+
+  bool out(const Point2<long double>& p, long double eps = 1e-12L) const {
+    return cross_ld(direction, p - point) < -eps;
+  }
+
+ private:
+  void normalize() {
+    angle = std::atan2(direction.y, direction.x);
+    if (angle < 0.0L) {
+      angle += 2.0L * std::acos(-1.0L);
+    }
+  }
+};
+
+inline bool halfplane_parallel(const HalfPlane& lhs, const HalfPlane& rhs,
+                               long double eps = 1e-12L) {
+  return std::fabs(cross_ld(lhs.direction, rhs.direction)) <= eps;
+}
+
+inline bool halfplane_less(const HalfPlane& lhs, const HalfPlane& rhs,
+                           long double eps = 1e-12L) {
+  if (std::fabs(lhs.angle - rhs.angle) > eps) {
+    return lhs.angle < rhs.angle;
+  }
+  return cross_ld(lhs.direction, rhs.point - lhs.point) < 0.0L;
+}
+
+inline bool halfplane_intersection_point(const HalfPlane& lhs, const HalfPlane& rhs,
+                                         Point2<long double>& out,
+                                         long double eps = 1e-12L) {
+  return line_intersection(lhs.point, lhs.point + lhs.direction, rhs.point,
+                           rhs.point + rhs.direction, out, eps);
+}
+
+inline std::vector<Point2<long double>> halfplane_intersection(
+    std::vector<HalfPlane> halfplanes, long double eps = 1e-12L) {
+  std::sort(halfplanes.begin(), halfplanes.end(),
+            [&](const HalfPlane& lhs, const HalfPlane& rhs) {
+              return halfplane_less(lhs, rhs, eps);
+            });
+
+  std::deque<HalfPlane> deque_planes;
+  std::deque<Point2<long double>> deque_intersections;
+
+  for (const HalfPlane& plane : halfplanes) {
+    while (!deque_intersections.empty() && plane.out(deque_intersections.back(), eps)) {
+      deque_intersections.pop_back();
+      deque_planes.pop_back();
+    }
+    while (!deque_intersections.empty() && plane.out(deque_intersections.front(), eps)) {
+      deque_intersections.pop_front();
+      deque_planes.pop_front();
+    }
+
+    if (!deque_planes.empty() && halfplane_parallel(deque_planes.back(), plane, eps)) {
+      if (plane.out(deque_planes.back().point, eps)) {
+        deque_planes.back() = plane;
+      }
+      continue;
+    }
+
+    if (!deque_planes.empty()) {
+      Point2<long double> intersection;
+      if (!halfplane_intersection_point(deque_planes.back(), plane, intersection, eps)) {
+        return {};
+      }
+      deque_intersections.push_back(intersection);
+    }
+    deque_planes.push_back(plane);
+  }
+
+  while (deque_intersections.size() > 0 &&
+         deque_planes.front().out(deque_intersections.back(), eps)) {
+    deque_intersections.pop_back();
+    deque_planes.pop_back();
+  }
+  while (deque_intersections.size() > 0 &&
+         deque_planes.back().out(deque_intersections.front(), eps)) {
+    deque_intersections.pop_front();
+    deque_planes.pop_front();
+  }
+
+  if (deque_planes.size() < 3) {
+    return {};
+  }
+
+  Point2<long double> closing_intersection;
+  if (!halfplane_intersection_point(deque_planes.back(), deque_planes.front(),
+                                    closing_intersection, eps)) {
+    return {};
+  }
+  deque_intersections.push_back(closing_intersection);
+
+  return std::vector<Point2<long double>>(deque_intersections.begin(),
+                                          deque_intersections.end());
+}`;
+
+const HALFPLANE_INTERSECTION_EXPORTS = [
+  "Point2",
+  "to_point_long_double",
+  "cross_ld",
+  "line_intersection",
+  "HalfPlane",
+  "halfplane_parallel",
+  "halfplane_less",
+  "halfplane_intersection_point",
+  "halfplane_intersection"
+];
+
+function renderHalfplaneIntersectionUsage(options: HalfplaneIntersectionOptions): string {
+  const halfplanes = sanitizeIdentifier(options.halfplanesName ?? "halfplanes", "halfplanes");
+  const result = sanitizeIdentifier(options.resultName ?? "polygon", "polygon");
+  const usage = options.usageMode ?? "helper_only";
+  if (usage === "halfplane_vector") {
+    return [
+      `std::vector<HalfPlane> ${halfplanes};`,
+      `${halfplanes}.push_back(HalfPlane(0.0L, 0.0L, 1.0L, 0.0L));`
+    ].join("\n");
+  }
+  if (usage === "inequality_box") {
+    return [
+      `std::vector<HalfPlane> ${halfplanes} = {`,
+      "    HalfPlane::from_inequality(-1.0L, 0.0L, 0.0L),",
+      "    HalfPlane::from_inequality(1.0L, 0.0L, 1.0L),",
+      "    HalfPlane::from_inequality(0.0L, -1.0L, 0.0L),",
+      "    HalfPlane::from_inequality(0.0L, 1.0L, 1.0L),",
+      "};"
+    ].join("\n");
+  }
+  if (usage === "compute_polygon") {
+    return `std::vector<Point2<long double>> ${result} = halfplane_intersection(${halfplanes});`;
+  }
+  return "";
+}
+
+export function renderHalfplaneIntersectionRecipe(
+  options: HalfplaneIntersectionOptions
+): RenderedRecipe {
+  const lines = [HALFPLANE_INTERSECTION_HELPERS];
+  if (options.includeUsageComment) {
+    pushLine(lines);
+    pushLine(lines, "/*");
+    pushLine(lines, "Example:");
+    pushLine(lines, "std::vector<Point2<long double>> polygon = halfplane_intersection(halfplanes);");
+    pushLine(lines, "*/");
+  }
+  const usage = renderHalfplaneIntersectionUsage(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    HALFPLANE_INTERSECTION_EXPORTS
+  );
+}
+
+export function renderHalfplaneIntersection(
+  options: HalfplaneIntersectionOptions
+): string {
+  return composeRecipeSections(renderHalfplaneIntersectionRecipe(options));
 }
 
 export function defaultLinearSieveFeatures(): LinearSieveFeature[] {
@@ -3330,6 +7120,1338 @@ export function defaultFenwickOperations(): FenwickOperation[] {
   return ["sum", "xor", "max", "min"];
 }
 
+export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/segtree",
+  title: "Segment tree",
+  scenarios: [
+    {
+      id: "point_query",
+      label: "point updates + range aggregate",
+      description: "Iterative class or recursive helpers for point changes and range queries."
+    },
+    {
+      id: "lazy_range",
+      label: "lazy range updates",
+      description: "Recursive lazy tree with range add/assign and sum/min/max/custom aggregates."
+    },
+    {
+      id: "lazy_minmax",
+      label: "lazy min/max preset",
+      description: "Compatibility preset for range assign/add min/max classes and threshold descents."
+    },
+    {
+      id: "max_subarray",
+      label: "max subarray preset",
+      description: "Point-set tree that returns max subarray state and best sum."
+    },
+    {
+      id: "beats",
+      label: "beats preset",
+      description: "Range chmin/chmax/add with sum/min/max queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "aggregate",
+      label: "Aggregate",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "custom", label: "custom node" },
+        { id: "max_subarray", label: "max subarray node" },
+        { id: "beats", label: "beats node" }
+      ]
+    },
+    {
+      id: "updates",
+      label: "Updates",
+      choices: [
+        { id: "point_set", label: "point set" },
+        { id: "point_add", label: "point add" },
+        { id: "range_add", label: "range add" },
+        { id: "range_assign", label: "range assign" },
+        { id: "chmin", label: "range chmin" },
+        { id: "chmax", label: "range chmax" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    {
+      id: "helpers",
+      label: "Helpers",
+      section: "helpers"
+    },
+    {
+      id: "solve",
+      label: "Solve skeleton",
+      section: "solve"
+    }
+  ]
+};
+
+export const SEGMENT_TREE_BEATS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/segtree_beats",
+  title: "Segment tree beats",
+  scenarios: [
+    {
+      id: "clamp_queries",
+      label: "clamp updates + queries",
+      description: "Range chmin/chmax with sum/min/max queries."
+    },
+    {
+      id: "add_clamp_queries",
+      label: "add + clamp updates",
+      description: "Range add combined with chmin/chmax and aggregate queries."
+    },
+    {
+      id: "query_only",
+      label: "query-only beats node",
+      description: "Build the beats node surface but emit only selected queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "updates",
+      label: "Updates",
+      multi: true,
+      choices: [
+        { id: "chmin", label: "range chmin" },
+        { id: "chmax", label: "range chmax" },
+        { id: "add", label: "range add" }
+      ]
+    },
+    {
+      id: "queries",
+      label: "Queries",
+      multi: true,
+      choices: [
+        { id: "sum", label: "range sum" },
+        { id: "min", label: "range min" },
+        { id: "max", label: "range max" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Segment tree beats helper", section: "helpers" },
+    { id: "usage", label: "Segment tree beats usage", section: "solve" }
+  ]
+};
+
+export const FENWICK_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/fenwick",
+  title: "Fenwick",
+  scenarios: [
+    {
+      id: "point_prefix",
+      label: "point update + prefix query",
+      description: "Use one tree for online point updates and prefix aggregates."
+    },
+    {
+      id: "point_range",
+      label: "point update + range query",
+      description: "Requires an invertible operation such as sum, xor, or custom invertible."
+    },
+    {
+      id: "range_point",
+      label: "range update + point query",
+      description: "Difference-array Fenwick for range additions and point reads."
+    },
+    {
+      id: "range_sum",
+      label: "range update + range sum",
+      description: "Two Fenwick trees for range additions and range-sum queries."
+    },
+    {
+      id: "frequency_kth",
+      label: "frequency table kth",
+      description: "Counts, prefix frequencies, and lower-bound by prefix count."
+    },
+    {
+      id: "inversion_count",
+      label: "inversion count",
+      description: "Coordinate-compressed frequency skeleton."
+    },
+    {
+      id: "prefix_minmax",
+      label: "prefix min/max",
+      description: "Monotone prefix aggregate updates."
+    }
+  ],
+  decisions: [
+    {
+      id: "operation",
+      label: "Operation",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "xor", label: "xor" },
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "custom", label: "custom" },
+        { id: "custom_invertible", label: "custom invertible" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty size" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Generated usage",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance initialization" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: true },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "instanceName", label: "Instance name", kind: "value", required: true, defaultValue: "fw" },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false, defaultValue: "ans" }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Fenwick helper", section: "helpers" },
+    { id: "usage", label: "Fenwick usage", section: "solve" }
+  ]
+};
+
+export const SPARSE_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/sparse_table",
+  title: "Sparse table",
+  scenarios: [
+    {
+      id: "range_minmax",
+      label: "range min/max",
+      description: "Static idempotent min and max queries over an existing or generated vector."
+    },
+    {
+      id: "range_gcd_bitwise",
+      label: "range gcd/bitwise",
+      description: "Static idempotent gcd, bitwise-and, or bitwise-or queries."
+    },
+    {
+      id: "custom_idempotent",
+      label: "custom idempotent op",
+      description: "Custom combine placeholder for an idempotent operation."
+    }
+  ],
+  decisions: [
+    {
+      id: "variant",
+      label: "Query variants",
+      multi: true,
+      choices: [
+        { id: "min", label: "min" },
+        { id: "max", label: "max" },
+        { id: "gcd", label: "gcd" },
+        { id: "bit_and", label: "bitwise and" },
+        { id: "bit_or", label: "bitwise or" },
+        { id: "custom", label: "custom idempotent" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "build_call", label: "build call" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: true },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Sparse table helper", section: "helpers" },
+    { id: "usage", label: "Sparse table usage", section: "solve" }
+  ]
+};
+
+export const MERGE_SORT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/merge_sort_tree",
+  title: "Merge sort tree",
+  scenarios: [
+    {
+      id: "range_threshold_count",
+      label: "threshold counts",
+      description: "Count values below or at a threshold in static ranges."
+    },
+    {
+      id: "range_value_presence",
+      label: "value presence/equality",
+      description: "Check existence or count exact values in static ranges."
+    },
+    {
+      id: "range_value_band",
+      label: "value band counts",
+      description: "Count values in [low, high] inside static ranges."
+    }
+  ],
+  decisions: [
+    {
+      id: "query",
+      label: "Query methods",
+      multi: true,
+      choices: [
+        { id: "count_less", label: "count < x" },
+        { id: "count_less_equal", label: "count <= x" },
+        { id: "count_equal", label: "count == x" },
+        { id: "count_in_range", label: "count in [low, high]" },
+        { id: "exists", label: "exists x" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: true },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Merge sort tree helper", section: "helpers" },
+    { id: "usage", label: "Merge sort tree usage", section: "solve" }
+  ]
+};
+
+export const IMPLICIT_TREAP_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/implicit_treap",
+  title: "Implicit treap",
+  scenarios: [
+    {
+      id: "sequence_edit",
+      label: "sequence edit",
+      description: "Insert, erase, set, get, and materialize a mutable sequence."
+    },
+    {
+      id: "range_query",
+      label: "range aggregate",
+      description: "Maintain a sequence with range aggregate queries."
+    },
+    {
+      id: "range_lazy",
+      label: "range lazy operations",
+      description: "Range reverse and/or range add over a mutable sequence."
+    },
+    {
+      id: "custom_aggregate",
+      label: "custom aggregate",
+      description: "Custom aggregate operation skeleton for sequence nodes."
+    }
+  ],
+  decisions: [
+    {
+      id: "aggregate",
+      label: "Aggregate",
+      choices: [
+        { id: "sum", label: "sum" },
+        { id: "custom", label: "custom aggregate" }
+      ]
+    },
+    {
+      id: "features",
+      label: "Lazy features",
+      multi: true,
+      choices: [
+        { id: "reverse", label: "range reverse" },
+        { id: "range_add", label: "range add" }
+      ]
+    },
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty treap" },
+        { id: "existing_vector", label: "existing vector" },
+        { id: "read_loop", label: "generated read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance/build skeleton" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: true },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Implicit treap helper", section: "helpers" },
+    { id: "usage", label: "Implicit treap usage", section: "solve" }
+  ]
+};
+
+export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/dsu",
+  title: "DSU",
+  scenarios: [
+    {
+      id: "connectivity",
+      label: "connectivity / components",
+      description: "Plain unite, same, component size, and component count."
+    },
+    {
+      id: "kruskal",
+      label: "Kruskal skeleton",
+      description: "Sort weighted edges and unite components for MST-style problems."
+    },
+    {
+      id: "query_loop",
+      label: "online connectivity queries",
+      description: "Read type-coded unite/same/component-size queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "query_loop", label: "query loop skeleton" },
+        { id: "kruskal", label: "Kruskal skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "DSU helper", section: "helpers" },
+    { id: "usage", label: "DSU usage", section: "solve" }
+  ]
+};
+
+export const ROLLBACK_DSU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/rollback_dsu",
+  title: "Rollback DSU",
+  scenarios: [
+    {
+      id: "snapshots",
+      label: "snapshots / rollback",
+      description: "Explicit snapshot tokens and rollback during search or backtracking."
+    },
+    {
+      id: "offline_dynamic_connectivity",
+      label: "offline dynamic connectivity",
+      description: "Skeleton for time-recursive connectivity with rollback DSU."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "query_loop", label: "snapshot query loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Rollback DSU helper", section: "helpers" },
+    { id: "usage", label: "Rollback DSU usage", section: "solve" }
+  ]
+};
+
+export const LCA_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/lca",
+  title: "LCA",
+  scenarios: [
+    {
+      id: "lca_dist",
+      label: "LCA + distance",
+      description: "Binary lifting helper for LCA and tree distance queries."
+    },
+    {
+      id: "kth_ancestor",
+      label: "kth ancestor",
+      description: "Binary lifting helper for ancestor jumps."
+    },
+    {
+      id: "tree_query_loop",
+      label: "tree query loop",
+      description: "Read a tree, build LCA, and answer type-coded queries."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty helper" },
+        { id: "read_tree", label: "generated tree read loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "read_tree", label: "read tree + build" },
+        { id: "query_loop", label: "query loop skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "rootExpression", label: "Root", kind: "index", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "LCA helper", section: "helpers" },
+    { id: "usage", label: "LCA usage", section: "solve" }
+  ]
+};
+
+export const HLD_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/hld",
+  title: "Heavy-light decomposition",
+  scenarios: [
+    {
+      id: "path_query",
+      label: "path query/update",
+      description: "Flatten tree paths into O(log n) contiguous ranges for a segment tree or Fenwick tree."
+    },
+    {
+      id: "subtree_query",
+      label: "subtree query/update",
+      description: "Use Euler/HLD positions to turn a rooted subtree into one contiguous range."
+    },
+    {
+      id: "lca_distance",
+      label: "LCA + distance",
+      description: "Use HLD heads for LCA and derive tree distances from depths."
+    },
+    {
+      id: "build_tree",
+      label: "tree flattening helper",
+      description: "Build only the HLD order, parent/depth/head/position arrays, and subtree ranges."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Build source",
+      choices: [
+        { id: "empty", label: "empty helper" },
+        { id: "read_tree", label: "generated tree read loop" }
+      ]
+    },
+    {
+      id: "value_mode",
+      label: "Path value convention",
+      choices: [
+        { id: "vertex_values", label: "vertex values" },
+        { id: "edge_values", label: "edge values / skip LCA endpoint" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "instance", label: "instance skeleton" },
+        { id: "read_tree", label: "read tree + build" },
+        { id: "query_loop", label: "path/subtree/LCA query loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: true },
+    { id: "rootExpression", label: "Root", kind: "index", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "instanceName", label: "Instance name", kind: "answer", required: false },
+    { id: "answerName", label: "Answer name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "HLD helper", section: "helpers" },
+    { id: "usage", label: "HLD usage", section: "solve" }
+  ]
+};
+
+export const BFS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/bfs",
+  title: "BFS",
+  scenarios: [
+    {
+      id: "shortest_distances",
+      label: "unweighted shortest distances",
+      description: "Single-source BFS distances and parents on an unweighted graph."
+    },
+    {
+      id: "multi_source",
+      label: "multi-source BFS",
+      description: "Start from several sources at distance zero."
+    },
+    {
+      id: "path_restore",
+      label: "restore shortest path",
+      description: "Run BFS and reconstruct a source-to-target path."
+    },
+    {
+      id: "traversal_order",
+      label: "traversal order",
+      description: "Use BFS order, parent tree, or reachability without path restoration."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing adjacency list" },
+        { id: "read_edges", label: "generated edge read loop" }
+      ]
+    },
+    {
+      id: "graph_mode",
+      label: "Graph direction",
+      choices: [
+        { id: "undirected", label: "undirected" },
+        { id: "directed", label: "directed" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "single_source", label: "single-source run" },
+        { id: "multi_source", label: "multi-source run" },
+        { id: "path_query", label: "path query skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "sourceName", label: "Source variable", kind: "index", required: false },
+    { id: "targetName", label: "Target variable", kind: "index", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "BFS helpers", section: "helpers" },
+    { id: "usage", label: "BFS usage", section: "solve" }
+  ]
+};
+
+export const DIJKSTRA_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/dijkstra",
+  title: "Dijkstra",
+  scenarios: [
+    {
+      id: "shortest_paths",
+      label: "weighted shortest paths",
+      description: "Single-source shortest paths on a nonnegative weighted graph."
+    },
+    {
+      id: "multi_source",
+      label: "multi-source Dijkstra",
+      description: "Start from several vertices at distance zero."
+    },
+    {
+      id: "path_restore",
+      label: "restore weighted shortest path",
+      description: "Run Dijkstra and reconstruct the source-to-target path."
+    },
+    {
+      id: "weighted_graph_read",
+      label: "weighted graph read helper",
+      description: "Generate a typed weighted adjacency list and edge input loop."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing weighted adjacency list" },
+        { id: "read_edges", label: "generated weighted edge loop" }
+      ]
+    },
+    {
+      id: "graph_mode",
+      label: "Graph direction",
+      choices: [
+        { id: "directed", label: "directed" },
+        { id: "undirected", label: "undirected" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "single_source", label: "single-source run" },
+        { id: "multi_source", label: "multi-source run" },
+        { id: "path_query", label: "path query skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "sourceName", label: "Source variable", kind: "index", required: false },
+    { id: "targetName", label: "Target variable", kind: "index", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Dijkstra helpers", section: "helpers" },
+    { id: "usage", label: "Dijkstra usage", section: "solve" }
+  ]
+};
+
+export const TOPOSORT_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/toposort",
+  title: "Topological sort",
+  scenarios: [
+    {
+      id: "dag_order",
+      label: "DAG order",
+      description: "Return a topological ordering or empty output when a cycle exists."
+    },
+    {
+      id: "cycle_detection",
+      label: "cycle detection",
+      description: "Use Kahn's algorithm to check whether the directed graph is acyclic."
+    },
+    {
+      id: "dependency_schedule",
+      label: "dependency scheduling",
+      description: "Read before-after constraints and print a valid schedule."
+    },
+    {
+      id: "order_validation",
+      label: "validate proposed order",
+      description: "Check whether a supplied order satisfies every directed edge."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing adjacency list" },
+        { id: "read_edges", label: "generated dependency edge loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "sort_order", label: "sort and print order" },
+        { id: "cycle_check", label: "cycle check" },
+        { id: "validate_order", label: "validate supplied order" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "orderName", label: "Order variable", kind: "answer", required: false },
+    { id: "dagName", label: "DAG flag", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Toposort helpers", section: "helpers" },
+    { id: "usage", label: "Toposort usage", section: "solve" }
+  ]
+};
+
+export const KOSARAJU_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/kosaraju",
+  title: "Kosaraju SCC",
+  scenarios: [
+    {
+      id: "scc_components",
+      label: "SCC components",
+      description: "Compute strongly connected components and component ids."
+    },
+    {
+      id: "same_component",
+      label: "same-component queries",
+      description: "Answer whether two vertices belong to the same SCC."
+    },
+    {
+      id: "condensation_dag",
+      label: "condensation DAG",
+      description: "Build the SCC DAG for dynamic programming over components."
+    },
+    {
+      id: "two_sat_analysis",
+      label: "implication graph analysis",
+      description: "Use SCC ids as a basis for implication-graph checks."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing directed graph" },
+        { id: "read_edges", label: "generated directed edge loop" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_graph", label: "read graph" },
+        { id: "compute_scc", label: "compute SCC" },
+        { id: "same_component_queries", label: "same-component query loop" },
+        { id: "print_components", label: "print components" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Node count", kind: "size", required: false },
+    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "graphName", label: "Graph variable", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Kosaraju helpers", section: "helpers" },
+    { id: "usage", label: "Kosaraju usage", section: "solve" }
+  ]
+};
+
+export const MO_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/mo",
+  title: "Mo's algorithm",
+  scenarios: [
+    {
+      id: "distinct_values",
+      label: "distinct values in ranges",
+      description: "Classic offline distinct-count skeleton with frequency state."
+    },
+    {
+      id: "range_frequency",
+      label: "range frequency queries",
+      description: "Offline range queries maintained by add/remove callbacks."
+    },
+    {
+      id: "range_aggregate",
+      label: "custom range aggregate",
+      description: "Generic add/remove/get-answer skeleton for nontrivial state."
+    },
+    {
+      id: "custom_callbacks",
+      label: "callback processor only",
+      description: "Paste only the reusable ordering and processor helpers."
+    }
+  ],
+  decisions: [
+    {
+      id: "source",
+      label: "Query source",
+      choices: [
+        { id: "existing_queries", label: "existing query vector" },
+        { id: "read_queries", label: "generated query read loop" }
+      ]
+    },
+    {
+      id: "indexing",
+      label: "Query indexing",
+      choices: [
+        { id: "zero_based_half_open", label: "0-indexed [l, r)" },
+        { id: "one_based_closed_input", label: "1-indexed [l, r] input" }
+      ]
+    },
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "read_queries", label: "read queries" },
+        { id: "process_skeleton", label: "generic processor skeleton" },
+        { id: "distinct_count_skeleton", label: "distinct-count skeleton" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sizeExpression", label: "Array length", kind: "size", required: false },
+    { id: "queryCountName", label: "Query count", kind: "query_count", required: false },
+    { id: "valuesName", label: "Values vector", kind: "source_vector", required: false },
+    { id: "queriesName", label: "Queries vector", kind: "answer", required: false },
+    { id: "answersName", label: "Answers vector", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Mo helpers", section: "helpers" },
+    { id: "usage", label: "Mo usage", section: "solve" }
+  ]
+};
+
+export const MONOTONIC_STACK_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/monotonic_stack",
+  title: "Monotonic stack",
+  scenarios: [
+    {
+      id: "nearest_smaller",
+      label: "nearest smaller",
+      description: "Nearest previous/next smaller or smaller-or-equal index."
+    },
+    {
+      id: "nearest_greater",
+      label: "nearest greater",
+      description: "Nearest previous/next greater or greater-or-equal index."
+    },
+    {
+      id: "all_nearest",
+      label: "all nearest directions",
+      description: "Compute left/right smaller and greater arrays together."
+    },
+    {
+      id: "custom_comparator",
+      label: "custom comparator",
+      description: "Use nearest-left/right generic helpers with custom comparison."
+    }
+  ],
+  decisions: [
+    {
+      id: "relation",
+      label: "Relation",
+      choices: [
+        { id: "smaller", label: "smaller" },
+        { id: "greater", label: "greater" },
+        { id: "all", label: "all" }
+      ]
+    },
+    {
+      id: "direction",
+      label: "Direction",
+      choices: [
+        { id: "left", label: "left" },
+        { id: "right", label: "right" },
+        { id: "both", label: "both" }
+      ]
+    },
+    {
+      id: "strictness",
+      label: "Strictness",
+      choices: [
+        { id: "strict", label: "strict" },
+        { id: "non_strict", label: "allow equal" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result name", kind: "answer", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Monotonic stack helpers", section: "helpers" },
+    { id: "usage", label: "Nearest-index usage", section: "solve" }
+  ]
+};
+
+export const GP_HASH_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/gp_hash_table",
+  title: "PBDS hash table",
+  scenarios: [
+    {
+      id: "hash_map",
+      label: "hash map",
+      description: "PBDS gp_hash_table keyed by splitmix-protected scalar keys."
+    },
+    {
+      id: "hash_set",
+      label: "hash set",
+      description: "PBDS gp_hash_table with null_type values."
+    },
+    {
+      id: "frequency_table",
+      label: "frequency table",
+      description: "Count values from an existing vector."
+    },
+    {
+      id: "pair_key",
+      label: "pair key",
+      description: "Hash pairs using PairHash for coordinate or edge keys."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "declare_map", label: "declare map" },
+        { id: "declare_set", label: "declare set" },
+        { id: "frequency_loop", label: "frequency loop" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "keyType", label: "Key type", kind: "value", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: false },
+    { id: "tableName", label: "Table variable", kind: "answer", required: false },
+    { id: "sourceName", label: "Source vector", kind: "source_vector", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Hash helpers", section: "helpers" },
+    { id: "usage", label: "Hash-table usage", section: "solve" }
+  ]
+};
+
+export const ORDERED_SET_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/ordered_set",
+  title: "Ordered set",
+  scenarios: [
+    {
+      id: "order_statistics",
+      label: "order statistics set",
+      description: "PBDS tree wrapper with rank and kth-element queries."
+    },
+    {
+      id: "kth_element",
+      label: "kth element queries",
+      description: "Find the element at a zero-based order."
+    },
+    {
+      id: "multiset_pairs",
+      label: "multiset via pair keys",
+      description: "Store (value, unique_id) pairs to emulate duplicates."
+    },
+    {
+      id: "rank_queries",
+      label: "rank queries",
+      description: "Count elements strictly smaller than a key."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "declare_set", label: "declare set" },
+        { id: "rank_query", label: "rank query" },
+        { id: "kth_query", label: "kth query" },
+        { id: "pair_multiset", label: "pair-key multiset" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "keyType", label: "Key type", kind: "value", required: false },
+    { id: "setName", label: "Set variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Ordered-set helper", section: "helpers" },
+    { id: "usage", label: "Ordered-set usage", section: "solve" }
+  ]
+};
+
+export const SET_UTILS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/set_utils",
+  title: "Ordered container neighbors",
+  scenarios: [
+    {
+      id: "next_value",
+      label: "next value",
+      description: "Find the first container value strictly greater than a key."
+    },
+    {
+      id: "prev_value",
+      label: "previous value",
+      description: "Find the last container value strictly smaller than a key."
+    },
+    {
+      id: "iterator_navigation",
+      label: "iterator navigation",
+      description: "Move safely to previous or next iterator with optional output."
+    },
+    {
+      id: "map_neighbor",
+      label: "map neighbor",
+      description: "Retrieve neighboring key/value entries from maps."
+    }
+  ],
+  decisions: [
+    {
+      id: "lookup",
+      label: "Lookup",
+      choices: [
+        { id: "next", label: "next" },
+        { id: "prev", label: "previous" }
+      ]
+    },
+    {
+      id: "target",
+      label: "Target",
+      choices: [
+        { id: "value", label: "value" },
+        { id: "iterator", label: "iterator" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "containerName", label: "Container", kind: "source_vector", required: false },
+    { id: "keyName", label: "Key", kind: "value", required: false },
+    { id: "iteratorName", label: "Iterator", kind: "value", required: false },
+    { id: "resultName", label: "Result", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Set utilities", section: "helpers" },
+    { id: "usage", label: "Neighbor lookup", section: "solve" }
+  ]
+};
+
+export const FAST_ALLOCATOR_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/fast_allocator",
+  title: "Arena-backed allocator",
+  scenarios: [
+    {
+      id: "many_vectors",
+      label: "many vectors",
+      description: "Use a preallocated arena for vectors with heavy allocation churn."
+    },
+    {
+      id: "graph_edges",
+      label: "graph edge lists",
+      description: "Allocate many edge records from one arena-backed vector."
+    },
+    {
+      id: "pool_reset",
+      label: "reset per test",
+      description: "Reuse the same arena across test cases or phases."
+    },
+    {
+      id: "custom_container",
+      label: "custom container",
+      description: "Paste allocator helpers for a custom STL container."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "vector_declaration", label: "vector declaration" },
+        { id: "edge_vector", label: "edge vector" },
+        { id: "arena_reset", label: "arena reset" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "valueType", label: "Value type", kind: "value", required: false },
+    { id: "capacityExpression", label: "Arena capacity", kind: "size", required: false },
+    { id: "arenaName", label: "Arena variable", kind: "answer", required: false },
+    { id: "containerName", label: "Container variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Allocator helper", section: "helpers" },
+    { id: "usage", label: "Allocator usage", section: "solve" }
+  ]
+};
+
+export const GEOMETRY_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/geometry",
+  title: "2D geometry",
+  scenarios: [
+    {
+      id: "orientation",
+      label: "orientation and cross products",
+      description: "Point operations, signed area, orientation, and on-segment checks."
+    },
+    {
+      id: "segment_intersection",
+      label: "segment intersection",
+      description: "Intersection predicate plus exact point/overlap extraction."
+    },
+    {
+      id: "angle_sort",
+      label: "angle sorting",
+      description: "Sort vectors or points around a center by polar angle."
+    },
+    {
+      id: "convex_hull",
+      label: "convex hull",
+      description: "Monotonic-chain hull for unique extreme points."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "orientation_check", label: "orientation check" },
+        { id: "segment_intersection", label: "segment intersection" },
+        { id: "sort_points", label: "sort points by angle" },
+        { id: "build_hull", label: "build convex hull" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "valueType", label: "Coordinate type", kind: "value", required: false },
+    { id: "pointsName", label: "Points vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result variable", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Geometry helpers", section: "helpers" },
+    { id: "usage", label: "Geometry usage", section: "solve" }
+  ]
+};
+
+export const HALFPLANE_INTERSECTION_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/solvers/halfplane_intersection",
+  title: "Half-plane intersection",
+  scenarios: [
+    {
+      id: "convex_polygon",
+      label: "convex polygon from halfplanes",
+      description: "Build the polygon produced by directed half-plane boundaries."
+    },
+    {
+      id: "linear_constraints",
+      label: "linear constraints",
+      description: "Convert inequalities ax + by <= c into half-planes."
+    },
+    {
+      id: "clip_polygon",
+      label: "polygon clipping",
+      description: "Maintain a vector of clipping half-planes and compute the intersection."
+    }
+  ],
+  decisions: [
+    {
+      id: "usage",
+      label: "Usage output",
+      choices: [
+        { id: "helper_only", label: "helper only" },
+        { id: "halfplane_vector", label: "half-plane vector" },
+        { id: "inequality_box", label: "inequality box" },
+        { id: "compute_polygon", label: "compute polygon" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "halfplanesName", label: "Half-planes vector", kind: "source_vector", required: false },
+    { id: "resultName", label: "Result polygon", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Half-plane helpers", section: "helpers" },
+    { id: "usage", label: "Half-plane usage", section: "solve" }
+  ]
+};
+
 export function planFenwickNames(
   analysis: CppAnalysis,
   extraReserved: string[] = []
@@ -3340,11 +8462,16 @@ export function planFenwickNames(
     xorOpName: planner.reserve("FenwickXorOp"),
     maxOpName: planner.reserve("FenwickMaxOp"),
     minOpName: planner.reserve("FenwickMinOp"),
+    customOpName: planner.reserve("FenwickCustomOp"),
+    customInvertibleOpName: planner.reserve("FenwickCustomInvertibleOp"),
     className: planner.reserve("Fenwick"),
+    rangeClassName: planner.reserve("RangeFenwick"),
     sumAliasName: planner.reserve("FenwickSumTree"),
     xorAliasName: planner.reserve("FenwickXorTree"),
     maxAliasName: planner.reserve("FenwickMaxTree"),
-    minAliasName: planner.reserve("FenwickMinTree")
+    minAliasName: planner.reserve("FenwickMinTree"),
+    customAliasName: planner.reserve("FenwickCustomTree"),
+    customInvertibleAliasName: planner.reserve("FenwickCustomInvertibleTree")
   };
 }
 
@@ -3354,6 +8481,14 @@ export function defaultFenwickOptions(
 ): FenwickOptions {
   return {
     operations: defaultFenwickOperations(),
+    application: "point_range",
+    sourceMode: "empty",
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    valueType: "long long",
+    indexing: "zero_based",
+    usageMode: "helper_only",
+    instanceName: suggestIdentifier(analysis, "fw", "fenwick"),
+    answerName: suggestIdentifier(analysis, "ans", "answer"),
     names: planFenwickNames(analysis, extraReserved),
     includeUsageComment: true
   };
@@ -3364,6 +8499,144 @@ function hasFenwickOperation(
   operation: FenwickOperation
 ): boolean {
   return options.operations.includes(operation);
+}
+
+function primaryFenwickOperation(options: FenwickOptions): FenwickOperation {
+  return options.operations[0] ?? "sum";
+}
+
+function fenwickAliasForOperation(
+  names: FenwickNames,
+  operation: FenwickOperation
+): string {
+  if (operation === "xor") {
+    return names.xorAliasName;
+  }
+  if (operation === "max") {
+    return names.maxAliasName;
+  }
+  if (operation === "min") {
+    return names.minAliasName;
+  }
+  if (operation === "custom") {
+    return names.customAliasName;
+  }
+  if (operation === "custom_invertible") {
+    return names.customInvertibleAliasName;
+  }
+  return names.sumAliasName;
+}
+
+function fenwickValueType(options: FenwickOptions): string {
+  return options.valueType?.trim() || "long long";
+}
+
+function fenwickSizeExpression(options: FenwickOptions): string {
+  return options.sizeExpression?.trim() || "n";
+}
+
+function fenwickInstanceName(options: FenwickOptions): string {
+  return options.instanceName?.trim() || "fw";
+}
+
+function renderFenwickUsageSnippet(options: FenwickOptions): string {
+  if ((options.usageMode ?? "helper_only") === "helper_only") {
+    return "";
+  }
+
+  const op = primaryFenwickOperation(options);
+  const type = fenwickValueType(options);
+  const size = fenwickSizeExpression(options);
+  const instance = fenwickInstanceName(options);
+  const source = options.sourceName?.trim() || "a";
+  const answer = options.answerName?.trim() || "ans";
+  const alias = fenwickAliasForOperation(options.names, op);
+  const oneBasedAdjust = options.indexing === "one_based_input" ? "--idx;" : "";
+  const lines: string[] = [];
+
+  if (options.application === "range_sum") {
+    pushLine(lines, `${options.names.rangeClassName}<${type}> ${instance}(${size});`);
+    if (options.usageMode === "query_loop") {
+      pushLine(lines, "for (int qi = 0; qi < q; ++qi) {");
+      pushLine(lines, "  int type, l, r;");
+      pushLine(lines, `  ${type} x;`);
+      pushLine(lines, "  cin >> type >> l >> r;");
+      if (options.indexing === "one_based_input") {
+        pushLine(lines, "  --l; --r;");
+      }
+      pushLine(lines, "  if (type == 1) {");
+      pushLine(lines, "    cin >> x;");
+      pushLine(lines, `    ${instance}.add(l, r, x);`);
+      pushLine(lines, "  } else {");
+      pushLine(lines, `    cout << ${instance}.sum(l, r) << '\\n';`);
+      pushLine(lines, "  }");
+      pushLine(lines, "}");
+    }
+    return lines.join("\n");
+  }
+
+  pushLine(lines, `${alias}<${type}> ${instance}(${size});`);
+  if (options.application === "range_point") {
+    if (options.usageMode === "query_loop") {
+      pushLine(lines, "for (int qi = 0; qi < q; ++qi) {");
+      pushLine(lines, "  int type, l, r, idx;");
+      pushLine(lines, `  ${type} x;`);
+      pushLine(lines, "  cin >> type;");
+      pushLine(lines, "  if (type == 1) {");
+      pushLine(lines, "    cin >> l >> r >> x;");
+      if (options.indexing === "one_based_input") {
+        pushLine(lines, "    --l; --r;");
+      }
+      pushLine(lines, `    ${instance}.add(l, x);`);
+      pushLine(lines, `    ${instance}.add(r + 1, -x);`);
+      pushLine(lines, "  } else {");
+      pushLine(lines, "    cin >> idx;");
+      if (options.indexing === "one_based_input") {
+        pushLine(lines, "    --idx;");
+      }
+      pushLine(lines, `    cout << ${instance}.prefix(idx) << '\\n';`);
+      pushLine(lines, "  }");
+      pushLine(lines, "}");
+    }
+    return lines.join("\n");
+  }
+
+  if (options.sourceMode === "existing_vector") {
+    pushLine(lines, `for (int i = 0; i < (int)${source}.size(); ++i) {`);
+    pushLine(lines, `  ${instance}.add(i, ${source}[i]);`);
+    pushLine(lines, "}");
+  } else if (options.sourceMode === "read_loop") {
+    pushLine(lines, `for (int i = 0; i < ${size}; ++i) {`);
+    pushLine(lines, `  ${type} x;`);
+    pushLine(lines, "  cin >> x;");
+    pushLine(lines, `  ${instance}.add(i, x);`);
+    pushLine(lines, "}");
+  }
+
+  if (options.application === "inversion_count") {
+    pushLine(lines, `${type} ${answer} = 0;`);
+    pushLine(lines, `for (int i = (int)${source}.size() - 1; i >= 0; --i) {`);
+    pushLine(lines, `  ${answer} += ${instance}.prefix(${source}[i] - 1);`);
+    pushLine(lines, `  ${instance}.add(${source}[i], 1);`);
+    pushLine(lines, "}");
+  } else if (options.usageMode === "query_loop") {
+    pushLine(lines, "for (int qi = 0; qi < q; ++qi) {");
+    pushLine(lines, "  int type, idx;");
+    pushLine(lines, `  ${type} x;`);
+    pushLine(lines, "  cin >> type >> idx;");
+    if (oneBasedAdjust !== "") {
+      pushLine(lines, `  ${oneBasedAdjust}`);
+    }
+    pushLine(lines, "  if (type == 1) {");
+    pushLine(lines, "    cin >> x;");
+    pushLine(lines, `    ${instance}.add(idx, x);`);
+    pushLine(lines, "  } else {");
+    pushLine(lines, `    cout << ${instance}.prefix(idx) << '\\n';`);
+    pushLine(lines, "  }");
+    pushLine(lines, "}");
+  }
+
+  return lines.join("\n");
 }
 
 function renderFenwickUsage(options: FenwickOptions): string {
@@ -3406,6 +8679,8 @@ export function renderFenwickRecipe(options: FenwickOptions): RenderedRecipe {
   const includeXor = hasFenwickOperation(options, "xor");
   const includeMax = hasFenwickOperation(options, "max");
   const includeMin = hasFenwickOperation(options, "min");
+  const includeCustom = hasFenwickOperation(options, "custom");
+  const includeCustomInvertible = hasFenwickOperation(options, "custom_invertible");
 
   if (includeSum) {
     exports.push(names.sumOpName);
@@ -3475,6 +8750,46 @@ export function renderFenwickRecipe(options: FenwickOptions): RenderedRecipe {
       lines,
       "  static T combine(const T& lhs, const T& rhs) { return (lhs < rhs ? lhs : rhs); }"
     );
+    pushLine(lines, "};");
+  }
+
+  if (includeCustom) {
+    if (lines.length > 0) {
+      pushLine(lines);
+    }
+    exports.push(names.customOpName);
+    pushLine(lines, "template <typename T>");
+    pushLine(lines, `struct ${names.customOpName} {`);
+    pushLine(lines, "  static constexpr bool kHasInverse = false;");
+    pushLine(lines, "  static constexpr bool kHasDescend = false;");
+    pushLine(lines);
+    pushLine(lines, "  static T default_neutral() { return T(); }");
+    pushLine(lines, "  static T combine(const T& lhs, const T& rhs) {");
+    pushLine(lines, "    // TODO: replace with the associative operation.");
+    pushLine(lines, "    return lhs + rhs;");
+    pushLine(lines, "  }");
+    pushLine(lines, "};");
+  }
+
+  if (includeCustomInvertible) {
+    if (lines.length > 0) {
+      pushLine(lines);
+    }
+    exports.push(names.customInvertibleOpName);
+    pushLine(lines, "template <typename T>");
+    pushLine(lines, `struct ${names.customInvertibleOpName} {`);
+    pushLine(lines, "  static constexpr bool kHasInverse = true;");
+    pushLine(lines, "  static constexpr bool kHasDescend = false;");
+    pushLine(lines);
+    pushLine(lines, "  static T default_neutral() { return T(); }");
+    pushLine(lines, "  static T combine(const T& lhs, const T& rhs) {");
+    pushLine(lines, "    // TODO: replace with the associative operation.");
+    pushLine(lines, "    return lhs + rhs;");
+    pushLine(lines, "  }");
+    pushLine(lines, "  static T inverse(const T& total, const T& prefix) {");
+    pushLine(lines, "    // TODO: replace with the inverse operation for range queries.");
+    pushLine(lines, "    return total - prefix;");
+    pushLine(lines, "  }");
     pushLine(lines, "};");
   }
 
@@ -3594,13 +8909,63 @@ export function renderFenwickRecipe(options: FenwickOptions): RenderedRecipe {
   pushAlias(includeXor, names.xorAliasName, names.xorOpName);
   pushAlias(includeMax, names.maxAliasName, names.maxOpName);
   pushAlias(includeMin, names.minAliasName, names.minOpName);
+  pushAlias(includeCustom, names.customAliasName, names.customOpName);
+  pushAlias(
+    includeCustomInvertible,
+    names.customInvertibleAliasName,
+    names.customInvertibleOpName
+  );
+
+  if (options.application === "range_sum") {
+    exports.push(names.rangeClassName);
+    pushLine(lines);
+    pushLine(lines, "template <typename T>");
+    pushLine(lines, `class ${names.rangeClassName} {`);
+    pushLine(lines, " public:");
+    pushLine(lines, `  explicit ${names.rangeClassName}(int n = 0) : bit1_(n), bit2_(n) {}`);
+    pushLine(lines);
+    pushLine(lines, "  void reset(int n) {");
+    pushLine(lines, "    bit1_.reset(n);");
+    pushLine(lines, "    bit2_.reset(n);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  void add(int left, int right, const T& value) {");
+    pushLine(lines, "    add_prefix(left, value);");
+    pushLine(lines, "    add_prefix(right + 1, -value);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  T prefix(int idx) const {");
+    pushLine(lines, "    return bit1_.prefix(idx) * static_cast<T>(idx + 1) - bit2_.prefix(idx);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, "  T sum(int left, int right) const {");
+    pushLine(lines, "    return prefix(right) - prefix(left - 1);");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, " private:");
+    pushLine(lines, "  void add_prefix(int idx, const T& value) {");
+    pushLine(lines, "    if (idx >= bit1_.size()) {");
+    pushLine(lines, "      return;");
+    pushLine(lines, "    }");
+    pushLine(lines, "    bit1_.add(idx, value);");
+    pushLine(lines, "    bit2_.add(idx, value * static_cast<T>(idx));");
+    pushLine(lines, "  }");
+    pushLine(lines);
+    pushLine(lines, `  ${names.sumAliasName}<T> bit1_;`);
+    pushLine(lines, `  ${names.sumAliasName}<T> bit2_;`);
+    pushLine(lines, "};");
+  }
 
   if (options.includeUsageComment) {
     pushLine(lines);
     pushLine(lines, renderFenwickUsage(options));
   }
 
-  return createRenderedRecipe({ helpers: [lines.join("\n")] }, exports);
+  const usage = renderFenwickUsageSnippet(options);
+  return createRenderedRecipe(
+    usage === "" ? { helpers: [lines.join("\n")] } : { helpers: [lines.join("\n")], solve: [usage] },
+    exports
+  );
 }
 
 export function renderFenwick(options: FenwickOptions): string {
@@ -6251,6 +11616,92 @@ function renderImplicitTreapUsage(
   return lines.join("\n");
 }
 
+function renderImplicitTreapUsageSnippet(
+  options: ImplicitTreapOptions,
+  features: Set<ImplicitTreapFeature>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const opName = implicitTreapOpName(options);
+  const typeArgs =
+    options.aggregate === "custom"
+      ? `<${options.valueType}, ${opName}<${options.valueType}>>`
+      : `<${options.valueType}>`;
+  const source = options.sourceName?.trim() || "a";
+  const n = options.sizeExpression?.trim() || "n";
+  const instance = sanitizeIdentifier(options.instanceName ?? "treap", "treap");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+
+  if (options.sourceMode === "read_loop") {
+    pushLine(lines, `vector<${options.valueType}> ${source}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${n}; ++i) cin >> ${source}[i];`);
+  }
+  pushLine(lines, `${names.className}${typeArgs} ${instance};`);
+  if (options.sourceMode === "existing_vector" || options.sourceMode === "read_loop") {
+    pushLine(lines, `${instance}.assign(${source}.begin(), ${source}.end());`);
+  }
+
+  if (usageMode !== "query_loop") {
+    return lines.join("\n");
+  }
+
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int type;");
+  pushLine(lines, "  cin >> type;");
+  pushLine(lines, "  if (type == 1) {");
+  pushLine(lines, "    int pos;");
+  pushLine(lines, `    ${options.valueType} x;`);
+  pushLine(lines, "    cin >> pos >> x;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --pos;");
+  }
+  pushLine(lines, `    ${instance}.insert(pos, x);`);
+  pushLine(lines, "  } else if (type == 2) {");
+  pushLine(lines, "    int pos;");
+  pushLine(lines, "    cin >> pos;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --pos;");
+  }
+  pushLine(lines, `    ${instance}.erase(pos);`);
+  pushLine(lines, "  } else if (type == 3) {");
+  pushLine(lines, "    int l, r;");
+  pushLine(lines, "    cin >> l >> r;");
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "    --l; --r;");
+  }
+  pushLine(lines, `    auto ${answer} = ${instance}.range_query(l, r);`);
+  pushLine(lines, `    cout << ${answer} << '\\n';`);
+  if (features.has("reverse")) {
+    pushLine(lines, "  } else if (type == 4) {");
+    pushLine(lines, "    int l, r;");
+    pushLine(lines, "    cin >> l >> r;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "    --l; --r;");
+    }
+    pushLine(lines, `    ${instance}.${names.reverseName}(l, r);`);
+  }
+  if (features.has("range_add")) {
+    pushLine(lines, features.has("reverse") ? "  } else if (type == 5) {" : "  } else if (type == 4) {");
+    pushLine(lines, "    int l, r;");
+    pushLine(lines, `    ${options.valueType} delta;`);
+    pushLine(lines, "    cin >> l >> r >> delta;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "    --l; --r;");
+    }
+    pushLine(lines, `    ${instance}.${names.addName}(l, r, delta);`);
+  }
+  pushLine(lines, "  }");
+  pushLine(lines, "}");
+  return lines.join("\n");
+}
+
 function renderImplicitTreapOp(
   options: ImplicitTreapOptions,
   features: Set<ImplicitTreapFeature>
@@ -6761,8 +12212,11 @@ export function renderImplicitTreapRecipe(
     pushLine(lines, renderImplicitTreapUsage(options, features));
   }
 
+  const usage = renderImplicitTreapUsageSnippet(options, features);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === ""
+      ? { helpers: [lines.join("\n")] }
+      : { helpers: [lines.join("\n")], solve: [usage] },
     implicitTreapExports(options)
   );
 }
@@ -6849,6 +12303,78 @@ function renderMergeSortTreeUsage(
     lines.push(`bool found = mst.${names.existsName}(l, r, x);`);
   }
   lines.push("*/");
+  return lines.join("\n");
+}
+
+function firstMergeSortTreeQuery(queries: Set<MergeSortTreeQuery>): MergeSortTreeQuery {
+  for (const query of [
+    "count_less",
+    "count_less_equal",
+    "count_equal",
+    "count_in_range",
+    "exists"
+  ] as const) {
+    if (queries.has(query)) {
+      return query;
+    }
+  }
+  return "count_less";
+}
+
+function renderMergeSortTreeUsageSnippet(
+  options: MergeSortTreeOptions,
+  queries: Set<MergeSortTreeQuery>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const names = options.names;
+  const source = options.sourceName.trim() || "a";
+  const n = options.sizeExpression?.trim() || "n";
+  const instance = sanitizeIdentifier(options.instanceName ?? "mst", "mst");
+  const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+  const lines: string[] = [];
+
+  if (options.sourceMode === "read_loop") {
+    pushLine(lines, `vector<${options.valueType}> ${source}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${n}; ++i) cin >> ${source}[i];`);
+  }
+  pushLine(lines, `${names.className}<${options.valueType}> ${instance}(${source});`);
+
+  if (usageMode !== "query_loop") {
+    return lines.join("\n");
+  }
+
+  const query = firstMergeSortTreeQuery(queries);
+  pushLine(lines, "int q;");
+  pushLine(lines, "cin >> q;");
+  pushLine(lines, "while (q--) {");
+  pushLine(lines, "  int l, r;");
+  if (query === "count_in_range") {
+    pushLine(lines, `  ${options.valueType} low, high;`);
+    pushLine(lines, "  cin >> l >> r >> low >> high;");
+  } else {
+    pushLine(lines, `  ${options.valueType} x;`);
+    pushLine(lines, "  cin >> l >> r >> x;");
+  }
+  if (options.indexing === "one_based_input") {
+    pushLine(lines, "  --l; --r;");
+  }
+  if (query === "count_less") {
+    pushLine(lines, `  auto ${answer} = ${instance}.${names.countLessName}(l, r, x);`);
+  } else if (query === "count_less_equal") {
+    pushLine(lines, `  auto ${answer} = ${instance}.${names.countLessEqualName}(l, r, x);`);
+  } else if (query === "count_equal") {
+    pushLine(lines, `  auto ${answer} = ${instance}.${names.countEqualName}(l, r, x);`);
+  } else if (query === "count_in_range") {
+    pushLine(lines, `  auto ${answer} = ${instance}.${names.countInRangeName}(l, r, low, high);`);
+  } else {
+    pushLine(lines, `  bool ${answer} = ${instance}.${names.existsName}(l, r, x);`);
+  }
+  pushLine(lines, `  cout << ${answer} << '\\n';`);
+  pushLine(lines, "}");
   return lines.join("\n");
 }
 
@@ -7129,8 +12655,11 @@ export function renderMergeSortTreeRecipe(
     pushLine(lines, renderMergeSortTreeUsage(options, queries));
   }
 
+  const usage = renderMergeSortTreeUsageSnippet(options, queries);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === ""
+      ? { helpers: [lines.join("\n")] }
+      : { helpers: [lines.join("\n")], solve: [usage] },
     mergeSortTreeExports(options)
   );
 }
@@ -7156,7 +12685,20 @@ export function planSparseTableNames(
     queryMinName: planner.reserve("query_sparse_min"),
     maxTableName: planner.reserve("sparse_max"),
     buildMaxName: planner.reserve("build_sparse_max"),
-    queryMaxName: planner.reserve("query_sparse_max")
+    queryMaxName: planner.reserve("query_sparse_max"),
+    gcdTableName: planner.reserve("sparse_gcd"),
+    buildGcdName: planner.reserve("build_sparse_gcd"),
+    queryGcdName: planner.reserve("query_sparse_gcd"),
+    bitAndTableName: planner.reserve("sparse_bit_and"),
+    buildBitAndName: planner.reserve("build_sparse_bit_and"),
+    queryBitAndName: planner.reserve("query_sparse_bit_and"),
+    bitOrTableName: planner.reserve("sparse_bit_or"),
+    buildBitOrName: planner.reserve("build_sparse_bit_or"),
+    queryBitOrName: planner.reserve("query_sparse_bit_or"),
+    customTableName: planner.reserve("sparse_custom"),
+    buildCustomName: planner.reserve("build_sparse_custom"),
+    queryCustomName: planner.reserve("query_sparse_custom"),
+    customCombineName: planner.reserve("sparse_combine")
   };
 }
 
@@ -7185,10 +12727,39 @@ function sparseTableExports(
       options.names.queryMaxName
     );
   }
+  if (variants.has("gcd")) {
+    exports.push(
+      options.names.gcdTableName,
+      options.names.buildGcdName,
+      options.names.queryGcdName
+    );
+  }
+  if (variants.has("bit_and")) {
+    exports.push(
+      options.names.bitAndTableName,
+      options.names.buildBitAndName,
+      options.names.queryBitAndName
+    );
+  }
+  if (variants.has("bit_or")) {
+    exports.push(
+      options.names.bitOrTableName,
+      options.names.buildBitOrName,
+      options.names.queryBitOrName
+    );
+  }
+  if (variants.has("custom")) {
+    exports.push(
+      options.names.customCombineName,
+      options.names.customTableName,
+      options.names.buildCustomName,
+      options.names.queryCustomName
+    );
+  }
   return exports;
 }
 
-function renderSparseTableUsage(
+function renderSparseTableCommentUsage(
   options: SparseTableOptions,
   variants: Set<SparseTableVariant>
 ): string {
@@ -7205,8 +12776,85 @@ function renderSparseTableUsage(
       `auto mx = ${options.names.queryMaxName}(l, r);`
     );
   }
+  if (variants.has("gcd")) {
+    lines.push(
+      `${options.names.buildGcdName}(${options.sourceName});`,
+      `auto g = ${options.names.queryGcdName}(l, r);`
+    );
+  }
+  if (variants.has("bit_and")) {
+    lines.push(
+      `${options.names.buildBitAndName}(${options.sourceName});`,
+      `auto common_bits = ${options.names.queryBitAndName}(l, r);`
+    );
+  }
+  if (variants.has("bit_or")) {
+    lines.push(
+      `${options.names.buildBitOrName}(${options.sourceName});`,
+      `auto any_bits = ${options.names.queryBitOrName}(l, r);`
+    );
+  }
+  if (variants.has("custom")) {
+    lines.push(
+      `${options.names.buildCustomName}(${options.sourceName});`,
+      `auto value = ${options.names.queryCustomName}(l, r);`
+    );
+  }
   lines.push("*/");
   return lines.join("\n");
+}
+
+function sparseTableVariantNames(
+  options: SparseTableOptions,
+  variant: SparseTableVariant
+): { tableName: string; buildName: string; queryName: string; combineExpression: string } {
+  const names = options.names;
+  if (variant === "min") {
+    return {
+      tableName: names.minTableName,
+      buildName: names.buildMinName,
+      queryName: names.queryMinName,
+      combineExpression: "lhs < rhs ? lhs : rhs"
+    };
+  }
+  if (variant === "max") {
+    return {
+      tableName: names.maxTableName,
+      buildName: names.buildMaxName,
+      queryName: names.queryMaxName,
+      combineExpression: "lhs < rhs ? rhs : lhs"
+    };
+  }
+  if (variant === "gcd") {
+    return {
+      tableName: names.gcdTableName,
+      buildName: names.buildGcdName,
+      queryName: names.queryGcdName,
+      combineExpression: "gcd(lhs, rhs)"
+    };
+  }
+  if (variant === "bit_and") {
+    return {
+      tableName: names.bitAndTableName,
+      buildName: names.buildBitAndName,
+      queryName: names.queryBitAndName,
+      combineExpression: "lhs & rhs"
+    };
+  }
+  if (variant === "bit_or") {
+    return {
+      tableName: names.bitOrTableName,
+      buildName: names.buildBitOrName,
+      queryName: names.queryBitOrName,
+      combineExpression: "lhs | rhs"
+    };
+  }
+  return {
+    tableName: names.customTableName,
+    buildName: names.buildCustomName,
+    queryName: names.queryCustomName,
+    combineExpression: `${names.customCombineName}(lhs, rhs)`
+  };
 }
 
 function renderSparseTableVariant(
@@ -7214,12 +12862,17 @@ function renderSparseTableVariant(
   variant: SparseTableVariant
 ): string[] {
   const names = options.names;
-  const isMin = variant === "min";
-  const tableName = isMin ? names.minTableName : names.maxTableName;
-  const buildName = isMin ? names.buildMinName : names.buildMaxName;
-  const queryName = isMin ? names.queryMinName : names.queryMaxName;
-  const combineExpression = isMin ? "lhs < rhs ? lhs : rhs" : "lhs < rhs ? rhs : lhs";
+  const { tableName, buildName, queryName, combineExpression } =
+    sparseTableVariantNames(options, variant);
   const lines: string[] = [];
+
+  if (variant === "custom") {
+    pushLine(lines, `${options.valueType} ${names.customCombineName}(${options.valueType} lhs, ${options.valueType} rhs) {`);
+    pushLine(lines, "  // TODO: replace with an idempotent associative operation.");
+    pushLine(lines, "  return lhs < rhs ? lhs : rhs;");
+    pushLine(lines, "}");
+    pushLine(lines);
+  }
 
   pushLine(lines, `vector<vector<${options.valueType}>> ${tableName};`);
   pushLine(lines);
@@ -7271,6 +12924,57 @@ function renderSparseTableVariant(
   return lines;
 }
 
+function firstSparseTableVariant(variants: Set<SparseTableVariant>): SparseTableVariant {
+  for (const variant of ["min", "max", "gcd", "bit_and", "bit_or", "custom"] as const) {
+    if (variants.has(variant)) {
+      return variant;
+    }
+  }
+  return "min";
+}
+
+function renderSparseTableUsageSnippet(
+  options: SparseTableOptions,
+  variants: Set<SparseTableVariant>
+): string {
+  const usageMode = options.usageMode ?? "helper_only";
+  if (usageMode === "helper_only") {
+    return "";
+  }
+
+  const lines: string[] = [];
+  const source = options.sourceName.trim() || "a";
+  const n = options.sizeExpression?.trim() || "n";
+  if (options.sourceMode === "read_loop") {
+    pushLine(lines, `vector<${options.valueType}> ${source}(${n});`);
+    pushLine(lines, `for (int i = 0; i < ${n}; ++i) cin >> ${source}[i];`);
+  }
+
+  for (const variant of variants) {
+    const { buildName } = sparseTableVariantNames(options, variant);
+    pushLine(lines, `${buildName}(${source});`);
+  }
+
+  if (usageMode === "query_loop") {
+    const variant = firstSparseTableVariant(variants);
+    const { queryName } = sparseTableVariantNames(options, variant);
+    const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
+    pushLine(lines, "int q;");
+    pushLine(lines, "cin >> q;");
+    pushLine(lines, "while (q--) {");
+    pushLine(lines, "  int l, r;");
+    pushLine(lines, "  cin >> l >> r;");
+    if (options.indexing === "one_based_input") {
+      pushLine(lines, "  --l; --r;");
+    }
+    pushLine(lines, `  auto ${answer} = ${queryName}(l, r);`);
+    pushLine(lines, `  cout << ${answer} << '\\n';`);
+    pushLine(lines, "}");
+  }
+
+  return lines.join("\n");
+}
+
 export function renderSparseTableRecipe(options: SparseTableOptions): RenderedRecipe {
   const variants = sparseTableVariantSet(options.variants);
   const lines: string[] = [];
@@ -7299,13 +13003,32 @@ export function renderSparseTableRecipe(options: SparseTableOptions): RenderedRe
     pushLine(lines);
     lines.push(...renderSparseTableVariant(options, "max"));
   }
+  if (variants.has("gcd")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "gcd"));
+  }
+  if (variants.has("bit_and")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "bit_and"));
+  }
+  if (variants.has("bit_or")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "bit_or"));
+  }
+  if (variants.has("custom")) {
+    pushLine(lines);
+    lines.push(...renderSparseTableVariant(options, "custom"));
+  }
   if (options.includeUsageComment) {
     pushLine(lines);
-    pushLine(lines, renderSparseTableUsage(options, variants));
+    pushLine(lines, renderSparseTableCommentUsage(options, variants));
   }
 
+  const usage = renderSparseTableUsageSnippet(options, variants);
   return createRenderedRecipe(
-    { helpers: [lines.join("\n")] },
+    usage === ""
+      ? { helpers: [lines.join("\n")] }
+      : { helpers: [lines.join("\n")], solve: [usage] },
     sparseTableExports(options, variants)
   );
 }
@@ -7344,7 +13067,20 @@ export function planSuffixArrayNames(
       queryMinName: planner.reserve("query_sparse_min", "query_suffix_lcp_min"),
       maxTableName: planner.reserve("sparse_max", "suffix_lcp_max"),
       buildMaxName: planner.reserve("build_sparse_max", "build_suffix_lcp_max"),
-      queryMaxName: planner.reserve("query_sparse_max", "query_suffix_lcp_max")
+      queryMaxName: planner.reserve("query_sparse_max", "query_suffix_lcp_max"),
+      gcdTableName: planner.reserve("sparse_gcd", "suffix_lcp_gcd"),
+      buildGcdName: planner.reserve("build_sparse_gcd", "build_suffix_lcp_gcd"),
+      queryGcdName: planner.reserve("query_sparse_gcd", "query_suffix_lcp_gcd"),
+      bitAndTableName: planner.reserve("sparse_bit_and", "suffix_lcp_bit_and"),
+      buildBitAndName: planner.reserve("build_sparse_bit_and", "build_suffix_lcp_bit_and"),
+      queryBitAndName: planner.reserve("query_sparse_bit_and", "query_suffix_lcp_bit_and"),
+      bitOrTableName: planner.reserve("sparse_bit_or", "suffix_lcp_bit_or"),
+      buildBitOrName: planner.reserve("build_sparse_bit_or", "build_suffix_lcp_bit_or"),
+      queryBitOrName: planner.reserve("query_sparse_bit_or", "query_suffix_lcp_bit_or"),
+      customTableName: planner.reserve("sparse_custom", "suffix_lcp_custom"),
+      buildCustomName: planner.reserve("build_sparse_custom", "build_suffix_lcp_custom"),
+      queryCustomName: planner.reserve("query_sparse_custom", "query_suffix_lcp_custom"),
+      customCombineName: planner.reserve("sparse_combine", "suffix_lcp_combine")
     }
   };
 }

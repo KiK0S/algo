@@ -1,74 +1,67 @@
-# Static RMQ / Sparse Table Dynamic Plan
+# Sparse Table
 
-Status: completed sparse-table migration. The dynamic entry path is
-`/solvers/sparse_table`; the fallback source is
-`lib/solvers/sparse_table.hpp`.
+Status: active smart-runtime surface.
 
-## Existing Source
-
-- `lib/solvers/sparse_table.hpp`
-- legacy `lib/sparse_table.hpp` was removed after tests and legacy LCA
-  references moved to solver fallback paths.
-- tests: `tests/sparse_table_test.cpp`, `tests/solvers_structures_test.cpp`
-
-## Solver-Specific Choices
-
-Historical alignment for the completed migration:
+## Goal
 
 - Dynamic path: `/solvers/sparse_table`.
-- First variants: min and max.
-- Generated output: terse global arrays/functions, not a class.
-- Query interval: inclusive `[l, r]`, matching the current static fallback.
-- Source data: use an existing vector by default.
-- Remove the top-level `lib/sparse_table.hpp` compatibility header in the same
-  migration once references move.
+- Static fallback: `lib/solvers/sparse_table.hpp`.
+- User-facing outcome: choose a static idempotent query scenario, reuse or read
+  a source vector, and emit only the selected sparse-table variants plus
+  optional solve skeleton.
 
-## Assumptions
+## Scenario Inventory
 
-- Keep current `SparseTable<T, Op>` static snippet as fallback under
-  `lib/solvers/sparse_table.hpp`.
-- Dynamic default: min and max sparse tables over an existing vector, inclusive
-  range query.
-- Product means "generic associative combine over arbitrary type", not necessarily multiplication, until the user confirms semantics.
-- Disjoint sparse table is a separate feature because it supports non-idempotent operations.
+- Range min and range max.
+- Range gcd.
+- Range bitwise-and and bitwise-or.
+- Custom idempotent operation placeholder.
 
-## Dynamic Options
+Out of scope for this pass: disjoint sparse table for non-idempotent operations,
+argmin/argmax pair returns, and 2D sparse table.
 
-- value type: existing vector type, `int`, `ll`, `long long`, custom
-- source: existing vector, generated vector, raw array
-- variant: `min`, `max`, `product`, `custom`, `disjoint`
-- names: table, log array, build function, query function, op/combine function
-- output: class helper, globals/functions, or full solution sections
-- dependency consumers: LCA RMQ mode, suffix-array LCP RMQ
+## Decision Tree
 
-## Sections
+- First choice: application scenario.
+- Variant choices:
+  - `min` and/or `max`.
+  - `gcd`, `bit_and`, and/or `bit_or`.
+  - `custom` idempotent combine placeholder.
+- Build source: existing vector or generated read loop.
+- Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
+- Usage output: helper only, build call, or query loop skeleton.
 
-- data: optional source vector declaration/read
-- helpers: sparse table storage, build, query, combine
-- solve: optional call to build and sample query placeholders only if full-solution mode asks for them
+## Inputs And Outputs
 
-## Implementation Plan
+- Prefill source from detected vectors such as `a`, `v`, and `values`.
+- Infer value type from the selected vector when practical.
+- Prefill generated read-loop size from detected inputs and constants such as
+  `n`.
+- Reserve all generated table, build, query, log, and custom-combine names
+  through the shared name planner.
+- Helpers insert globally; build/query-loop snippets insert into `solve()`.
 
-Completed in this migration:
+## Generator Contract
 
-1. Added `sparse_table` generator entry in the registry.
-2. Added prompt options using existing vector symbols.
-3. Rendered idempotent sparse tables for min/max as global arrays/functions.
-4. Exposed catalog metadata at `/solvers/sparse_table`.
-5. Preserved `SparseMinTable` and `SparseMaxTable` static fallback exports under
-   `lib/solvers/sparse_table.hpp`.
-6. Removed `lib/sparse_table.hpp` after moving tests and the remaining legacy
-   LCA include.
+- Keep inclusive `[l, r]` query semantics.
+- Keep `lib/solvers/sparse_table.hpp` pasteable as the class-style fallback.
+- Generate global arrays/functions for terse contest usage.
+- Require idempotence for every generated query variant; direct non-idempotent
+  product/sum belongs to a future disjoint sparse-table surface.
 
-Deferred optional follow-ups:
+## Acceptance Cases
 
-- Custom associative operation.
-- Disjoint sparse table for non-idempotent/product mode.
-- Generated dependency negotiation for LCA and suffix-array consumers.
+- Render min/max default output.
+- Render gcd/bitwise output.
+- Render custom idempotent output with a TODO combine function.
+- Verify collision handling for generated sparse names.
+- Compile generated min/max and gcd/bitwise/custom outputs.
+- Verify catalog metadata includes applications, constraints, wrappers, and
+  bindings.
 
-## Tests
+## Follow-Ups
 
-- Render min/max sparse tables using existing `vector<int> a`.
-- Render collision case where generated global names already exist.
-- Compile generated min/max snippet.
-- Re-run existing sparse table and structures tests.
+- Add argmin/argmax with tie-breaking once a pair-return prompt pattern exists.
+- Add disjoint sparse table as a separate scenario or solver path.
+- Add suffix-array LCP dependency negotiation after more generators expose
+  dependency prompts.
