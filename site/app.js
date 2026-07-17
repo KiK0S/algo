@@ -1,3 +1,5 @@
+import { renderGenerator } from "./renderer.js";
+
 const tree = document.querySelector("#tree");
 const search = document.querySelector("#search");
 const details = document.querySelector("#details");
@@ -7,6 +9,7 @@ const archiveCount = document.querySelector("#archive-count");
 
 let entries = [];
 let selectedPath = "";
+const decisionState = new Map();
 
 function asArray(value) {
   if (Array.isArray(value)) {
@@ -77,13 +80,121 @@ function renderDetails(entry) {
           }).join("")}</dl>`
       }
     </section>
+    ${entry.applicationSpec ? '<section class="detail-section"><h3>Build preview</h3><div id="decisions" class="decisions"></div></section>' : ""}
     ${chips("Features", entry.features)}
     ${chips("Applications", entry.applications)}
     ${chips("Constraints", entry.constraints)}
     ${chips("Exports", entry.exports)}
   `;
-  preview.textContent = entry.preview;
+  if (entry.applicationSpec) {
+    renderDecisions(entry);
+  } else {
+    preview.textContent = entry.preview;
+  }
   copyButton.disabled = false;
+}
+
+function decisionSteps(spec) {
+  return [
+    ...(spec.scenarios?.length ? [{ id: "scenario", label: "Application", choices: spec.scenarios }] : []),
+    ...spec.decisions
+  ];
+}
+
+function entryDecisionState(entry) {
+  if (!decisionState.has(entry.path)) {
+    decisionState.set(entry.path, { selections: {}, activeStep: 0 });
+  }
+  return decisionState.get(entry.path);
+}
+
+function updateGeneratedPreview(entry, state) {
+  try {
+    preview.textContent = renderGenerator(entry, state.selections);
+  } catch (error) {
+    preview.textContent = `// Preview cannot be rendered for this selection.\n// ${String(error)}`;
+  }
+}
+
+function renderDecisions(entry) {
+  const container = document.querySelector("#decisions");
+  const state = entryDecisionState(entry);
+  const steps = decisionSteps(entry.applicationSpec);
+  const clearLaterSelections = (index) => {
+    for (const laterStep of steps.slice(index + 1)) {
+      delete state.selections[laterStep.id];
+    }
+  };
+  container.replaceChildren();
+
+  steps.forEach((step, index) => {
+    const section = document.createElement("section");
+    section.className = "decision-step";
+    section.classList.toggle("active", index === state.activeStep);
+    section.classList.toggle("pending", index > state.activeStep);
+
+    const heading = document.createElement("h4");
+    heading.textContent = `${index + 1}. ${step.label}`;
+    section.append(heading);
+
+    const choices = document.createElement("div");
+    choices.className = "decision-choices";
+    const selected = state.selections[step.id];
+    for (const choice of step.choices) {
+      const label = document.createElement("label");
+      label.className = "decision-choice";
+      const input = document.createElement("input");
+      input.type = step.multi ? "checkbox" : "radio";
+      input.name = `${entry.path}:${step.id}`;
+      input.value = choice.id;
+      input.disabled = index > state.activeStep;
+      input.checked = step.multi
+        ? Array.isArray(selected) && selected.includes(choice.id)
+        : selected === choice.id;
+      input.addEventListener("change", () => {
+        if (step.multi) {
+          if (index < state.activeStep) {
+            clearLaterSelections(index);
+            state.activeStep = index;
+          }
+          const picked = new Set(state.selections[step.id] ?? []);
+          input.checked ? picked.add(choice.id) : picked.delete(choice.id);
+          state.selections[step.id] = [...picked];
+          updateGeneratedPreview(entry, state);
+          renderDecisions(entry);
+          return;
+        }
+        clearLaterSelections(index);
+        state.selections[step.id] = choice.id;
+        state.activeStep = Math.min(index + 1, steps.length - 1);
+        updateGeneratedPreview(entry, state);
+        renderDecisions(entry);
+      });
+      const content = document.createElement("span");
+      content.innerHTML = `<strong>${text(choice.label)}</strong>${choice.description ? `<small>${text(choice.description)}</small>` : ""}`;
+      label.append(input, content);
+      choices.append(label);
+    }
+    section.append(choices);
+
+    if (step.multi && index <= state.activeStep) {
+      const continueButton = document.createElement("button");
+      continueButton.type = "button";
+      continueButton.className = "decision-continue";
+      continueButton.textContent = index === steps.length - 1 ? "Apply" : "Continue";
+      continueButton.addEventListener("click", () => {
+        clearLaterSelections(index);
+        state.selections[step.id] ??= [];
+        state.activeStep = Math.min(index + 1, steps.length - 1);
+        updateGeneratedPreview(entry, state);
+        renderDecisions(entry);
+      });
+      section.append(continueButton);
+    }
+    container.append(section);
+  });
+
+  updateGeneratedPreview(entry, state);
 }
 
 function selectEntry(path) {

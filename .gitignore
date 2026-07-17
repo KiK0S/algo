@@ -3,3 +3,4 @@ extension/out/
 extension/library
 .test-bin
 site/archive.json
+site/core-browser.js
