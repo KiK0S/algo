@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>edulcni archive</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">competitive programming templates</p>
+        <h1>edulcni archive</h1>
+      </div>
+      <p id="archive-count" class="count">Loading archive…</p>
+    </header>
+    <main class="workspace">
+      <aside class="sidebar">
+        <label class="search">
+          <span>Search archive</span>
+          <input id="search" type="search" placeholder="fenwick, graph, range…" autocomplete="off">
+        </label>
+        <nav id="tree" class="tree" aria-label="Template archive"></nav>
+      </aside>
+      <section id="details" class="details" aria-live="polite">
+        <div class="empty-state">
+          <p class="eyebrow">archive browser</p>
+          <h2>Pick a template from the tree</h2>
+          <p>Inspect its supported features, extension parameters, and source templates.</p>
+        </div>
+      </section>
+      <section class="preview-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">read-only</p>
+            <h2>Template preview</h2>
+          </div>
+          <button id="copy" type="button" disabled>Copy</button>
+        </div>
+        <pre><code id="preview">// Select an archive entry to inspect its templates.</code></pre>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 {
   "name": "edulcni",
   "displayName": "edulcni",
-  "description": "Insert competitive programming headers from your local library.",
+  "description": "Render competitive programming templates from the bundled catalog.",
   "version": "0.0.1",
   "publisher": "local",
   "engines": {
@@ -56,7 +56,8 @@
   "scripts": {
     "sync-library": "node ./scripts/sync-library.mjs",
     "build": "npm run sync-library && tsc -p .",
-    "test": "npm run build && node ./test/core.test.js",
+    "test": "npm run build && npm run build-archive && node ./test/core.test.js",
+    "build-archive": "node ../tools/build-archive-site.mjs",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run build"
   },

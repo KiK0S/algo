@@ -1,22 +1,7 @@
-CXX ?= g++
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
-
-TEST_SRCS := $(sort $(wildcard tests/*_test.cpp))
-TEST_BIN_DIR := .test-bin
-
-.PHONY: test clean
-.NOTPARALLEL: test
+.PHONY: test archive
 
 test:
-	@mkdir -p $(TEST_BIN_DIR)
-	@set -e; \
-	for src in $(TEST_SRCS); do \
-		name=$$(basename "$$src" .cpp); \
-		bin="$(TEST_BIN_DIR)/$$name"; \
-		echo "==> $$name"; \
-		$(CXX) $(CXXFLAGS) "$$src" -o "$$bin"; \
-		"$$bin"; \
-	done
+	cd extension && npm test
 
-clean:
-	rm -rf $(TEST_BIN_DIR)
+archive:
+	node tools/build-archive-site.mjs

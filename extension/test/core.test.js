@@ -1387,14 +1387,14 @@ function testRecipeMetadata() {
     fenwickOptions({ includeUsageComment: false })
   );
   assert.deepEqual(fenwickRecipe.exports, [
-    "FenwickSumOp",
-    "FenwickXorOp",
-    "FenwickMaxOp",
-    "FenwickMinOp",
     "Fenwick",
+    "FenwickSumOp",
     "FenwickSumTree",
+    "FenwickXorOp",
     "FenwickXorTree",
+    "FenwickMaxOp",
     "FenwickMaxTree",
+    "FenwickMinOp",
     "FenwickMinTree"
   ]);
   assert.deepEqual(Object.keys(fenwickRecipe.sections), ["helpers"]);
@@ -1406,8 +1406,8 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(sumOnlyFenwickRecipe.exports, [
-    "FenwickSumOp",
     "Fenwick",
+    "FenwickSumOp",
     "FenwickSumTree"
   ]);
 
@@ -1418,8 +1418,8 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(customFenwickRecipe.exports, [
-    "FenwickCustomOp",
     "Fenwick",
+    "FenwickCustomOp",
     "FenwickCustomTree"
   ]);
   assert.match(customFenwickRecipe.sections.helpers[0], /kHasInverse = false/);
@@ -1432,8 +1432,8 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(customInvertibleFenwickRecipe.exports, [
-    "FenwickCustomInvertibleOp",
     "Fenwick",
+    "FenwickCustomInvertibleOp",
     "FenwickCustomInvertibleTree"
   ]);
   assert.match(customInvertibleFenwickRecipe.sections.helpers[0], /kHasInverse = true/);
@@ -1668,1099 +1668,104 @@ function testRecipeMetadata() {
   assert.deepEqual(Object.keys(polyHashRecipe.sections), ["constants", "helpers"]);
 }
 
+
 function testBundledCatalogGuardrails() {
-  const catalogPath = path.join(
-    __dirname,
-    "..",
-    "library",
-    "catalog",
-    "snippets.json"
-  );
+  const extensionRoot = path.join(__dirname, "..");
+  const catalogPath = path.join(extensionRoot, "library", "catalog", "snippets.json");
   const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
   const entries = Array.isArray(parsed) ? parsed : parsed.entries;
   const validSections = new Set(core.SOLUTION_SECTION_ORDER);
+  const seenPaths = new Set();
 
+  assert.ok(entries.length > 0);
   for (const entry of entries) {
     assert.match(entry.path, /^\/(?:bricks|solvers)\//);
-    if (entry.generator !== undefined) {
-      assert.equal(typeof entry.generator, "string");
+    assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
+    seenPaths.add(entry.path);
+    assert.equal(entry.source, undefined, `${entry.path} still exposes a source header`);
+    assert.equal(
+      Boolean(entry.generator) || Boolean(entry.template),
+      true,
+      `${entry.path} has no generator or template`
+    );
+    if (entry.template) {
+      assert.match(entry.template, /^(?:bricks|solvers)\/.+\.tmpl$/);
+      assert.equal(
+        fs.existsSync(path.join(extensionRoot, "library", "templates", entry.template)),
+        true,
+        `${entry.path} template is missing from the extension bundle`
+      );
     }
-    if (entry.sections !== undefined) {
-      for (const section of entry.sections) {
-        assert.equal(validSections.has(section), true);
-      }
-    }
-    if (entry.source !== undefined) {
-      assert.match(entry.source, /^(?:bricks|solvers)\//);
+    for (const section of entry.sections ?? []) {
+      assert.equal(validSections.has(section), true);
     }
   }
 
-  const berlekampEntry = entries.find(
-    (entry) => entry.path === "/solvers/berlekamp_massey"
-  );
-  assert.ok(berlekampEntry);
-  assert.equal(berlekampEntry.kind, "solver");
-  assert.equal(berlekampEntry.generator, "berlekamp_massey");
-  assert.equal(berlekampEntry.source, "solvers/berlekamp_massey.hpp");
-  assert.deepEqual(berlekampEntry.sections, ["helpers"]);
-
-  const sparseEntry = entries.find((entry) => entry.path === "/solvers/sparse_table");
-  assert.ok(sparseEntry);
-  assert.equal(sparseEntry.kind, "solver");
-  assert.equal(sparseEntry.generator, "sparse_table");
-  assert.equal(sparseEntry.source, "solvers/sparse_table.hpp");
-  assert.deepEqual(sparseEntry.features, [
-    "min",
-    "max",
-    "gcd",
-    "bit_and",
-    "bit_or",
-    "custom"
-  ]);
-  assert.deepEqual(sparseEntry.applications, [
-    "range_minmax",
-    "range_gcd_bitwise",
-    "custom_idempotent"
-  ]);
-  assert.deepEqual(sparseEntry.bindings, [
-    "sourceName",
-    "sizeExpression",
-    "valueType",
-    "answerName"
-  ]);
-  assert.deepEqual(sparseEntry.sections, ["helpers", "solve"]);
-
-  const dsuEntry = entries.find((entry) => entry.path === "/solvers/dsu");
-  assert.ok(dsuEntry);
-  assert.equal(dsuEntry.kind, "solver");
-  assert.equal(dsuEntry.generator, "dsu");
-  assert.equal(dsuEntry.source, "solvers/dsu.hpp");
-  assert.deepEqual(dsuEntry.exports, ["Dsu"]);
-  assert.deepEqual(dsuEntry.applications, [
-    "connectivity",
-    "kruskal",
-    "query_loop"
-  ]);
-  assert.deepEqual(dsuEntry.bindings, [
-    "sizeExpression",
-    "edgeCountName",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(dsuEntry.sections, ["helpers", "solve"]);
-
-  const rollbackDsuEntry = entries.find(
-    (entry) => entry.path === "/solvers/rollback_dsu"
-  );
-  assert.ok(rollbackDsuEntry);
-  assert.equal(rollbackDsuEntry.kind, "solver");
-  assert.equal(rollbackDsuEntry.generator, "rollback_dsu");
-  assert.equal(rollbackDsuEntry.source, "solvers/rollback_dsu.hpp");
-  assert.deepEqual(rollbackDsuEntry.exports, ["RollbackDsu"]);
-  assert.deepEqual(rollbackDsuEntry.features, [
-    "snapshot",
-    "rollback",
-    "component_count",
-    "component_size"
-  ]);
-  assert.deepEqual(rollbackDsuEntry.applications, [
-    "snapshots",
-    "offline_dynamic_connectivity"
-  ]);
-  assert.deepEqual(rollbackDsuEntry.bindings, [
-    "sizeExpression",
-    "queryCountName",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(rollbackDsuEntry.sections, ["helpers", "solve"]);
-
-  const lcaEntry = entries.find((entry) => entry.path === "/solvers/lca");
-  assert.ok(lcaEntry);
-  assert.equal(lcaEntry.kind, "solver");
-  assert.equal(lcaEntry.generator, "lca");
-  assert.equal(lcaEntry.source, "solvers/lca_binary_lifting.hpp");
-  assert.deepEqual(lcaEntry.exports, ["LcaBinaryLifting"]);
-  assert.deepEqual(lcaEntry.features, [
-    "binary_lifting",
-    "lca",
-    "dist",
-    "kth_ancestor",
-    "forest"
-  ]);
-  assert.deepEqual(lcaEntry.applications, [
-    "lca_dist",
-    "kth_ancestor",
-    "tree_query_loop"
-  ]);
-  assert.deepEqual(lcaEntry.bindings, [
-    "sizeExpression",
-    "rootExpression",
-    "queryCountName",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(lcaEntry.sections, ["helpers", "solve"]);
-
-  const hldEntry = entries.find((entry) => entry.path === "/solvers/hld");
-  assert.ok(hldEntry);
-  assert.equal(hldEntry.kind, "solver");
-  assert.equal(hldEntry.generator, "hld");
-  assert.equal(hldEntry.source, "solvers/hld.hpp");
-  assert.deepEqual(hldEntry.exports, ["HeavyLightDecomposition"]);
-  assert.deepEqual(hldEntry.features, [
-    "tree",
-    "path_segments",
-    "subtree_segments",
-    "lca",
-    "flattened_tree",
-    "vertex_values",
-    "edge_values"
-  ]);
-  assert.deepEqual(hldEntry.applications, [
-    "path_query",
-    "subtree_query",
-    "lca_distance",
-    "build_tree"
-  ]);
-  assert.deepEqual(hldEntry.bindings, [
-    "sizeExpression",
-    "rootExpression",
-    "queryCountName",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(hldEntry.sections, ["helpers", "solve"]);
-
-  const bfsEntry = entries.find((entry) => entry.path === "/solvers/bfs");
-  assert.ok(bfsEntry);
-  assert.equal(bfsEntry.kind, "solver");
-  assert.equal(bfsEntry.generator, "bfs");
-  assert.equal(bfsEntry.source, "solvers/bfs.hpp");
-  assert.deepEqual(bfsEntry.exports, [
-    "BfsResult",
-    "bfs_add_edge",
-    "bfs_multi_source",
-    "bfs",
-    "bfs_restore_path",
-    "bfs_restore_path_to_root"
-  ]);
-  assert.deepEqual(bfsEntry.features, [
-    "add_edge",
-    "single_source",
-    "multi_source",
-    "restore_path",
-    "visit_order"
-  ]);
-  assert.deepEqual(bfsEntry.applications, [
-    "shortest_distances",
-    "multi_source",
-    "path_restore",
-    "traversal_order"
-  ]);
-  assert.deepEqual(bfsEntry.bindings, [
-    "sizeExpression",
-    "edgeCountName",
-    "graphName",
-    "sourceName",
-    "targetName",
-    "resultName"
-  ]);
-  assert.deepEqual(bfsEntry.sections, ["helpers", "solve"]);
-
-  const dijkstraEntry = entries.find((entry) => entry.path === "/solvers/dijkstra");
-  assert.ok(dijkstraEntry);
-  assert.equal(dijkstraEntry.kind, "solver");
-  assert.equal(dijkstraEntry.generator, "dijkstra");
-  assert.equal(dijkstraEntry.source, "solvers/dijkstra.hpp");
-  assert.deepEqual(dijkstraEntry.exports, [
-    "DijkstraEdge",
-    "DijkstraResult",
-    "dijkstra_add_edge",
-    "dijkstra_multi_source",
-    "dijkstra",
-    "dijkstra_restore_path"
-  ]);
-  assert.deepEqual(dijkstraEntry.features, [
-    "weighted_graph",
-    "single_source",
-    "multi_source",
-    "restore_path",
-    "nonnegative_weights"
-  ]);
-  assert.deepEqual(dijkstraEntry.applications, [
-    "shortest_paths",
-    "multi_source",
-    "path_restore",
-    "weighted_graph_read"
-  ]);
-  assert.deepEqual(dijkstraEntry.bindings, [
-    "sizeExpression",
-    "edgeCountName",
-    "graphName",
-    "sourceName",
-    "targetName",
-    "resultName"
-  ]);
-  assert.deepEqual(dijkstraEntry.sections, ["helpers", "solve"]);
-
-  const toposortEntry = entries.find((entry) => entry.path === "/solvers/toposort");
-  assert.ok(toposortEntry);
-  assert.equal(toposortEntry.kind, "solver");
-  assert.equal(toposortEntry.generator, "toposort");
-  assert.equal(toposortEntry.source, "solvers/toposort.hpp");
-  assert.deepEqual(toposortEntry.exports, [
-    "toposort_add_edge",
-    "topological_sort",
-    "is_topological_order"
-  ]);
-  assert.deepEqual(toposortEntry.features, [
-    "sort",
-    "cycle_detection",
-    "order_validation",
-    "dependency_schedule"
-  ]);
-  assert.deepEqual(toposortEntry.applications, [
-    "dag_order",
-    "cycle_detection",
-    "dependency_schedule",
-    "order_validation"
-  ]);
-  assert.deepEqual(toposortEntry.bindings, [
-    "sizeExpression",
-    "edgeCountName",
-    "graphName",
-    "orderName",
-    "dagName"
-  ]);
-  assert.deepEqual(toposortEntry.sections, ["helpers", "solve"]);
-
-  const kosarajuEntry = entries.find((entry) => entry.path === "/solvers/kosaraju");
-  assert.ok(kosarajuEntry);
-  assert.equal(kosarajuEntry.kind, "solver");
-  assert.equal(kosarajuEntry.generator, "kosaraju");
-  assert.equal(kosarajuEntry.source, "solvers/kosaraju.hpp");
-  assert.deepEqual(kosarajuEntry.exports, [
-    "KosarajuResult",
-    "kosaraju_add_edge",
-    "kosaraju_scc"
-  ]);
-  assert.deepEqual(kosarajuEntry.features, [
-    "scc",
-    "component_ids",
-    "components",
-    "condensation_dag"
-  ]);
-  assert.deepEqual(kosarajuEntry.applications, [
-    "scc_components",
-    "same_component",
-    "condensation_dag",
-    "two_sat_analysis"
-  ]);
-  assert.deepEqual(kosarajuEntry.bindings, [
-    "sizeExpression",
-    "edgeCountName",
-    "queryCountName",
-    "graphName",
-    "resultName"
-  ]);
-  assert.deepEqual(kosarajuEntry.sections, ["helpers", "solve"]);
-
-  const moEntry = entries.find((entry) => entry.path === "/solvers/mo");
-  assert.ok(moEntry);
-  assert.equal(moEntry.kind, "solver");
-  assert.equal(moEntry.generator, "mo");
-  assert.equal(moEntry.source, "solvers/mo.hpp");
-  assert.deepEqual(moEntry.exports, [
-    "MoQuery",
-    "mo_default_block_size",
-    "normalize_mo_query",
-    "mo_order",
-    "mo_process"
-  ]);
-  assert.deepEqual(moEntry.features, [
-    "range_queries",
-    "offline",
-    "half_open_intervals",
-    "query_order",
-    "callback_processor"
-  ]);
-  assert.deepEqual(moEntry.applications, [
-    "distinct_values",
-    "range_frequency",
-    "range_aggregate",
-    "custom_callbacks"
-  ]);
-  assert.deepEqual(moEntry.bindings, [
-    "sizeExpression",
-    "queryCountName",
-    "valuesName",
-    "queriesName",
-    "answersName"
-  ]);
-  assert.deepEqual(moEntry.sections, ["helpers", "solve"]);
-
-  const monotonicEntry = entries.find(
-    (entry) => entry.path === "/solvers/monotonic_stack"
-  );
-  assert.ok(monotonicEntry);
-  assert.equal(monotonicEntry.kind, "solver");
-  assert.equal(monotonicEntry.generator, "monotonic_stack");
-  assert.equal(monotonicEntry.source, "solvers/monotonic_stack.hpp");
-  assert.deepEqual(monotonicEntry.exports, [
-    "nearest_left_by",
-    "nearest_right_by",
-    "nearest_smaller_left",
-    "nearest_smaller_right",
-    "nearest_greater_left",
-    "nearest_greater_right",
-    "NearestIndices",
-    "nearest_all"
-  ]);
-  assert.deepEqual(monotonicEntry.features, [
-    "nearest_left",
-    "nearest_right",
-    "smaller",
-    "greater",
-    "strict",
-    "non_strict"
-  ]);
-  assert.deepEqual(monotonicEntry.applications, [
-    "nearest_smaller",
-    "nearest_greater",
-    "all_nearest",
-    "custom_comparator"
-  ]);
-  assert.deepEqual(monotonicEntry.bindings, [
-    "sourceName",
-    "resultName",
-    "valueType"
-  ]);
-  assert.deepEqual(monotonicEntry.sections, ["helpers", "solve"]);
-
-  const gpHashEntry = entries.find((entry) => entry.path === "/solvers/gp_hash_table");
-  assert.ok(gpHashEntry);
-  assert.equal(gpHashEntry.kind, "solver");
-  assert.equal(gpHashEntry.generator, "gp_hash_table");
-  assert.equal(gpHashEntry.source, "solvers/gp_hash_table.hpp");
-  assert.deepEqual(gpHashEntry.exports, [
-    "SplitMix64Hash",
-    "GpHash",
-    "PairHash",
-    "GpHashTable"
-  ]);
-  assert.deepEqual(gpHashEntry.features, [
-    "pbds",
-    "splitmix64",
-    "pair_hash",
-    "hash_map",
-    "hash_set"
-  ]);
-  assert.deepEqual(gpHashEntry.applications, [
-    "hash_map",
-    "hash_set",
-    "frequency_table",
-    "pair_key"
-  ]);
-  assert.deepEqual(gpHashEntry.bindings, [
-    "keyType",
-    "valueType",
-    "tableName",
-    "sourceName"
-  ]);
-  assert.deepEqual(gpHashEntry.sections, ["includes", "helpers", "solve"]);
-
-  const orderedSetEntry = entries.find((entry) => entry.path === "/solvers/ordered_set");
-  assert.ok(orderedSetEntry);
-  assert.equal(orderedSetEntry.kind, "solver");
-  assert.equal(orderedSetEntry.generator, "ordered_set");
-  assert.equal(orderedSetEntry.source, "solvers/ordered_set.hpp");
-  assert.deepEqual(orderedSetEntry.exports, ["OrderedSetTree", "OrderedSet"]);
-  assert.deepEqual(orderedSetEntry.features, [
-    "pbds",
-    "order_statistics",
-    "rank",
-    "kth"
-  ]);
-  assert.deepEqual(orderedSetEntry.applications, [
-    "order_statistics",
-    "kth_element",
-    "multiset_pairs",
-    "rank_queries"
-  ]);
-  assert.deepEqual(orderedSetEntry.bindings, ["keyType", "setName"]);
-  assert.deepEqual(orderedSetEntry.sections, ["includes", "helpers", "solve"]);
-
-  const setUtilsEntry = entries.find((entry) => entry.path === "/solvers/set_utils");
-  assert.ok(setUtilsEntry);
-  assert.equal(setUtilsEntry.kind, "solver");
-  assert.equal(setUtilsEntry.generator, "set_utils");
-  assert.equal(setUtilsEntry.source, "solvers/set_utils.hpp");
-  assert.deepEqual(setUtilsEntry.exports, [
-    "next_iterator",
-    "prev_iterator",
-    "next_value",
-    "prev_value"
-  ]);
-  assert.deepEqual(setUtilsEntry.features, ["set", "map", "iterator", "neighbor"]);
-  assert.deepEqual(setUtilsEntry.applications, [
-    "next_value",
-    "prev_value",
-    "iterator_navigation",
-    "map_neighbor"
-  ]);
-  assert.deepEqual(setUtilsEntry.bindings, [
-    "containerName",
-    "keyName",
-    "iteratorName",
-    "resultName"
-  ]);
-  assert.deepEqual(setUtilsEntry.sections, ["helpers", "solve"]);
-
-  const linearSieveEntry = entries.find(
-    (entry) => entry.path === "/solvers/linear_sieve"
-  );
-  assert.ok(linearSieveEntry);
-  assert.equal(linearSieveEntry.kind, "solver");
-  assert.equal(linearSieveEntry.generator, "linear_sieve");
-  assert.equal(linearSieveEntry.source, "solvers/linear_sieve.hpp");
-  assert.deepEqual(linearSieveEntry.exports, [
-    "LinearSieve",
-    "linear_sieve_lowest_prime",
-    "linear_sieve_primes"
-  ]);
-  assert.deepEqual(linearSieveEntry.features, [
-    "lowest_prime",
-    "primes",
-    "factorization"
-  ]);
-  assert.deepEqual(linearSieveEntry.sections, ["helpers"]);
-
-  const fenwickEntry = entries.find((entry) => entry.path === "/solvers/fenwick");
-  assert.ok(fenwickEntry);
-  assert.equal(fenwickEntry.kind, "solver");
-  assert.equal(fenwickEntry.generator, "fenwick");
-  assert.equal(fenwickEntry.source, "solvers/fenwick.hpp");
-  assert.deepEqual(fenwickEntry.exports, [
-    "FenwickSumOp",
-    "FenwickXorOp",
-    "FenwickMaxOp",
-    "FenwickMinOp",
-    "FenwickCustomOp",
-    "FenwickCustomInvertibleOp",
-    "Fenwick",
-    "RangeFenwick",
-    "FenwickSumTree",
-    "FenwickXorTree",
-    "FenwickMaxTree",
-    "FenwickMinTree",
-    "FenwickCustomTree",
-    "FenwickCustomInvertibleTree"
-  ]);
-  assert.deepEqual(fenwickEntry.features, [
-    "sum",
-    "xor",
-    "max",
-    "min",
-    "custom",
-    "custom_invertible",
-    "range_query",
-    "range_update",
-    "descend"
-  ]);
-  assert.equal(fenwickEntry.applications.includes("range_sum"), true);
-  assert.equal(fenwickEntry.aggregators.includes("custom_invertible"), true);
-  assert.equal(fenwickEntry.bindings.includes("sourceName"), true);
-  assert.deepEqual(fenwickEntry.sections, ["helpers"]);
-
-  const modIntEntry = entries.find((entry) => entry.path === "/solvers/modint");
-  assert.ok(modIntEntry);
-  assert.equal(modIntEntry.kind, "solver");
-  assert.equal(modIntEntry.generator, "modint");
-  assert.equal(modIntEntry.source, "solvers/modint.hpp");
-  assert.deepEqual(modIntEntry.exports, ["StaticModInt", "DynamicModInt"]);
-  assert.deepEqual(modIntEntry.features, [
-    "static_mod",
-    "dynamic_mod",
-    "inverse",
-    "pow"
-  ]);
-  assert.deepEqual(modIntEntry.sections, ["helpers"]);
-
-  const twosatEntry = entries.find((entry) => entry.path === "/solvers/twosat");
-  assert.ok(twosatEntry);
-  assert.equal(twosatEntry.kind, "solver");
-  assert.equal(twosatEntry.generator, "twosat");
-  assert.equal(twosatEntry.source, "solvers/twosat.hpp");
-  assert.deepEqual(twosatEntry.exports, ["TwoSat"]);
-  assert.deepEqual(twosatEntry.features, [
-    "add_or",
-    "add_implication",
-    "assignment",
-    "xor",
-    "equal",
-    "force",
-    "at_most_one",
-    "components"
-  ]);
-  assert.deepEqual(twosatEntry.sections, ["helpers"]);
-
-  const maxflowDinicEntry = entries.find(
-    (entry) => entry.path === "/solvers/maxflow_dinic"
-  );
-  assert.ok(maxflowDinicEntry);
-  assert.equal(maxflowDinicEntry.kind, "solver");
-  assert.equal(maxflowDinicEntry.generator, "maxflow_dinic");
-  assert.equal(maxflowDinicEntry.source, "solvers/maxflow_dinic.hpp");
-  assert.deepEqual(maxflowDinicEntry.exports, ["Dinic"]);
-  assert.deepEqual(maxflowDinicEntry.features, [
-    "add_edge",
-    "max_flow",
-    "min_cut",
-    "graph_access",
-    "reset_flows"
-  ]);
-  assert.deepEqual(maxflowDinicEntry.sections, ["helpers", "solve"]);
-
-  const minCostMaxFlowEntry = entries.find(
-    (entry) => entry.path === "/solvers/mincost_maxflow"
-  );
-  assert.ok(minCostMaxFlowEntry);
-  assert.equal(minCostMaxFlowEntry.kind, "solver");
-  assert.equal(minCostMaxFlowEntry.generator, "mincost_maxflow");
-  assert.equal(minCostMaxFlowEntry.source, "solvers/mincost_maxflow.hpp");
-  assert.deepEqual(minCostMaxFlowEntry.exports, ["MinCostMaxFlow"]);
-  assert.deepEqual(minCostMaxFlowEntry.features, [
-    "add_edge",
-    "min_cost_flow",
-    "min_cost_max_flow",
-    "negative_costs",
-    "graph_access",
-    "potential_access"
-  ]);
-  assert.deepEqual(minCostMaxFlowEntry.sections, ["helpers", "solve"]);
-
-  const hungarianEntry = entries.find(
-    (entry) => entry.path === "/solvers/hungarian"
-  );
-  assert.ok(hungarianEntry);
-  assert.equal(hungarianEntry.kind, "solver");
-  assert.equal(hungarianEntry.generator, "hungarian");
-  assert.equal(hungarianEntry.source, "solvers/hungarian.hpp");
-  assert.deepEqual(hungarianEntry.exports, [
-    "HungarianResult",
-    "hungarian_internal",
-    "hungarian",
-    "hungarian_maximize"
-  ]);
-  assert.deepEqual(hungarianEntry.features, [
-    "minimize",
-    "maximize",
-    "rectangular"
-  ]);
-  assert.deepEqual(hungarianEntry.sections, ["helpers", "solve"]);
-
-  const kuhnEntry = entries.find((entry) => entry.path === "/solvers/kuhn");
-  assert.ok(kuhnEntry);
-  assert.equal(kuhnEntry.kind, "solver");
-  assert.equal(kuhnEntry.generator, "kuhn");
-  assert.equal(kuhnEntry.source, "solvers/kuhn.hpp");
-  assert.deepEqual(kuhnEntry.exports, [
-    "KuhnResult",
-    "KuhnMatcher",
-    "kuhn_maximum_matching",
-    "BipartiteVertexCover",
-    "minimum_vertex_cover_bipartite"
-  ]);
-  assert.deepEqual(kuhnEntry.features, [
-    "maximum_matching",
-    "left_matches",
-    "right_matches",
-    "vertex_cover"
-  ]);
-  assert.deepEqual(kuhnEntry.sections, ["helpers", "solve"]);
-
-  const treapEntry = entries.find(
-    (entry) => entry.path === "/solvers/implicit_treap"
-  );
-  assert.ok(treapEntry);
-  assert.equal(treapEntry.kind, "solver");
-  assert.equal(treapEntry.generator, "implicit_treap");
-  assert.equal(treapEntry.source, "solvers/implicit_treap.hpp");
-  assert.deepEqual(treapEntry.exports, ["TreapSumOp", "ImplicitTreap"]);
-  assert.deepEqual(treapEntry.features, ["sum", "custom", "reverse", "range_add"]);
-  assert.deepEqual(treapEntry.applications, [
-    "sequence_edit",
-    "range_query",
-    "range_lazy",
-    "custom_aggregate"
-  ]);
-  assert.deepEqual(treapEntry.bindings, [
-    "sourceName",
-    "sizeExpression",
-    "valueType",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(treapEntry.sections, ["helpers", "solve"]);
-
-  const mergeSortTreeEntry = entries.find(
-    (entry) => entry.path === "/solvers/merge_sort_tree"
-  );
-  assert.ok(mergeSortTreeEntry);
-  assert.equal(mergeSortTreeEntry.kind, "solver");
-  assert.equal(mergeSortTreeEntry.generator, "merge_sort_tree");
-  assert.equal(mergeSortTreeEntry.source, "solvers/merge_sort_tree.hpp");
-  assert.deepEqual(mergeSortTreeEntry.exports, ["MergeSortTree"]);
-  assert.deepEqual(mergeSortTreeEntry.features, [
-    "count_less",
-    "count_less_equal",
-    "count_equal",
-    "count_in_range",
-    "exists"
-  ]);
-  assert.deepEqual(mergeSortTreeEntry.applications, [
-    "range_threshold_count",
-    "range_value_presence",
-    "range_value_band"
-  ]);
-  assert.deepEqual(mergeSortTreeEntry.bindings, [
-    "sourceName",
-    "sizeExpression",
-    "valueType",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(mergeSortTreeEntry.sections, ["helpers", "solve"]);
-
-  const polyHashEntry = entries.find((entry) => entry.path === "/solvers/poly_hash");
-  assert.ok(polyHashEntry);
-  assert.equal(polyHashEntry.kind, "solver");
-  assert.equal(polyHashEntry.generator, "poly_hash");
-  assert.equal(polyHashEntry.source, "solvers/poly_hash.hpp");
-  assert.deepEqual(polyHashEntry.exports, [
-    "POLY_HASH_MOD1",
-    "POLY_HASH_MOD2",
-    "POLY_HASH_BASE",
-    "PolyHashValue",
-    "PolyHash",
-    "poly_hash_string",
-    "poly_hash_values",
-    "poly_hash_equal_substrings"
-  ]);
-  assert.deepEqual(polyHashEntry.features, [
-    "substring_equal",
-    "reverse",
-    "lcp",
-    "concat"
-  ]);
-  assert.deepEqual(polyHashEntry.sections, ["constants", "helpers"]);
-
-  const suffixEntry = entries.find((entry) => entry.path === "/solvers/suffix_array");
-  assert.ok(suffixEntry);
-  assert.equal(suffixEntry.kind, "solver");
-  assert.equal(suffixEntry.generator, "suffix_array");
-  assert.equal(suffixEntry.source, "solvers/suffix_array.hpp");
-  assert.deepEqual(suffixEntry.features, [
-    "rank",
-    "lcp",
-    "stripped_sa",
-    "lcp_rmq"
-  ]);
-  assert.deepEqual(suffixEntry.sections, ["helpers"]);
-
-  const segtreeEntry = entries.find((entry) => entry.path === "/solvers/segtree");
-  assert.ok(segtreeEntry);
-  assert.equal(segtreeEntry.kind, "solver");
-  assert.equal(segtreeEntry.generator, "segtree");
-  assert.deepEqual(segtreeEntry.applications, [
-    "point_query",
-    "lazy_range",
-    "lazy_minmax",
-    "max_subarray",
-    "beats"
-  ]);
-  assert.deepEqual(segtreeEntry.aggregators, [
-    "sum",
-    "min",
-    "max",
-    "custom",
-    "max_subarray",
-    "beats"
-  ]);
-  assert.deepEqual(segtreeEntry.bindings, [
-    "sizeExpression",
-    "sourceName",
-    "valueType",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(segtreeEntry.sections, ["helpers", "solve"]);
-
-  const pointSegtreeEntry = entries.find(
-    (entry) => entry.path === "/solvers/segtree_point_update"
-  );
-  assert.ok(pointSegtreeEntry);
-  assert.equal(pointSegtreeEntry.kind, "solver");
-  assert.equal(pointSegtreeEntry.generator, undefined);
-  assert.equal(pointSegtreeEntry.source, "solvers/segtree_point_update.hpp");
-  assert.deepEqual(pointSegtreeEntry.exports, [
-    "SegmentSumOp",
-    "SegmentMinOp",
-    "SegmentMaxOp",
-    "SegmentTree",
-    "SegmentSumTree",
-    "SegmentMinTree",
-    "SegmentMaxTree"
-  ]);
-  assert.deepEqual(pointSegtreeEntry.features, ["point_set", "sum", "min", "max"]);
-  assert.deepEqual(pointSegtreeEntry.sections, ["helpers"]);
-
-  const lazyMinEntry = entries.find(
-    (entry) => entry.path === "/solvers/segtree_lazy_add_min"
-  );
-  assert.ok(lazyMinEntry);
-  assert.equal(lazyMinEntry.kind, "solver");
-  assert.equal(lazyMinEntry.generator, undefined);
-  assert.equal(lazyMinEntry.source, "solvers/segtree_lazy_add_min.hpp");
-  assert.deepEqual(lazyMinEntry.exports, ["SegmentMinAddTree"]);
-  assert.deepEqual(lazyMinEntry.features, ["range_add", "min", "first_leq"]);
-  assert.deepEqual(lazyMinEntry.sections, ["helpers"]);
-
-  const lazyMinMaxEntry = entries.find(
-    (entry) => entry.path === "/solvers/segtree_lazy_minmax"
-  );
-  assert.ok(lazyMinMaxEntry);
-  assert.equal(lazyMinMaxEntry.kind, "solver");
-  assert.equal(lazyMinMaxEntry.generator, undefined);
-  assert.equal(lazyMinMaxEntry.source, "solvers/segtree_lazy_minmax.hpp");
-  assert.deepEqual(lazyMinMaxEntry.exports, [
-    "SegmentAssignTag",
-    "LazySegTree",
-    "SegMinAssignSpec",
-    "SegMaxAssignSpec",
-    "SegMinAddSpec",
-    "SegMaxAddSpec",
-    "SegmentMinAssignTree",
-    "SegmentMaxAssignTree",
-    "SegmentMinAddTree",
-    "SegmentMaxAddTree"
-  ]);
-  assert.deepEqual(lazyMinMaxEntry.features, [
-    "range_assign",
-    "range_add",
-    "min",
-    "max",
-    "first_leq",
-    "last_leq",
-    "first_geq",
-    "last_geq"
-  ]);
-  assert.deepEqual(lazyMinMaxEntry.sections, ["helpers"]);
-
-  const maxSubarrayEntry = entries.find(
-    (entry) => entry.path === "/solvers/segtree_max_subarray"
-  );
-  assert.ok(maxSubarrayEntry);
-  assert.equal(maxSubarrayEntry.kind, "solver");
-  assert.equal(maxSubarrayEntry.generator, undefined);
-  assert.equal(maxSubarrayEntry.source, "solvers/segtree_max_subarray.hpp");
-  assert.deepEqual(maxSubarrayEntry.exports, [
-    "MaxSubarrayNode",
-    "MaxSubarraySegTree"
-  ]);
-  assert.deepEqual(maxSubarrayEntry.features, ["max_subarray", "point_set"]);
-  assert.deepEqual(maxSubarrayEntry.sections, ["helpers"]);
-
-  const beatsEntry = entries.find(
-    (entry) => entry.path === "/solvers/segtree_beats"
-  );
-  assert.ok(beatsEntry);
-  assert.equal(beatsEntry.kind, "solver");
-  assert.equal(beatsEntry.generator, "segtree_beats");
-  assert.equal(beatsEntry.source, "solvers/segtree_beats.hpp");
-  assert.deepEqual(beatsEntry.exports, ["SegmentTreeBeats"]);
-  assert.deepEqual(beatsEntry.features, [
-    "chmin",
-    "chmax",
-    "add",
-    "sum",
-    "min",
-    "max"
-  ]);
-  assert.deepEqual(beatsEntry.applications, [
-    "clamp_queries",
-    "add_clamp_queries",
-    "query_only"
-  ]);
-  assert.deepEqual(beatsEntry.bindings, [
-    "sourceName",
-    "sizeExpression",
-    "valueType",
-    "instanceName",
-    "answerName"
-  ]);
-  assert.deepEqual(beatsEntry.sections, ["helpers", "solve"]);
-
-  const fftNttEntry = entries.find((entry) => entry.path === "/solvers/fft_ntt");
-  assert.ok(fftNttEntry);
-  assert.equal(fftNttEntry.kind, "solver");
-  assert.equal(fftNttEntry.generator, "fft_ntt");
-  assert.equal(fftNttEntry.source, "solvers/fft_ntt.hpp");
-  assert.deepEqual(fftNttEntry.exports, [
-    "fft_next_power_of_two",
-    "fft_is_power_of_two",
-    "fft_bit_reverse",
-    "fft_transform",
-    "convolution_fft_round",
-    "ntt_pow",
-    "ntt_transform",
-    "convolution_ntt_int"
-  ]);
-  assert.deepEqual(fftNttEntry.features, [
-    "fft",
-    "ntt",
-    "convolution",
-    "mod_998244353"
-  ]);
-  assert.deepEqual(fftNttEntry.sections, ["helpers"]);
-
-  const fastAllocatorEntry = entries.find(
-    (entry) => entry.path === "/solvers/fast_allocator"
-  );
-  assert.ok(fastAllocatorEntry);
-  assert.equal(fastAllocatorEntry.kind, "solver");
-  assert.equal(fastAllocatorEntry.generator, "fast_allocator");
-  assert.equal(fastAllocatorEntry.source, "solvers/fast_allocator.hpp");
-  assert.deepEqual(fastAllocatorEntry.exports, [
-    "FastAllocatorArena",
-    "FastAllocator",
-    "make_fast_allocator"
-  ]);
-  assert.deepEqual(fastAllocatorEntry.features, [
-    "arena",
-    "allocator",
-    "vector",
-    "reset"
-  ]);
-  assert.deepEqual(fastAllocatorEntry.applications, [
-    "many_vectors",
-    "graph_edges",
-    "pool_reset",
-    "custom_container"
-  ]);
-  assert.deepEqual(fastAllocatorEntry.bindings, [
-    "valueType",
-    "capacityExpression",
-    "arenaName",
-    "containerName"
-  ]);
-  assert.deepEqual(fastAllocatorEntry.sections, ["helpers", "solve"]);
-
-  const geometryEntry = entries.find((entry) => entry.path === "/solvers/geometry");
-  assert.ok(geometryEntry);
-  assert.equal(geometryEntry.kind, "solver");
-  assert.equal(geometryEntry.generator, "geometry");
-  assert.equal(geometryEntry.source, "solvers/geometry.hpp");
-  assert.equal(geometryEntry.exports.includes("Point2"), true);
-  assert.equal(geometryEntry.exports.includes("convex_hull"), true);
-  assert.deepEqual(geometryEntry.features, [
-    "point",
-    "orientation",
-    "segments",
-    "angle_sort",
-    "convex_hull"
-  ]);
-  assert.deepEqual(geometryEntry.applications, [
-    "orientation",
-    "segment_intersection",
-    "angle_sort",
-    "convex_hull"
-  ]);
-  assert.deepEqual(geometryEntry.bindings, [
-    "valueType",
-    "pointsName",
-    "resultName"
-  ]);
-  assert.deepEqual(geometryEntry.sections, ["helpers", "solve"]);
-
-  const halfplaneEntry = entries.find(
-    (entry) => entry.path === "/solvers/halfplane_intersection"
-  );
-  assert.ok(halfplaneEntry);
-  assert.equal(halfplaneEntry.kind, "solver");
-  assert.equal(halfplaneEntry.generator, "halfplane_intersection");
-  assert.equal(halfplaneEntry.source, "solvers/halfplane_intersection.hpp");
-  assert.equal(halfplaneEntry.exports.includes("HalfPlane"), true);
-  assert.equal(halfplaneEntry.exports.includes("halfplane_intersection"), true);
-  assert.deepEqual(halfplaneEntry.features, [
-    "geometry",
-    "convex_polygon",
-    "linear_constraints"
-  ]);
-  assert.deepEqual(halfplaneEntry.applications, [
-    "convex_polygon",
-    "linear_constraints",
-    "clip_polygon"
-  ]);
-  assert.deepEqual(halfplaneEntry.bindings, [
-    "halfplanesName",
-    "resultName"
-  ]);
-  assert.deepEqual(halfplaneEntry.sections, ["helpers", "solve"]);
+  for (const removedPreset of [
+    "/solvers/segtree_point_update",
+    "/solvers/segtree_lazy_add_min",
+    "/solvers/segtree_lazy_minmax",
+    "/solvers/segtree_max_subarray"
+  ]) {
+    assert.equal(seenPaths.has(removedPreset), false);
+  }
+  assert.equal(seenPaths.has("/solvers/segtree"), true);
+  assert.equal(seenPaths.has("/solvers/segtree_beats"), true);
 }
+
 
 function testCompletedMigrationGuardrails() {
   const repoRoot = path.join(__dirname, "..", "..");
   const catalogPath = path.join(repoRoot, "lib", "catalog", "snippets.json");
   const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
   const entries = Array.isArray(parsed) ? parsed : parsed.entries;
-  const sourceFiles = [
-    ...collectFiles(path.join(repoRoot, "lib"), new Set([".hpp"])),
-    ...collectFiles(path.join(repoRoot, "tests"), new Set([".cpp"]))
-  ];
 
-  for (const migration of completedMigrations) {
-    const legacyCatalogPath = `/${migration.legacyHeader.replace(/\.hpp$/, "")}`;
-    const replacementHeader = toPosixPath(migration.replacementHeader);
-
-    assert.equal(
-      fs.existsSync(path.join(repoRoot, "lib", migration.legacyHeader)),
-      false,
-      `${migration.name} still has a top-level compatibility header`
-    );
-    assert.equal(
-      fs.existsSync(path.join(repoRoot, "lib", migration.replacementHeader)),
-      true,
-      `${migration.name} replacement header is missing`
-    );
-    for (const removedFile of migration.removedFiles ?? []) {
-      assert.equal(
-        fs.existsSync(path.join(repoRoot, "lib", removedFile)),
-        false,
-        `${migration.name} removed file still exists: ${removedFile}`
-      );
-    }
-
-    const entry = entries.find((candidate) => candidate.path === migration.catalogPath);
-    assert.ok(entry, `${migration.catalogPath} is missing from the catalog`);
-    if (entry.source !== undefined) {
-      assert.equal(entry.source, replacementHeader);
-    }
-
-    for (const candidate of entries) {
-      assert.notEqual(
-        candidate.path,
-        legacyCatalogPath,
-        `${migration.name} still exposes ${legacyCatalogPath} in the catalog`
-      );
-      assert.notEqual(
-        candidate.source,
-        migration.legacyHeader,
-        `${migration.name} still uses top-level source ${migration.legacyHeader}`
-      );
-      assert.equal(
-        (candidate.dependsOn ?? []).includes(legacyCatalogPath),
-        false,
-        `${migration.name} still depends on ${legacyCatalogPath}`
-      );
-    }
-
-    const expectedInclude = new RegExp(
-      `#include "${escapeRegExp(`../lib/${replacementHeader}`)}"`
-    );
-    const forbiddenInclude = new RegExp(
-      `#include "${escapeRegExp(`../lib/${migration.legacyHeader}`)}"`
-    );
-    const forbiddenLocalInclude = new RegExp(
-      `#include "${escapeRegExp(migration.legacyHeader)}"`
-    );
-    for (const testFile of migration.tests) {
-      const content = fs.readFileSync(path.join(repoRoot, "tests", testFile), "utf8");
-      assert.match(content, expectedInclude);
-      assert.doesNotMatch(content, forbiddenInclude);
-    }
-
-    for (const sourceFile of sourceFiles) {
-      const content = fs.readFileSync(sourceFile, "utf8");
-      assert.doesNotMatch(
-        content,
-        forbiddenInclude,
-        `${path.relative(repoRoot, sourceFile)} includes completed legacy header ${migration.legacyHeader}`
-      );
-      assert.doesNotMatch(
-        content,
-        forbiddenLocalInclude,
-        `${path.relative(repoRoot, sourceFile)} includes completed legacy header ${migration.legacyHeader}`
-      );
-    }
-
-    for (const check of migration.extraSourceChecks ?? []) {
-      const content = fs.readFileSync(path.join(repoRoot, ...check.pathParts), "utf8");
-      assert.match(content, check.expected);
-      assert.doesNotMatch(content, check.forbidden);
-    }
-  }
-}
-
-function testFinalLibraryShapeGuardrails() {
-  const repoRoot = path.join(__dirname, "..", "..");
-  const catalogPath = path.join(repoRoot, "lib", "catalog", "snippets.json");
-  const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
-  const entries = Array.isArray(parsed) ? parsed : parsed.entries;
-  const validCatalogPath = /^(\/solvers\/|\/bricks\/)/;
-  const validCatalogSource = /^(solvers\/|bricks\/)/;
-  const topLevelTestInclude = /#include\s+"..\/lib\/[^/"]+\.hpp"/;
-  const localHeaderInclude = /#include\s+"[^/"]+\.hpp"/;
-
-  for (const root of [
-    path.join(repoRoot, "lib"),
-    path.join(repoRoot, "extension", "library")
+  for (const retiredDirectory of [
+    path.join(repoRoot, "lib", "solvers"),
+    path.join(repoRoot, "lib", "bricks"),
+    path.join(repoRoot, "extension", "library", "solvers"),
+    path.join(repoRoot, "extension", "library", "bricks")
   ]) {
-    const topLevelHeaders = fs
-      .readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && path.extname(entry.name) === ".hpp")
-      .map((entry) => entry.name);
-    assert.deepEqual(topLevelHeaders, [], `${root} exposes top-level headers`);
+    assert.equal(
+      !fs.existsSync(retiredDirectory) || fs.readdirSync(retiredDirectory).length === 0,
+      true,
+      `${retiredDirectory} still contains insertable source files`
+    );
   }
 
   for (const entry of entries) {
-    assert.match(entry.path, validCatalogPath, `${entry.path} is not a solver/brick path`);
-    if (entry.source !== undefined) {
-      assert.match(
-        entry.source,
-        validCatalogSource,
-        `${entry.path} uses top-level catalog source ${entry.source}`
-      );
-    }
-    for (const dependency of entry.dependsOn ?? []) {
-      assert.match(
-        dependency,
-        validCatalogPath,
-        `${entry.path} depends on non solver/brick path ${dependency}`
-      );
-    }
+    assert.equal(entry.source, undefined, `${entry.path} still references a source header`);
   }
 
-  for (const testFile of collectFiles(path.join(repoRoot, "tests"), new Set([".cpp"]))) {
+  const insertableHeaders = collectFiles(path.join(repoRoot, "lib"), new Set([".hpp"]));
+  assert.deepEqual(insertableHeaders, []);
+  const directSnippetTests = collectFiles(path.join(repoRoot, "tests"), new Set([".cpp"]));
+  for (const testFile of directSnippetTests) {
     const content = fs.readFileSync(testFile, "utf8");
-    assert.doesNotMatch(
-      content,
-      topLevelTestInclude,
-      `${path.relative(repoRoot, testFile)} includes a top-level lib header`
-    );
+    assert.doesNotMatch(content, /#include\s+"\.\.\/lib\/(?:solvers|bricks)\//);
+  }
+}
+
+
+function testFinalLibraryShapeGuardrails() {
+  const repoRoot = path.join(__dirname, "..", "..");
+  const templateRoot = path.join(repoRoot, "lib", "templates");
+  const catalogPath = path.join(repoRoot, "lib", "catalog", "snippets.json");
+  const entries = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+  const staticTemplates = new Set(
+    entries.filter((entry) => entry.template).map((entry) => entry.template)
+  );
+
+  for (const entry of entries) {
+    assert.match(entry.path, /^\/(?:solvers|bricks)\//);
+    assert.equal(entry.source, undefined);
+    for (const dependency of entry.dependsOn ?? []) {
+      assert.match(dependency, /^\/(?:solvers|bricks)\//);
+    }
   }
 
-  for (const sourceFile of [
-    ...collectFiles(path.join(repoRoot, "lib"), new Set([".hpp"])),
-    ...collectFiles(path.join(repoRoot, "extension", "library"), new Set([".hpp"]))
-  ]) {
-    const content = fs.readFileSync(sourceFile, "utf8");
-    assert.doesNotMatch(
-      content,
-      localHeaderInclude,
-      `${path.relative(repoRoot, sourceFile)} includes a local compatibility header`
-    );
+  for (const templatePath of staticTemplates) {
+    assert.equal(fs.existsSync(path.join(templateRoot, templatePath)), true);
   }
 }
 
@@ -3050,6 +2055,35 @@ function testInteractiveBrickRenderers() {
   });
   assert.match(compressed, /auto vals = a;/);
   assert.match(compressed, /for \(auto& x : a\) x = get_id\(x\);/);
+
+  const readVector = core.renderReadVector({
+    name: "a",
+    sizeExpression: "n",
+    valueType: "int",
+    containerType: "vector<int>"
+  });
+  compileSource("brick_read_vector_generated", [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "int main() {",
+    "  istringstream input(\"4 8 15 16\");",
+    "  cin.rdbuf(input.rdbuf());",
+    "  int n = 4;",
+    readVector,
+    "  assert((a == vector<int>{4, 8, 15, 16}));",
+    "}"
+  ].join("\n"));
+  compileSource("brick_compress_unique_generated", [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "#define all(x) (x).begin(), (x).end()",
+    "int main() {",
+    "  vector<int> a = {7, 2, 7, 5};",
+    compressed,
+    "  assert((vals == vector<int>{2, 5, 7}));",
+    "  assert((a == vector<int>{2, 0, 2, 1}));",
+    "}"
+  ].join("\n"));
 }
 
 function testBerlekampMasseyRenderer() {
@@ -6099,9 +5133,132 @@ testFinalLibraryShapeGuardrails();
 testManifestCommands();
 testNamespaceUnwrap();
 testGlobalInsertionOffset();
-testGeneratedSegmentTrees();
-testGeneratedSegmentTreeBeatsCompiles();
-testInteractiveBrickRenderers();
+function runTemplateScenario(snippetPath, parameters, test) {
+  process.stdout.write(
+    `[template:e2e] ${snippetPath} parameters=${JSON.stringify(parameters)}\n`
+  );
+  test();
+}
+
+function testStaticBrickTemplatesRender() {
+  const catalogPath = path.join(__dirname, "..", "library", "catalog", "snippets.json");
+  const entries = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+  const renderedByPath = new Map();
+  for (const entry of entries.filter((candidate) => candidate.template)) {
+    runTemplateScenario(entry.path, { template: entry.template }, () => {
+      const rendered = core.renderStaticTemplate(entry.template, entry.kind);
+      assert.notEqual(rendered.content.trim(), "");
+      assert.doesNotMatch(rendered.content, /{{[#/]?/);
+      renderedByPath.set(entry.path, rendered.content);
+    });
+  }
+
+  compileSource("brick_base_template_generated", renderedByPath.get("/bricks/base_template"));
+
+  const base = [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    "typedef long long ll;",
+    "#define all(v) v.begin(), v.end()",
+    "#define forn(x, n) for (int x = 0; x < int(n); x++)",
+    "#define pii pair<int, int>",
+    "#define F first",
+    "#define S second",
+    "#define vi vector<int>",
+    "const int MOD = 1000000007;"
+  ].join("\n");
+  const bodyCases = {
+    bfs_dist: [
+      "int n = 3, s = 0; vector<vi> g = {{1}, {0, 2}, {1}};",
+      "assert(dist[2] == 2);"
+    ],
+    bitmask_loop: ["int n = 3;", "assert(true);"],
+    decrement_indices: ["int a = 1, b = 2;", "assert(a == 0 && b == 1);"],
+    dfs_tree: [
+      "int n = 3; vector<vi> g = {{1, 2}, {0}, {0}};",
+      "assert(sz[0] == 3 && depth[2] == 1 && p[1] == 0);"
+    ],
+    dsu_short: ["int n = 3;", "assert(unite(0, 1) && get(get, 0) == get(get, 1));"],
+    grid4: [
+      "int n = 2, m = 2;",
+      "assert(inside(1, 1) && !inside(2, 0) && dx[0] == 0 && dy[0] == 1);"
+    ],
+    lower_bound_l_false_r_true: [
+      "int l = -1, r = 10; auto can = [&](int x) { return x >= 4; };",
+      "assert(r == 4);"
+    ],
+    prefix_2d: [
+      "int n = 2, m = 2; vector<vi> a = {{1, 2}, {3, 4}};",
+      "assert(rect_sum(0, 0, 2, 2) == 10 && rect_sum(1, 0, 2, 2) == 7);"
+    ],
+    print_vector: ["vi v = {1, 2, 3};", "cout << '\\n';"],
+    read_array: [
+      "int n = 3; istringstream input(\"1 2 3\"); cin.rdbuf(input.rdbuf());",
+      "assert(a == vi({1, 2, 3}));"
+    ],
+    read_graph_undirected: [
+      "int n = 3, m = 2; istringstream input(\"1 2 2 3\"); cin.rdbuf(input.rdbuf());",
+      "assert(g[0][0] == 1 && g[1].size() == 2 && g[2][0] == 1);"
+    ],
+    read_tree_edges: [
+      "int n = 3; istringstream input(\"1 2 1 3\"); cin.rdbuf(input.rdbuf());",
+      "assert(g[0].size() == 2 && g[1][0] == 0 && g[2][0] == 0);"
+    ],
+    read_vector_ref: [
+      "vi a(3); istringstream input(\"1 2 3\"); cin.rdbuf(input.rdbuf());",
+      "assert(a == vi({1, 2, 3}));"
+    ],
+    static_rsq: [
+      "int n = 3; vector<ll> a = {1, 2, 3};",
+      "assert(rsq(0, 3) == 6 && rsq(1, 3) == 5);"
+    ]
+  };
+  for (const [name, [before, after]] of Object.entries(bodyCases)) {
+    compileSource(`brick_${name}_generated`, [
+      base,
+      "int main() {",
+      before,
+      renderedByPath.get(`/bricks/${name}`),
+      after,
+      "return 0;",
+      "}"
+    ].join("\n"));
+  }
+
+  const topCases = {
+    fenwick_sum: "fenwick f(3); f.add(0, 2); f.add(2, 5); assert(f.get(0, 2) == 7);",
+    modpow: "assert(modpow(2, 10) == 1024);"
+  };
+  for (const [name, body] of Object.entries(topCases)) {
+    compileSource(`brick_${name}_generated`, [
+      base,
+      renderedByPath.get(`/bricks/${name}`),
+      "int main() {",
+      body,
+      "return 0;",
+      "}"
+    ].join("\n"));
+  }
+}
+
+testStaticBrickTemplatesRender();
+runTemplateScenario("/bricks/compress_unique", {
+  sourceName: "a",
+  valuesName: "vals",
+  rewriteSource: true
+}, () => {});
+runTemplateScenario("/bricks/read_vector", {
+  name: "a",
+  sizeExpression: "n",
+  valueType: "int"
+}, testInteractiveBrickRenderers);
+runTemplateScenario("/solvers/segtree", {
+  presets: ["point_sum", "lazy_min", "max_subarray"]
+}, testGeneratedSegmentTrees);
+runTemplateScenario("/solvers/segtree_beats", {
+  updates: ["chmin", "chmax", "add"],
+  queries: ["sum", "min", "max"]
+}, testGeneratedSegmentTreeBeatsCompiles);
 testBerlekampMasseyRenderer();
 testSparseTableRenderer();
 testDsuRenderer();
@@ -6134,34 +5291,117 @@ testFastAllocatorRenderer();
 testGeometryRenderer();
 testHalfplaneIntersectionRenderer();
 testSegmentTreeBeatsRenderer();
-testGeneratedBerlekampMasseyCompiles();
-testGeneratedSparseTableCompiles();
-testGeneratedDsuCompiles();
-testGeneratedRollbackDsuCompiles();
-testGeneratedLcaCompiles();
-testGeneratedHldCompiles();
-testGeneratedBfsCompiles();
-testGeneratedDijkstraCompiles();
-testGeneratedToposortCompiles();
-testGeneratedKosarajuCompiles();
-testGeneratedMoCompiles();
-testGeneratedMonotonicStackCompiles();
-testGeneratedGpHashTableCompiles();
-testGeneratedOrderedSetCompiles();
-testGeneratedSetUtilsCompiles();
-testGeneratedLinearSieveCompiles();
-testGeneratedFenwickCompiles();
-testGeneratedModIntCompiles();
-testGeneratedTwoSatCompiles();
-testGeneratedMaxflowDinicCompiles();
-testGeneratedMinCostMaxFlowCompiles();
-testGeneratedHungarianCompiles();
-testGeneratedKuhnCompiles();
-testGeneratedImplicitTreapCompiles();
-testGeneratedMergeSortTreeCompiles();
-testGeneratedSuffixArrayCompiles();
-testGeneratedPolyHashCompiles();
-testGeneratedFftNttCompiles();
-testGeneratedFastAllocatorCompiles();
-testGeneratedGeometryCompiles();
-testGeneratedHalfplaneIntersectionCompiles();
+runTemplateScenario("/solvers/berlekamp_massey", {
+  features: ["minimal_recurrence", "kth_term"]
+}, testGeneratedBerlekampMasseyCompiles);
+runTemplateScenario("/solvers/sparse_table", {
+  variants: ["min", "max", "gcd", "bit_and", "bit_or"]
+}, testGeneratedSparseTableCompiles);
+runTemplateScenario("/solvers/dsu", {
+  application: "connectivity",
+  usageMode: "query_loop"
+}, testGeneratedDsuCompiles);
+runTemplateScenario("/solvers/rollback_dsu", {
+  features: ["snapshot", "rollback", "component_size"]
+}, testGeneratedRollbackDsuCompiles);
+runTemplateScenario("/solvers/lca", {
+  application: "tree_query_loop",
+  features: ["lca", "dist", "kth_ancestor"]
+}, testGeneratedLcaCompiles);
+runTemplateScenario("/solvers/hld", {
+  valueMode: "vertex_values",
+  applications: ["path", "subtree"]
+}, testGeneratedHldCompiles);
+runTemplateScenario("/solvers/bfs", {
+  graphMode: "undirected",
+  sources: ["single", "multi"],
+  restorePath: true
+}, testGeneratedBfsCompiles);
+runTemplateScenario("/solvers/dijkstra", {
+  graphMode: "directed",
+  sources: ["single", "multi"],
+  restorePath: true
+}, testGeneratedDijkstraCompiles);
+runTemplateScenario("/solvers/toposort", {
+  features: ["sort", "cycle_detection", "order_validation"]
+}, testGeneratedToposortCompiles);
+runTemplateScenario("/solvers/kosaraju", {
+  features: ["components", "condensation_dag"]
+}, testGeneratedKosarajuCompiles);
+runTemplateScenario("/solvers/mo", {
+  indexing: "zero_based_half_open",
+  usageMode: "query_loop"
+}, testGeneratedMoCompiles);
+runTemplateScenario("/solvers/monotonic_stack", {
+  direction: "both",
+  relation: "all",
+  strictness: "strict"
+}, testGeneratedMonotonicStackCompiles);
+runTemplateScenario("/solvers/gp_hash_table", {
+  containers: ["map", "set"],
+  hash: "splitmix64"
+}, testGeneratedGpHashTableCompiles);
+runTemplateScenario("/solvers/ordered_set", {
+  duplicates: true,
+  features: ["rank", "kth"]
+}, testGeneratedOrderedSetCompiles);
+runTemplateScenario("/solvers/set_utils", {
+  containers: ["set", "map"],
+  lookup: ["next", "prev"]
+}, testGeneratedSetUtilsCompiles);
+runTemplateScenario("/solvers/linear_sieve", {
+  features: ["lowest_prime", "primes", "factorization"]
+}, testGeneratedLinearSieveCompiles);
+runTemplateScenario("/solvers/fenwick", {
+  operations: ["sum", "xor", "min", "max", "custom"],
+  applications: ["point_prefix", "range_point", "range_sum"]
+}, testGeneratedFenwickCompiles);
+runTemplateScenario("/solvers/modint", {
+  modes: ["static", "dynamic"]
+}, testGeneratedModIntCompiles);
+runTemplateScenario("/solvers/twosat", {
+  features: ["xor", "equal", "force", "at_most_one"]
+}, testGeneratedTwoSatCompiles);
+runTemplateScenario("/solvers/maxflow_dinic", {
+  capacityType: "long long",
+  features: ["min_cut", "edge_access", "reset_flow"]
+}, testGeneratedMaxflowDinicCompiles);
+runTemplateScenario("/solvers/mincost_maxflow", {
+  mode: "max_flow",
+  negativeCosts: true
+}, testGeneratedMinCostMaxFlowCompiles);
+runTemplateScenario("/solvers/hungarian", {
+  modes: ["minimize", "maximize"],
+  rectangular: true
+}, testGeneratedHungarianCompiles);
+runTemplateScenario("/solvers/kuhn", {
+  features: ["maximum_matching", "vertex_cover"]
+}, testGeneratedKuhnCompiles);
+runTemplateScenario("/solvers/implicit_treap", {
+  aggregate: "sum",
+  features: ["reverse", "range_add"]
+}, testGeneratedImplicitTreapCompiles);
+runTemplateScenario("/solvers/merge_sort_tree", {
+  queries: ["count_less", "count_equal", "exists"]
+}, testGeneratedMergeSortTreeCompiles);
+runTemplateScenario("/solvers/suffix_array", {
+  inputs: ["string", "ints"],
+  features: ["rank", "lcp", "stripped_sa", "lcp_rmq"]
+}, testGeneratedSuffixArrayCompiles);
+runTemplateScenario("/solvers/poly_hash", {
+  features: ["substring_equal", "reverse", "lcp", "concat"]
+}, testGeneratedPolyHashCompiles);
+runTemplateScenario("/solvers/fft_ntt", {
+  transforms: ["fft", "ntt"],
+  convolution: true
+}, testGeneratedFftNttCompiles);
+runTemplateScenario("/solvers/fast_allocator", {
+  applications: ["arena", "allocator", "vector"],
+  overflowPolicy: "assert"
+}, testGeneratedFastAllocatorCompiles);
+runTemplateScenario("/solvers/geometry", {
+  applications: ["orientation", "segments", "convex_hull"]
+}, testGeneratedGeometryCompiles);
+runTemplateScenario("/solvers/halfplane_intersection", {
+  applications: ["convex_polygon", "linear_constraints"]
+}, testGeneratedHalfplaneIntersectionCompiles);

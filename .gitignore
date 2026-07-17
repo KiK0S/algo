@@ -2,3 +2,4 @@ extension/node_modules/
 extension/out/
 extension/library
 .test-bin
+site/archive.json
