@@ -75,6 +75,9 @@ function toPosixPath(value) {
 }
 
 function collectFiles(root, extensions) {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
   const result = [];
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     const fullPath = path.join(root, entry.name);
