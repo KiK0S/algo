@@ -24,6 +24,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Install extension dependencies
+        run: npm ci --prefix extension
+      - name: Build extension
+        run: npm run build --prefix extension
       - name: Build archive data
         run: node tools/build-archive-site.mjs
       - name: Configure Pages
