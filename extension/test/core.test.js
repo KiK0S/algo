@@ -4089,7 +4089,7 @@ function testGeneratedGpHashTableCompiles() {
     "  using Key = pair<int, int>;",
     "  GpHashTable<Key, int, PairHash<int, int>> pair_table;",
     "  pair_table[{1, 2}] = 7;",
-    "  assert(pair_table[{1, 2}] == 7);",
+    "  assert((pair_table[{1, 2}] == 7));",
     "  GpHashTable<int, __gnu_pbds::null_type> seen;",
     "  seen.insert(3);",
     "  assert(seen.find(3) != seen.end());",
