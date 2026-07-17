@@ -8,14 +8,17 @@ Workflow:
 
 1. Press `Ctrl+Shift+P`.
 2. Run `edulcni`.
-3. Start typing a header name and pick one from suggestions.
-4. The selected file content is inserted at your current cursor position.
+3. Search the catalog tree and pick a solver or brick.
+4. Choose any interactive parameters.
+5. The rendered template is inserted at the appropriate global section or cursor.
 
-Header source:
+Template source:
 
 - The extension reads only from its bundled `library/` directory.
-- `npm run build` syncs `../lib/` into `extension/library/` automatically.
+- `npm run build` syncs only `../lib/templates/` and `../lib/catalog/`
+  into `extension/library/`.
 - This keeps behavior consistent across all workspaces/projects.
+- Standalone solver and brick headers are not part of the extension package.
 
 Generator templates:
 
@@ -26,6 +29,11 @@ Generator templates:
   `{{#unless name}}...{{/unless}}` without an external runtime dependency.
 - Treat `lib/templates/` as source and `extension/library/templates/` as the
   build-generated bundled copy.
+
+Tests:
+
+- `npm test` renders catalog scenarios through the extension core, prints
+  their selected parameters, and compiles/runs the resulting C++.
 
 Local development:
 

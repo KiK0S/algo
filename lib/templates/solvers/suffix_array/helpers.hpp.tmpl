@@ -74,7 +74,9 @@ inline SuffixArrayResult suffix_array_build_from_positive_codes(
   for (int i = 0; i < n; ++i) {
     rank[result.sa[i]] = i;
   }
+{{#if rankFeature}}
   result.rank = rank;
+{{/if}}
 
 {{/if}}
 

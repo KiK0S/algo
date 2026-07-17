@@ -1,29 +1,21 @@
 # Dynamic Snippet Migration Plans
 
-This folder captures the plan for moving solver and brick insertion onto the same dynamic model currently used by `/solvers/segtree`.
+> Historical planning archive. The source migration is complete: insertable
+> content now lives only in `lib/templates/`, the full public surface is in
+> `lib/catalog/snippets.json`, and tests render through the extension.
+
+This folder captures the planning history for moving solver and brick insertion
+onto the same dynamic model.
 
 ## Current Baseline
 
-- `lib/catalog/snippets.json` has generator entries for `/solvers/segtree`,
-  `/solvers/berlekamp_massey`, `/solvers/sparse_table`, `/solvers/dsu`, and
-  `/solvers/rollback_dsu`, `/solvers/lca`, `/solvers/merge_sort_tree`,
-  `/solvers/bfs`, `/solvers/linear_sieve`, `/solvers/fenwick`,
-  `/solvers/modint`,
-  `/solvers/suffix_array`, `/solvers/twosat`, `/solvers/maxflow_dinic`, and
-  `/solvers/mincost_maxflow`, `/solvers/hungarian`, `/solvers/kuhn`,
-  `/solvers/segtree_beats`, `/solvers/implicit_treap`, `/solvers/fft_ntt`,
-  `/solvers/poly_hash`, `/solvers/hld`, `/solvers/gp_hash_table`,
-  `/solvers/ordered_set`, `/solvers/set_utils`, `/solvers/fast_allocator`,
-  `/solvers/geometry`, and `/solvers/halfplane_intersection`, plus interactive brick generators for
-  `/bricks/compress_unique` and `/bricks/read_vector`. Static segment-tree
-  fallbacks such as
-  `/solvers/segtree_point_update` and `/solvers/segtree_lazy_add_min` are
-  cataloged with explicit exports. Static segment-tree split fallbacks
-  `/solvers/segtree_lazy_minmax` and `/solvers/segtree_max_subarray` are also
-  cataloged.
-- `extension/src/core.ts` already analyzes the active C++ document for identifiers, constants, input variables, vector variables, aliases, and exported-name collisions.
-- `extension/src/extension.ts` dispatches generator ids through a generator registry.
-- Static solvers remain pasteable as plain code. They are unwrapped from headers and renamed if exported identifiers collide with the current file.
+- `lib/templates/` contains all insertable C++ source.
+- `lib/catalog/snippets.json` is the complete solver/brick inventory.
+- `extension/src/core.ts` renders template recipes and performs collision-safe
+  name planning.
+- `extension/src/extension.ts` owns VS Code prompts and insertion.
+- `extension/test/core.test.js` renders, compiles, and runs catalog scenarios.
+- `site/` displays the generated archive tree and template previews.
 
 ## Target Assembly Order
 
@@ -51,8 +43,8 @@ For ordinary contest insertion, some sections may be empty because the active fi
 
 ## Agent Rule
 
-Default to completing one assigned solver migration end to end in the same
-turn: dynamic generator, catalog entry, pasteable fallback under `lib/solvers/`
+New work should update the generator, catalog metadata, templates, archive
+preview, and catalog-driven render/compile scenarios together.
 or `lib/bricks/`, legacy-header removal when references have moved, tests, and
 plan/doc status. Do not stop after infrastructure or a partial draft when the
 solver plan and settled defaults are enough to continue.
@@ -139,5 +131,4 @@ After any implementation step that changes generator behavior:
 
 - `npm --prefix extension test`
 - `npm --prefix extension run build`
-- `python3 tests/brick_smoke_test.py` when bricks are touched
-- focused C++ solver tests under `tests/`
+- `node tools/build-archive-site.mjs`

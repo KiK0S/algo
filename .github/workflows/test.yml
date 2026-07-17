@@ -1,0 +1,27 @@
+name: Test templates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: extension
+      - name: Render and compile template scenarios
+        run: npm test
+        working-directory: extension

@@ -1,5 +1,9 @@
 # Legacy Compatibility Cleanup Plan
 
+> Superseded final state: both the compatibility layer and the later
+> `lib/solvers/*.hpp` / `lib/bricks/*.hpp` fallback layer have been removed.
+> The only insertable sources are templates under `lib/templates/`.
+
 ## Goal
 
 Remove the top-level `lib/*.hpp` compatibility layer so every insertable artifact is either a solver or a brick. There is no literal `legacy/` directory in the current checkout; "legacy" means the top-level headers under `lib/` that sit beside `lib/solvers/`, `lib/bricks/`, and `lib/catalog/`.
@@ -25,10 +29,10 @@ compatibility header just because cleanup feels like a second task.
 
 ## Final Repository Shape
 
-- `lib/solvers/`: pasteable global helpers, data structures, and algorithm snippets.
-- `lib/bricks/`: short local snippets and template/data-entry snippets.
-- `lib/catalog/`: metadata for static and dynamic insertion.
-- no insertable top-level `lib/*.hpp` compatibility headers.
+- `lib/templates/solvers/`: dynamic solver template parts.
+- `lib/templates/bricks/`: raw and dynamic brick templates.
+- `lib/catalog/`: the complete extension and website inventory.
+- no insertable `.hpp` source archive outside template files.
 
 ## Migration Rules
 

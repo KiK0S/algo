@@ -26,7 +26,6 @@ export type CodeTemplateValue = string | number | boolean | undefined;
 export type CodeTemplateContext = Record<string, CodeTemplateValue>;
 
 const codeTemplateCache = new Map<string, string>();
-const bundledLibrarySourceCache = new Map<string, string>();
 
 function codeTemplateValue(
   context: CodeTemplateContext,
@@ -138,25 +137,12 @@ export function renderCodeTemplate(
   return renderCodeTemplateSource(source, context);
 }
 
-function readBundledLibrarySource(relativePath: string): string {
-  if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes("..")) {
-    throw new Error(`invalid bundled library path: ${relativePath}`);
-  }
-  let source = bundledLibrarySourceCache.get(relativePath);
-  if (source === undefined) {
-    const absolutePath = path.resolve(__dirname, "..", "library", relativePath);
-    source = readFileSync(absolutePath, "utf8");
-    bundledLibrarySourceCache.set(relativePath, source);
-  }
-  return source;
-}
-
-function renderBundledSolver(
-  sourceName: string,
+function renderSolverTemplate(
+  templateDirectory: string,
   renames: IdentifierRename[] = []
 ): string {
   return applyIdentifierRenames(
-    readBundledLibrarySource(`solvers/${sourceName}`),
+    renderCodeTemplate(`solvers/${templateDirectory}/helpers.hpp.tmpl`, {}),
     renames
   );
 }
@@ -166,7 +152,7 @@ export interface CatalogEntry {
   kind: SnippetKind;
   insertMode?: InsertMode;
   generator?: string;
-  source?: string;
+  template?: string;
   label?: string;
   description?: string;
   detail?: string;
@@ -178,6 +164,19 @@ export interface CatalogEntry {
   pipeline?: Record<string, unknown>;
   form?: unknown[];
   render?: Record<string, unknown>;
+}
+
+export function renderStaticTemplate(
+  templatePath: string,
+  kind: SnippetKind
+): RenderedSnippet {
+  const content = renderHeaderContent(renderCodeTemplate(templatePath, {}), kind);
+  return {
+    content,
+    renames: [],
+    exports:
+      kind === "solver" ? collectGlobalExportedIdentifiers(content) : []
+  };
 }
 
 export interface DynamicDependency {
@@ -2817,7 +2816,7 @@ export function renderRollbackDsuRecipe(
   options: RollbackDsuOptions
 ): RenderedRecipe {
   const className = options.names.className;
-  let helpers = renderBundledSolver("rollback_dsu.hpp", [
+  let helpers = renderSolverTemplate("rollback_dsu", [
     { from: "RollbackDsu", to: className }
   ]);
   if (options.includeUsageComment) {
@@ -2870,7 +2869,7 @@ function renderLcaUsageSnippet(options: LcaOptions): string {
 
 export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
   const className = options.names.className;
-  let helpers = renderBundledSolver("lca_binary_lifting.hpp", [
+  let helpers = renderSolverTemplate("lca", [
     { from: "LcaBinaryLifting", to: className }
   ]);
   if (options.includeUsageComment) {
@@ -2924,7 +2923,7 @@ function renderHldUsageSnippet(options: HldOptions): string {
 
 export function renderHldRecipe(options: HldOptions): RenderedRecipe {
   const className = options.names.className;
-  let helpers = renderBundledSolver("hld.hpp", [
+  let helpers = renderSolverTemplate("hld", [
     { from: "HeavyLightDecomposition", to: className }
   ]);
   if (options.includeUsageComment) {
@@ -2998,7 +2997,7 @@ function renderBfsUsageSnippet(options: BfsOptions): string {
 
 export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("bfs.hpp", [
+  let helpers = renderSolverTemplate("bfs", [
     { from: "BfsResult", to: names.resultStructName },
     { from: "bfs_add_edge", to: names.addEdgeName },
     { from: "bfs_multi_source", to: names.multiSourceName },
@@ -3090,7 +3089,7 @@ function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
 
 export function renderDijkstraRecipe(options: DijkstraOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("dijkstra.hpp", [
+  let helpers = renderSolverTemplate("dijkstra", [
     { from: "DijkstraEdge", to: names.edgeStructName },
     { from: "DijkstraResult", to: names.resultStructName },
     { from: "dijkstra_add_edge", to: names.addEdgeName },
@@ -3164,7 +3163,7 @@ function renderToposortUsageSnippet(options: ToposortOptions): string {
 
 export function renderToposortRecipe(options: ToposortOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("toposort.hpp", [
+  let helpers = renderSolverTemplate("toposort", [
     { from: "toposort_add_edge", to: names.addEdgeName },
     { from: "topological_sort", to: names.sortName },
     { from: "is_topological_order", to: names.validateName }
@@ -3227,7 +3226,7 @@ function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
 
 export function renderKosarajuRecipe(options: KosarajuOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("kosaraju.hpp", [
+  let helpers = renderSolverTemplate("kosaraju", [
     { from: "KosarajuResult", to: names.resultStructName },
     { from: "kosaraju_add_edge", to: names.addEdgeName },
     { from: "kosaraju_scc", to: names.sccName }
@@ -3290,7 +3289,7 @@ function renderMoUsageSnippet(options: MoOptions): string {
 
 export function renderMoRecipe(options: MoOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("mo.hpp", [
+  let helpers = renderSolverTemplate("mo", [
     { from: "MoQuery", to: names.queryStructName },
     { from: "mo_default_block_size", to: names.blockSizeName },
     { from: "normalize_mo_query", to: names.normalizeName },
@@ -3388,7 +3387,7 @@ export function renderMonotonicStackRecipe(
   options: MonotonicStackOptions
 ): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("monotonic_stack.hpp", [
+  let helpers = renderSolverTemplate("monotonic_stack", [
     { from: "nearest_left_by", to: names.nearestLeftByName },
     { from: "nearest_right_by", to: names.nearestRightByName },
     { from: "nearest_smaller_left", to: names.nearestSmallerLeftName },
@@ -3460,7 +3459,7 @@ function renderGpHashTableUsageSnippet(options: GpHashTableOptions): string {
 
 export function renderGpHashTableRecipe(options: GpHashTableOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("gp_hash_table.hpp", [
+  let helpers = renderSolverTemplate("gp_hash_table", [
     { from: "SplitMix64Hash", to: names.splitMixName },
     { from: "GpHash", to: names.hashName },
     { from: "PairHash", to: names.pairHashName },
@@ -3515,7 +3514,7 @@ function renderOrderedSetUsageSnippet(options: OrderedSetOptions): string {
 
 export function renderOrderedSetRecipe(options: OrderedSetOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("ordered_set.hpp", [
+  let helpers = renderSolverTemplate("ordered_set", [
     { from: "OrderedSetTree", to: names.treeAliasName },
     { from: "OrderedSet", to: names.className }
   ]);
@@ -3590,7 +3589,7 @@ function renderSetUtilsUsageSnippet(options: SetUtilsOptions): string {
 
 export function renderSetUtilsRecipe(options: SetUtilsOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("set_utils.hpp", [
+  let helpers = renderSolverTemplate("set_utils", [
     { from: "next_iterator", to: names.nextIteratorName },
     { from: "prev_iterator", to: names.prevIteratorName },
     { from: "next_value", to: names.nextValueName },
@@ -3657,7 +3656,7 @@ function renderFastAllocatorUsageSnippet(options: FastAllocatorOptions): string 
 
 export function renderFastAllocatorRecipe(options: FastAllocatorOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderBundledSolver("fast_allocator.hpp", [
+  let helpers = renderSolverTemplate("fast_allocator", [
     { from: "FastAllocatorArena", to: names.arenaClassName },
     { from: "FastAllocator", to: names.allocatorClassName },
     { from: "make_fast_allocator", to: names.factoryName }
@@ -3712,7 +3711,7 @@ function renderGeometryUsage(options: GeometryOptions): string {
 }
 
 export function renderGeometryRecipe(options: GeometryOptions): RenderedRecipe {
-  let helpers = renderBundledSolver("geometry.hpp");
+  let helpers = renderSolverTemplate("geometry");
   if (options.includeUsageComment) {
     helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/geometry/usage-comment.cpp.tmpl", {})}`;
   }
@@ -3754,7 +3753,7 @@ function renderHalfplaneIntersectionUsage(options: HalfplaneIntersectionOptions)
 export function renderHalfplaneIntersectionRecipe(
   options: HalfplaneIntersectionOptions
 ): RenderedRecipe {
-  let helpers = renderBundledSolver("halfplane_intersection.hpp");
+  let helpers = renderSolverTemplate("halfplane_intersection");
   if (options.includeUsageComment) {
     helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/halfplane_intersection/usage-comment.cpp.tmpl", {})}`;
   }

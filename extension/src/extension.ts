@@ -1,4 +1,3 @@
-import * as path from "path";
 import * as vscode from "vscode";
 import {
   analyzeCppDocument,
@@ -14,13 +13,11 @@ import {
   BfsSourceMode,
   BfsUsageMode,
   CatalogEntry,
-  collectGlobalExportedIdentifiers,
   composeRecipeSections,
   CompressUniqueOptions,
   CppAnalysis,
   defaultBerlekampMasseyFeatures,
   defaultInsertModeForKind,
-  defaultKindForPath,
   defaultMaxflowDinicCapType,
   defaultMaxflowDinicFeatures,
   defaultMinCostMaxFlowCapType,
@@ -191,7 +188,6 @@ import {
   renderFftNttRecipe,
   renderGpHashTableRecipe,
   renderHungarianRecipe,
-  renderHeaderContent,
   renderHldRecipe,
   renderImplicitTreapRecipe,
   renderKosarajuRecipe,
@@ -208,6 +204,7 @@ import {
   renderPolyHashRecipe,
   renderReadVector,
   renderRecipeSnippet,
+  renderStaticTemplate,
   renderRollbackDsuRecipe,
   renderSegmentTreeBeatsRecipe,
   renderSegmentTreeRecipe,
@@ -299,20 +296,6 @@ const DIRECT_COMMANDS = [
   { command: "edulcni.sparseTable", snippetPath: "/solvers/sparse_table" }
 ] as const;
 
-function toPosix(value: string): string {
-  return value.replace(/\\/g, "/");
-}
-
-function stripHeaderExtension(relativePath: string): string {
-  return relativePath.endsWith(".hpp")
-    ? relativePath.slice(0, -".hpp".length)
-    : relativePath;
-}
-
-function buildDisplayPath(relativePath: string): string {
-  return `/${stripHeaderExtension(relativePath)}`;
-}
-
 function isCatalogSnippetPath(displayPath: string): boolean {
   return displayPath.startsWith("/bricks/") || displayPath.startsWith("/solvers/");
 }
@@ -330,34 +313,6 @@ async function resolveBundledLibraryRoot(
     return undefined;
   }
   return undefined;
-}
-
-async function collectHeaders(root: vscode.Uri): Promise<vscode.Uri[]> {
-  const files: vscode.Uri[] = [];
-  const stack: vscode.Uri[] = [root];
-
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    let entries: [string, vscode.FileType][];
-    try {
-      entries = await vscode.workspace.fs.readDirectory(current);
-    } catch {
-      continue;
-    }
-
-    for (const [name, type] of entries) {
-      const child = vscode.Uri.joinPath(current, name);
-      if (type & vscode.FileType.Directory) {
-        stack.push(child);
-        continue;
-      }
-      if ((type & vscode.FileType.File) && name.endsWith(".hpp")) {
-        files.push(child);
-      }
-    }
-  }
-
-  return files;
 }
 
 async function readUtf8(uri: vscode.Uri): Promise<string> {
@@ -411,44 +366,10 @@ async function collectCatalogEntries(root: vscode.Uri): Promise<CatalogEntry[]> 
   return result;
 }
 
-function buildPickItems(
-  root: vscode.Uri,
-  uris: vscode.Uri[],
-  catalogEntries: CatalogEntry[]
-): SnippetPickItem[] {
-  const entriesByPath = new Map(catalogEntries.map((entry) => [entry.path, entry]));
-  const headerPaths = new Set<string>();
-
+function buildPickItems(catalogEntries: CatalogEntry[]): SnippetPickItem[] {
   const items: SnippetPickItem[] = [];
-  for (const uri of uris) {
-    const relativePath = toPosix(path.relative(root.fsPath, uri.fsPath));
-    const directory = path.dirname(relativePath);
-    const displayPath = buildDisplayPath(relativePath);
-    if (!isCatalogSnippetPath(displayPath)) {
-      continue;
-    }
-    headerPaths.add(displayPath);
-    const entry = entriesByPath.get(displayPath);
-    const snippetKind = entry?.kind ?? defaultKindForPath(displayPath);
-    items.push({
-      label: entry?.label ?? displayPath,
-      description: entry?.description ?? relativePath,
-      detail:
-        entry?.detail ??
-        (directory === "." ? "top-level" : `${snippetKind} / ${directory}`),
-      snippetPath: displayPath,
-      uri,
-      entry,
-      snippetKind,
-      insertMode: entry?.insertMode ?? defaultInsertModeForKind(snippetKind)
-    });
-  }
-
   for (const entry of catalogEntries) {
     if (!isCatalogSnippetPath(entry.path)) {
-      continue;
-    }
-    if (headerPaths.has(entry.path)) {
       continue;
     }
     items.push({
@@ -463,15 +384,6 @@ function buildPickItems(
   }
 
   return items.sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function snippetPathToUri(
-  libraryRoot: vscode.Uri,
-  snippetPath: string,
-  entry?: CatalogEntry
-): vscode.Uri {
-  const source = entry?.source ?? `${snippetPath.slice(1)}.hpp`;
-  return vscode.Uri.joinPath(libraryRoot, ...source.split("/"));
 }
 
 function directGeneratorEntry(snippetPath: string): CatalogEntry | undefined {
@@ -505,15 +417,12 @@ async function renderSnippetPath(
       exportedNames.push(...generated.exports);
       continue;
     }
-    const uri = snippetPathToUri(libraryRoot, currentPath, entry);
-    const kind = entry?.kind ?? defaultKindForPath(currentPath);
-    const rendered = renderHeaderContent(await readUtf8(uri), kind);
-    chunks.push(rendered.trim());
-    if (entry?.exports) {
-      exportedNames.push(...entry.exports);
-    } else if (kind === "solver") {
-      exportedNames.push(...collectGlobalExportedIdentifiers(rendered));
+    if (!entry?.template) {
+      throw new Error(`catalog entry has no generator or template: ${currentPath}`);
     }
+    const rendered = renderStaticTemplate(entry.template, entry.kind);
+    chunks.push(rendered.content.trim());
+    exportedNames.push(...(entry.exports ?? rendered.exports));
   }
 
   const content = `${chunks.join("\n\n")}\n`;
@@ -5916,18 +5825,15 @@ async function insertSnippet(
     return;
   }
 
-  const [headers, catalogEntries] = await Promise.all([
-    collectHeaders(libraryRoot),
-    collectCatalogEntries(libraryRoot)
-  ]);
-  if (headers.length === 0 && catalogEntries.length === 0) {
+  const catalogEntries = await collectCatalogEntries(libraryRoot);
+  if (catalogEntries.length === 0) {
     vscode.window.showWarningMessage(
       "edulcni: no bundled snippets found in extension/library."
     );
     return;
   }
 
-  const items = buildPickItems(libraryRoot, headers, catalogEntries);
+  const items = buildPickItems(catalogEntries);
   let picked: SnippetPickItem | undefined;
   const directEntry = requestedPath ? directGeneratorEntry(requestedPath) : undefined;
   if (requestedPath) {
