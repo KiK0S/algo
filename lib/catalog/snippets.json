@@ -1352,5 +1352,45 @@
     "template": "bricks/static_rsq.cpp.tmpl",
     "description": "static range-sum prefix array",
     "detail": "template / brick"
+  },
+  {
+    "path": "/solvers/test_generators",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/test_generators/helpers.hpp.tmpl",
+    "label": "/solvers/test_generators",
+    "description": "random stress-test data generators",
+    "detail": "template / solver",
+    "exports": ["TestGenerator"]
+  },
+  {
+    "path": "/bricks/stress_test",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/stress_test.cpp.tmpl",
+    "label": "/bricks/stress_test",
+    "description": "multi-binary stress-test harness",
+    "detail": "template / brick",
+    "dependsOn": ["/solvers/test_generators"]
+  },
+  {
+    "path": "/bricks/interactive_query",
+    "kind": "brick",
+    "insertMode": "global",
+    "template": "bricks/interactive_query.cpp.tmpl",
+    "label": "/bricks/interactive_query",
+    "description": "LOCAL callback or judge interactive query",
+    "detail": "template / brick",
+    "exports": ["interactive_query"]
+  },
+  {
+    "path": "/solvers/tree_hash",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/tree_hash/helpers.hpp.tmpl",
+    "label": "/solvers/tree_hash",
+    "description": "rooted and unrooted canonical tree hashing",
+    "detail": "template / solver",
+    "exports": ["TreeHasher"]
   }
 ]

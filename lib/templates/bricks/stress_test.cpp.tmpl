@@ -1,0 +1,57 @@
+std::string stress_read_file(const std::string& path) {
+  std::ifstream input(path, std::ios::binary);
+  return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+
+std::string stress_shell_quote(const std::string& value) {
+  std::string result = "'";
+  for (char ch : value) result += ch == '\'' ? "'\\''" : std::string(1, ch);
+  return result + "'";
+}
+
+void generate_test(std::ostream& out, uint64_t seed) {
+  TestGenerator gen(seed);
+  int n = gen.generate_integer(1, 20);
+  auto values = gen.generate_array<int>(n, -20, 20);
+  out << n << '\n';
+  for (int value : values) out << value << ' ';
+  out << '\n';
+}
+
+int main() {
+  const std::vector<std::string> commands = {"./brute", "./solution"};
+  const int tests = 10000;
+  const std::string input_path = ".stress_input.txt";
+  std::vector<std::string> output_paths(commands.size());
+
+  for (int test = 1; test <= tests; ++test) {
+    uint64_t seed = test;
+    {
+      std::ofstream input(input_path);
+      generate_test(input, seed);
+    }
+    for (int i = 0; i < int(commands.size()); ++i) {
+      output_paths[i] = ".stress_output_" + std::to_string(i) + ".txt";
+      std::string command = commands[i] + " < " + stress_shell_quote(input_path) +
+                            " > " + stress_shell_quote(output_paths[i]);
+      int exit_code = std::system(command.c_str());
+      if (exit_code != 0) {
+        std::cerr << "command failed on test " << test << ", seed " << seed
+                  << ": " << commands[i] << '\n';
+        return 1;
+      }
+    }
+    std::string expected = stress_read_file(output_paths[0]);
+    for (int i = 1; i < int(commands.size()); ++i) {
+      if (stress_read_file(output_paths[i]) != expected) {
+        std::cerr << "mismatch on test " << test << ", seed " << seed << '\n'
+                  << "input: " << input_path << '\n';
+        for (int j = 0; j < int(commands.size()); ++j)
+          std::cerr << commands[j] << ": " << output_paths[j] << '\n';
+        return 1;
+      }
+    }
+    if (test % 100 == 0) std::cerr << "passed " << test << '\n';
+  }
+  std::cerr << "all tests passed\n";
+}
