@@ -108,10 +108,12 @@ inline bool segments_intersect(const Point2<T>& a, const Point2<T>& b, const Poi
          (o4 == 0 && on_segment(c, d, b, eps));
 }
 
+enum class LineIntersectionType { none, point, coincident };
+
 template <typename T>
-inline bool line_intersection(const Point2<T>& a, const Point2<T>& b, const Point2<T>& c,
-                              const Point2<T>& d, Point2<long double>& out,
-                              long double eps = 1e-12L) {
+inline LineIntersectionType line_intersection(
+    const Point2<T>& a, const Point2<T>& b, const Point2<T>& c, const Point2<T>& d,
+    Point2<long double>& out, long double eps = 1e-12L) {
   const Point2<long double> aa = to_point_long_double(a);
   const Point2<long double> bb = to_point_long_double(b);
   const Point2<long double> cc = to_point_long_double(c);
@@ -121,13 +123,14 @@ inline bool line_intersection(const Point2<T>& a, const Point2<T>& b, const Poin
   const Point2<long double> cd = dd - cc;
   const long double denom = cross_ld(ab, cd);
   if (std::fabs(denom) <= eps) {
-    out = Point2<long double>(0.0L, 0.0L);
-    return false;
+    return std::fabs(cross_ld(cc - aa, ab)) <= eps
+               ? LineIntersectionType::coincident
+               : LineIntersectionType::none;
   }
 
   const long double t = cross_ld(cc - aa, cd) / denom;
   out = Point2<long double>(aa.x + ab.x * t, aa.y + ab.y * t);
-  return true;
+  return LineIntersectionType::point;
 }
 
 inline bool point_equal_eps(const Point2<long double>& a, const Point2<long double>& b,
@@ -180,7 +183,7 @@ inline std::vector<Point2<long double>> segment_intersection(
   }
 
   Point2<long double> inter;
-  if (!line_intersection(a, b, c, d, inter, eps)) {
+  if (line_intersection(a, b, c, d, inter, eps) != LineIntersectionType::point) {
     return {};
   }
   return {inter};
