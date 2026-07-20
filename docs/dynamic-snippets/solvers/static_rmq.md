@@ -29,7 +29,7 @@ argmin/argmax pair returns, and 2D sparse table.
   - `custom` idempotent combine placeholder.
 - Build source: existing vector or generated read loop.
 - Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
-- Usage output: helper only, build call, or query loop skeleton.
+- Generated output: definitions only, build call, or query loop skeleton.
 
 ## Inputs And Outputs
 

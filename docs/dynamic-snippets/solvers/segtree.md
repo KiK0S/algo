@@ -34,7 +34,7 @@ noncommutative directional path aggregates, and persistent segment trees.
 - Update choice: point set/add, range add/assign, or beats updates.
 - Build source: empty size, existing vector, or generated read loop.
 - Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
-- Usage output: helper only, instance/build skeleton, or query loop skeleton.
+- Generated output: definitions only, instance/build skeleton, or query loop skeleton.
 
 ## Inputs And Outputs
 

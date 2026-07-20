@@ -28,7 +28,7 @@ tags, external priority injection, and persistent treaps.
   operations.
 - Build source: empty treap, existing vector, or generated read loop.
 - Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
-- Usage output: helper only, instance/build skeleton, or query loop skeleton.
+- Generated output: definitions only, instance/build skeleton, or query loop skeleton.
 
 ## Inputs And Outputs
 

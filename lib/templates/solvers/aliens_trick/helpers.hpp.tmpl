@@ -1,0 +1,21 @@
+struct AliensTrickResult {
+  long long objective;
+  long long lambda;
+  int selected_count;
+};
+
+template <typename SolvePenalized>
+inline AliensTrickResult aliens_trick_min_exact(
+    int target_count, long long min_lambda, long long max_lambda,
+    SolvePenalized solve_penalized) {
+  long long left = min_lambda, right = max_lambda;
+  while (left < right) {
+    const long long middle = left + (right - left + 1) / 2;
+    const auto [penalized_value, count] = solve_penalized(middle);
+    (void)penalized_value;
+    if (count >= target_count) left = middle;
+    else right = middle - 1;
+  }
+  const auto [penalized_value, count] = solve_penalized(left);
+  return {penalized_value - left * target_count, left, count};
+}

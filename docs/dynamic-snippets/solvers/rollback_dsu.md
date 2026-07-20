@@ -24,7 +24,7 @@ parity rollback DSU, and weighted rollback DSU.
 - Node count binding from active-file inputs/constants.
 - Query count binding for generated skeletons.
 - Indexing: 0-indexed or 1-indexed input adjustment.
-- Usage output: helper only, instance skeleton, or snapshot query loop.
+- Generated output: definitions only, instance skeleton, or snapshot query loop.
 
 ## Inputs And Outputs
 

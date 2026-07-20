@@ -25,7 +25,7 @@ subtree traversal metadata.
 - Node count binding from active-file inputs/constants.
 - Root expression, defaulting to `0`.
 - Indexing: 0-indexed or 1-indexed input adjustment.
-- Usage output: helper only, instance skeleton, read tree + build, or query
+- Generated output: definitions only, instance skeleton, read tree + build, or query
   loop skeleton.
 
 ## Inputs And Outputs

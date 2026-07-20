@@ -1,0 +1,68 @@
+struct TurtleDpResult {
+  long long value;
+  std::vector<std::pair<int, int>> path;
+};
+
+inline long long turtle_count_paths(const std::vector<std::string>& grid,
+                                    char blocked = '#',
+                                    long long mod = 1000000007LL) {
+  if (grid.empty() || grid[0].empty()) return 0;
+  const int rows = static_cast<int>(grid.size());
+  const int cols = static_cast<int>(grid[0].size());
+  std::vector<long long> dp(cols);
+  dp[0] = grid[0][0] == blocked ? 0 : 1;
+  for (int row = 0; row < rows; ++row)
+    for (int col = 0; col < cols; ++col) {
+      if (grid[row][col] == blocked) dp[col] = 0;
+      else if (col > 0) dp[col] = (dp[col] + dp[col - 1]) % mod;
+    }
+  return dp.back();
+}
+
+inline TurtleDpResult turtle_best_path(
+    const std::vector<std::vector<long long>>& value,
+    const std::vector<std::string>& blocked, bool maximize) {
+  if (value.empty() || value[0].empty()) return {0, {}};
+  const int rows = static_cast<int>(value.size());
+  const int cols = static_cast<int>(value[0].size());
+  const long long unreachable = maximize
+      ? std::numeric_limits<long long>::lowest() / 4
+      : std::numeric_limits<long long>::max() / 4;
+  std::vector<std::vector<long long>> dp(rows, std::vector<long long>(cols, unreachable));
+  std::vector<std::vector<char>> parent(rows, std::vector<char>(cols));
+  if (blocked.empty() || blocked[0][0] != '#') dp[0][0] = value[0][0];
+  for (int row = 0; row < rows; ++row)
+    for (int col = 0; col < cols; ++col) {
+      if ((!blocked.empty() && blocked[row][col] == '#') || (row == 0 && col == 0)) continue;
+      if (row > 0 && (maximize ? dp[row - 1][col] > dp[row][col]
+                               : dp[row - 1][col] < dp[row][col])) {
+        dp[row][col] = dp[row - 1][col]; parent[row][col] = 'U';
+      }
+      if (col > 0 && (maximize ? dp[row][col - 1] > dp[row][col]
+                               : dp[row][col - 1] < dp[row][col])) {
+        dp[row][col] = dp[row][col - 1]; parent[row][col] = 'L';
+      }
+      if (dp[row][col] != unreachable) dp[row][col] += value[row][col];
+    }
+  if (dp.back().back() == unreachable) return {unreachable, {}};
+  std::vector<std::pair<int, int>> path;
+  for (int row = rows - 1, col = cols - 1; ; ) {
+    path.push_back({row, col});
+    if (row == 0 && col == 0) break;
+    if (parent[row][col] == 'U') --row; else --col;
+  }
+  std::reverse(path.begin(), path.end());
+  return {dp.back().back(), path};
+}
+
+inline TurtleDpResult turtle_max_path(
+    const std::vector<std::vector<long long>>& value,
+    const std::vector<std::string>& blocked = {}) {
+  return turtle_best_path(value, blocked, true);
+}
+
+inline TurtleDpResult turtle_min_path(
+    const std::vector<std::vector<long long>>& value,
+    const std::vector<std::string>& blocked = {}) {
+  return turtle_best_path(value, blocked, false);
+}

@@ -27,7 +27,7 @@ beats, and non-numeric value types.
 - Query choices: `sum`, `min`, and/or `max`.
 - Build source: empty size, existing vector, or generated read loop.
 - Indexing: 0-indexed or 1-indexed input adjustment for generated usage.
-- Usage output: helper only, instance/build skeleton, or query loop skeleton.
+- Generated output: definitions only, instance/build skeleton, or query loop skeleton.
 
 ## Inputs And Outputs
 

@@ -1,0 +1,19 @@
+inline long long knapsack_zero_one(const std::vector<int>& weight,
+                                   const std::vector<long long>& value,
+                                   int capacity) {
+  std::vector<long long> dp(capacity + 1, 0);
+  for (int i = 0; i < static_cast<int>(weight.size()); ++i)
+    for (int sum = capacity; sum >= weight[i]; --sum)
+      dp[sum] = std::max(dp[sum], dp[sum - weight[i]] + value[i]);
+  return *std::max_element(dp.begin(), dp.end());
+}
+
+inline long long knapsack_unbounded(const std::vector<int>& weight,
+                                    const std::vector<long long>& value,
+                                    int capacity) {
+  std::vector<long long> dp(capacity + 1, 0);
+  for (int i = 0; i < static_cast<int>(weight.size()); ++i)
+    for (int sum = weight[i]; sum <= capacity; ++sum)
+      dp[sum] = std::max(dp[sum], dp[sum - weight[i]] + value[i]);
+  return *std::max_element(dp.begin(), dp.end());
+}

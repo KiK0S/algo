@@ -1394,5 +1394,188 @@
     "description": "rooted and unrooted canonical tree hashing",
     "detail": "template / solver",
     "exports": ["TreeHasher"]
+  },
+  {
+    "path": "/bricks/submasks",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/submasks.cpp.tmpl",
+    "description": "enumerate every submask, including zero",
+    "detail": "for (sub = mask; ; sub = (sub - 1) & mask)"
+  },
+  {
+    "path": "/bricks/proper_submasks",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/proper_submasks.cpp.tmpl",
+    "description": "enumerate non-empty proper submasks",
+    "detail": "compact subset-transition loop"
+  },
+  {
+    "path": "/bricks/supermasks",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/supermasks.cpp.tmpl",
+    "description": "enumerate every fixed-width supermask",
+    "detail": "for (super = mask; super < 1 << bits; ...)"
+  },
+  {
+    "path": "/bricks/subset_partitions",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/subset_partitions.cpp.tmpl",
+    "description": "split a mask into complementary left/right subsets",
+    "detail": "enumerates ordered subset partitions"
+  },
+  {
+    "path": "/bricks/disjoint_masks",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/disjoint_masks.cpp.tmpl",
+    "description": "enumerate ordered pairs of disjoint masks",
+    "detail": "O(3^bits) disjoint-pair loop"
+  },
+  {
+    "path": "/bricks/subset_zeta",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/subset_zeta.cpp.tmpl",
+    "description": "in-place sums over all submasks",
+    "detail": "subset zeta transform in O(bits * 2^bits)"
+  },
+  {
+    "path": "/bricks/subset_mobius",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/subset_mobius.cpp.tmpl",
+    "description": "invert an in-place subset zeta transform",
+    "detail": "subset Möbius transform in O(bits * 2^bits)"
+  },
+  {
+    "path": "/solvers/fwt_convolution",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/fwt_convolution/helpers.hpp.tmpl",
+    "description": "XOR, AND, and OR convolutions",
+    "detail": "bitwise convolution / O(n log n)",
+    "exports": ["BitwiseConvolution", "fwt_mod_pow", "fwt_transform", "bitwise_convolution"]
+  },
+  {
+    "path": "/solvers/offline_dynamic_connectivity",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/offline_dynamic_connectivity/helpers.hpp.tmpl",
+    "dependsOn": ["/solvers/rollback_dsu"],
+    "description": "edge add/remove and connectivity queries offline",
+    "detail": "rollback DSU + segment tree over time / O(q log q log n)",
+    "exports": ["DynamicConnectivityOperationType", "DynamicConnectivityOperation", "OfflineDynamicConnectivity"]
+  },
+  {
+    "path": "/solvers/dp_knapsack",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/dp_knapsack/helpers.hpp.tmpl",
+    "description": "0/1 and unbounded one-dimensional knapsack",
+    "detail": "capacity DP / O(items * capacity)",
+    "exports": ["knapsack_zero_one", "knapsack_unbounded"]
+  },
+  {
+    "path": "/solvers/lis",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/lis/helpers.hpp.tmpl",
+    "description": "strict or nondecreasing LIS with reconstruction",
+    "detail": "returns selected indices / O(n log n)",
+    "exports": ["longest_increasing_subsequence_indices"]
+  },
+  {
+    "path": "/solvers/digit_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/digit_dp/helpers.hpp.tmpl",
+    "description": "count values up to a decimal bound with custom states",
+    "detail": "transition(state, digit), accept(state) / O(digits * states * 10)",
+    "exports": ["digit_dp_count"]
+  },
+  {
+    "path": "/solvers/sos_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/sos_dp/helpers.hpp.tmpl",
+    "description": "subset/superset zeta and Möbius transforms",
+    "detail": "SOS DP / O(bits * 2^bits)",
+    "exports": ["subset_zeta_transform", "subset_mobius_transform", "superset_zeta_transform"]
+  },
+  {
+    "path": "/solvers/turtle_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/turtle_dp/helpers.hpp.tmpl",
+    "description": "right/down grid path count, minimum, and maximum",
+    "detail": "blocked cells + path reconstruction / O(rows * cols)",
+    "exports": ["TurtleDpResult", "turtle_count_paths", "turtle_best_path", "turtle_max_path", "turtle_min_path"]
+  },
+  {
+    "path": "/solvers/substring_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/substring_dp/helpers.hpp.tmpl",
+    "description": "substring partition DP and palindromic subsequence DP",
+    "detail": "dp[l][r] and split transitions / O(n²)",
+    "exports": ["substring_partition_dp", "longest_palindromic_subsequence"]
+  },
+  {
+    "path": "/solvers/divide_conquer_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/divide_conquer_dp/helpers.hpp.tmpl",
+    "description": "divide-and-conquer optimization for partition DP",
+    "detail": "requires monotone optimal split indices",
+    "exports": ["divide_conquer_dp_layer", "divide_conquer_partition_dp"]
+  },
+  {
+    "path": "/solvers/knuth_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/knuth_dp/helpers.hpp.tmpl",
+    "description": "Knuth optimization for interval partition costs",
+    "detail": "requires quadrangle inequality and monotone opt / O(n²)",
+    "exports": ["knuth_interval_dp"]
+  },
+  {
+    "path": "/solvers/convex_hull_trick",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/convex_hull_trick/helpers.hpp.tmpl",
+    "description": "decreasing-slope lines and nondecreasing-x minimum queries",
+    "detail": "deque convex hull trick / amortized O(1)",
+    "exports": ["MonotoneConvexHullTrick"]
+  },
+  {
+    "path": "/solvers/li_chao_tree",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/li_chao_tree/helpers.hpp.tmpl",
+    "description": "arbitrary line insertion and minimum queries",
+    "detail": "dynamic Li Chao tree / O(log coordinate range)",
+    "exports": ["LiChaoTree"]
+  },
+  {
+    "path": "/solvers/monotone_queue_dp",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/monotone_queue_dp/helpers.hpp.tmpl",
+    "description": "sliding-window minimum DP optimization",
+    "detail": "dp[i] = cost[i] + min(dp[j]) / O(n)",
+    "exports": ["sliding_window_min_dp"]
+  },
+  {
+    "path": "/solvers/aliens_trick",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/aliens_trick/helpers.hpp.tmpl",
+    "description": "lambda optimization for an exact selected count",
+    "detail": "minimize exact k; penalized solver must prefer larger count on ties",
+    "exports": ["AliensTrickResult", "aliens_trick_min_exact"]
   }
 ]

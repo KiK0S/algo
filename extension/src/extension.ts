@@ -282,6 +282,78 @@ type ValuePickItem<T extends string = string> = vscode.QuickPickItem & {
   custom?: boolean;
 };
 
+const GENERATED_CHOICE_DESCRIPTIONS: Record<string, string> = {
+  helper_only: "adds reusable definitions; no setup, input, or example calls",
+  helper: "adds reusable definitions; no input or example calls",
+  instance: "also adds an instance declaration and construction/build code",
+  build_call: "also adds construction and a build call for the selected source",
+  query_loop: "also adds input handling, operation dispatch, and example calls",
+  kruskal: "also adds edge input, sorting, DSU calls, and total-cost output",
+  read_tree: "also adds tree input and the build call",
+  read_graph: "also adds graph input; algorithm calls remain up to you",
+  read_queries: "also adds query input; callback processing remains up to you",
+  single_source: "also adds a call from one source vertex",
+  multi_source: "also adds source input and a multi-source call",
+  path_query: "also adds a path query and path reconstruction/output",
+  sort_order: "also runs the sort and prints the resulting order",
+  cycle_check: "also runs the sort and checks whether a cycle exists",
+  validate_order: "also reads and validates a proposed topological order",
+  compute_scc: "also runs SCC decomposition and stores the result",
+  same_component_queries: "also answers whether vertex pairs share an SCC",
+  print_components: "also groups and prints vertices by component",
+  distinct_count_skeleton: "also adds Mo callbacks for distinct-value queries",
+  process_skeleton: "also adds editable add/remove/get-answer callbacks",
+  compute_vector: "also computes the selected nearest-index vector",
+  compute_all: "also computes all four nearest-index variants",
+  declare_map: "also declares a hash map with the selected key/value types",
+  declare_set: "also declares a hash set with the selected key type",
+  frequency_loop: "also counts source values in a hash map",
+  rank_query: "also adds an order_of_key rank query",
+  kth_query: "also adds a find_by_order kth-element query",
+  pair_multiset: "also adds a duplicate-friendly ordered pair-key set",
+  lookup_snippet: "also adds a call using the selected lookup helper",
+  vector_declaration: "also declares a vector backed by the fast allocator",
+  edge_vector: "also declares an allocator-backed edge vector",
+  arena_reset: "also adds an explicit arena reset after container use",
+  orientation_check: "also adds a three-point orientation call",
+  segment_intersection: "also adds segment input and an intersection call",
+  sort_points: "also adds a call that sorts points around a center",
+  build_hull: "also adds a convex-hull call and result variable",
+  halfplane_vector: "also declares the half-plane input vector",
+  inequality_box: "also builds half-planes from linear inequalities and bounds",
+  compute_polygon: "also runs the intersection and stores the polygon"
+};
+
+function explainPickItems<T extends vscode.QuickPickItem>(items: readonly T[]): T[] {
+  return items.map((item) => {
+    if (item.description) {
+      return item;
+    }
+    const value = (item as Partial<ValuePickItem>).value;
+    const description = value ? GENERATED_CHOICE_DESCRIPTIONS[value] : undefined;
+    return description ? { ...item, description } : item;
+  });
+}
+
+function showExplainedQuickPick<T extends vscode.QuickPickItem>(
+  items: readonly T[] | Thenable<readonly T[]>,
+  options: vscode.QuickPickOptions & { canPickMany: true }
+): Thenable<T[] | undefined>;
+function showExplainedQuickPick<T extends vscode.QuickPickItem>(
+  items: readonly T[] | Thenable<readonly T[]>,
+  options?: vscode.QuickPickOptions & { canPickMany?: false }
+): Thenable<T | undefined>;
+function showExplainedQuickPick<T extends vscode.QuickPickItem>(
+  items: readonly T[] | Thenable<readonly T[]>,
+  options?: vscode.QuickPickOptions
+): Thenable<T | T[] | undefined> {
+  const explainedItems = Promise.resolve(items).then(explainPickItems);
+  return vscode.window.showQuickPick(
+    explainedItems,
+    options as vscode.QuickPickOptions
+  );
+}
+
 interface GeneratorRegistration {
   catalogEntry: CatalogEntry;
   prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined>;
@@ -366,7 +438,50 @@ async function collectCatalogEntries(root: vscode.Uri): Promise<CatalogEntry[]> 
   return result;
 }
 
-function buildPickItems(catalogEntries: CatalogEntry[]): SnippetPickItem[] {
+function compactCodePreview(content: string, exportedNames: string[] = []): string {
+  const lines = content.split("\n");
+  const candidates =
+    exportedNames.length > 0
+      ? lines.filter((line) => exportedNames.some((name) => line.includes(name)))
+      : lines;
+  const preview = candidates
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("//"))
+    .slice(0, 3)
+    .join("  ")
+    .replace(/\s+/g, " ");
+  return preview.length > 180 ? `${preview.slice(0, 177)}...` : preview;
+}
+
+async function snippetPickDetail(
+  root: vscode.Uri,
+  entry: CatalogEntry,
+  analysis: CppAnalysis
+): Promise<string> {
+  try {
+    if (entry.generator) {
+      const generated = generatorRegistry.get(entry.generator)?.defaultSnippet?.(analysis, []);
+      const preview = generated ? compactCodePreview(generated.content, generated.exports) : "";
+      return preview || entry.detail || entry.kind;
+    }
+    if (entry.template) {
+      const source = await readUtf8(
+        vscode.Uri.joinPath(root, "templates", entry.template)
+      );
+      const preview = compactCodePreview(source, entry.exports);
+      return preview || entry.detail || entry.kind;
+    }
+  } catch {
+    // Keep the picker usable when a preview cannot be produced.
+  }
+  return entry.detail || entry.kind;
+}
+
+async function buildPickItems(
+  root: vscode.Uri,
+  catalogEntries: CatalogEntry[],
+  analysis: CppAnalysis
+): Promise<SnippetPickItem[]> {
   const items: SnippetPickItem[] = [];
   for (const entry of catalogEntries) {
     if (!isCatalogSnippetPath(entry.path)) {
@@ -375,7 +490,7 @@ function buildPickItems(catalogEntries: CatalogEntry[]): SnippetPickItem[] {
     items.push({
       label: entry.label ?? entry.path,
       description: entry.description ?? "",
-      detail: entry.detail ?? entry.kind,
+      detail: await snippetPickDetail(root, entry, analysis),
       snippetPath: entry.path,
       entry,
       snippetKind: entry.kind,
@@ -438,6 +553,26 @@ function positionAtOffset(editor: vscode.TextEditor, offset: number): vscode.Pos
   return editor.document.positionAt(offset);
 }
 
+function indentationUnit(editor: vscode.TextEditor): string {
+  if (editor.options.insertSpaces === false) {
+    return "\t";
+  }
+  const tabSize =
+    typeof editor.options.tabSize === "number" ? editor.options.tabSize : 2;
+  return " ".repeat(tabSize);
+}
+
+function indentFollowingLines(content: string, indentation: string): string {
+  return content.replace(/\n(?=.)/g, `\n${indentation}`);
+}
+
+function cursorIndentation(editor: vscode.TextEditor, position: vscode.Position): string {
+  const prefix = editor.document
+    .lineAt(position.line)
+    .text.slice(0, position.character);
+  return /^\s*$/.test(prefix) ? prefix : prefix.match(/^\s*/)?.[0] ?? "";
+}
+
 async function insertContent(
   editor: vscode.TextEditor,
   insertMode: InsertMode,
@@ -451,7 +586,10 @@ async function insertContent(
   const text =
     insertMode === "global"
       ? normalizeInsertionText(documentText, offset, content)
-      : content;
+      : indentFollowingLines(
+          content,
+          cursorIndentation(editor, editor.selection.active)
+        );
   const position = positionAtOffset(editor, offset);
   return editor.edit((editBuilder) => {
     editBuilder.insert(position, text);
@@ -512,13 +650,20 @@ async function insertRenderedSnippet(
       solveOffset === undefined
         ? editor.selection.active
         : positionAtOffset(editor, solveOffset);
+    const solveIndentation = `${cursorIndentation(
+      editor,
+      usagePosition
+    )}${indentationUnit(editor)}`;
     const usageText =
       solveOffset === undefined
-        ? usageContent
+        ? indentFollowingLines(
+            usageContent,
+            cursorIndentation(editor, editor.selection.active)
+          )
         : `\n${usageContent
+            .trimEnd()
             .split("\n")
-            .filter((line) => line.length > 0)
-            .map((line) => `  ${line}`)
+            .map((line) => (line === "" ? "" : `${solveIndentation}${line}`))
             .join("\n")}\n`;
     editBuilder.insert(usagePosition, usageText);
   });
@@ -539,7 +684,7 @@ async function pickStringWithCustom(
 ): Promise<string | undefined> {
   const items: ValuePickItem[] = values.map((value) => ({ label: value, value }));
   items.push({ label: "Custom...", value: "", custom: true });
-  const picked = await vscode.window.showQuickPick(items, {
+  const picked = await showExplainedQuickPick(items, {
     title,
     placeHolder,
     ignoreFocusOut: true
@@ -561,7 +706,7 @@ async function promptSegmentTreeOptions(
   editor: vscode.TextEditor
 ): Promise<RenderedSnippet | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeApplication>
   >(
     SEGMENT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -625,7 +770,7 @@ async function promptSegmentTreeOptions(
         : "global_recursive";
   const outputPick: ValuePickItem<SegmentTreeOutputMode> | undefined = fixedOutputMode
     ? { label: fixedOutputMode, value: fixedOutputMode }
-    : await vscode.window.showQuickPick<ValuePickItem<SegmentTreeOutputMode>>(
+    : await showExplainedQuickPick<ValuePickItem<SegmentTreeOutputMode>>(
         [
           { label: "recursive globals", value: "global_recursive", picked: true },
           { label: "iterative class", value: "iterative_class" }
@@ -640,7 +785,7 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const aggregatePick = await vscode.window.showQuickPick<ValuePickItem<SegmentAggregate>>(
+  const aggregatePick = await showExplainedQuickPick<ValuePickItem<SegmentAggregate>>(
     scenarioPick.value === "max_subarray"
       ? [{ label: "max subarray", value: "sum" }]
       : outputPick.value === "iterative_class"
@@ -684,7 +829,7 @@ async function promptSegmentTreeOptions(
           { label: "range add lazy", value: "range_add" },
           { label: "range assign lazy", value: "range_assign" }
         ];
-  const updatePicks = await vscode.window.showQuickPick(updateItems, {
+  const updatePicks = await showExplainedQuickPick(updateItems, {
     title: "edulcni: segment tree",
     placeHolder: "Update operations to generate",
     canPickMany: true,
@@ -700,7 +845,7 @@ async function promptSegmentTreeOptions(
     outputPick.value === "global_recursive" &&
     aggregatePick.value === "min"
   ) {
-    const descendPicks = await vscode.window.showQuickPick<
+    const descendPicks = await showExplainedQuickPick<
       ValuePickItem<SegmentDescendQuery>
     >(
       [{ label: "first <= target", value: "first_leq" }],
@@ -717,7 +862,7 @@ async function promptSegmentTreeOptions(
     descends = descendPicks.map((item) => item.value);
   }
 
-  const sourcePick = await vscode.window.showQuickPick<
+  const sourcePick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeSourceMode>
   >(
     [
@@ -756,7 +901,7 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick(
+  const indexingPick = await showExplainedQuickPick(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -771,17 +916,17 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: segment tree",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -895,7 +1040,7 @@ async function promptVectorName(
     });
   }
   items.push({ label: "Custom...", value: "", custom: true });
-  const picked = await vscode.window.showQuickPick(items, {
+  const picked = await showExplainedQuickPick(items, {
     title,
     placeHolder,
     ignoreFocusOut: true
@@ -943,7 +1088,7 @@ async function promptCompressUniqueOptions(
   used.add(valuesName.trim());
 
   const idFunctionName = reserveIdentifier(used, "get_id", "compress_id");
-  const rewritePick = await vscode.window.showQuickPick<
+  const rewritePick = await showExplainedQuickPick<
     ValuePickItem<"rewrite" | "keep">
   >(
     [
@@ -1015,7 +1160,7 @@ async function promptSegmentTreeBeatsOptions(
   editor: vscode.TextEditor
 ): Promise<SegmentTreeBeatsOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeBeatsApplication>
   >(
     SEGMENT_TREE_BEATS_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -1033,7 +1178,7 @@ async function promptSegmentTreeBeatsOptions(
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<
+  const sourcePick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeBeatsSourceMode>
   >(
     [
@@ -1106,7 +1251,7 @@ async function promptSegmentTreeBeatsOptions(
   const updatePicks =
     updateItems.length === 0
       ? []
-      : await vscode.window.showQuickPick<ValuePickItem<SegmentTreeBeatsUpdate>>(
+      : await showExplainedQuickPick<ValuePickItem<SegmentTreeBeatsUpdate>>(
           updateItems,
           {
             title: "edulcni: segtree_beats",
@@ -1119,7 +1264,7 @@ async function promptSegmentTreeBeatsOptions(
     return undefined;
   }
 
-  const queryPicks = await vscode.window.showQuickPick<
+  const queryPicks = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeBeatsQuery>
   >(
     [
@@ -1152,7 +1297,7 @@ async function promptSegmentTreeBeatsOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick(
+  const indexingPick = await showExplainedQuickPick(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -1167,17 +1312,17 @@ async function promptSegmentTreeBeatsOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<SegmentTreeBeatsUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: segtree_beats",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1206,7 +1351,7 @@ async function promptImplicitTreapOptions(
   editor: vscode.TextEditor
 ): Promise<ImplicitTreapOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<ImplicitTreapApplication>
   >(
     IMPLICIT_TREAP_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -1224,7 +1369,7 @@ async function promptImplicitTreapOptions(
     return undefined;
   }
 
-  const sourceModePick = await vscode.window.showQuickPick<
+  const sourceModePick = await showExplainedQuickPick<
     ValuePickItem<ImplicitTreapSourceMode>
   >(
     [
@@ -1281,7 +1426,7 @@ async function promptImplicitTreapOptions(
     return undefined;
   }
 
-  const aggregatePick = await vscode.window.showQuickPick<
+  const aggregatePick = await showExplainedQuickPick<
     ValuePickItem<ImplicitTreapAggregate>
   >(
     scenarioPick.value === "custom_aggregate"
@@ -1312,7 +1457,7 @@ async function promptImplicitTreapOptions(
   const featurePicks =
     featureItems.length === 0
       ? []
-      : await vscode.window.showQuickPick<ValuePickItem<ImplicitTreapFeature>>(
+      : await showExplainedQuickPick<ValuePickItem<ImplicitTreapFeature>>(
           featureItems,
           {
             title: "edulcni: implicit_treap",
@@ -1338,7 +1483,7 @@ async function promptImplicitTreapOptions(
     }
   }
 
-  const indexingPick = await vscode.window.showQuickPick(
+  const indexingPick = await showExplainedQuickPick(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -1353,17 +1498,17 @@ async function promptImplicitTreapOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<ImplicitTreapUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: implicit_treap",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1392,7 +1537,7 @@ async function promptMergeSortTreeOptions(
   editor: vscode.TextEditor
 ): Promise<MergeSortTreeOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<MergeSortTreeApplication>
   >(
     MERGE_SORT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -1452,7 +1597,7 @@ async function promptMergeSortTreeOptions(
             { label: "count < x", value: "count_less", picked: true },
             { label: "count <= x", value: "count_less_equal" }
           ];
-  const queryPicks = await vscode.window.showQuickPick<
+  const queryPicks = await showExplainedQuickPick<
     ValuePickItem<MergeSortTreeQuery>
   >(
     queryItems,
@@ -1467,7 +1612,7 @@ async function promptMergeSortTreeOptions(
     return undefined;
   }
 
-  const sourceModePick = await vscode.window.showQuickPick<
+  const sourceModePick = await showExplainedQuickPick<
     ValuePickItem<MergeSortTreeSourceMode>
   >(
     [
@@ -1497,7 +1642,7 @@ async function promptMergeSortTreeOptions(
     }
   }
 
-  const indexingPick = await vscode.window.showQuickPick(
+  const indexingPick = await showExplainedQuickPick(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -1512,17 +1657,17 @@ async function promptMergeSortTreeOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<MergeSortTreeUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: merge_sort_tree",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1568,7 +1713,7 @@ function defaultDsuOptions(
 
 async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<DsuApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<DsuApplication>>(
     DSU_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -1594,19 +1739,19 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<DsuUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<DsuUsageMode>>(
     scenarioPick.value === "kruskal"
       ? [{ label: "Kruskal skeleton", value: "kruskal", picked: true }]
       : scenarioPick.value === "query_loop"
         ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
         : [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "instance skeleton", value: "instance" },
             { label: "query loop skeleton", value: "query_loop" }
           ],
     {
       title: "edulcni: dsu",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1627,7 +1772,7 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<DsuIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<DsuIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -1676,7 +1821,7 @@ async function promptRollbackDsuOptions(
   editor: vscode.TextEditor
 ): Promise<RollbackDsuOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<RollbackDsuApplication>
   >(
     ROLLBACK_DSU_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -1704,17 +1849,17 @@ async function promptRollbackDsuOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<RollbackDsuUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance skeleton", value: "instance" },
       { label: "snapshot query loop", value: "query_loop" }
     ],
     {
       title: "edulcni: rollback_dsu",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1722,7 +1867,7 @@ async function promptRollbackDsuOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<
+  const indexingPick = await showExplainedQuickPick<
     ValuePickItem<RollbackDsuIndexing>
   >(
     [
@@ -1773,7 +1918,7 @@ function defaultLcaOptions(
 
 async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<LcaApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<LcaApplication>>(
     LCA_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -1809,7 +1954,7 @@ async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions |
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<LcaSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<LcaSourceMode>>(
     [
       { label: "empty helper", value: "empty", picked: true },
       { label: "generated tree read loop", value: "read_tree" }
@@ -1824,18 +1969,18 @@ async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions |
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<LcaUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<LcaUsageMode>>(
     scenarioPick.value === "tree_query_loop"
       ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
       : [
-          { label: "helper only", value: "helper_only", picked: true },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
           { label: "instance skeleton", value: "instance" },
           { label: "read tree + build", value: "read_tree" },
           { label: "query loop skeleton", value: "query_loop" }
         ],
     {
       title: "edulcni: lca",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1843,7 +1988,7 @@ async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions |
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<LcaIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<LcaIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -1895,7 +2040,7 @@ function defaultHldOptions(
 
 async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<HldApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<HldApplication>>(
     HLD_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -1931,7 +2076,7 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<HldSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<HldSourceMode>>(
     [
       { label: "empty helper", value: "empty", picked: true },
       { label: "generated tree read loop", value: "read_tree" }
@@ -1946,7 +2091,7 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
     return undefined;
   }
 
-  const valueModePick = await vscode.window.showQuickPick<ValuePickItem<HldValueMode>>(
+  const valueModePick = await showExplainedQuickPick<ValuePickItem<HldValueMode>>(
     [
       { label: "vertex values", description: "path ranges include the LCA position", value: "vertex_values", picked: true },
       { label: "edge values", description: "path ranges skip the LCA endpoint", value: "edge_values" }
@@ -1961,23 +2106,23 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<HldUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<HldUsageMode>>(
     scenarioPick.value === "path_query"
       ? [
           { label: "path/subtree/LCA query loop", value: "query_loop", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read tree + build", value: "read_tree" },
           { label: "instance skeleton", value: "instance" }
         ]
       : [
-          { label: "helper only", value: "helper_only", picked: true },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
           { label: "instance skeleton", value: "instance" },
           { label: "read tree + build", value: "read_tree" },
           { label: "path/subtree/LCA query loop", value: "query_loop" }
         ],
     {
       title: "edulcni: hld",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -1985,7 +2130,7 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<HldIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<HldIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -2039,7 +2184,7 @@ function defaultBfsOptions(
 
 async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<BfsApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<BfsApplication>>(
     BFS_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2055,7 +2200,7 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<BfsSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<BfsSourceMode>>(
     [
       { label: "existing adjacency list", value: "existing_graph", picked: true },
       { label: "generated edge read loop", value: "read_edges" }
@@ -2106,7 +2251,7 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     edgeCountName = pickedEdges.trim();
   }
 
-  const graphModePick = await vscode.window.showQuickPick<ValuePickItem<BfsGraphMode>>(
+  const graphModePick = await showExplainedQuickPick<ValuePickItem<BfsGraphMode>>(
     [
       { label: "undirected", value: "undirected", picked: true },
       { label: "directed", value: "directed" }
@@ -2121,22 +2266,22 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<BfsUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<BfsUsageMode>>(
     scenarioPick.value === "multi_source"
       ? [
           { label: "multi-source run", value: "multi_source", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read graph", value: "read_graph" }
         ]
       : scenarioPick.value === "path_restore"
         ? [
             { label: "path query skeleton", value: "path_query", picked: true },
             { label: "single-source run", value: "single_source" },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "read graph", value: "read_graph" }
           ]
         : [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "read graph", value: "read_graph" },
             { label: "single-source run", value: "single_source" },
             { label: "multi-source run", value: "multi_source" },
@@ -2144,7 +2289,7 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
           ],
     {
       title: "edulcni: bfs",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -2152,7 +2297,7 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<BfsIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<BfsIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -2211,7 +2356,7 @@ async function promptDijkstraOptions(
   editor: vscode.TextEditor
 ): Promise<DijkstraOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<DijkstraApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<DijkstraApplication>>(
     DIJKSTRA_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2227,7 +2372,7 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<DijkstraSourceMode>>(
     [
       { label: "existing weighted adjacency list", value: "existing_graph", picked: true },
       { label: "generated weighted edge loop", value: "read_edges" }
@@ -2301,7 +2446,7 @@ async function promptDijkstraOptions(
     edgeCountName = pickedEdges.trim();
   }
 
-  const graphModePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraGraphMode>>(
+  const graphModePick = await showExplainedQuickPick<ValuePickItem<DijkstraGraphMode>>(
     [
       { label: "directed", value: "directed", picked: true },
       { label: "undirected", value: "undirected" }
@@ -2316,28 +2461,28 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<DijkstraUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<DijkstraUsageMode>>(
     scenarioPick.value === "multi_source"
       ? [
           { label: "multi-source run", value: "multi_source", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read graph", value: "read_graph" }
         ]
       : scenarioPick.value === "path_restore"
         ? [
             { label: "path query skeleton", value: "path_query", picked: true },
             { label: "single-source run", value: "single_source" },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "read graph", value: "read_graph" }
           ]
         : scenarioPick.value === "weighted_graph_read"
           ? [
               { label: "read graph", value: "read_graph", picked: true },
-              { label: "helper only", value: "helper_only" },
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
               { label: "single-source run", value: "single_source" }
             ]
           : [
-              { label: "helper only", value: "helper_only", picked: true },
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
               { label: "read graph", value: "read_graph" },
               { label: "single-source run", value: "single_source" },
               { label: "multi-source run", value: "multi_source" },
@@ -2345,7 +2490,7 @@ async function promptDijkstraOptions(
             ],
     {
       title: "edulcni: dijkstra",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -2353,7 +2498,7 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<DijkstraIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<DijkstraIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -2410,7 +2555,7 @@ async function promptToposortOptions(
   editor: vscode.TextEditor
 ): Promise<ToposortOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<ToposortApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<ToposortApplication>>(
     TOPOSORT_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2426,7 +2571,7 @@ async function promptToposortOptions(
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<ToposortSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<ToposortSourceMode>>(
     [
       { label: "existing adjacency list", value: "existing_graph", picked: true },
       { label: "generated dependency edge loop", value: "read_edges" }
@@ -2477,18 +2622,18 @@ async function promptToposortOptions(
     edgeCountName = pickedEdges.trim();
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<ToposortUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<ToposortUsageMode>>(
     scenarioPick.value === "cycle_detection"
       ? [
           { label: "cycle check", value: "cycle_check", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read graph", value: "read_graph" },
           { label: "sort and print order", value: "sort_order" }
         ]
       : scenarioPick.value === "order_validation"
         ? [
             { label: "validate supplied order", value: "validate_order", picked: true },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "read graph", value: "read_graph" }
           ]
         : scenarioPick.value === "dependency_schedule"
@@ -2496,10 +2641,10 @@ async function promptToposortOptions(
               { label: "sort and print order", value: "sort_order", picked: true },
               { label: "read graph", value: "read_graph" },
               { label: "cycle check", value: "cycle_check" },
-              { label: "helper only", value: "helper_only" }
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
             ]
           : [
-              { label: "helper only", value: "helper_only", picked: true },
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
               { label: "read graph", value: "read_graph" },
               { label: "sort and print order", value: "sort_order" },
               { label: "cycle check", value: "cycle_check" },
@@ -2507,7 +2652,7 @@ async function promptToposortOptions(
             ],
     {
       title: "edulcni: toposort",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -2515,7 +2660,7 @@ async function promptToposortOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<ToposortIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<ToposortIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -2568,7 +2713,7 @@ async function promptKosarajuOptions(
   editor: vscode.TextEditor
 ): Promise<KosarajuOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<KosarajuApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<KosarajuApplication>>(
     KOSARAJU_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2584,7 +2729,7 @@ async function promptKosarajuOptions(
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<KosarajuSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<KosarajuSourceMode>>(
     [
       { label: "existing directed graph", value: "existing_graph", picked: true },
       { label: "generated directed edge loop", value: "read_edges" }
@@ -2635,23 +2780,23 @@ async function promptKosarajuOptions(
     edgeCountName = pickedEdges.trim();
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<KosarajuUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<KosarajuUsageMode>>(
     scenarioPick.value === "same_component"
       ? [
           { label: "same-component query loop", value: "same_component_queries", picked: true },
           { label: "compute SCC", value: "compute_scc" },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read graph", value: "read_graph" }
         ]
       : scenarioPick.value === "condensation_dag"
         ? [
             { label: "compute SCC", value: "compute_scc", picked: true },
             { label: "print components", value: "print_components" },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "read graph", value: "read_graph" }
           ]
         : [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "read graph", value: "read_graph" },
             { label: "compute SCC", value: "compute_scc" },
             { label: "same-component query loop", value: "same_component_queries" },
@@ -2659,7 +2804,7 @@ async function promptKosarajuOptions(
           ],
     {
       title: "edulcni: kosaraju",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -2667,7 +2812,7 @@ async function promptKosarajuOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<KosarajuIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<KosarajuIndexing>>(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -2720,7 +2865,7 @@ function defaultMoOptions(
 
 async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<MoApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<MoApplication>>(
     MO_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2736,7 +2881,7 @@ async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | u
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<ValuePickItem<MoSourceMode>>(
+  const sourcePick = await showExplainedQuickPick<ValuePickItem<MoSourceMode>>(
     [
       { label: "existing query vector", value: "existing_queries", picked: true },
       { label: "generated query read loop", value: "read_queries" }
@@ -2785,7 +2930,7 @@ async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | u
     queryCountName = pickedQueries.trim();
   }
 
-  const indexingPick = await vscode.window.showQuickPick<ValuePickItem<MoIndexing>>(
+  const indexingPick = await showExplainedQuickPick<ValuePickItem<MoIndexing>>(
     [
       { label: "0-indexed [l, r)", value: "zero_based_half_open", picked: true },
       { label: "1-indexed [l, r] input", value: "one_based_closed_input" }
@@ -2800,29 +2945,29 @@ async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | u
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<MoUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<MoUsageMode>>(
     scenarioPick.value === "distinct_values"
       ? [
           { label: "distinct-count skeleton", value: "distinct_count_skeleton", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "read queries", value: "read_queries" },
           { label: "generic processor skeleton", value: "process_skeleton" }
         ]
       : scenarioPick.value === "custom_callbacks"
         ? [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "generic processor skeleton", value: "process_skeleton" },
             { label: "read queries", value: "read_queries" }
           ]
         : [
             { label: "generic processor skeleton", value: "process_skeleton", picked: true },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "read queries", value: "read_queries" },
             { label: "distinct-count skeleton", value: "distinct_count_skeleton" }
           ],
     {
       title: "edulcni: mo",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -2869,7 +3014,7 @@ async function promptMonotonicStackOptions(
   editor: vscode.TextEditor
 ): Promise<MonotonicStackOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackApplication>>(
     MONOTONIC_STACK_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -2885,7 +3030,7 @@ async function promptMonotonicStackOptions(
     return undefined;
   }
 
-  const relationPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackRelation>>(
+  const relationPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackRelation>>(
     scenarioPick.value === "all_nearest"
       ? [{ label: "all", value: "all", picked: true }]
       : scenarioPick.value === "nearest_greater"
@@ -2908,7 +3053,7 @@ async function promptMonotonicStackOptions(
     return undefined;
   }
 
-  const directionPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackDirection>>(
+  const directionPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackDirection>>(
     relationPick.value === "all"
       ? [{ label: "both", value: "both", picked: true }]
       : [
@@ -2926,7 +3071,7 @@ async function promptMonotonicStackOptions(
     return undefined;
   }
 
-  const strictnessPick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackStrictness>>(
+  const strictnessPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackStrictness>>(
     [
       { label: "strict", value: "strict", picked: true },
       { label: "allow equal", value: "non_strict" }
@@ -2951,15 +3096,15 @@ async function promptMonotonicStackOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<MonotonicStackUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<MonotonicStackUsageMode>>(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "compute vector", value: "compute_vector" },
       { label: "compute all", value: "compute_all" }
     ],
     {
       title: "edulcni: monotonic_stack",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3001,7 +3146,7 @@ async function promptGpHashTableOptions(
   editor: vscode.TextEditor
 ): Promise<GpHashTableOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<GpHashTableApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<GpHashTableApplication>>(
     GP_HASH_TABLE_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3041,28 +3186,28 @@ async function promptGpHashTableOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<GpHashTableUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<GpHashTableUsageMode>>(
     scenarioPick.value === "hash_set"
       ? [
           { label: "declare set", value: "declare_set", picked: true },
-          { label: "helper only", value: "helper_only" },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
           { label: "declare map", value: "declare_map" }
         ]
       : scenarioPick.value === "frequency_table"
         ? [
             { label: "frequency loop", value: "frequency_loop", picked: true },
             { label: "declare map", value: "declare_map" },
-            { label: "helper only", value: "helper_only" }
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
           ]
         : [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "declare map", value: "declare_map" },
             { label: "declare set", value: "declare_set" },
             { label: "frequency loop", value: "frequency_loop" }
           ],
     {
       title: "edulcni: gp_hash_table",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3110,7 +3255,7 @@ async function promptOrderedSetOptions(
   editor: vscode.TextEditor
 ): Promise<OrderedSetOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<OrderedSetApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<OrderedSetApplication>>(
     ORDERED_SET_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3138,26 +3283,26 @@ async function promptOrderedSetOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<OrderedSetUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<OrderedSetUsageMode>>(
     scenarioPick.value === "kth_element"
       ? [
           { label: "kth query", value: "kth_query", picked: true },
           { label: "declare set", value: "declare_set" },
-          { label: "helper only", value: "helper_only" }
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
         ]
       : scenarioPick.value === "rank_queries"
         ? [
             { label: "rank query", value: "rank_query", picked: true },
             { label: "declare set", value: "declare_set" },
-            { label: "helper only", value: "helper_only" }
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
           ]
         : scenarioPick.value === "multiset_pairs"
           ? [
               { label: "pair-key multiset", value: "pair_multiset", picked: true },
-              { label: "helper only", value: "helper_only" }
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
             ]
           : [
-              { label: "helper only", value: "helper_only", picked: true },
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
               { label: "declare set", value: "declare_set" },
               { label: "rank query", value: "rank_query" },
               { label: "kth query", value: "kth_query" },
@@ -3165,7 +3310,7 @@ async function promptOrderedSetOptions(
             ],
     {
       title: "edulcni: ordered_set",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3203,7 +3348,7 @@ function defaultSetUtilsOptions(
 
 async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtilsOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<SetUtilsApplication>>(
     SET_UTILS_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3219,7 +3364,7 @@ async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtil
     return undefined;
   }
 
-  const lookupPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsLookup>>(
+  const lookupPick = await showExplainedQuickPick<ValuePickItem<SetUtilsLookup>>(
     scenarioPick.value === "prev_value"
       ? [
           { label: "previous", value: "prev", picked: true },
@@ -3239,7 +3384,7 @@ async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtil
     return undefined;
   }
 
-  const targetPick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsTarget>>(
+  const targetPick = await showExplainedQuickPick<ValuePickItem<SetUtilsTarget>>(
     scenarioPick.value === "iterator_navigation"
       ? [
           { label: "iterator", value: "iterator", picked: true },
@@ -3269,14 +3414,14 @@ async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtil
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<SetUtilsUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<SetUtilsUsageMode>>(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "lookup snippet", value: "lookup_snippet" }
     ],
     {
       title: "edulcni: set_utils",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3317,7 +3462,7 @@ function defaultFastAllocatorOptions(
 
 async function promptFastAllocatorOptions(editor: vscode.TextEditor): Promise<FastAllocatorOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<FastAllocatorApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<FastAllocatorApplication>>(
     FAST_ALLOCATOR_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3333,28 +3478,28 @@ async function promptFastAllocatorOptions(editor: vscode.TextEditor): Promise<Fa
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<FastAllocatorUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<FastAllocatorUsageMode>>(
     scenarioPick.value === "graph_edges"
       ? [
           { label: "edge vector", value: "edge_vector", picked: true },
           { label: "vector declaration", value: "vector_declaration" },
-          { label: "helper only", value: "helper_only" }
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
         ]
       : scenarioPick.value === "pool_reset"
         ? [
             { label: "arena reset", value: "arena_reset", picked: true },
-            { label: "helper only", value: "helper_only" },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
             { label: "vector declaration", value: "vector_declaration" }
           ]
         : [
-            { label: "helper only", value: "helper_only", picked: true },
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "vector declaration", value: "vector_declaration" },
             { label: "edge vector", value: "edge_vector" },
             { label: "arena reset", value: "arena_reset" }
           ],
     {
       title: "edulcni: fast_allocator",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3408,7 +3553,7 @@ function defaultGeometryOptions(): GeometryOptions {
 
 async function promptGeometryOptions(editor: vscode.TextEditor): Promise<GeometryOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<GeometryApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<GeometryApplication>>(
     GEOMETRY_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3424,30 +3569,30 @@ async function promptGeometryOptions(editor: vscode.TextEditor): Promise<Geometr
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<GeometryUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<GeometryUsageMode>>(
     scenarioPick.value === "orientation"
       ? [
           { label: "orientation check", value: "orientation_check", picked: true },
-          { label: "helper only", value: "helper_only" }
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
         ]
       : scenarioPick.value === "segment_intersection"
         ? [
             { label: "segment intersection", value: "segment_intersection", picked: true },
-            { label: "helper only", value: "helper_only" }
+            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
           ]
         : scenarioPick.value === "angle_sort"
           ? [
               { label: "sort points by angle", value: "sort_points", picked: true },
-              { label: "helper only", value: "helper_only" }
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
             ]
           : [
-              { label: "helper only", value: "helper_only", picked: true },
+              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
               { label: "build convex hull", value: "build_hull" },
               { label: "segment intersection", value: "segment_intersection" }
             ],
     {
       title: "edulcni: geometry",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3489,7 +3634,7 @@ async function promptHalfplaneIntersectionOptions(
   editor: vscode.TextEditor
 ): Promise<HalfplaneIntersectionOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<ValuePickItem<HalfplaneIntersectionApplication>>(
+  const scenarioPick = await showExplainedQuickPick<ValuePickItem<HalfplaneIntersectionApplication>>(
     HALFPLANE_INTERSECTION_APPLICATION_SPEC.scenarios.map((scenario) => ({
       label: scenario.label,
       description: scenario.description,
@@ -3505,21 +3650,21 @@ async function promptHalfplaneIntersectionOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<ValuePickItem<HalfplaneIntersectionUsageMode>>(
+  const usagePick = await showExplainedQuickPick<ValuePickItem<HalfplaneIntersectionUsageMode>>(
     scenarioPick.value === "linear_constraints"
       ? [
           { label: "inequality box", value: "inequality_box", picked: true },
           { label: "compute polygon", value: "compute_polygon" },
-          { label: "helper only", value: "helper_only" }
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
         ]
       : [
-          { label: "helper only", value: "helper_only", picked: true },
+          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
           { label: "half-plane vector", value: "halfplane_vector" },
           { label: "compute polygon", value: "compute_polygon" }
         ],
     {
       title: "edulcni: halfplane_intersection",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -3578,7 +3723,7 @@ async function promptFenwickOptions(
   editor: vscode.TextEditor
 ) {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<FenwickApplication>
   >(
     FENWICK_APPLICATION_SPEC.scenarios.map((scenario, index) => ({
@@ -3598,7 +3743,7 @@ async function promptFenwickOptions(
   }
 
   const application = scenarioPick.value;
-  const operationPick = await vscode.window.showQuickPick<
+  const operationPick = await showExplainedQuickPick<
     ValuePickItem<FenwickOperation>
   >(
     fenwickOperationsForApplication(application).map((operation) => ({
@@ -3616,7 +3761,7 @@ async function promptFenwickOptions(
     return undefined;
   }
 
-  const sourcePick = await vscode.window.showQuickPick<
+  const sourcePick = await showExplainedQuickPick<
     ValuePickItem<FenwickSourceMode>
   >(
     [
@@ -3680,7 +3825,7 @@ async function promptFenwickOptions(
     return undefined;
   }
 
-  const indexingPick = await vscode.window.showQuickPick<
+  const indexingPick = await showExplainedQuickPick<
     ValuePickItem<FenwickIndexing>
   >(
     [
@@ -3697,11 +3842,11 @@ async function promptFenwickOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<FenwickUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance initialization", value: "instance" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
@@ -3735,7 +3880,7 @@ async function promptModIntOptions(
   editor: vscode.TextEditor
 ): Promise<ModIntOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const modePick = await vscode.window.showQuickPick<ValuePickItem<ModIntMode>>(
+  const modePick = await showExplainedQuickPick<ValuePickItem<ModIntMode>>(
     [
       {
         label: "Static and dynamic",
@@ -3934,7 +4079,7 @@ async function promptStringName(
     });
   }
   items.push({ label: "Custom...", value: "", custom: true });
-  const picked = await vscode.window.showQuickPick(items, {
+  const picked = await showExplainedQuickPick(items, {
     title,
     placeHolder,
     ignoreFocusOut: true
@@ -3957,7 +4102,7 @@ async function promptSparseTableOptions(
   editor: vscode.TextEditor
 ): Promise<SparseTableOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await vscode.window.showQuickPick<
+  const scenarioPick = await showExplainedQuickPick<
     ValuePickItem<SparseTableApplication>
   >(
     SPARSE_TABLE_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -4016,7 +4161,7 @@ async function promptSparseTableOptions(
             { label: "min", value: "min", picked: true },
             { label: "max", value: "max", picked: true }
           ];
-  const variantPicks = await vscode.window.showQuickPick<
+  const variantPicks = await showExplainedQuickPick<
     ValuePickItem<SparseTableVariant>
   >(
     variantItems,
@@ -4031,7 +4176,7 @@ async function promptSparseTableOptions(
     return undefined;
   }
 
-  const sourceModePick = await vscode.window.showQuickPick<
+  const sourceModePick = await showExplainedQuickPick<
     ValuePickItem<SparseTableSourceMode>
   >(
     [
@@ -4061,7 +4206,7 @@ async function promptSparseTableOptions(
     }
   }
 
-  const indexingPick = await vscode.window.showQuickPick(
+  const indexingPick = await showExplainedQuickPick(
     [
       { label: "0-indexed", value: "zero_based" },
       { label: "1-indexed input", value: "one_based_input" }
@@ -4076,17 +4221,17 @@ async function promptSparseTableOptions(
     return undefined;
   }
 
-  const usagePick = await vscode.window.showQuickPick<
+  const usagePick = await showExplainedQuickPick<
     ValuePickItem<SparseTableUsageMode>
   >(
     [
-      { label: "helper only", value: "helper_only", picked: true },
+      { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "build call", value: "build_call" },
       { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: sparse_table",
-      placeHolder: "Usage output",
+      placeHolder: "Generated output",
       ignoreFocusOut: true
     }
   );
@@ -4116,7 +4261,7 @@ async function promptSuffixArrayOptions(
   editor: vscode.TextEditor
 ): Promise<SuffixArrayOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const inputPick = await vscode.window.showQuickPick<
+  const inputPick = await showExplainedQuickPick<
     ValuePickItem<SuffixArrayInputKind>
   >(
     [
@@ -4156,7 +4301,7 @@ async function promptSuffixArrayOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<SuffixArrayFeature>
   >(
     [
@@ -4189,7 +4334,7 @@ async function promptFftNttOptions(
   editor: vscode.TextEditor
 ): Promise<FftNttOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const transformPicks = await vscode.window.showQuickPick<
+  const transformPicks = await showExplainedQuickPick<
     ValuePickItem<FftNttTransform>
   >(
     [
@@ -4211,7 +4356,7 @@ async function promptFftNttOptions(
       ? defaultFftNttTransforms()
       : transformPicks.map((item) => item.value);
 
-  const helperPick = await vscode.window.showQuickPick<
+  const helperPick = await showExplainedQuickPick<
     ValuePickItem<"convolution" | "transform">
   >(
     [
@@ -4268,7 +4413,7 @@ async function promptPolyHashOptions(
   editor: vscode.TextEditor
 ): Promise<PolyHashOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const inputPick = await vscode.window.showQuickPick<
+  const inputPick = await showExplainedQuickPick<
     ValuePickItem<PolyHashInputKind>
   >(
     [
@@ -4305,7 +4450,7 @@ async function promptPolyHashOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<PolyHashFeature>
   >(
     [
@@ -4325,7 +4470,7 @@ async function promptPolyHashOptions(
     return undefined;
   }
 
-  const constantsPick = await vscode.window.showQuickPick<
+  const constantsPick = await showExplainedQuickPick<
     ValuePickItem<"default" | "custom">
   >(
     [
@@ -4406,7 +4551,7 @@ async function promptMaxflowDinicOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<MaxflowDinicFeature>
   >(
     [
@@ -4425,11 +4570,11 @@ async function promptMaxflowDinicOptions(
     return undefined;
   }
 
-  const inputPick = await vscode.window.showQuickPick<
+  const inputPick = await showExplainedQuickPick<
     ValuePickItem<"helper" | "read_call">
   >(
     [
-      { label: "helper only", value: "helper", picked: true },
+      { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
       { label: "read directed edges and call maxflow", value: "read_call" }
     ],
     {
@@ -4488,7 +4633,7 @@ async function promptMinCostMaxFlowOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<MinCostMaxFlowFeature>
   >(
     [
@@ -4506,7 +4651,7 @@ async function promptMinCostMaxFlowOptions(
     return undefined;
   }
 
-  const modePick = await vscode.window.showQuickPick<
+  const modePick = await showExplainedQuickPick<
     ValuePickItem<MinCostMaxFlowMode>
   >(
     [
@@ -4523,11 +4668,11 @@ async function promptMinCostMaxFlowOptions(
     return undefined;
   }
 
-  const inputPick = await vscode.window.showQuickPick<
+  const inputPick = await showExplainedQuickPick<
     ValuePickItem<"helper" | "read_call">
   >(
     [
-      { label: "helper only", value: "helper", picked: true },
+      { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
       { label: "read directed edges and call min-cost flow", value: "read_call" }
     ],
     {
@@ -4561,7 +4706,7 @@ async function promptHungarianOptions(
     matrixValueType(symbol.type)
   );
 
-  const sourceMode = await vscode.window.showQuickPick<
+  const sourceMode = await showExplainedQuickPick<
     ValuePickItem<"existing" | "read">
   >(
     [
@@ -4613,7 +4758,7 @@ async function promptHungarianOptions(
     return undefined;
   }
 
-  const modePick = await vscode.window.showQuickPick<ValuePickItem<HungarianMode>>(
+  const modePick = await showExplainedQuickPick<ValuePickItem<HungarianMode>>(
     [
       { label: "minimize cost", value: "minimize", picked: true },
       { label: "maximize value", value: "maximize" }
@@ -4628,7 +4773,7 @@ async function promptHungarianOptions(
     return undefined;
   }
 
-  const rectangularPick = await vscode.window.showQuickPick<
+  const rectangularPick = await showExplainedQuickPick<
     ValuePickItem<"rectangular" | "square">
   >(
     [
@@ -4663,7 +4808,7 @@ async function promptKuhnOptions(
   const analysis = analyzeCppDocument(editor.document.getText());
   const defaults = defaultKuhnOptions(analysis);
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<KuhnFeature>
   >(
     [
@@ -4680,11 +4825,11 @@ async function promptKuhnOptions(
     return undefined;
   }
 
-  const inputPick = await vscode.window.showQuickPick<
+  const inputPick = await showExplainedQuickPick<
     ValuePickItem<"helper" | "read_call">
   >(
     [
-      { label: "helper only", value: "helper", picked: true },
+      { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
       { label: "read bipartite edges and call matching", value: "read_call" }
     ],
     {
@@ -4699,7 +4844,7 @@ async function promptKuhnOptions(
 
   let decrementInput = defaults.decrementInput;
   if (inputPick.value === "read_call") {
-    const indexingPick = await vscode.window.showQuickPick<
+    const indexingPick = await showExplainedQuickPick<
       ValuePickItem<"one_based" | "zero_based">
     >(
       [
@@ -4740,7 +4885,7 @@ async function promptTwoSatOptions(
   editor: vscode.TextEditor
 ): Promise<TwoSatOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<TwoSatFeature>
   >(
     [
@@ -4816,7 +4961,7 @@ async function promptBerlekampMasseyOptions(
     return undefined;
   }
 
-  const featurePicks = await vscode.window.showQuickPick<
+  const featurePicks = await showExplainedQuickPick<
     ValuePickItem<BerlekampMasseyFeature>
   >(
     [
@@ -5833,7 +5978,17 @@ async function insertSnippet(
     return;
   }
 
-  const items = buildPickItems(catalogEntries);
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage("edulcni: open a file and place the cursor first.");
+    return;
+  }
+
+  const items = await buildPickItems(
+    libraryRoot,
+    catalogEntries,
+    analyzeCppDocument(editor.document.getText())
+  );
   let picked: SnippetPickItem | undefined;
   const directEntry = requestedPath ? directGeneratorEntry(requestedPath) : undefined;
   if (requestedPath) {
@@ -5857,7 +6012,7 @@ async function insertSnippet(
       };
     }
   } else {
-    picked = await vscode.window.showQuickPick(items, {
+    picked = await showExplainedQuickPick(items, {
       title: "edulcni:browse",
       placeHolder: "Type a slash path, for example /solvers/segtree",
       matchOnDescription: true,
@@ -5870,12 +6025,6 @@ async function insertSnippet(
     if (requestedPath) {
       vscode.window.showErrorMessage(`edulcni: unknown snippet ${requestedPath}.`);
     }
-    return;
-  }
-
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    vscode.window.showErrorMessage("edulcni: open a file and place the cursor first.");
     return;
   }
 

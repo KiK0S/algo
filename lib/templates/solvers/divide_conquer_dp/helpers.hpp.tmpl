@@ -1,0 +1,33 @@
+template <typename Cost>
+inline void divide_conquer_dp_layer(const std::vector<long long>& previous,
+                                    std::vector<long long>& current,
+                                    int left, int right, int opt_left,
+                                    int opt_right, Cost cost) {
+  if (left > right) return;
+  const int middle = (left + right) / 2;
+  std::pair<long long, int> best = {std::numeric_limits<long long>::max(), -1};
+  for (int split = opt_left; split <= std::min(middle, opt_right); ++split) {
+    if (previous[split] == std::numeric_limits<long long>::max()) continue;
+    best = std::min(best, {previous[split] + cost(split, middle), split});
+  }
+  current[middle] = best.first;
+  if (left == right) return;
+  divide_conquer_dp_layer(previous, current, left, middle - 1,
+                          opt_left, best.second, cost);
+  divide_conquer_dp_layer(previous, current, middle + 1, right,
+                          best.second, opt_right, cost);
+}
+
+template <typename Cost>
+inline std::vector<long long> divide_conquer_partition_dp(int n, int groups,
+                                                          Cost cost) {
+  const long long infinity = std::numeric_limits<long long>::max();
+  std::vector<long long> previous(n + 1, infinity), current(n + 1, infinity);
+  previous[0] = 0;
+  for (int group = 1; group <= groups; ++group) {
+    std::fill(current.begin(), current.end(), infinity);
+    divide_conquer_dp_layer(previous, current, group, n, group - 1, n - 1, cost);
+    previous.swap(current);
+  }
+  return previous;
+}

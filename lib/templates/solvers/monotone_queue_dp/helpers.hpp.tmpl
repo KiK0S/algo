@@ -1,0 +1,16 @@
+inline std::vector<long long> sliding_window_min_dp(
+    const std::vector<long long>& transition_cost, int window) {
+  const int n = static_cast<int>(transition_cost.size());
+  if (n == 0 || window <= 0) return {};
+  std::vector<long long> dp(n);
+  std::deque<int> candidates;
+  for (int i = 0; i < n; ++i) {
+    while (!candidates.empty() && candidates.front() < i - window)
+      candidates.pop_front();
+    if (i > 0) dp[i] = dp[candidates.front()] + transition_cost[i];
+    while (!candidates.empty() && dp[candidates.back()] >= dp[i])
+      candidates.pop_back();
+    candidates.push_back(i);
+  }
+  return dp;
+}

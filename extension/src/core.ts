@@ -3907,9 +3907,9 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance/build skeleton" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -3988,9 +3988,9 @@ export const SEGMENT_TREE_BEATS_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance/build skeleton" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -4075,7 +4075,7 @@ export const FENWICK_APPLICATION_SPEC: SolverApplicationSpec = {
       id: "usage",
       label: "Generated usage",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance initialization" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -4137,9 +4137,9 @@ export const SPARSE_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "build_call", label: "build call" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -4200,9 +4200,9 @@ export const MERGE_SORT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance/build skeleton" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -4275,9 +4275,9 @@ export const IMPLICIT_TREAP_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance/build skeleton" },
         { id: "query_loop", label: "query loop skeleton" }
       ]
@@ -4319,9 +4319,9 @@ export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
         { id: "query_loop", label: "query loop skeleton" },
         { id: "kruskal", label: "Kruskal skeleton" }
@@ -4358,9 +4358,9 @@ export const ROLLBACK_DSU_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
         { id: "query_loop", label: "snapshot query loop" }
       ]
@@ -4409,9 +4409,9 @@ export const LCA_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
         { id: "read_tree", label: "read tree + build" },
         { id: "query_loop", label: "query loop skeleton" }
@@ -4475,9 +4475,9 @@ export const HLD_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
         { id: "read_tree", label: "read tree + build" },
         { id: "query_loop", label: "path/subtree/LCA query loop" }
@@ -4541,9 +4541,9 @@ export const BFS_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "read_graph", label: "read graph" },
         { id: "single_source", label: "single-source run" },
         { id: "multi_source", label: "multi-source run" },
@@ -4609,9 +4609,9 @@ export const DIJKSTRA_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "read_graph", label: "read graph" },
         { id: "single_source", label: "single-source run" },
         { id: "multi_source", label: "multi-source run" },
@@ -4669,9 +4669,9 @@ export const TOPOSORT_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "read_graph", label: "read graph" },
         { id: "sort_order", label: "sort and print order" },
         { id: "cycle_check", label: "cycle check" },
@@ -4728,9 +4728,9 @@ export const KOSARAJU_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "read_graph", label: "read graph" },
         { id: "compute_scc", label: "compute SCC" },
         { id: "same_component_queries", label: "same-component query loop" },
@@ -4795,9 +4795,9 @@ export const MO_APPLICATION_SPEC: SolverApplicationSpec = {
     },
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "read_queries", label: "read queries" },
         { id: "process_skeleton", label: "generic processor skeleton" },
         { id: "distinct_count_skeleton", label: "distinct-count skeleton" }
@@ -4909,9 +4909,9 @@ export const GP_HASH_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "declare_map", label: "declare map" },
         { id: "declare_set", label: "declare set" },
         { id: "frequency_loop", label: "frequency loop" }
@@ -4958,9 +4958,9 @@ export const ORDERED_SET_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "declare_set", label: "declare set" },
         { id: "rank_query", label: "rank query" },
         { id: "kth_query", label: "kth query" },
@@ -5061,9 +5061,9 @@ export const FAST_ALLOCATOR_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "vector_declaration", label: "vector declaration" },
         { id: "edge_vector", label: "edge vector" },
         { id: "arena_reset", label: "arena reset" }
@@ -5110,9 +5110,9 @@ export const GEOMETRY_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "orientation_check", label: "orientation check" },
         { id: "segment_intersection", label: "segment intersection" },
         { id: "sort_points", label: "sort points by angle" },
@@ -5154,9 +5154,9 @@ export const HALFPLANE_INTERSECTION_APPLICATION_SPEC: SolverApplicationSpec = {
   decisions: [
     {
       id: "usage",
-      label: "Usage output",
+      label: "Generated output",
       choices: [
-        { id: "helper_only", label: "helper only" },
+        { id: "helper_only", label: "definitions only" },
         { id: "halfplane_vector", label: "half-plane vector" },
         { id: "inequality_box", label: "inequality box" },
         { id: "compute_polygon", label: "compute polygon" }

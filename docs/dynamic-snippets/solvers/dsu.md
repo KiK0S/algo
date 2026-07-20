@@ -24,7 +24,7 @@ rollback remains `/solvers/rollback_dsu`.
 - Node count binding: detected `n`/constants or custom expression.
 - Optional edge count binding for Kruskal.
 - Indexing: 0-indexed or 1-indexed input adjustment in generated usage.
-- Usage output: helper only, instance skeleton, query loop, or Kruskal skeleton.
+- Generated output: definitions only, instance skeleton, query loop, or Kruskal skeleton.
 
 ## Inputs And Outputs
 

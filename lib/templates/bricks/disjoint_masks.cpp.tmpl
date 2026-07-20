@@ -1,0 +1,5 @@
+for (int left = 0; left < (1 << bits); ++left)
+  for (int right = ((1 << bits) - 1) ^ left; ; right = (right - 1) & (((1 << bits) - 1) ^ left)) {
+    // left & right == 0
+    if (right == 0) break;
+  }

@@ -34,7 +34,7 @@ descend predicates.
 - Build source: empty size, existing vector, or generated read loop.
 - Bindings: size expression, value type, source vector when needed, indexing,
   instance name, and answer name.
-- Usage output: helper only, instance initialization, or query loop skeleton.
+- Generated output: definitions only, instance initialization, or query loop skeleton.
 
 ## Inputs And Outputs
 
