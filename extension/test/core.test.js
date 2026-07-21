@@ -5,6 +5,64 @@ const path = require("node:path");
 const subprocess = require("node:child_process");
 
 const core = require("../out/core.js");
+const wizard = require("../out/wizard.js");
+
+{
+  const choices = [
+    { value: "first" },
+    { value: "default", picked: true },
+    { value: "third" }
+  ];
+  assert.equal(
+    wizard.defaultWizardSelection(choices, false).value,
+    "default",
+    "single-choice wizard previews should use the declared default"
+  );
+  assert.deepEqual(
+    wizard.defaultWizardSelection(choices, true).map((choice) => choice.value),
+    ["default"],
+    "multi-choice wizard previews should use every declared default"
+  );
+}
+
+{
+  const replay = new wizard.WizardReplay(["confirmed", "highlighted"]);
+  assert.equal(replay.next("future-default"), "confirmed");
+  assert.equal(replay.next("future-default"), "highlighted");
+  assert.equal(
+    replay.next("future-default"),
+    "future-default",
+    "unvisited wizard steps should render with deterministic defaults"
+  );
+}
+
+{
+  const render = (answers) =>
+    `mode=${answers.next("sum")};usage=${answers.next("definitions")}`;
+  const candidatePreview = render(new wizard.WizardReplay(["maximum"]));
+  const finalRender = render(
+    new wizard.WizardReplay(["maximum", "definitions"])
+  );
+  assert.equal(candidatePreview, finalRender);
+}
+
+{
+  const before = ["a", "b", "c", "old", "e", "f", "g"].join("\n");
+  const after = ["a", "b", "c", "new", "e", "f", "g"].join("\n");
+  const diff = wizard.createUnifiedDiff(before, after, 1);
+  assert.match(diff, /^--- confirmed \+ defaults/m);
+  assert.match(diff, /^-old$/m);
+  assert.match(diff, /^\+new$/m);
+  assert.doesNotMatch(diff, /^ a$/m, "distant unchanged lines should be omitted");
+  assert.doesNotMatch(diff, /^ g$/m, "distant unchanged lines should be omitted");
+}
+
+{
+  assert.equal(
+    wizard.createUnifiedDiff("same\ncode", "same\ncode"),
+    "# No generated-code difference for this option.\n"
+  );
+}
 
 function segmentOptions(overrides) {
   const analysis = core.analyzeCppDocument(overrides.existingText ?? "");

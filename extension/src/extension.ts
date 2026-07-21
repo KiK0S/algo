@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 import {
+  createUnifiedDiff,
+  defaultWizardSelection,
+  WizardReplay
+} from "./wizard";
+import {
   analyzeCppDocument,
   applyIdentifierRenames,
   BerlekampMasseyFeature,
@@ -275,12 +280,163 @@ type SnippetPickItem = vscode.QuickPickItem & {
   entry?: CatalogEntry;
   snippetKind: SnippetKind;
   insertMode: InsertMode;
+  previewContent?: string;
 };
 
 type ValuePickItem<T extends string = string> = vscode.QuickPickItem & {
   value: T;
   custom?: boolean;
+  previewContent?: string;
 };
+
+type PreviewPickItem = vscode.QuickPickItem & {
+  previewContent?: string;
+};
+
+const PREVIEW_SCHEME = "edulcni-preview";
+
+class SnippetPreviewProvider implements vscode.TextDocumentContentProvider {
+  private readonly contents = new Map<string, string>();
+  private readonly changed = new vscode.EventEmitter<vscode.Uri>();
+  readonly onDidChange = this.changed.event;
+
+  provideTextDocumentContent(uri: vscode.Uri): string {
+    return this.contents.get(uri.toString()) ?? "// Select an option to preview it.\n";
+  }
+
+  set(uri: vscode.Uri, content: string): void {
+    this.contents.set(uri.toString(), content);
+    this.changed.fire(uri);
+  }
+
+  delete(uri: vscode.Uri): void {
+    this.contents.delete(uri.toString());
+  }
+
+  dispose(): void {
+    this.changed.dispose();
+    this.contents.clear();
+  }
+}
+
+let snippetPreviewProvider: SnippetPreviewProvider | undefined;
+let previewSequence = 0;
+
+type WizardAnswer = vscode.QuickPickItem | vscode.QuickPickItem[] | string;
+
+interface WizardReplayContext {
+  replay: WizardReplay<WizardAnswer>;
+}
+
+let wizardReplayContext: WizardReplayContext | undefined;
+let activeWizardSession: WizardPreviewSession | undefined;
+
+function defaultQuickPickAnswer<T extends vscode.QuickPickItem>(
+  items: readonly T[],
+  canPickMany: boolean
+): T | T[] | undefined {
+  return defaultWizardSelection(items, canPickMany);
+}
+
+class WizardPreviewSession {
+  private readonly answers: WizardAnswer[] = [];
+  private readonly uri = vscode.Uri.parse(
+    `${PREVIEW_SCHEME}:/wizard-${previewSequence++}.diff`
+  );
+  private previewVersion = 0;
+  private previewQueue: Promise<void> = Promise.resolve();
+  private previewFailure: Error | undefined;
+
+  constructor(private readonly render: () => Promise<RenderedSnippet | undefined>) {}
+
+  async open(initialContent: string): Promise<void> {
+    if (!snippetPreviewProvider) {
+      return;
+    }
+    snippetPreviewProvider.set(this.uri, initialContent);
+    const document = await vscode.workspace.openTextDocument(this.uri);
+    await vscode.window.showTextDocument(document, {
+      viewColumn: vscode.ViewColumn.Beside,
+      preserveFocus: true,
+      preview: true
+    });
+  }
+
+  commit(answer: WizardAnswer): void {
+    this.answers.push(answer);
+  }
+
+  private async renderAnswers(
+    answers: WizardAnswer[]
+  ): Promise<RenderedSnippet | undefined> {
+    wizardReplayContext = { replay: new WizardReplay(answers) };
+    try {
+      return await this.render();
+    } finally {
+      wizardReplayContext = undefined;
+    }
+  }
+
+  preview(answer: WizardAnswer): void {
+    if (!snippetPreviewProvider) {
+      return;
+    }
+    const version = ++this.previewVersion;
+    const replayAnswers = [...this.answers, answer];
+    this.previewQueue = this.previewQueue.catch(() => undefined).then(async () => {
+      if (version !== this.previewVersion) {
+        return;
+      }
+      try {
+        const baseline = await this.renderAnswers(this.answers);
+        const candidate = await this.renderAnswers(replayAnswers);
+        if (!baseline || !candidate) {
+          throw new Error("the selected action did not produce a snippet");
+        }
+        if (version === this.previewVersion) {
+          this.previewFailure = undefined;
+          snippetPreviewProvider?.set(
+            this.uri,
+            createUnifiedDiff(baseline.content, candidate.content)
+          );
+        }
+      } catch (error) {
+        if (version === this.previewVersion) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.previewFailure = error instanceof Error ? error : new Error(message);
+          snippetPreviewProvider?.set(
+            this.uri,
+            `#error "edulcni preview renderer failed: ${message.replace(/["\r\n]/g, " ")}"\n`
+          );
+        }
+        throw error;
+      } finally {
+        wizardReplayContext = undefined;
+      }
+    });
+  }
+
+  async close(requireValidPreview: boolean): Promise<void> {
+    await this.previewQueue.catch(() => undefined);
+    const previewTab = vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .find(
+        (tab) =>
+          tab.input instanceof vscode.TabInputText &&
+          tab.input.uri.toString() === this.uri.toString()
+      );
+    try {
+      if (previewTab) {
+        await vscode.window.tabGroups.close(previewTab);
+      }
+    } finally {
+      snippetPreviewProvider?.delete(this.uri);
+    }
+    if (requireValidPreview && this.previewFailure) {
+      throw this.previewFailure;
+    }
+  }
+}
 
 const GENERATED_CHOICE_DESCRIPTIONS: Record<string, string> = {
   helper_only: "adds reusable definitions; no setup, input, or example calls",
@@ -343,21 +499,211 @@ function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   items: readonly T[] | Thenable<readonly T[]>,
   options?: vscode.QuickPickOptions & { canPickMany?: false }
 ): Thenable<T | undefined>;
-function showExplainedQuickPick<T extends vscode.QuickPickItem>(
+async function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   items: readonly T[] | Thenable<readonly T[]>,
   options?: vscode.QuickPickOptions
-): Thenable<T | T[] | undefined> {
-  const explainedItems = Promise.resolve(items).then(explainPickItems);
-  return vscode.window.showQuickPick(
-    explainedItems,
-    options as vscode.QuickPickOptions
-  );
+): Promise<T | T[] | undefined> {
+  const explainedItems = explainPickItems(await Promise.resolve(items));
+  if (wizardReplayContext) {
+    const fallback = defaultQuickPickAnswer(
+      explainedItems,
+      options?.canPickMany ?? false
+    );
+    return (fallback === undefined
+      ? undefined
+      : wizardReplayContext.replay.next(fallback)) as T | T[] | undefined;
+  }
+  if (!snippetPreviewProvider) {
+    return vscode.window.showQuickPick(explainedItems, options as vscode.QuickPickOptions);
+  }
+
+  const wizardSession = activeWizardSession;
+  const previewUri = wizardSession
+    ? undefined
+    : vscode.Uri.parse(`${PREVIEW_SCHEME}:/choice-${previewSequence++}.cpp`);
+  if (previewUri) {
+    const previewDocument = await vscode.workspace.openTextDocument(previewUri);
+    await vscode.window.showTextDocument(previewDocument, {
+      viewColumn: vscode.ViewColumn.Beside,
+      preserveFocus: true,
+      preview: true
+    });
+  }
+
+  const picker = vscode.window.createQuickPick<T>();
+  picker.items = explainedItems;
+  picker.canSelectMany = options?.canPickMany ?? false;
+  picker.title = options?.title;
+  picker.placeholder = options?.placeHolder;
+  picker.matchOnDescription = options?.matchOnDescription ?? false;
+  picker.matchOnDetail = options?.matchOnDetail ?? false;
+  picker.ignoreFocusOut = options?.ignoreFocusOut ?? false;
+  if (picker.canSelectMany) {
+    picker.selectedItems = explainedItems.filter((item) => item.picked);
+  }
+
+  const previewFor = (item: T | undefined): string => {
+    if (!item) {
+      return "// Select an option to preview it.\n";
+    }
+    const preview = (item as PreviewPickItem).previewContent;
+    if (preview) {
+      return preview.endsWith("\n") ? preview : `${preview}\n`;
+    }
+    throw new Error(`edulcni: ${item.label} has no concrete preview renderer.`);
+  };
+
+  if (previewUri) {
+    snippetPreviewProvider.set(previewUri, previewFor(explainedItems[0]));
+  } else {
+    const initialAnswer = defaultQuickPickAnswer(
+      explainedItems,
+      picker.canSelectMany
+    );
+    if (initialAnswer) {
+      wizardSession?.preview(initialAnswer);
+    }
+  }
+  picker.onDidChangeActive((activeItems) => {
+    if (previewUri) {
+      snippetPreviewProvider?.set(previewUri, previewFor(activeItems[0]));
+      return;
+    }
+    const activeItem = activeItems[0];
+    if (!activeItem) {
+      return;
+    }
+    const answer = picker.canSelectMany
+      ? picker.selectedItems.includes(activeItem)
+        ? [...picker.selectedItems]
+        : [...picker.selectedItems, activeItem]
+      : activeItem;
+    wizardSession?.preview(answer);
+  });
+  picker.onDidChangeSelection((selectedItems) => {
+    if (!previewUri && picker.canSelectMany) {
+      wizardSession?.preview([...selectedItems]);
+    }
+  });
+
+  return new Promise<T | T[] | undefined>((resolve) => {
+    let accepted = false;
+    let finished = false;
+    const finish = async (result: T | T[] | undefined): Promise<void> => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      picker.dispose();
+      const previewTab = previewUri
+        ? vscode.window.tabGroups.all
+            .flatMap((group) => group.tabs)
+            .find(
+              (tab) =>
+                tab.input instanceof vscode.TabInputText &&
+                tab.input.uri.toString() === previewUri.toString()
+            )
+        : undefined;
+      try {
+        if (previewTab) {
+          await vscode.window.tabGroups.close(previewTab);
+        }
+      } finally {
+        if (previewUri) {
+          snippetPreviewProvider?.delete(previewUri);
+        }
+        resolve(result);
+      }
+    };
+
+    picker.onDidAccept(() => {
+      accepted = true;
+      const result = picker.canSelectMany
+        ? [...picker.selectedItems]
+        : picker.activeItems[0];
+      if (result) {
+        wizardSession?.commit(result);
+      }
+      picker.hide();
+      void finish(result);
+    });
+    picker.onDidHide(() => {
+      if (!accepted) {
+        void finish(undefined);
+      }
+    });
+    picker.show();
+  });
+}
+
+async function showExplainedInputBox(
+  options: vscode.InputBoxOptions
+): Promise<string | undefined> {
+  if (wizardReplayContext) {
+    const replayed = wizardReplayContext.replay.next(options.value ?? "");
+    return typeof replayed === "string" ? replayed : options.value ?? "";
+  }
+  if (!activeWizardSession) {
+    return vscode.window.showInputBox(options);
+  }
+
+  const input = vscode.window.createInputBox();
+  input.title = options.title;
+  input.prompt = options.prompt;
+  input.placeholder = options.placeHolder;
+  input.value = options.value ?? "";
+  input.valueSelection = options.valueSelection;
+  input.password = options.password ?? false;
+  input.ignoreFocusOut = options.ignoreFocusOut ?? false;
+
+  let validationVersion = 0;
+  let valid = options.validateInput === undefined;
+  const validate = async (value: string): Promise<void> => {
+    const version = ++validationVersion;
+    const message = await options.validateInput?.(value);
+    if (version !== validationVersion) {
+      return;
+    }
+    input.validationMessage = message ?? undefined;
+    valid = !message;
+  };
+
+  activeWizardSession.preview(input.value);
+  void validate(input.value);
+  input.onDidChangeValue((value) => {
+    activeWizardSession?.preview(value);
+    void validate(value);
+  });
+
+  return new Promise<string | undefined>((resolve) => {
+    let finished = false;
+    const finish = (value: string | undefined): void => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      input.dispose();
+      resolve(value);
+    };
+    input.onDidAccept(async () => {
+      await validate(input.value);
+      if (!valid) {
+        return;
+      }
+      const value = input.value;
+      activeWizardSession?.commit(value);
+      input.hide();
+      finish(value);
+    });
+    input.onDidHide(() => finish(undefined));
+    input.show();
+  });
 }
 
 interface GeneratorRegistration {
   catalogEntry: CatalogEntry;
   prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined>;
-  defaultSnippet?(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet;
+  defaultSnippet(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet;
 }
 
 const DIRECT_COMMANDS = [
@@ -453,28 +799,34 @@ function compactCodePreview(content: string, exportedNames: string[] = []): stri
   return preview.length > 180 ? `${preview.slice(0, 177)}...` : preview;
 }
 
-async function snippetPickDetail(
+async function snippetPickPreview(
   root: vscode.Uri,
   entry: CatalogEntry,
   analysis: CppAnalysis
-): Promise<string> {
+): Promise<{ detail: string; content?: string }> {
   try {
     if (entry.generator) {
-      const generated = generatorRegistry.get(entry.generator)?.defaultSnippet?.(analysis, []);
+      const generated = generatorRegistry.get(entry.generator)?.defaultSnippet(analysis, []);
       const preview = generated ? compactCodePreview(generated.content, generated.exports) : "";
-      return preview || entry.detail || entry.kind;
+      return {
+        detail: preview || entry.detail || entry.kind,
+        content: generated?.content
+      };
     }
     if (entry.template) {
       const source = await readUtf8(
         vscode.Uri.joinPath(root, "templates", entry.template)
       );
       const preview = compactCodePreview(source, entry.exports);
-      return preview || entry.detail || entry.kind;
+      return {
+        detail: preview || entry.detail || entry.kind,
+        content: source
+      };
     }
   } catch {
     // Keep the picker usable when a preview cannot be produced.
   }
-  return entry.detail || entry.kind;
+  return { detail: entry.detail || entry.kind };
 }
 
 async function buildPickItems(
@@ -487,10 +839,15 @@ async function buildPickItems(
     if (!isCatalogSnippetPath(entry.path)) {
       continue;
     }
+    const preview = await snippetPickPreview(root, entry, analysis);
+    if (!preview.content) {
+      throw new Error(`catalog entry ${entry.path} has no concrete preview renderer`);
+    }
     items.push({
       label: entry.label ?? entry.path,
       description: entry.description ?? "",
-      detail: await snippetPickDetail(root, entry, analysis),
+      detail: preview.detail,
+      previewContent: preview.content,
       snippetPath: entry.path,
       entry,
       snippetKind: entry.kind,
@@ -695,7 +1052,7 @@ async function pickStringWithCustom(
   if (!picked.custom) {
     return picked.value;
   }
-  return vscode.window.showInputBox({
+  return showExplainedInputBox({
     title,
     prompt: customPrompt,
     ignoreFocusOut: true
@@ -730,7 +1087,7 @@ async function promptSegmentTreeOptions(
   }
 
   const initialNames = planSegmentTreeNames(analysis);
-  const storageInput = await vscode.window.showInputBox({
+  const storageInput = await showExplainedInputBox({
     title: "edulcni: segment tree",
     prompt: "Storage variable name",
     value: initialNames.storageName,
@@ -889,7 +1246,7 @@ async function promptSegmentTreeOptions(
       "Existing vector name"
     );
   } else if (sourcePick.value === "read_loop") {
-    sourceName = await vscode.window.showInputBox({
+    sourceName = await showExplainedInputBox({
       title: "edulcni: segment tree",
       prompt: "Generated vector name",
       value: "a",
@@ -953,7 +1310,7 @@ async function promptSegmentTreeOptions(
     }));
   }
 
-  const nodeType = await vscode.window.showInputBox({
+  const nodeType = await showExplainedInputBox({
     title: "edulcni: segment tree",
     prompt: "Custom node type name",
     value: "Node",
@@ -964,7 +1321,7 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const leafTarget = await vscode.window.showInputBox({
+  const leafTarget = await showExplainedInputBox({
     title: "edulcni: segment tree",
     prompt: "Leaf initialization target",
     value: "node.x",
@@ -974,7 +1331,7 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const leafExpression = await vscode.window.showInputBox({
+  const leafExpression = await showExplainedInputBox({
     title: "edulcni: segment tree",
     prompt: "Leaf initialization expression",
     value: "value",
@@ -987,7 +1344,7 @@ async function promptSegmentTreeOptions(
   const updateTarget =
     updates.length === 0
       ? leafTarget
-      : await vscode.window.showInputBox({
+      : await showExplainedInputBox({
           title: "edulcni: segment tree",
           prompt: "Field/expression changed by generated updates",
           value: leafTarget,
@@ -1051,7 +1408,7 @@ async function promptVectorName(
   if (!picked.custom) {
     return picked.value;
   }
-  return vscode.window.showInputBox({
+  return showExplainedInputBox({
     title,
     prompt: customPrompt,
     validateInput: validateIdentifier,
@@ -1075,7 +1432,7 @@ async function promptCompressUniqueOptions(
 
   const used = new Set(analysis.identifiers);
   used.add(sourceName.trim());
-  const valuesName = await vscode.window.showInputBox({
+  const valuesName = await showExplainedInputBox({
     title: "edulcni: compress_unique",
     prompt: "Unique values vector name",
     value: reserveIdentifier(used, "vals", "coords"),
@@ -1117,7 +1474,7 @@ async function promptReadVectorOptions(
   editor: vscode.TextEditor
 ): Promise<ReadVectorOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const nameInput = await vscode.window.showInputBox({
+  const nameInput = await showExplainedInputBox({
     title: "edulcni: read_vector",
     prompt: "Vector variable name",
     value: suggestIdentifier(analysis, "a", "values"),
@@ -1205,7 +1562,7 @@ async function promptSegmentTreeBeatsOptions(
       "Source vector variable name"
     );
   } else if (sourcePick.value === "read_loop") {
-    sourceName = await vscode.window.showInputBox({
+    sourceName = await showExplainedInputBox({
       title: "edulcni: segtree_beats",
       prompt: "Generated vector name",
       value: "a",
@@ -1396,7 +1753,7 @@ async function promptImplicitTreapOptions(
       "Source vector variable name"
     );
   } else if (sourceModePick.value === "read_loop") {
-    sourceName = await vscode.window.showInputBox({
+    sourceName = await showExplainedInputBox({
       title: "edulcni: implicit_treap",
       prompt: "Generated vector name",
       value: "a",
@@ -3911,7 +4268,7 @@ async function promptModIntOptions(
 
   let dynamicDefaultModExpression = "1000000007";
   if (modePick.value !== "static") {
-    const providedMod = await vscode.window.showInputBox({
+    const providedMod = await showExplainedInputBox({
       title: "edulcni: modint",
       prompt: "Default runtime modulus",
       value: dynamicDefaultModExpression,
@@ -4090,7 +4447,7 @@ async function promptStringName(
   if (!picked.custom) {
     return picked.value;
   }
-  return vscode.window.showInputBox({
+  return showExplainedInputBox({
     title,
     prompt: customPrompt,
     validateInput: validateIdentifier,
@@ -5020,6 +5377,25 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         return promptSegmentTreeOptions(editor);
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        return renderRecipeSnippet(
+          renderSegmentTreeRecipe({
+            sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+            valueType: "int",
+            aggregate: "sum",
+            updates: ["point_set"],
+            descends: [],
+            application: "point_query",
+            sourceMode: "empty",
+            indexing: "zero_based",
+            usageMode: "helper_only",
+            instanceName: "seg",
+            answerName: "ans",
+            names: planSegmentTreeNames(analysis),
+            outputMode: "global_recursive"
+          })
+        );
       }
     }
   ],
@@ -5070,6 +5446,23 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         return options
           ? { content: renderCompressUnique(options), renames: [], exports: [] }
           : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        const sourceName = analysis.vectorSymbols[0]?.name ?? "a";
+        const used = new Set(analysis.identifiers);
+        used.add(sourceName);
+        const valuesName = reserveIdentifier(used, "vals", "coords");
+        used.add(valuesName);
+        return {
+          content: renderCompressUnique({
+            sourceName,
+            valuesName,
+            idFunctionName: reserveIdentifier(used, "get_id", "compress_id"),
+            rewriteSource: true
+          }),
+          renames: [],
+          exports: []
+        };
       }
     }
   ],
@@ -5090,6 +5483,19 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         return options
           ? { content: renderReadVector(options), renames: [], exports: [] }
           : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        const valueType = "int";
+        return {
+          content: renderReadVector({
+            name: suggestIdentifier(analysis, "a", "values"),
+            sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+            valueType,
+            containerType: vectorContainerTypeForValueType(analysis, valueType)
+          }),
+          renames: [],
+          exports: []
+        };
       }
     }
   ],
@@ -6034,11 +6440,26 @@ async function insertSnippet(
     ? generatorRegistry.get(picked.entry.generator)
     : undefined;
   if (generator) {
-    const generated = await generator.prompt(editor);
-    if (!generated) {
-      return;
+    const defaultPreview = generator.defaultSnippet(
+      analyzeCppDocument(editor.document.getText()),
+      []
+    );
+    const wizardSession = new WizardPreviewSession(() => generator.prompt(editor));
+    await wizardSession.open(
+      defaultPreview.content
+    );
+    activeWizardSession = wizardSession;
+    let generated: RenderedSnippet | undefined;
+    try {
+      generated = await generator.prompt(editor);
+      if (!generated) {
+        return;
+      }
+      renderedSnippet = generated;
+    } finally {
+      activeWizardSession = undefined;
+      await wizardSession.close(generated !== undefined);
     }
-    renderedSnippet = generated;
   } else {
     renderedSnippet = await renderSnippetPath(
       libraryRoot,
@@ -6057,6 +6478,15 @@ async function insertSnippet(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  snippetPreviewProvider = new SnippetPreviewProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      PREVIEW_SCHEME,
+      snippetPreviewProvider
+    ),
+    snippetPreviewProvider
+  );
+
   const browseDisposable = vscode.commands.registerCommand(
     "edulcni.insertHeader",
     async () => {
