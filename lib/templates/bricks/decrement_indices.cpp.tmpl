@@ -1,1 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 a--, b--;
+EDULCNI_VIS(edulcni::live::array("indices.zero_based", std::vector<int>{a, b}));
+EDULCNI_STEP("Indices converted to zero-based");

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class MonotoneConvexHullTrick {
  public:
   struct Line {
@@ -15,12 +22,19 @@ class MonotoneConvexHullTrick {
     while (lines_.size() >= 2 && redundant(lines_[lines_.size() - 2], lines_.back(), line))
       lines_.pop_back();
     lines_.push_back(line);
+    EDULCNI_VIS(edulcni::live::lines("convex_hull_trick.lines", lines_));
+    EDULCNI_STEP("Convex hull trick adds a line");
   }
 
   long long query(long long x) {
     while (lines_.size() >= 2 && lines_[0].value(x) >= lines_[1].value(x))
       lines_.pop_front();
-    return lines_.front().value(x);
+    const long long result = lines_.front().value(x);
+    EDULCNI_VIS(edulcni::live::lines("convex_hull_trick.lines", lines_));
+    EDULCNI_VIS(edulcni::live::value("convex_hull_trick.query_x", x));
+    EDULCNI_VIS(edulcni::live::value("convex_hull_trick.result", result));
+    EDULCNI_STEP("Convex hull trick answers a query");
+    return result;
   }
 
  private:

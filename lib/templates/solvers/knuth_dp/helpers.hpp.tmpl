@@ -1,9 +1,18 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Cost>
 inline std::pair<std::vector<std::vector<long long>>, std::vector<std::vector<int>>>
 knuth_interval_dp(int n, Cost cost) {
   std::vector<std::vector<long long>> dp(n + 1, std::vector<long long>(n + 1));
   std::vector<std::vector<int>> opt(n + 1, std::vector<int>(n + 1));
   for (int left = 0; left < n; ++left) opt[left][left + 1] = left + 1;
+  EDULCNI_VIS(edulcni::live::matrix("knuth_dp.optimum", opt));
+  EDULCNI_STEP("Knuth optimization initialized");
   for (int length = 2; length <= n; ++length) {
     for (int left = 0; left + length <= n; ++left) {
       const int right = left + length;
@@ -18,6 +27,10 @@ knuth_interval_dp(int n, Cost cost) {
         }
       }
     }
+    EDULCNI_VIS(edulcni::live::matrix("knuth_dp.cost", dp));
+    EDULCNI_VIS(edulcni::live::matrix("knuth_dp.optimum", opt));
+    EDULCNI_VIS(edulcni::live::value("knuth_dp.length", length));
+    EDULCNI_STEP("Knuth optimization completes an interval length");
   }
   return {dp, opt};
 }

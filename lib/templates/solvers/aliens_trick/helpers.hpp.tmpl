@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct AliensTrickResult {
   long long objective;
   long long lambda;
@@ -12,10 +19,20 @@ inline AliensTrickResult aliens_trick_min_exact(
   while (left < right) {
     const long long middle = left + (right - left + 1) / 2;
     const auto [penalized_value, count] = solve_penalized(middle);
-    (void)penalized_value;
+    EDULCNI_VIS(edulcni::live::array(
+        "aliens_trick.lambda_bounds", std::vector<long long>{left, middle, right}));
+    EDULCNI_VIS(edulcni::live::value("aliens_trick.penalized_value", penalized_value));
+    EDULCNI_VIS(edulcni::live::value("aliens_trick.selected_count", count));
+    EDULCNI_STEP("Aliens trick evaluates a penalty");
     if (count >= target_count) left = middle;
     else right = middle - 1;
   }
   const auto [penalized_value, count] = solve_penalized(left);
-  return {penalized_value - left * target_count, left, count};
+  const AliensTrickResult result{
+      penalized_value - left * target_count, left, count};
+  EDULCNI_VIS(edulcni::live::value("aliens_trick.objective", result.objective));
+  EDULCNI_VIS(edulcni::live::value("aliens_trick.lambda", result.lambda));
+  EDULCNI_VIS(edulcni::live::value("aliens_trick.selected_count", result.selected_count));
+  EDULCNI_STEP("Aliens trick completed");
+  return result;
 }

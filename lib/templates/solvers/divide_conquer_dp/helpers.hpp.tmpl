@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Cost>
 inline void divide_conquer_dp_layer(const std::vector<long long>& previous,
                                     std::vector<long long>& current,
@@ -11,6 +18,12 @@ inline void divide_conquer_dp_layer(const std::vector<long long>& previous,
     best = std::min(best, {previous[split] + cost(split, middle), split});
   }
   current[middle] = best.first;
+  EDULCNI_VIS(edulcni::live::array("divide_conquer_dp.previous", previous));
+  EDULCNI_VIS(edulcni::live::array("divide_conquer_dp.current", current));
+  EDULCNI_VIS(edulcni::live::array(
+      "divide_conquer_dp.range", std::vector<int>{left, middle, right}));
+  EDULCNI_VIS(edulcni::live::value("divide_conquer_dp.optimum", best.second));
+  EDULCNI_STEP("Divide-and-conquer DP computes a midpoint");
   if (left == right) return;
   divide_conquer_dp_layer(previous, current, left, middle - 1,
                           opt_left, best.second, cost);
@@ -24,10 +37,15 @@ inline std::vector<long long> divide_conquer_partition_dp(int n, int groups,
   const long long infinity = std::numeric_limits<long long>::max();
   std::vector<long long> previous(n + 1, infinity), current(n + 1, infinity);
   previous[0] = 0;
+  EDULCNI_VIS(edulcni::live::array("divide_conquer_dp.previous", previous));
+  EDULCNI_STEP("Divide-and-conquer DP initialized");
   for (int group = 1; group <= groups; ++group) {
     std::fill(current.begin(), current.end(), infinity);
     divide_conquer_dp_layer(previous, current, group, n, group - 1, n - 1, cost);
     previous.swap(current);
+    EDULCNI_VIS(edulcni::live::array("divide_conquer_dp.previous", previous));
+    EDULCNI_VIS(edulcni::live::value("divide_conquer_dp.group", group));
+    EDULCNI_STEP("Divide-and-conquer DP completes a layer");
   }
   return previous;
 }

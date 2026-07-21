@@ -1,7 +1,17 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct TreeHasher {
   std::map<std::vector<int>, int> ids;
 
   int rooted_hash(const std::vector<std::vector<int>>& graph, int root) {
+    EDULCNI_VIS(edulcni::live::graph("tree_hash.tree", graph));
+    EDULCNI_VIS(edulcni::live::value("tree_hash.root", root));
+    EDULCNI_STEP("Rooted tree hashing initialized");
     return rooted_hash_dfs(graph, root, -1);
   }
 
@@ -22,6 +32,10 @@ struct TreeHasher {
     }
     std::sort(children.begin(), children.end());
     auto [it, inserted] = ids.emplace(children, int(ids.size()) + 1);
+    EDULCNI_VIS(edulcni::live::array("tree_hash.children", children));
+    EDULCNI_VIS(edulcni::live::value("tree_hash.node", node));
+    EDULCNI_VIS(edulcni::live::value("tree_hash.value", it->second));
+    EDULCNI_STEP("Tree node hash computed");
     return it->second;
   }
 
@@ -38,6 +52,9 @@ struct TreeHasher {
       degree[node] = graph[node].size();
       if (degree[node] <= 1) leaves.push(node);
     }
+    EDULCNI_VIS(edulcni::live::array("tree_hash.degree", degree));
+    EDULCNI_VIS(edulcni::live::queue("tree_hash.leaves", leaves));
+    EDULCNI_STEP("Tree center peeling initialized");
     int remaining = n;
     while (remaining > 2) {
       int layer_size = leaves.size();
@@ -49,6 +66,9 @@ struct TreeHasher {
           if (--degree[next] == 1) leaves.push(next);
         }
       }
+      EDULCNI_VIS(edulcni::live::array("tree_hash.degree", degree));
+      EDULCNI_VIS(edulcni::live::queue("tree_hash.leaves", leaves));
+      EDULCNI_STEP("Tree center layer removed");
     }
     std::vector<int> centers;
     while (!leaves.empty()) {

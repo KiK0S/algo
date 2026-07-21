@@ -1,1 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
+EDULCNI_VIS(edulcni::live::array("print_vector.values", v));
+EDULCNI_STEP("Vector output");
 forn(i, v.size()) cout << v[i] << " \n"[i + 1 == v.size()];

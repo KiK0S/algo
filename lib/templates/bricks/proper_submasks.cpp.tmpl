@@ -1,3 +1,13 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 for (int sub = (mask - 1) & mask; sub; sub = (sub - 1) & mask) {
+  EDULCNI_VIS(edulcni::live::bits("proper_submasks.mask", mask, bits));
+  EDULCNI_VIS(edulcni::live::bits("proper_submasks.submask", sub, bits));
+  EDULCNI_STEP("Proper submask iteration");
   // use non-empty proper submask
 }

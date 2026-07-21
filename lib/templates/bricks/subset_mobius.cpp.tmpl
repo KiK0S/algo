@@ -1,3 +1,17 @@
-for (int bit = 0; bit < bits; ++bit)
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
+EDULCNI_VIS(edulcni::live::array("subset_mobius.values", value));
+EDULCNI_STEP("Subset Mobius transform initialized");
+for (int bit = 0; bit < bits; ++bit) {
   for (int mask = 0; mask < (1 << bits); ++mask)
     if (mask & (1 << bit)) value[mask] -= value[mask ^ (1 << bit)];
+  EDULCNI_VIS(edulcni::live::array("subset_mobius.values", value));
+  EDULCNI_VIS(edulcni::live::bits(
+      "subset_mobius.active_bit", std::uint64_t(1) << bit, bits));
+  EDULCNI_STEP("Subset Mobius transform completes a bit");
+}

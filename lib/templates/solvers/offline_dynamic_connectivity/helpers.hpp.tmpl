@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 enum class DynamicConnectivityOperationType { add_edge, remove_edge, connected };
 
 struct DynamicConnectivityOperation {
@@ -17,7 +24,11 @@ class OfflineDynamicConnectivity {
     build_intervals();
     RollbackDsu dsu(vertex_count_);
     std::vector<bool> answers;
+    EDULCNI_VIS(edulcni::live::value("dynamic_connectivity.operations", operations_.size()));
+    EDULCNI_STEP("Offline dynamic connectivity initialized");
     if (!operations_.empty()) dfs(1, 0, static_cast<int>(operations_.size()), dsu, answers);
+    EDULCNI_VIS(edulcni::live::array("dynamic_connectivity.answers", answers));
+    EDULCNI_STEP("Offline dynamic connectivity completed");
     return answers;
   }
 
@@ -71,15 +82,23 @@ class OfflineDynamicConnectivity {
            std::vector<bool>& answers) {
     const int snapshot = dsu.snapshot();
     for (const auto& [u, v] : tree_[node]) dsu.unite(u, v);
+    EDULCNI_VIS(edulcni::live::edges(
+        "dynamic_connectivity.interval_edges", vertex_count_, tree_[node]));
+    EDULCNI_VIS(edulcni::live::array(
+        "dynamic_connectivity.interval", std::vector<int>{left, right}));
+    EDULCNI_STEP("Dynamic connectivity enters a time interval");
     if (right - left == 1) {
       const auto& operation = operations_[left];
       if (operation.type == DynamicConnectivityOperationType::connected)
         answers.push_back(dsu.same(operation.u, operation.v));
+      EDULCNI_VIS(edulcni::live::array("dynamic_connectivity.answers", answers));
+      EDULCNI_STEP("Dynamic connectivity processes an operation");
     } else {
       const int middle = (left + right) / 2;
       dfs(node * 2, left, middle, dsu, answers);
       dfs(node * 2 + 1, middle, right, dsu, answers);
     }
     dsu.rollback(snapshot);
+    EDULCNI_STEP("Dynamic connectivity rolls back an interval");
   }
 };

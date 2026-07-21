@@ -1,13 +1,26 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct fenwick {
 	int n;
 	vector<ll> f;
 	fenwick(int n = 0): n(n), f(n + 1) {}
 	void add(int v, ll x) {
 		for (int i = v + 1; i <= n; i += i & -i) f[i] += x;
+		EDULCNI_VIS(edulcni::live::array("fenwick_sum.tree", f));
+		EDULCNI_VIS(edulcni::live::value("fenwick_sum.index", v));
+		EDULCNI_STEP("Fenwick update completed");
 	}
 	ll pref(int v) {
 		ll res = 0;
 		for (int i = v + 1; i > 0; i -= i & -i) res += f[i];
+		EDULCNI_VIS(edulcni::live::array("fenwick_sum.tree", f));
+		EDULCNI_VIS(edulcni::live::value("fenwick_sum.prefix", res));
+		EDULCNI_STEP("Fenwick prefix query completed");
 		return res;
 	}
 	ll get(int l, int r) {

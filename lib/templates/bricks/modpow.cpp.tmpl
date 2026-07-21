@@ -1,10 +1,21 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 ll modpow(ll a, ll b, ll mod = MOD) {
 	ll res = 1 % mod;
 	a %= mod;
+	EDULCNI_VIS(edulcni::live::array("modpow.state", std::vector<ll>{a, b, res}));
+	EDULCNI_STEP("Binary exponentiation initialized");
 	while (b) {
 		if (b & 1) res = res * a % mod;
 		a = a * a % mod;
 		b >>= 1;
+		EDULCNI_VIS(edulcni::live::array("modpow.state", std::vector<ll>{a, b, res}));
+		EDULCNI_STEP("Binary exponentiation consumes a bit");
 	}
 	return res;
 }

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 vector<vi> g(n);
 forn(i, n - 1) {
 	int a, b;
@@ -6,3 +13,5 @@ forn(i, n - 1) {
 	g[a].push_back(b);
 	g[b].push_back(a);
 }
+EDULCNI_VIS(edulcni::live::graph("input.tree", g));
+EDULCNI_STEP("Tree read");

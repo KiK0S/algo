@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct TestGenerator {
   std::mt19937_64 rng;
 
@@ -13,6 +20,8 @@ struct TestGenerator {
   std::vector<T> generate_array(int n, T low, T high) {
     std::vector<T> result(n);
     for (auto& value : result) value = generate_integer<T>(low, high);
+    EDULCNI_VIS(edulcni::live::array("generator.array", result));
+    EDULCNI_STEP("Random array generated");
     return result;
   }
 
@@ -20,18 +29,25 @@ struct TestGenerator {
     std::vector<int> result(n);
     std::iota(result.begin(), result.end(), first);
     std::shuffle(result.begin(), result.end(), rng);
+    EDULCNI_VIS(edulcni::live::array("generator.permutation", result));
+    EDULCNI_STEP("Random permutation generated");
     return result;
   }
 
   uint64_t generate_mask(int bits) {
     if (bits <= 0) return 0;
     if (bits >= 64) return rng();
-    return generate_integer<uint64_t>(0, (uint64_t(1) << bits) - 1);
+    const uint64_t result = generate_integer<uint64_t>(0, (uint64_t(1) << bits) - 1);
+    EDULCNI_VIS(edulcni::live::bits("generator.mask", result, bits));
+    EDULCNI_STEP("Random mask generated");
+    return result;
   }
 
   std::vector<uint64_t> generate_masks(int count, int bits) {
     std::vector<uint64_t> result(count);
     for (auto& value : result) value = generate_mask(bits);
+    EDULCNI_VIS(edulcni::live::array("generator.masks", result));
+    EDULCNI_STEP("Random masks generated");
     return result;
   }
 
@@ -39,6 +55,8 @@ struct TestGenerator {
     assert(!alphabet.empty());
     std::string result(n, ' ');
     for (char& ch : result) ch = alphabet[generate_integer<int>(0, int(alphabet.size()) - 1)];
+    EDULCNI_VIS(edulcni::live::array("generator.string", result));
+    EDULCNI_STEP("Random string generated");
     return result;
   }
 
@@ -52,6 +70,8 @@ struct TestGenerator {
       edges.push_back({parent, order[i]});
     }
     std::shuffle(edges.begin(), edges.end(), rng);
+    EDULCNI_VIS(edulcni::live::edges("generator.tree", n + first, edges));
+    EDULCNI_STEP("Random tree generated");
     return edges;
   }
 
@@ -75,6 +95,8 @@ struct TestGenerator {
     }
     std::vector<std::pair<int, int>> edges(selected.begin(), selected.end());
     std::shuffle(edges.begin(), edges.end(), rng);
+    EDULCNI_VIS(edulcni::live::edges("generator.graph", n + first, edges));
+    EDULCNI_STEP("Random graph generated");
     return edges;
   }
 };

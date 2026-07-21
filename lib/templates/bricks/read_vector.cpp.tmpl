@@ -1,2 +1,11 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{containerType}} {{name}}({{sizeExpression}});
 for (auto& x : {{name}}) cin >> x;
+EDULCNI_VIS(edulcni::live::array("input.vector", {{name}}));
+EDULCNI_STEP("Vector read");

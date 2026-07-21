@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class LiChaoTree {
  public:
   struct Line {
@@ -9,10 +16,22 @@ class LiChaoTree {
   LiChaoTree(long long min_x, long long max_x) : min_x_(min_x), max_x_(max_x) {}
 
   void add_line(long long slope, long long intercept) {
-    add_line(root_, min_x_, max_x_, Line{slope, intercept});
+    const Line line{slope, intercept};
+    add_line(root_, min_x_, max_x_, line);
+    EDULCNI_VIS(edulcni::live::lines(
+        "li_chao.inserted_line", std::vector<Line>{line}));
+    EDULCNI_VIS(edulcni::live::array(
+        "li_chao.domain", std::vector<long long>{min_x_, max_x_}));
+    EDULCNI_STEP("Li Chao tree adds a line");
   }
 
-  long long query(long long x) const { return query(root_.get(), min_x_, max_x_, x); }
+  long long query(long long x) const {
+    const long long result = query(root_.get(), min_x_, max_x_, x);
+    EDULCNI_VIS(edulcni::live::value("li_chao.query_x", x));
+    EDULCNI_VIS(edulcni::live::value("li_chao.result", result));
+    EDULCNI_STEP("Li Chao tree answers a query");
+    return result;
+  }
 
  private:
   struct Node {

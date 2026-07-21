@@ -1,5 +1,15 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 vi dsu(n), sz(n, 1);
 iota(all(dsu), 0);
+EDULCNI_VIS(edulcni::live::forest("dsu_short.forest", dsu));
+EDULCNI_VIS(edulcni::live::array("dsu_short.size", sz));
+EDULCNI_STEP("DSU initialized");
 auto get = [&](auto self, int v) -> int {
 	return dsu[v] == v ? v : dsu[v] = self(self, dsu[v]);
 };
@@ -10,5 +20,8 @@ auto unite = [&](int a, int b) -> bool {
 	if (sz[a] > sz[b]) swap(a, b);
 	dsu[a] = b;
 	sz[b] += sz[a];
+	EDULCNI_VIS(edulcni::live::forest("dsu_short.forest", dsu));
+	EDULCNI_VIS(edulcni::live::array("dsu_short.size", sz));
+	EDULCNI_STEP("DSU merges two components");
 	return true;
 };
