@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{#if minimalRecurrence}}
 template <typename T>
 inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
@@ -10,6 +17,10 @@ inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
   int shift = 1;
   T last_discrepancy = one;
 
+  EDULCNI_VIS(edulcni::live::array("berlekamp_massey.sequence", sequence));
+  EDULCNI_VIS(edulcni::live::array("berlekamp_massey.coefficients", current));
+  EDULCNI_STEP("Berlekamp-Massey initialized");
+
   for (int i = 0; i < static_cast<int>(sequence.size()); ++i) {
     T discrepancy = sequence[i];
     for (int j = 1; j <= order; ++j) {
@@ -18,6 +29,8 @@ inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
 
     if (discrepancy == zero) {
       ++shift;
+      EDULCNI_VIS(edulcni::live::array("berlekamp_massey.coefficients", current));
+      EDULCNI_STEP("Berlekamp-Massey accepted the current recurrence");
       continue;
     }
 
@@ -38,6 +51,8 @@ inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
     } else {
       ++shift;
     }
+    EDULCNI_VIS(edulcni::live::array("berlekamp_massey.coefficients", current));
+    EDULCNI_STEP("Berlekamp-Massey corrected the recurrence");
   }
 
   current.erase(current.begin());
@@ -47,6 +62,8 @@ inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
   while (!current.empty() && current.back() == zero) {
     current.pop_back();
   }
+  EDULCNI_VIS(edulcni::live::array("berlekamp_massey.coefficients", current));
+  EDULCNI_STEP("Berlekamp-Massey completed");
   return current;
 }
 {{/if}}
@@ -99,12 +116,17 @@ inline T linear_recurrence_kth(const std::vector<T>& initial,
   }
 
   long long power = index;
+  EDULCNI_VIS(edulcni::live::array("linear_recurrence.initial", seed));
+  EDULCNI_VIS(edulcni::live::array("linear_recurrence.coefficients", coefficients));
+  EDULCNI_STEP("Linear recurrence exponentiation initialized");
   while (power > 0) {
     if (power & 1LL) {
       result = combine(result, x);
     }
     x = combine(x, x);
     power >>= 1LL;
+    EDULCNI_VIS(edulcni::live::array("linear_recurrence.weights", result));
+    EDULCNI_STEP("Linear recurrence consumed an exponent bit");
   }
 
   T answer = T(0);

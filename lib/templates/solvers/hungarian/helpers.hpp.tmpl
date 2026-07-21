@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Cost>
 struct HungarianResult {
   Cost min_cost;
@@ -25,6 +32,9 @@ inline HungarianResult<Cost> hungarian_internal(
   std::vector<Cost> v(m + 1, Cost(0));
   std::vector<int> p(m + 1, 0);
   std::vector<int> way(m + 1, 0);
+
+  EDULCNI_VIS(edulcni::live::matrix("hungarian.cost", cost));
+  EDULCNI_STEP("Hungarian algorithm initialized");
 
   for (int i = 1; i <= n; ++i) {
     p[0] = i;
@@ -69,6 +79,10 @@ inline HungarianResult<Cost> hungarian_internal(
       p[j0] = p[j1];
       j0 = j1;
     } while (j0 != 0);
+    EDULCNI_VIS(edulcni::live::array("hungarian.left_potential", u));
+    EDULCNI_VIS(edulcni::live::array("hungarian.right_potential", v));
+    EDULCNI_VIS(edulcni::live::array("hungarian.column_match", p));
+    EDULCNI_STEP("Hungarian algorithm augmented the matching");
   }
 
   result.min_cost = Cost(0);
@@ -81,6 +95,9 @@ inline HungarianResult<Cost> hungarian_internal(
       result.min_cost += cost[row][col];
     }
   }
+  EDULCNI_VIS(edulcni::live::array("hungarian.match_left", result.match_left));
+  EDULCNI_VIS(edulcni::live::array("hungarian.match_right", result.match_right));
+  EDULCNI_STEP("Hungarian algorithm completed");
   return result;
 }
 

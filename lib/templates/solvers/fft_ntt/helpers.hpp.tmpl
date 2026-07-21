@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{#if includeConvolution}}
 inline int fft_next_power_of_two(int n) {
   int p = 1;
@@ -36,6 +43,8 @@ inline bool fft_transform(std::vector<std::complex<long double>>& a,
   }
 
   fft_bit_reverse(a);
+  EDULCNI_VIS(edulcni::live::array("fft.values", a));
+  EDULCNI_STEP("FFT bit-reversal completed");
   const long double pi = std::acos(static_cast<long double>(-1));
   for (int len = 2; len <= n; len <<= 1) {
     const long double ang = (invert ? -2.0L : 2.0L) * pi / len;
@@ -50,6 +59,8 @@ inline bool fft_transform(std::vector<std::complex<long double>>& a,
         w *= wlen;
       }
     }
+    EDULCNI_VIS(edulcni::live::array("fft.values", a));
+    EDULCNI_STEP("FFT completed a butterfly stage");
   }
 
   if (invert) {
@@ -119,6 +130,8 @@ inline bool ntt_transform(std::vector<int>& a, bool invert = false,
   }
 
   fft_bit_reverse(a);
+  EDULCNI_VIS(edulcni::live::array("ntt.values", a));
+  EDULCNI_STEP("NTT bit-reversal completed");
   for (int len = 2; len <= n; len <<= 1) {
     int wlen = ntt_pow(primitive_root, (mod - 1) / len, mod);
     if (invert) {
@@ -142,6 +155,8 @@ inline bool ntt_transform(std::vector<int>& a, bool invert = false,
         w = w * wlen % mod;
       }
     }
+    EDULCNI_VIS(edulcni::live::array("ntt.values", a));
+    EDULCNI_STEP("NTT completed a butterfly stage");
   }
 
   if (invert) {

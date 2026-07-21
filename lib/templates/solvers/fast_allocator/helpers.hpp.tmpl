@@ -1,13 +1,24 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class FastAllocatorArena {
  public:
   explicit FastAllocatorArena(std::size_t capacity_bytes = 0)
       : storage_(capacity_bytes), offset_(capacity_bytes) {}
 
-  void reset() { offset_ = storage_.size(); }
+  void reset() {
+    offset_ = storage_.size();
+    trace("Allocator arena reset");
+  }
 
   void reset(std::size_t capacity_bytes) {
     storage_.assign(capacity_bytes, 0U);
     offset_ = capacity_bytes;
+    trace("Allocator arena resized");
   }
 
   std::size_t capacity() const { return storage_.size(); }
@@ -33,12 +44,19 @@ class FastAllocatorArena {
     }
 
     offset_ = pos;
+    trace("Allocator arena allocated a block");
     return static_cast<void*>(storage_.data() + offset_);
   }
 
  private:
   std::vector<unsigned char> storage_;
   std::size_t offset_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::gauge(
+        "fast_allocator.used", storage_.size() - offset_, storage_.size()));
+    EDULCNI_STEP(label);
+  }
 };
 
 template <typename T>

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{#if includeStatic}}
 template <int MOD>
 class StaticModInt {
@@ -66,12 +73,19 @@ class StaticModInt {
     }
 
     StaticModInt result(1);
+    EDULCNI_VIS(edulcni::live::scalar("modint.base", base.value_));
+    EDULCNI_VIS(edulcni::live::scalar("modint.exponent", exp));
+    EDULCNI_STEP("Modular exponentiation initialized");
     while (exp > 0) {
       if (exp & 1LL) {
         result *= base;
       }
       base *= base;
       exp >>= 1LL;
+      EDULCNI_VIS(edulcni::live::scalar("modint.result", result.value_));
+      EDULCNI_VIS(edulcni::live::scalar("modint.base", base.value_));
+      EDULCNI_VIS(edulcni::live::scalar("modint.exponent", exp));
+      EDULCNI_STEP("Modular exponentiation consumed a bit");
     }
     return result;
   }
@@ -245,12 +259,19 @@ class DynamicModInt {
     }
 
     DynamicModInt result(1);
+    EDULCNI_VIS(edulcni::live::scalar("modint.base", base.value_));
+    EDULCNI_VIS(edulcni::live::scalar("modint.exponent", exp));
+    EDULCNI_STEP("Dynamic modular exponentiation initialized");
     while (exp > 0) {
       if (exp & 1LL) {
         result *= base;
       }
       base *= base;
       exp >>= 1LL;
+      EDULCNI_VIS(edulcni::live::scalar("modint.result", result.value_));
+      EDULCNI_VIS(edulcni::live::scalar("modint.base", base.value_));
+      EDULCNI_VIS(edulcni::live::scalar("modint.exponent", exp));
+      EDULCNI_STEP("Dynamic modular exponentiation consumed a bit");
     }
     return result;
   }

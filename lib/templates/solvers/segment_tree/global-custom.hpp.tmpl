@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct {{customNodeType}} {
 {{customFieldDeclarations}}
   // TODO: add aggregate fields.
@@ -38,6 +45,8 @@ void init_segtree(int n) {
   lazy_set.assign(4 * max(1, n), {{valueType}}(0));
   lazy_has_set.assign(4 * max(1, n), 0);
 {{/if}}
+  EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", n, t));
+  EDULCNI_STEP("Custom segment tree initialized");
 }
 
 {{#if rangeAssign}}
@@ -104,6 +113,7 @@ void build(int v, int tl, int tr, const vector<{{valueType}}>& a) {
   build(v * 2, tl, tm, a);
   build(v * 2 + 1, tm + 1, tr, a);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1 ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t), edulcni::live::step("Custom segment tree built")) : static_cast<void>(0));
 }
 
 {{customNodeType}} get(int v, int tl, int tr, int l, int r) {
@@ -129,6 +139,7 @@ void point_set(int v, int tl, int tr, int pos, {{valueType}} value) {
   if (pos <= tm) point_set(v * 2, tl, tm, pos, value);
   else point_set(v * 2 + 1, tm + 1, tr, pos, value);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1 ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t), edulcni::live::step("Custom segment tree updated a point")) : static_cast<void>(0));
 }
 {{/if}}
 
@@ -145,6 +156,7 @@ void point_add(int v, int tl, int tr, int pos, {{valueType}} delta) {
   if (pos <= tm) point_add(v * 2, tl, tm, pos, delta);
   else point_add(v * 2 + 1, tm + 1, tr, pos, delta);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1 ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t), edulcni::live::step("Custom segment tree added at a point")) : static_cast<void>(0));
 }
 {{/if}}
 
@@ -162,6 +174,7 @@ void range_add(int v, int tl, int tr, int l, int r, {{valueType}} delta) {
   range_add(v * 2, tl, tm, l, r, delta);
   range_add(v * 2 + 1, tm + 1, tr, l, r, delta);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1 ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t), edulcni::live::step("Custom segment tree added over a range")) : static_cast<void>(0));
 }
 {{/if}}
 
@@ -179,5 +192,6 @@ void range_assign(int v, int tl, int tr, int l, int r, {{valueType}} value) {
   range_assign(v * 2, tl, tm, l, r, value);
   range_assign(v * 2 + 1, tm + 1, tr, l, r, value);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1 ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t), edulcni::live::step("Custom segment tree assigned over a range")) : static_cast<void>(0));
 }
 {{/if}}

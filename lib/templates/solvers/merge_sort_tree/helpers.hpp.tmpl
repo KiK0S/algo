@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename T>
 class MergeSortTree {
  public:
@@ -10,6 +17,7 @@ class MergeSortTree {
   void reset(int n) {
     n_ = n < 0 ? 0 : n;
     tree_.assign(4 * std::max(1, n_), std::vector<T>());
+    trace("Merge-sort tree reset");
   }
 
   void build(const std::vector<T>& values) {
@@ -17,6 +25,7 @@ class MergeSortTree {
     if (n_ > 0) {
       build_rec(1, 0, n_ - 1, values);
     }
+    trace("Merge-sort tree built");
   }
 
   int size() const { return n_; }
@@ -70,6 +79,11 @@ class MergeSortTree {
  private:
   int n_;
   std::vector<std::vector<T>> tree_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::matrix("merge_sort_tree.levels", tree_));
+    EDULCNI_STEP(label);
+  }
 
   bool norm(int& left, int& right) const {
     if (n_ == 0 || left > right || right < 0 || left >= n_) {

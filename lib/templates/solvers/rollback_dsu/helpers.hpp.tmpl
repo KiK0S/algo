@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class RollbackDsu {
  public:
   explicit RollbackDsu(int n = 0) { reset(n); }
@@ -11,6 +18,7 @@ class RollbackDsu {
     for (int i = 0; i < n_; ++i) {
       parent_[i] = i;
     }
+    trace("Rollback DSU reset");
   }
 
   int size() const { return n_; }
@@ -45,6 +53,7 @@ class RollbackDsu {
     int root_b = find(b);
     if (root_a == -1 || root_b == -1 || root_a == root_b) {
       history_.push_back(Change{-1, -1, -1});
+      trace("Rollback DSU rejected a union");
       return false;
     }
     if (size_[root_a] > size_[root_b]) {
@@ -54,6 +63,7 @@ class RollbackDsu {
     parent_[root_a] = root_b;
     size_[root_b] += size_[root_a];
     --components_;
+    trace("Rollback DSU joined two components");
     return true;
   }
 
@@ -62,6 +72,7 @@ class RollbackDsu {
       return;
     }
     undo_one();
+    trace("Rollback DSU undid one union");
   }
 
   void rollback(int snapshot_id) {
@@ -71,6 +82,7 @@ class RollbackDsu {
     while (static_cast<int>(history_.size()) > snapshot_id) {
       undo_one();
     }
+    trace("Rollback DSU restored a snapshot");
   }
 
  private:
@@ -86,6 +98,14 @@ class RollbackDsu {
   std::vector<int> size_;
   std::vector<Change> history_;
 
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::forest("rollback_dsu.forest", parent_));
+    EDULCNI_VIS(edulcni::live::array("rollback_dsu.sizes", size_));
+    EDULCNI_VIS(edulcni::live::array(
+        "rollback_dsu.components", std::vector<int>{components_}));
+    EDULCNI_STEP(label);
+  }
+
   void undo_one() {
     const Change change = history_.back();
     history_.pop_back();
@@ -97,4 +117,3 @@ class RollbackDsu {
     ++components_;
   }
 };
-

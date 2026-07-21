@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct KuhnResult {
   int matching_size;
   std::vector<int> match_left;
@@ -18,6 +25,7 @@ class KuhnMatcher {
     graph_.assign(n_left_, std::vector<int>());
     used_.assign(n_left_, 0);
     visit_token_ = 1;
+    trace("Kuhn matcher reset");
   }
 
   int left_size() const { return n_left_; }
@@ -31,6 +39,7 @@ class KuhnMatcher {
       return -1;
     }
     graph_[left].push_back(right);
+    trace("Kuhn edge added");
     return static_cast<int>(graph_[left].size()) - 1;
   }
 
@@ -51,6 +60,9 @@ class KuhnMatcher {
         result.match_left[left] = right;
         result.match_right[right] = left;
         ++result.matching_size;
+        EDULCNI_VIS(edulcni::live::array("kuhn.match_left", result.match_left));
+        EDULCNI_VIS(edulcni::live::array("kuhn.match_right", result.match_right));
+        EDULCNI_STEP("Kuhn greedily matched a vertex");
         break;
       }
     }
@@ -68,8 +80,12 @@ class KuhnMatcher {
       }
       if (try_augment(left, result.match_left, result.match_right)) {
         ++result.matching_size;
+        EDULCNI_VIS(edulcni::live::array("kuhn.match_left", result.match_left));
+        EDULCNI_VIS(edulcni::live::array("kuhn.match_right", result.match_right));
+        EDULCNI_STEP("Kuhn augmented the matching");
       }
     }
+    EDULCNI_STEP("Kuhn matching completed");
     return result;
   }
 
@@ -79,6 +95,12 @@ class KuhnMatcher {
   std::vector<std::vector<int>> graph_;
   std::vector<int> used_;
   int visit_token_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::bipartite_graph(
+        "kuhn.graph", graph_, n_right_));
+    EDULCNI_STEP(label);
+  }
 
   bool left_ok(int v) const { return v >= 0 && v < n_left_; }
 

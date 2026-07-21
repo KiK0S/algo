@@ -1,9 +1,18 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 inline void toposort_add_edge(std::vector<std::vector<int>>& graph, int from, int to) {
   const int n = static_cast<int>(graph.size());
   if (from < 0 || from >= n || to < 0 || to >= n) {
     return;
   }
   graph[from].push_back(to);
+  EDULCNI_VIS(edulcni::live::graph("toposort.graph", graph));
+  EDULCNI_STEP("Topological-sort edge added");
 }
 
 inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& graph,
@@ -27,6 +36,10 @@ inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& gr
 
   std::vector<int> order;
   order.reserve(n);
+  EDULCNI_VIS(edulcni::live::graph("toposort.graph", graph));
+  EDULCNI_VIS(edulcni::live::array("toposort.indegree", indegree));
+  EDULCNI_VIS(edulcni::live::queue("toposort.frontier", q));
+  EDULCNI_STEP("Topological sort initialized");
   while (!q.empty()) {
     const int v = q.front();
     q.pop();
@@ -40,6 +53,10 @@ inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& gr
         q.push(to);
       }
     }
+    EDULCNI_VIS(edulcni::live::array("toposort.indegree", indegree));
+    EDULCNI_VIS(edulcni::live::array("toposort.order", order));
+    EDULCNI_VIS(edulcni::live::queue("toposort.frontier", q));
+    EDULCNI_STEP("Topological sort emitted a vertex");
   }
 
   const bool dag = static_cast<int>(order.size()) == n;
@@ -47,8 +64,10 @@ inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& gr
     *is_dag = dag;
   }
   if (!dag) {
+    EDULCNI_STEP("Topological sort found a cycle");
     return {};
   }
+  EDULCNI_STEP("Topological sort completed");
   return order;
 }
 

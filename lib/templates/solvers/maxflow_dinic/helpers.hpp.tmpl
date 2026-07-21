@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Cap>
 class Dinic {
  public:
@@ -21,6 +28,7 @@ class Dinic {
     graph_.assign(n_, std::vector<Edge>());
     level_.assign(n_, -1);
     iter_.assign(n_, 0);
+    trace("Dinic reset");
   }
 
   int size() const { return n_; }
@@ -35,6 +43,7 @@ class Dinic {
     const int to_id = static_cast<int>(graph_[to].size());
     graph_[from].push_back(Edge(to, to_id, cap, cap));
     graph_[to].push_back(Edge(from, from_id, rev_cap, rev_cap));
+    trace("Dinic edge added");
     return from_id;
   }
 
@@ -45,7 +54,10 @@ class Dinic {
     }
 
     Cap total_flow = Cap(0);
+    trace("Dinic initialized");
     while (build_level_graph(source, sink)) {
+      EDULCNI_VIS(edulcni::live::array("dinic.level", level_));
+      EDULCNI_STEP("Dinic built a level graph");
       std::fill(iter_.begin(), iter_.end(), 0);
       while (true) {
         const Cap pushed =
@@ -54,8 +66,13 @@ class Dinic {
           break;
         }
         total_flow += pushed;
+        EDULCNI_VIS(edulcni::live::weighted_graph("dinic.residual", graph_));
+        EDULCNI_VIS(edulcni::live::array(
+            "dinic.total_flow", std::vector<Cap>{total_flow}));
+        EDULCNI_STEP("Dinic augmented flow");
       }
     }
+    trace("Dinic completed");
     return total_flow;
   }
 
@@ -68,6 +85,7 @@ class Dinic {
     }
     std::fill(level_.begin(), level_.end(), -1);
     std::fill(iter_.begin(), iter_.end(), 0);
+    trace("Dinic flows reset");
   }
 {{/if}}
 
@@ -86,6 +104,12 @@ class Dinic {
   std::vector<std::vector<Edge>> graph_;
   std::vector<int> level_;
   std::vector<int> iter_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::weighted_graph("dinic.residual", graph_));
+    EDULCNI_VIS(edulcni::live::array("dinic.level", level_));
+    EDULCNI_STEP(label);
+  }
 
   bool build_level_graph(int source, int sink) {
     std::fill(level_.begin(), level_.end(), -1);

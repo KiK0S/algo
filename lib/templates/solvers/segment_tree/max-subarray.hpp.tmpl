@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename T>
 struct MaxSubarrayNode {
   T sum;
@@ -19,12 +26,14 @@ class MaxSubarraySegTree {
   void reset(int n) {
     n_ = n < 0 ? 0 : n;
     init_storage();
+    trace("Maximum-subarray segment tree reset");
   }
 
   void build(const std::vector<T>& values) {
     n_ = static_cast<int>(values.size());
     init_storage();
     if (n_ > 0) build_rec(1, 0, n_ - 1, values);
+    trace("Maximum-subarray segment tree built");
   }
 
   int size() const { return n_; }
@@ -32,6 +41,7 @@ class MaxSubarraySegTree {
   void point_set(int idx, const T& value) {
     if (idx < 0 || idx >= n_) return;
     point_set_rec(1, 0, n_ - 1, idx, value);
+    trace("Maximum-subarray segment tree updated a point");
   }
 
   Node get(int left, int right) const {
@@ -44,6 +54,12 @@ class MaxSubarraySegTree {
  private:
   int n_;
   std::vector<Node> tree_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.max_subarray", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
 
   static Node neutral_node() { return Node{T(0), T(0), T(0), T(0), false}; }
 

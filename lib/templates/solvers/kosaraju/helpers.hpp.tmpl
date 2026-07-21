@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct KosarajuResult {
   int component_count;
   std::vector<int> component_of;
@@ -11,6 +18,8 @@ inline void kosaraju_add_edge(std::vector<std::vector<int>>& graph, int from, in
     return;
   }
   graph[from].push_back(to);
+  EDULCNI_VIS(edulcni::live::graph("kosaraju.graph", graph));
+  EDULCNI_STEP("Kosaraju edge added");
 }
 
 inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
@@ -27,6 +36,8 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
   std::vector<char> used(n, 0);
   std::vector<int> order;
   order.reserve(n);
+  EDULCNI_VIS(edulcni::live::graph("kosaraju.graph", graph));
+  EDULCNI_STEP("Kosaraju initialized");
 
   std::function<void(int)> dfs1 = [&](int v) {
     used[v] = 1;
@@ -44,6 +55,8 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
       dfs1(v);
     }
   }
+  EDULCNI_VIS(edulcni::live::array("kosaraju.finish_order", order));
+  EDULCNI_STEP("Kosaraju completed the first pass");
 
   KosarajuResult result;
   result.component_of.assign(n, -1);
@@ -67,6 +80,8 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
     result.components.push_back(std::vector<int>());
     dfs2(v, result.component_count);
     ++result.component_count;
+    EDULCNI_VIS(edulcni::live::array("kosaraju.component", result.component_of));
+    EDULCNI_STEP("Kosaraju discovered a component");
   }
 
   result.condensation_dag.assign(result.component_count, std::vector<int>());
@@ -87,6 +102,9 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
     std::sort(edges.begin(), edges.end());
     edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
   }
+
+  EDULCNI_VIS(edulcni::live::graph("kosaraju.condensation", result.condensation_dag));
+  EDULCNI_STEP("Kosaraju built the condensation graph");
 
   return result;
 }

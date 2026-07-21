@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct PolyHashValue {
   int first;
   int second;
@@ -38,10 +45,14 @@ class PolyHash {
       values.push_back(static_cast<int>(ch));
     }
     build_values(values, base);
+    EDULCNI_VIS(edulcni::live::text("poly_hash.text", text));
+    EDULCNI_STEP("Polynomial hash built from text");
   }
 
   void build(const std::vector<int>& values, int base = POLY_HASH_BASE) {
     build_values(values, base);
+    EDULCNI_VIS(edulcni::live::array("poly_hash.values", values));
+    EDULCNI_STEP("Polynomial hash built from values");
   }
 
   int size() const { return static_cast<int>(prefix1_.size()) - 1; }
@@ -238,6 +249,10 @@ class PolyHash {
       push_prefix_value(static_cast<long long>(values[i]), reverse_prefix1_, reverse_prefix2_);
     }
 {{/if}}
+    EDULCNI_VIS(edulcni::live::array("poly_hash.prefix_first", prefix1_));
+    EDULCNI_VIS(edulcni::live::array("poly_hash.prefix_second", prefix2_));
+    EDULCNI_VIS(edulcni::live::array("poly_hash.power_first", power1_));
+    EDULCNI_STEP("Polynomial hash prefix tables built");
   }
 };
 

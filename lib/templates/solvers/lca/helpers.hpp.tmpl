@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class LcaBinaryLifting {
  public:
   explicit LcaBinaryLifting(int n = 0) { reset(n); }
@@ -13,6 +20,8 @@ class LcaBinaryLifting {
     parent_.assign(n_, -1);
     component_.assign(n_, -1);
     up_.assign(max_log_, std::vector<int>(n_, -1));
+    EDULCNI_VIS(edulcni::live::graph("lca.tree", graph_));
+    EDULCNI_STEP("LCA structure reset");
   }
 
   int size() const { return n_; }
@@ -25,6 +34,8 @@ class LcaBinaryLifting {
     if (undirected && a != b) {
       graph_[b].push_back(a);
     }
+    EDULCNI_VIS(edulcni::live::graph("lca.tree", graph_));
+    EDULCNI_STEP("LCA tree edge added");
   }
 
   void build(int root = 0) {
@@ -53,6 +64,11 @@ class LcaBinaryLifting {
         up_[bit][v] = (mid == -1 ? -1 : up_[bit - 1][mid]);
       }
     }
+    EDULCNI_VIS(edulcni::live::graph("lca.tree", graph_));
+    EDULCNI_VIS(edulcni::live::array("lca.parent", parent_));
+    EDULCNI_VIS(edulcni::live::array("lca.depth", depth_));
+    EDULCNI_VIS(edulcni::live::matrix("lca.ancestors", up_));
+    EDULCNI_STEP("LCA tables built");
   }
 
   int parent(int v) const { return ok(v) ? parent_[v] : -1; }

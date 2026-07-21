@@ -12,6 +12,8 @@ void {{buildName}}(const vector<{{valueType}}>& values) {
   {{ensureLogName}}(n);
   {{tableName}}.clear();
   if (n == 0) {
+    EDULCNI_VIS(edulcni::live::matrix("sparse_table.table", {{tableName}}));
+    EDULCNI_STEP("Sparse table built");
     return;
   }
 
@@ -26,7 +28,10 @@ void {{buildName}}(const vector<{{valueType}}>& values) {
       const {{valueType}}& rhs = {{tableName}}[level - 1][i + half];
       {{tableName}}[level][i] = ({{#if min}}lhs < rhs ? lhs : rhs{{/if}}{{#if max}}lhs < rhs ? rhs : lhs{{/if}}{{#if gcd}}gcd(lhs, rhs){{/if}}{{#if bitAnd}}lhs & rhs{{/if}}{{#if bitOr}}lhs | rhs{{/if}}{{#if custom}}{{customCombineName}}(lhs, rhs){{/if}});
     }
+    EDULCNI_VIS(edulcni::live::matrix("sparse_table.table", {{tableName}}));
+    EDULCNI_STEP("Sparse table built a level");
   }
+  EDULCNI_STEP("Sparse table built");
 }
 
 {{valueType}} {{queryName}}(int left, int right) {
@@ -44,5 +49,8 @@ void {{buildName}}(const vector<{{valueType}}>& values) {
   const int level = {{logName}}[right - left + 1];
   const {{valueType}}& lhs = {{tableName}}[level][left];
   const {{valueType}}& rhs = {{tableName}}[level][right - (1 << level) + 1];
-  return {{#if min}}lhs < rhs ? lhs : rhs{{/if}}{{#if max}}lhs < rhs ? rhs : lhs{{/if}}{{#if gcd}}gcd(lhs, rhs){{/if}}{{#if bitAnd}}lhs & rhs{{/if}}{{#if bitOr}}lhs | rhs{{/if}}{{#if custom}}{{customCombineName}}(lhs, rhs){{/if}};
+  const {{valueType}} result = {{#if min}}lhs < rhs ? lhs : rhs{{/if}}{{#if max}}lhs < rhs ? rhs : lhs{{/if}}{{#if gcd}}gcd(lhs, rhs){{/if}}{{#if bitAnd}}lhs & rhs{{/if}}{{#if bitOr}}lhs | rhs{{/if}}{{#if custom}}{{customCombineName}}(lhs, rhs){{/if}};
+  EDULCNI_VIS(edulcni::live::array("sparse_table.query", std::vector<{{valueType}}>{lhs, rhs, result}));
+  EDULCNI_STEP("Sparse table answered a query");
+  return result;
 }

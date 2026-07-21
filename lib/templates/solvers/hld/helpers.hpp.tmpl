@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class HeavyLightDecomposition {
  public:
   explicit HeavyLightDecomposition(int n = 0) : n_(0), root_(0), timer_(0) {
@@ -16,6 +23,7 @@ class HeavyLightDecomposition {
     head_.assign(n_, 0);
     pos_.assign(n_, -1);
     order_.assign(n_, -1);
+    trace("Heavy-light decomposition reset");
   }
 
   int size() const { return n_; }
@@ -28,6 +36,7 @@ class HeavyLightDecomposition {
     if (undirected && u != v) {
       graph_[v].push_back(u);
     }
+    trace("Heavy-light decomposition edge added");
   }
 
   void build(int root = 0) {
@@ -50,6 +59,7 @@ class HeavyLightDecomposition {
     dfs_size(root_, -1);
     timer_ = 0;
     dfs_decompose(root_, root_);
+    trace("Heavy-light decomposition built");
   }
 
   int root() const { return root_; }
@@ -138,6 +148,8 @@ class HeavyLightDecomposition {
     for (int i = static_cast<int>(right_segments.size()) - 1; i >= 0; --i) {
       segments.push_back(right_segments[i]);
     }
+    EDULCNI_VIS(edulcni::live::array("hld.path_segments", segments));
+    EDULCNI_STEP("Heavy-light decomposition split a path");
     return segments;
   }
 
@@ -163,6 +175,15 @@ class HeavyLightDecomposition {
   std::vector<int> head_;
   std::vector<int> pos_;
   std::vector<int> order_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::graph("hld.tree", graph_));
+    EDULCNI_VIS(edulcni::live::array("hld.parent", parent_));
+    EDULCNI_VIS(edulcni::live::array("hld.heavy", heavy_));
+    EDULCNI_VIS(edulcni::live::array("hld.head", head_));
+    EDULCNI_VIS(edulcni::live::array("hld.position", pos_));
+    EDULCNI_STEP(label);
+  }
 
   bool vertex_ok(int v) const { return v >= 0 && v < n_; }
 

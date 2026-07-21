@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename T>
 struct SegmentSumOp {
   static T neutral() { return T(0); }
@@ -28,6 +35,7 @@ class SegmentTree {
   void reset(int n) {
     n_ = n < 0 ? 0 : n;
     tree_.assign(2 * std::max(1, n_), Op::neutral());
+    trace("Iterative segment tree reset");
   }
 
   void build(const std::vector<T>& values) {
@@ -39,6 +47,7 @@ class SegmentTree {
     for (int i = n_ - 1; i > 0; --i) {
       tree_[i] = Op::combine(tree_[i << 1], tree_[i << 1 | 1]);
     }
+    trace("Iterative segment tree built");
   }
 
   int size() const { return n_; }
@@ -52,6 +61,7 @@ class SegmentTree {
     for (pos >>= 1; pos > 0; pos >>= 1) {
       tree_[pos] = Op::combine(tree_[pos << 1], tree_[pos << 1 | 1]);
     }
+    trace("Iterative segment tree updated a point");
   }
 
 {{#if pointAdd}}
@@ -64,6 +74,7 @@ class SegmentTree {
     for (pos >>= 1; pos > 0; pos >>= 1) {
       tree_[pos] = Op::combine(tree_[pos << 1], tree_[pos << 1 | 1]);
     }
+    trace("Iterative segment tree added at a point");
   }
 {{/if}}
 
@@ -94,6 +105,12 @@ class SegmentTree {
  private:
   int n_;
   std::vector<T> tree_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
 };
 
 template <typename T>

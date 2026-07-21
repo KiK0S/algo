@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct SuffixArrayResult {
   std::vector<int> sa;
 {{#if lcpFeature}}
@@ -36,6 +43,8 @@ inline SuffixArrayResult suffix_array_build_from_positive_codes(
   std::vector<int> y(n, 0);
   std::vector<int> ws(std::max(n, lim), 0);
   std::iota(result.sa.begin(), result.sa.end(), 0);
+  EDULCNI_VIS(edulcni::live::array("suffix_array.sequence", sequence));
+  EDULCNI_STEP("Suffix array initialized");
 
   for (int j = 0, p = 0; p < n; j = std::max(1, j * 2), lim = p) {
     p = j;
@@ -67,6 +76,9 @@ inline SuffixArrayResult suffix_array_build_from_positive_codes(
       const int b_second = (b + j < n ? y[b + j] : -1);
       x[b] = (y[a] == y[b] && a_second == b_second) ? p - 1 : p++;
     }
+    EDULCNI_VIS(edulcni::live::array("suffix_array.order", result.sa));
+    EDULCNI_VIS(edulcni::live::array("suffix_array.classes", x));
+    EDULCNI_STEP("Suffix array completed a doubling round");
   }
 
 {{#if needsRank}}
@@ -95,6 +107,12 @@ inline SuffixArrayResult suffix_array_build_from_positive_codes(
 
 {{/if}}
 
+  EDULCNI_VIS(edulcni::live::array("suffix_array.order", result.sa));
+{{#if lcpFeature}}
+  EDULCNI_VIS(edulcni::live::array("suffix_array.lcp", result.lcp));
+{{/if}}
+  EDULCNI_STEP("Suffix array completed");
+
   return result;
 }
 
@@ -104,6 +122,7 @@ inline SuffixArrayResult suffix_array_build(const std::string& s) {
   for (int i = 0; i < static_cast<int>(s.size()); ++i) {
     codes[i] = static_cast<int>(static_cast<unsigned char>(s[i])) + 1;
   }
+  EDULCNI_VIS(edulcni::live::text("suffix_array.text", s));
   return suffix_array_build_from_positive_codes(codes, 257);
 }
 {{/if}}

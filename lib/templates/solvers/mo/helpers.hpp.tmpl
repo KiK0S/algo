@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct MoQuery {
   int left;
   int right;  // [left, right)
@@ -50,6 +57,8 @@ inline std::vector<int> mo_order(const std::vector<MoQuery>& queries, int n,
     }
     return lhs.right > rhs.right;
   });
+  EDULCNI_VIS(edulcni::live::array("mo.order", order));
+  EDULCNI_STEP("Mo queries ordered");
   return order;
 }
 
@@ -91,6 +100,10 @@ inline std::vector<typename std::invoke_result<GetAnswer>::type> mo_process(
       remove_right(--cur_right);
     }
     answers[index] = get_answer();
+    EDULCNI_VIS(edulcni::live::array("mo.answers", answers));
+    EDULCNI_VIS(edulcni::live::array(
+        "mo.window", std::vector<int>{cur_left, cur_right}));
+    EDULCNI_STEP("Mo algorithm answered a query");
   }
   return answers;
 }

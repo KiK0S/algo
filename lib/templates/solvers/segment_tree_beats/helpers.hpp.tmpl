@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename T>
 class SegmentTreeBeats {
  public:
@@ -8,6 +15,7 @@ class SegmentTreeBeats {
   void reset(int n) {
     n_ = n < 0 ? 0 : n;
     tree_.assign(4 * std::max(1, n_), empty_node());
+    trace("Segment-tree beats reset");
   }
 
   void build(const std::vector<T>& values) {
@@ -15,6 +23,8 @@ class SegmentTreeBeats {
     if (n_ > 0) {
       build_rec(1, 0, n_ - 1, values);
     }
+    EDULCNI_VIS(edulcni::live::array("segment_tree_beats.values", values));
+    trace("Segment-tree beats built");
   }
 
   int size() const { return n_; }
@@ -23,6 +33,7 @@ class SegmentTreeBeats {
   void chmin(int left, int right, const T& x) {
     if (norm(left, right)) {
       chmin_rec(1, 0, n_ - 1, left, right, x);
+      trace("Segment-tree beats applied chmin");
     }
   }
 {{/if}}
@@ -31,6 +42,7 @@ class SegmentTreeBeats {
   void chmax(int left, int right, const T& x) {
     if (norm(left, right)) {
       chmax_rec(1, 0, n_ - 1, left, right, x);
+      trace("Segment-tree beats applied chmax");
     }
   }
 {{/if}}
@@ -39,6 +51,7 @@ class SegmentTreeBeats {
   void add(int left, int right, const T& x) {
     if (norm(left, right)) {
       add_rec(1, 0, n_ - 1, left, right, x);
+      trace("Segment-tree beats added over a range");
     }
   }
 {{/if}}
@@ -84,6 +97,12 @@ class SegmentTreeBeats {
 
   int n_;
   std::vector<Node> tree_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segment_tree_beats.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
 
   static T pos_inf() { return std::numeric_limits<T>::max() / T(4); }
   static T neg_inf() { return std::numeric_limits<T>::lowest() / T(4); }

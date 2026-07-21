@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Cap, typename Cost>
 class MinCostMaxFlow {
  public:
@@ -33,6 +40,7 @@ class MinCostMaxFlow {
     prev_edge_.assign(n_, -1);
     has_negative_cost_edge_ = false;
     potentials_initialized_ = false;
+    trace("Minimum-cost flow reset");
   }
 
   int size() const { return n_; }
@@ -58,6 +66,7 @@ class MinCostMaxFlow {
       has_negative_cost_edge_ = true;
     }
     potentials_initialized_ = false;
+    trace("Minimum-cost flow edge added");
     return from_id;
   }
 
@@ -96,6 +105,7 @@ class MinCostMaxFlow {
 
     Cap total_flow = Cap(0);
     Cost total_cost = Cost(0);
+    trace("Minimum-cost flow initialized");
 
     while (total_flow < flow_limit && dijkstra(source, sink)) {
       Cap pushed = flow_limit - total_flow;
@@ -112,8 +122,17 @@ class MinCostMaxFlow {
         total_cost += static_cast<Cost>(pushed) * edge.cost;
       }
       total_flow += pushed;
+      EDULCNI_VIS(edulcni::live::weighted_graph("mincost_flow.residual", graph_));
+      EDULCNI_VIS(edulcni::live::array("mincost_flow.potential", potential_));
+      EDULCNI_VIS(edulcni::live::array("mincost_flow.distance", dist_));
+      EDULCNI_VIS(edulcni::live::array(
+          "mincost_flow.total_flow", std::vector<Cap>{total_flow}));
+      EDULCNI_VIS(edulcni::live::array(
+          "mincost_flow.total_cost", std::vector<Cost>{total_cost}));
+      EDULCNI_STEP("Minimum-cost flow augmented");
     }
 
+    trace("Minimum-cost flow completed");
     return std::make_pair(total_flow, total_cost);
   }
 
@@ -134,6 +153,12 @@ class MinCostMaxFlow {
   std::vector<int> prev_edge_;
   bool has_negative_cost_edge_;
   bool potentials_initialized_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::weighted_graph("mincost_flow.residual", graph_));
+    EDULCNI_VIS(edulcni::live::array("mincost_flow.potential", potential_));
+    EDULCNI_STEP(label);
+  }
 
   bool vertex_ok(int v) const { return v >= 0 && v < n_; }
 

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{opDefinition}}
 
 template <typename T, typename Op = TreapSumOp<T>>
@@ -75,6 +82,7 @@ class ImplicitTreap {
     Node* node = new Node(value, next_priority());
     std::pair<Node*, Node*> parts = split(root_, position);
     root_ = merge(merge(parts.first, node), parts.second);
+    trace_operation("Implicit treap inserted an element");
   }
 
   bool erase(int position, T* erased_value = nullptr) {
@@ -95,6 +103,7 @@ class ImplicitTreap {
     }
     clear_node(mid_right.first);
     root_ = merge(left_mid.first, mid_right.second);
+    trace_operation("Implicit treap erased an element");
     return true;
   }
 
@@ -138,6 +147,7 @@ class ImplicitTreap {
     clear_lazy(mid_right.first);
     pull(mid_right.first);
     root_ = merge(left_mid.first, merge(mid_right.first, mid_right.second));
+    trace_operation("Implicit treap updated an element");
     return true;
   }
 
@@ -163,6 +173,7 @@ class ImplicitTreap {
     std::pair<Node*, Node*> mid_right = split(left_mid.second, right - left + 1);
     apply_reverse(mid_right.first);
     root_ = merge(left_mid.first, merge(mid_right.first, mid_right.second));
+    trace_operation("Implicit treap reversed a range");
   }
 {{/if}}
 
@@ -176,6 +187,7 @@ class ImplicitTreap {
     std::pair<Node*, Node*> mid_right = split(left_mid.second, right - left + 1);
     apply_add(mid_right.first, delta);
     root_ = merge(left_mid.first, merge(mid_right.first, mid_right.second));
+    trace_operation("Implicit treap added over a range");
   }
 {{/if}}
 
@@ -183,6 +195,8 @@ class ImplicitTreap {
     std::vector<T> values;
     values.reserve(size());
     collect_inorder(root_, values);
+    EDULCNI_VIS(edulcni::live::array("implicit_treap.sequence", values));
+    EDULCNI_STEP("Implicit treap materialized its sequence");
     return values;
   }
 
@@ -197,6 +211,11 @@ class ImplicitTreap {
  private:
   Node* root_;
   unsigned rng_state_;
+
+  void trace_operation(const char* label) const {
+    EDULCNI_VIS(edulcni::live::scalar("implicit_treap.size", size()));
+    EDULCNI_STEP(label);
+  }
 
   static int node_size(Node* node) {
     return node == nullptr ? 0 : node->size;

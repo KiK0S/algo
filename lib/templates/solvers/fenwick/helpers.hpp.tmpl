@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{#if sumOp}}
 template <typename T>
 struct FenwickSumOp {
@@ -96,6 +103,8 @@ class Fenwick {
     maxn_ = n_ + 1;
     neutral_ = neutral;
     bit_.assign(maxn_, neutral_);
+    EDULCNI_VIS(edulcni::live::array("fenwick.tree", bit_));
+    EDULCNI_STEP("Fenwick tree reset");
   }
 
   int size() const { return n_; }
@@ -107,6 +116,9 @@ class Fenwick {
     for (int i = idx + 1; i < maxn_; i += i & -i) {
       bit_[i] = Op::combine(bit_[i], value);
     }
+    EDULCNI_VIS(edulcni::live::array("fenwick.tree", bit_));
+    EDULCNI_VIS(edulcni::live::bits("fenwick.index", static_cast<std::uint64_t>(idx + 1), 32));
+    EDULCNI_STEP("Fenwick tree updated");
   }
 
   T prefix(int idx) const {
@@ -216,11 +228,13 @@ class FenwickRange {
   void reset(int n) {
     bit1_.reset(n);
     bit2_.reset(n);
+    EDULCNI_STEP("Range Fenwick tree reset");
   }
 
   void add(int left, int right, const T& value) {
     add_prefix(left, value);
     add_prefix(right + 1, -value);
+    EDULCNI_STEP("Range Fenwick tree updated");
   }
 
   T prefix(int idx) const {

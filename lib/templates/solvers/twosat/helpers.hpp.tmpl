@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class TwoSat {
  public:
   explicit TwoSat(int variables = 0) { reset(variables); }
@@ -11,6 +18,7 @@ class TwoSat {
 {{/if}}
     solved_ = false;
     satisfiable_ = false;
+    trace("Two-SAT reset");
   }
 
   int size() const { return variables_; }
@@ -21,6 +29,7 @@ class TwoSat {
     }
     add_direct(a, !a_value, b, b_value);
     add_direct(b, !b_value, a, a_value);
+    trace("Two-SAT clause added");
   }
 
   void add_implication(int a, bool a_value, int b, bool b_value) {
@@ -29,6 +38,7 @@ class TwoSat {
     }
     add_direct(a, a_value, b, b_value);
     add_direct(b, !b_value, a, !a_value);
+    trace("Two-SAT implication added");
   }
 
 {{#if xorFeature}}
@@ -85,6 +95,7 @@ class TwoSat {
       if (comp[node(var, true)] == comp[node(var, false)]) {
         satisfiable_ = false;
         assignment_.assign(variables_, false);
+        trace("Two-SAT found a contradiction");
         return false;
       }
     }
@@ -129,6 +140,7 @@ class TwoSat {
     for (int var = 0; var < variables_; ++var) {
       assignment_[var] = rank[comp[node(var, true)]] > rank[comp[node(var, false)]];
     }
+    trace("Two-SAT solved");
     return true;
   }
 
@@ -163,6 +175,15 @@ class TwoSat {
 {{/if}}
   bool solved_;
   bool satisfiable_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::graph("twosat.implications", graph_));
+    EDULCNI_VIS(edulcni::live::array("twosat.assignment", assignment_));
+{{#if componentsFeature}}
+    EDULCNI_VIS(edulcni::live::array("twosat.components", component_));
+{{/if}}
+    EDULCNI_STEP(label);
+  }
 
   bool ok_var(int var) const { return var >= 0 && var < variables_; }
 

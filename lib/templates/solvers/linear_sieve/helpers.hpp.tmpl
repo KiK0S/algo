@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 class {{className}} {
  public:
   explicit {{className}}(int limit = 0) : limit_(0) { build(limit); }
@@ -24,6 +31,9 @@ class {{className}} {
         lowest_prime_[static_cast<int>(next)] = p;
       }
     }
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.lowest_prime", lowest_prime_));
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.primes", primes_));
+    EDULCNI_STEP("Linear sieve built");
   }
 
   int limit() const { return limit_; }
@@ -64,6 +74,8 @@ class {{className}} {
       }
       factors.push_back(std::make_pair(p, exponent));
     }
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.factorization", factors));
+    EDULCNI_STEP("Linear sieve factorized a value");
     return factors;
   }
 {{/if}}

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Weight>
 struct DijkstraEdge {
   int to;
@@ -25,6 +32,8 @@ void dijkstra_add_edge(std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
   if (undirected && from != to) {
     graph[to].push_back(DijkstraEdge<Weight>(from, static_cast<Weight>(weight)));
   }
+  EDULCNI_VIS(edulcni::live::weighted_graph("dijkstra.graph", graph));
+  EDULCNI_STEP("Dijkstra edge added");
 }
 
 template <typename Weight>
@@ -48,6 +57,11 @@ DijkstraResult<Weight> dijkstra_multi_source(
     pq.push(Node(Weight(0), source));
   }
 
+  EDULCNI_VIS(edulcni::live::weighted_graph("dijkstra.graph", graph));
+  EDULCNI_VIS(edulcni::live::array("dijkstra.distance", result.distance));
+  EDULCNI_VIS(edulcni::live::priority_queue("dijkstra.frontier", pq));
+  EDULCNI_STEP("Dijkstra initialized");
+
   while (!pq.empty()) {
     const Weight dist = pq.top().first;
     const int v = pq.top().second;
@@ -65,9 +79,15 @@ DijkstraResult<Weight> dijkstra_multi_source(
         result.distance[edge.to] = candidate;
         result.parent[edge.to] = v;
         pq.push(Node(candidate, edge.to));
+        EDULCNI_VIS(edulcni::live::array("dijkstra.distance", result.distance));
+        EDULCNI_VIS(edulcni::live::array("dijkstra.parent", result.parent));
+        EDULCNI_VIS(edulcni::live::priority_queue("dijkstra.frontier", pq));
+        EDULCNI_STEP("Dijkstra relaxed an edge");
       }
     }
   }
+
+  EDULCNI_STEP("Dijkstra completed");
 
   return result;
 }
@@ -100,5 +120,7 @@ std::vector<int> dijkstra_restore_path(int source, int target,
     return {};
   }
   std::reverse(path.begin(), path.end());
+  EDULCNI_VIS(edulcni::live::array("dijkstra.path", path));
+  EDULCNI_STEP("Dijkstra restored a path");
   return path;
 }

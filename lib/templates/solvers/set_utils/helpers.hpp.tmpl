@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename Container>
 inline std::optional<typename Container::iterator> next_iterator(
     Container& container, typename Container::iterator it) {
@@ -61,6 +68,8 @@ inline std::optional<typename Container::value_type> next_value(
   if (it == container.end()) {
     return std::nullopt;
   }
+  EDULCNI_VIS(edulcni::live::array("set_utils.container", container));
+  EDULCNI_STEP("Set utility found the next value");
   return *it;
 }
 
@@ -72,5 +81,7 @@ inline std::optional<typename Container::value_type> prev_value(
     return std::nullopt;
   }
   --it;
+  EDULCNI_VIS(edulcni::live::array("set_utils.container", container));
+  EDULCNI_STEP("Set utility found the previous value");
   return *it;
 }
