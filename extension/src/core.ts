@@ -562,12 +562,11 @@ export type BfsApplication =
   | "multi_source"
   | "path_restore"
   | "traversal_order";
-export type BfsSourceMode = "existing_graph" | "read_edges";
+export type BfsSourceMode = "existing_graph";
 export type BfsGraphMode = "directed" | "undirected";
 export type BfsIndexing = "zero_based" | "one_based_input";
 export type BfsUsageMode =
   | "helper_only"
-  | "read_graph"
   | "single_source"
   | "multi_source"
   | "path_query";
@@ -600,14 +599,12 @@ export interface DijkstraNames {
 export type DijkstraApplication =
   | "shortest_paths"
   | "multi_source"
-  | "path_restore"
-  | "weighted_graph_read";
-export type DijkstraSourceMode = "existing_graph" | "read_edges";
+  | "path_restore";
+export type DijkstraSourceMode = "existing_graph";
 export type DijkstraGraphMode = "directed" | "undirected";
 export type DijkstraIndexing = "zero_based" | "one_based_input";
 export type DijkstraUsageMode =
   | "helper_only"
-  | "read_graph"
   | "single_source"
   | "multi_source"
   | "path_query";
@@ -2576,11 +2573,11 @@ export function renderSegmentTree(options: SegmentTreeOptions): string {
 }
 
 export function defaultSegmentTreeBeatsUpdates(): SegmentTreeBeatsUpdate[] {
-  return ["chmin", "chmax", "add"];
+  return ["chmin"];
 }
 
 export function defaultSegmentTreeBeatsQueries(): SegmentTreeBeatsQuery[] {
-  return ["sum", "min", "max"];
+  return ["sum"];
 }
 
 export function planSegmentTreeBeatsNames(
@@ -2609,7 +2606,7 @@ function segmentTreeBeatsUpdateSet(
 function segmentTreeBeatsQuerySet(
   queries: SegmentTreeBeatsQuery[]
 ): Set<SegmentTreeBeatsQuery> {
-  return new Set(queries.length === 0 ? defaultSegmentTreeBeatsQueries() : queries);
+  return new Set(queries);
 }
 
 function segmentTreeBeatsExports(options: SegmentTreeBeatsOptions): string[] {
@@ -3006,11 +3003,11 @@ function renderBfsUsageSnippet(options: BfsOptions): string {
     singleSourceName: options.names.singleSourceName,
     restorePathName: options.names.restorePathName,
     undirected: options.graphMode === "undirected" ? "true" : "false",
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     multiSource: usageMode === "multi_source",
     pathQuery: usageMode === "path_query",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3098,11 +3095,11 @@ function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
     singleSourceName: options.names.singleSourceName,
     restorePathName: options.names.restorePathName,
     undirected: options.graphMode === "undirected" ? "true" : "false",
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     multiSource: usageMode === "multi_source",
     pathQuery: usageMode === "path_query",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3172,11 +3169,11 @@ function renderToposortUsageSnippet(options: ToposortOptions): string {
     addEdgeName: options.names.addEdgeName,
     sortName: options.names.sortName,
     validateName: options.names.validateName,
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     validateOrder: usageMode === "validate_order",
     cycleCheck: usageMode === "cycle_check",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3234,12 +3231,12 @@ function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
     resultStructName: options.names.resultStructName,
     addEdgeName: options.names.addEdgeName,
     sccName: options.names.sccName,
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     computeScc: usageMode === "compute_scc",
     printComponents: usageMode === "print_components",
     sameComponentQueries: usageMode === "same_component_queries",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -5381,7 +5378,7 @@ export function defaultModIntOptions(
   extraReserved: string[] = []
 ): ModIntOptions {
   return {
-    mode: "both",
+    mode: "static",
     dynamicDefaultModExpression: "1000000007",
     names: planModIntNames(analysis, extraReserved),
     includeUsageComment: true
@@ -5560,7 +5557,7 @@ export function renderTwoSat(options: TwoSatOptions): string {
 }
 
 export function defaultMaxflowDinicFeatures(): MaxflowDinicFeature[] {
-  return ["min_cut", "graph_access", "reset_flows"];
+  return [];
 }
 
 export function defaultMaxflowDinicCapType(analysis: CppAnalysis): string {
@@ -5707,7 +5704,7 @@ export function renderMaxflowDinic(options: MaxflowDinicOptions): string {
 }
 
 export function defaultMinCostMaxFlowFeatures(): MinCostMaxFlowFeature[] {
-  return ["graph_access", "potential_access"];
+  return [];
 }
 
 export function defaultMinCostMaxFlowCapType(analysis: CppAnalysis): string {
@@ -6662,7 +6659,7 @@ export function renderSparseTable(options: SparseTableOptions): string {
 }
 
 export function defaultSuffixArrayFeatures(): SuffixArrayFeature[] {
-  return ["rank", "lcp", "stripped_sa"];
+  return [];
 }
 
 export function planSuffixArrayNames(
@@ -6829,7 +6826,7 @@ export function renderSuffixArray(options: SuffixArrayOptions): string {
 }
 
 export function defaultFftNttTransforms(): FftNttTransform[] {
-  return ["fft", "ntt"];
+  return ["fft"];
 }
 
 export function planFftNttNames(
@@ -6852,7 +6849,7 @@ export function planFftNttNames(
 function fftNttTransformSet(
   transforms: FftNttTransform[]
 ): Set<FftNttTransform> {
-  return new Set(transforms.length === 0 ? defaultFftNttTransforms() : transforms);
+  return new Set(transforms);
 }
 
 function fftNttExports(

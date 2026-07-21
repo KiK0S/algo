@@ -1148,9 +1148,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(bfsUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(bfsUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(bfsUsageRecipe.sections.solve[0], /for \(int i = 0; i < m; \+\+i\)/);
-  assert.match(bfsUsageRecipe.sections.solve[0], /--u; --v;/);
+  assert.doesNotMatch(bfsUsageRecipe.sections.solve[0], /cin >> u >> v/);
   assert.match(bfsUsageRecipe.sections.solve[0], /auto path = bfs_restore_path\(source, target, result\);/);
 
   const dijkstraRecipe = core.renderDijkstraRecipe(
@@ -1180,9 +1178,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(dijkstraUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /std::vector<std::vector<DijkstraEdge<long long>>> graph\(n\);/);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /int u, v; long long w;/);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /dijkstra_add_edge\(graph, u, v, w, true\);/);
+  assert.doesNotMatch(dijkstraUsageRecipe.sections.solve[0], /cin >> u >> v >> w/);
   assert.match(dijkstraUsageRecipe.sections.solve[0], /auto path = dijkstra_restore_path\(source, target, result\);/);
 
   const toposortRecipe = core.renderToposortRecipe(
@@ -1206,9 +1202,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(toposortUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(toposortUsageRecipe.sections.solve[0], /--before; --after;/);
-  assert.match(toposortUsageRecipe.sections.solve[0], /toposort_add_edge\(graph, before, after\);/);
+  assert.doesNotMatch(toposortUsageRecipe.sections.solve[0], /cin >> before >> after/);
   assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<int> order = topological_sort\(graph, &dag\);/);
 
   const kosarajuRecipe = core.renderKosarajuRecipe(
@@ -1232,9 +1226,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(kosarajuUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /--from; --to;/);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /kosaraju_add_edge\(graph, from, to\);/);
+  assert.doesNotMatch(kosarajuUsageRecipe.sections.solve[0], /cin >> from >> to/);
   assert.match(kosarajuUsageRecipe.sections.solve[0], /KosarajuResult scc = kosaraju_scc\(graph\);/);
   assert.match(kosarajuUsageRecipe.sections.solve[0], /scc\.component_of\[a\] == scc\.component_of\[b\]/);
 
@@ -1518,7 +1510,7 @@ function testRecipeMetadata() {
   const modIntRecipe = core.renderModIntRecipe(
     modIntOptions({ includeUsageComment: false })
   );
-  assert.deepEqual(modIntRecipe.exports, ["StaticModInt", "DynamicModInt"]);
+  assert.deepEqual(modIntRecipe.exports, ["StaticModInt"]);
   assert.deepEqual(Object.keys(modIntRecipe.sections), ["helpers"]);
 
   const staticModIntRecipe = core.renderModIntRecipe(
@@ -1709,9 +1701,9 @@ function testRecipeMetadata() {
   assert.equal(fftNttRecipe.exports.includes("fft_next_power_of_two"), true);
   assert.equal(fftNttRecipe.exports.includes("fft_transform"), true);
   assert.equal(fftNttRecipe.exports.includes("convolution_fft_round"), true);
-  assert.equal(fftNttRecipe.exports.includes("ntt_pow"), true);
-  assert.equal(fftNttRecipe.exports.includes("ntt_transform"), true);
-  assert.equal(fftNttRecipe.exports.includes("convolution_ntt_int"), true);
+  assert.equal(fftNttRecipe.exports.includes("ntt_pow"), false);
+  assert.equal(fftNttRecipe.exports.includes("ntt_transform"), false);
+  assert.equal(fftNttRecipe.exports.includes("convolution_ntt_int"), false);
   assert.deepEqual(Object.keys(fftNttRecipe.sections), ["helpers"]);
 
   const polyHashRecipe = core.renderPolyHashRecipe(
@@ -2034,7 +2026,11 @@ function testGeneratedSegmentTrees() {
 function testGeneratedSegmentTreeBeatsCompiles() {
   {
     const generated = core.renderSegmentTreeBeats(
-      segtreeBeatsOptions({ includeUsageComment: false })
+      segtreeBeatsOptions({
+        updates: ["chmin", "chmax", "add"],
+        queries: ["sum", "min", "max"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -2403,7 +2399,7 @@ function testBfsRenderer() {
     })
   );
   assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
-  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.doesNotMatch(multiSourceRecipe.sections.solve[0], /--v/);
   assert.match(multiSourceRecipe.sections.solve[0], /auto result = bfs_multi_source\(graph, sources\);/);
 
   const collisionOptions = bfsOptions({
@@ -2455,7 +2451,7 @@ function testDijkstraRenderer() {
     })
   );
   assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
-  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.doesNotMatch(multiSourceRecipe.sections.solve[0], /--v/);
   assert.match(multiSourceRecipe.sections.solve[0], /auto result = dijkstra_multi_source\(graph, sources/);
 
   const collisionOptions = dijkstraOptions({
@@ -2501,7 +2497,7 @@ function testToposortRenderer() {
     })
   );
   assert.match(validateRecipe.sections.solve[0], /std::vector<int> order\(n\);/);
-  assert.match(validateRecipe.sections.solve[0], /for \(int& v : order\) --v;/);
+  assert.doesNotMatch(validateRecipe.sections.solve[0], /--v/);
   assert.match(validateRecipe.sections.solve[0], /bool valid = is_topological_order\(graph, order\);/);
 
   const collisionOptions = toposortOptions({
@@ -2860,16 +2856,15 @@ function testModIntRenderer() {
     modIntOptions({ includeUsageComment: false })
   );
   assert.match(defaultContent, /template <int MOD>\nclass StaticModInt/);
-  assert.match(defaultContent, /class DynamicModInt/);
-  assert.match(defaultContent, /static int value = 1000000007;/);
+  assert.doesNotMatch(defaultContent, /class DynamicModInt/);
   assert.match(defaultContent, /StaticModInt pow\(long long exponent\) const/);
-  assert.match(defaultContent, /DynamicModInt pow\(long long exponent\) const/);
+  assert.doesNotMatch(defaultContent, /DynamicModInt pow\(long long exponent\) const/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderModInt(modIntOptions());
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /using Mint = StaticModInt<1000000007>;/);
-  assert.match(usageContent, /DynamicModInt::set_mod\(998244353\);/);
+  assert.doesNotMatch(usageContent, /DynamicModInt::set_mod/);
 
   const staticContent = core.renderModInt(
     modIntOptions({
@@ -2898,7 +2893,7 @@ function testModIntRenderer() {
   assert.equal(collisionOptions.names.dynamicClassName, "DynamicModInt2");
   const collisionContent = core.renderModInt(collisionOptions);
   assert.match(collisionContent, /class StaticModInt2/);
-  assert.match(collisionContent, /class DynamicModInt2/);
+  assert.doesNotMatch(collisionContent, /class DynamicModInt2/);
 }
 
 function testTwoSatRenderer() {
@@ -2982,9 +2977,9 @@ function testMaxflowDinicRenderer() {
   assert.match(defaultContent, /struct Edge/);
   assert.match(defaultContent, /int add_edge\(int from, int to, Cap cap/);
   assert.match(defaultContent, /Cap max_flow\(int source, int sink\)/);
-  assert.match(defaultContent, /bool left_of_min_cut\(int vertex\) const/);
-  assert.match(defaultContent, /const std::vector<std::vector<Edge>>& graph\(\) const/);
-  assert.match(defaultContent, /void reset_flows\(\)/);
+  assert.doesNotMatch(defaultContent, /left_of_min_cut/);
+  assert.doesNotMatch(defaultContent, /graph\(\) const/);
+  assert.doesNotMatch(defaultContent, /reset_flows/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderMaxflowDinic(maxflowDinicOptions());
@@ -3040,9 +3035,9 @@ function testMinCostMaxFlowRenderer() {
   assert.match(defaultContent, /int add_edge\(int from, int to, Cap cap, Cost cost\)/);
   assert.match(defaultContent, /std::pair<Cap, Cost> min_cost_flow/);
   assert.match(defaultContent, /std::pair<Cap, Cost> min_cost_max_flow/);
-  assert.match(defaultContent, /const std::vector<std::vector<Edge>>& graph\(\) const/);
-  assert.match(defaultContent, /const std::vector<Cost>& potential\(\) const/);
-  assert.match(defaultContent, /set_potential_with_bellman_ford/);
+  assert.doesNotMatch(defaultContent, /graph\(\) const/);
+  assert.doesNotMatch(defaultContent, /potential\(\) const/);
+  assert.doesNotMatch(defaultContent, /set_potential_with_bellman_ford/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderMinCostMaxFlow(minCostMaxFlowOptions());
@@ -3362,10 +3357,10 @@ function testSuffixArrayRenderer() {
   );
   assert.match(defaultContent, /struct SuffixArrayResult/);
   assert.match(defaultContent, /std::vector<int> sa;/);
-  assert.match(defaultContent, /std::vector<int> lcp;/);
-  assert.match(defaultContent, /std::vector<int> rank;/);
+  assert.doesNotMatch(defaultContent, /std::vector<int> lcp;/);
+  assert.doesNotMatch(defaultContent, /std::vector<int> rank;/);
   assert.match(defaultContent, /suffix_array_build\(const std::string& s\)/);
-  assert.match(defaultContent, /suffix_array_remove_empty_suffix/);
+  assert.doesNotMatch(defaultContent, /suffix_array_remove_empty_suffix/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const saOnly = core.renderSuffixArray(
@@ -3473,9 +3468,9 @@ function testFftNttRenderer() {
   assert.match(defaultContent, /int fft_next_power_of_two/);
   assert.match(defaultContent, /bool fft_transform/);
   assert.match(defaultContent, /vector<long long> convolution_fft_round/);
-  assert.match(defaultContent, /int ntt_pow/);
-  assert.match(defaultContent, /bool ntt_transform/);
-  assert.match(defaultContent, /vector<int> convolution_ntt_int/);
+  assert.doesNotMatch(defaultContent, /int ntt_pow/);
+  assert.doesNotMatch(defaultContent, /bool ntt_transform/);
+  assert.doesNotMatch(defaultContent, /vector<int> convolution_ntt_int/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const fftOnly = core.renderFftNtt(
@@ -3512,8 +3507,8 @@ function testFftNttRenderer() {
   assert.equal(collisionOptions.names.bitReverseName, "fft_bit_reverse2");
   const collisionContent = core.renderFftNtt(collisionOptions);
   assert.match(collisionContent, /bool fft_transform2/);
-  assert.match(collisionContent, /bool ntt_transform2/);
-  assert.match(collisionContent, /int ntt_pow2/);
+  assert.doesNotMatch(collisionContent, /bool ntt_transform2/);
+  assert.doesNotMatch(collisionContent, /int ntt_pow2/);
 }
 
 function testFastAllocatorRenderer() {
@@ -3633,11 +3628,11 @@ function testSegmentTreeBeatsRenderer() {
   assert.match(defaultContent, /class SegmentTreeBeats/);
   assert.match(defaultContent, /struct Node/);
   assert.match(defaultContent, /void chmin\(int left, int right, const T& x\)/);
-  assert.match(defaultContent, /void chmax\(int left, int right, const T& x\)/);
-  assert.match(defaultContent, /void add\(int left, int right, const T& x\)/);
+  assert.doesNotMatch(defaultContent, /void chmax\(int left, int right/);
+  assert.doesNotMatch(defaultContent, /void add\(int left, int right/);
   assert.match(defaultContent, /T query_sum\(int left, int right\)/);
-  assert.match(defaultContent, /T query_min\(int left, int right\)/);
-  assert.match(defaultContent, /T query_max\(int left, int right\)/);
+  assert.doesNotMatch(defaultContent, /T query_min\(int left, int right\)/);
+  assert.doesNotMatch(defaultContent, /T query_max\(int left, int right\)/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderSegmentTreeBeats(segtreeBeatsOptions());
@@ -3688,7 +3683,7 @@ function testSegmentTreeBeatsRenderer() {
   assert.match(collisionContent, /class SegmentTreeBeats2/);
   assert.match(collisionContent, /struct BeatsNode/);
   assert.match(collisionContent, /void beats_chmin/);
-  assert.match(collisionContent, /void beats_add/);
+  assert.doesNotMatch(collisionContent, /void beats_add/);
   assert.match(collisionContent, /T beats_query_sum/);
 }
 
@@ -4367,7 +4362,7 @@ function testGeneratedFenwickCompiles() {
 
 function testGeneratedModIntCompiles() {
   const generated = core.renderModInt(
-    modIntOptions({ includeUsageComment: false })
+    modIntOptions({ mode: "both", includeUsageComment: false })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4484,7 +4479,10 @@ function testGeneratedTwoSatCompiles() {
 function testGeneratedMaxflowDinicCompiles() {
   {
     const generated = core.renderMaxflowDinic(
-      maxflowDinicOptions({ includeUsageComment: false })
+      maxflowDinicOptions({
+        features: ["min_cut", "graph_access", "reset_flows"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -4546,7 +4544,10 @@ function testGeneratedMaxflowDinicCompiles() {
 function testGeneratedMinCostMaxFlowCompiles() {
   {
     const generated = core.renderMinCostMaxFlow(
-      minCostMaxFlowOptions({ includeUsageComment: false })
+      minCostMaxFlowOptions({
+        features: ["graph_access", "potential_access"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",

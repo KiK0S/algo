@@ -50,8 +50,6 @@
     ],
     "wrappers": [
       "build_from_vector",
-      "read_loop",
-      "query_loop",
       "iterative_class",
       "recursive_globals",
       "static_fallback_presets"
@@ -105,9 +103,6 @@
       "helpers"
     ],
     "form": [
-      "sequenceName",
-      "valueType",
-      "indexName",
       "features"
     ],
     "render": {
@@ -173,9 +168,7 @@
       "inclusive_range_query"
     ],
     "wrappers": [
-      "build_from_vector",
-      "read_loop",
-      "query_loop"
+      "build_from_vector"
     ],
     "bindings": [
       "sourceName",
@@ -247,7 +240,6 @@
     },
     "wrappers": [
       "helper_only",
-      "read_graph",
       "single_source",
       "multi_source",
       "path_query"
@@ -324,7 +316,7 @@
     ],
     "aggregators": ["sum", "xor", "min", "max", "custom", "custom_invertible"],
     "constraints": ["inverse_for_range_query", "monotone_for_descend"],
-    "wrappers": ["build_from_vector", "read_loop", "query_loop", "range_update_sum"],
+    "wrappers": ["build_from_vector", "range_update_sum"],
     "bindings": ["sizeExpression", "sourceName", "valueType", "instanceName", "answerName"],
     "sections": ["helpers"]
   },
@@ -352,7 +344,7 @@
     "description": "interactive coordinate compression snippet",
     "detail": "interactive / brick",
     "exports": ["vals", "get_id"],
-    "form": ["sourceName", "valuesName", "rewriteSource"]
+    "form": ["sourceName", "rewriteSource"]
   },
   {
     "path": "/bricks/read_vector",
@@ -390,17 +382,14 @@
       "same",
       "component_size",
       "component_count",
-      "kruskal",
-      "query_loop"
+      "component_count"
     ],
     "applications": [
-      "connectivity",
-      "kruskal",
-      "query_loop"
+      "connectivity"
     ],
     "aggregators": ["component_size", "component_count"],
     "constraints": ["undirected_edges", "zero_or_one_based_input"],
-    "wrappers": ["instance", "query_loop", "kruskal"],
+    "wrappers": ["instance"],
     "bindings": [
       "sizeExpression",
       "edgeCountName",
@@ -425,7 +414,7 @@
     ],
     "aggregators": ["component_size", "component_count"],
     "constraints": ["rollback_no_path_compression", "snapshot_stack"],
-    "wrappers": ["instance", "snapshot_query_loop", "offline_dynamic_connectivity"],
+    "wrappers": ["instance", "offline_dynamic_connectivity"],
     "bindings": [
       "sizeExpression",
       "queryCountName",
@@ -446,12 +435,11 @@
     "features": ["binary_lifting", "lca", "dist", "kth_ancestor", "forest"],
     "applications": [
       "lca_dist",
-      "kth_ancestor",
-      "tree_query_loop"
+      "kth_ancestor"
     ],
     "aggregators": ["lca", "dist", "kth_ancestor"],
     "constraints": ["tree_or_forest", "binary_lifting", "unweighted_edges"],
-    "wrappers": ["instance", "read_tree", "query_loop"],
+    "wrappers": ["instance"],
     "bindings": [
       "sizeExpression",
       "rootExpression",
@@ -578,8 +566,6 @@
     ],
     "wrappers": [
       "build_from_vector",
-      "read_loop",
-      "query_loop",
       "range_reverse",
       "range_add"
     ],
@@ -626,9 +612,7 @@
       "inclusive_range_query"
     ],
     "wrappers": [
-      "build_from_vector",
-      "read_loop",
-      "query_loop"
+      "build_from_vector"
     ],
     "bindings": [
       "sourceName",
@@ -702,8 +686,6 @@
     ],
     "wrappers": [
       "build_from_vector",
-      "read_loop",
-      "query_loop",
       "range_chmin",
       "range_chmax",
       "range_add"
@@ -846,7 +828,6 @@
     },
     "wrappers": [
       "helper_only",
-      "read_graph",
       "sort_order",
       "cycle_check",
       "validate_order"
@@ -886,7 +867,6 @@
     },
     "wrappers": [
       "helper_only",
-      "read_graph",
       "compute_scc",
       "same_component_queries",
       "print_components"
@@ -926,8 +906,7 @@
     "applications": [
       "shortest_paths",
       "multi_source",
-      "path_restore",
-      "weighted_graph_read"
+      "path_restore"
     ],
     "constraints": {
       "weights": "nonnegative",
@@ -936,7 +915,6 @@
     },
     "wrappers": [
       "helper_only",
-      "read_graph",
       "single_source",
       "multi_source",
       "path_query"
@@ -1091,9 +1069,7 @@
     },
     "wrappers": [
       "helper_only",
-      "instance",
-      "read_tree",
-      "query_loop"
+      "instance"
     ],
     "bindings": [
       "sizeExpression",
@@ -1139,7 +1115,6 @@
     },
     "wrappers": [
       "helper_only",
-      "read_queries",
       "process_skeleton",
       "distinct_count_skeleton"
     ],
