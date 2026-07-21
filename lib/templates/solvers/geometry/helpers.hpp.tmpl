@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <typename T>
 int geometry_sign(const T& value) {
   return (T(0) < value) - (value < T(0));
@@ -237,6 +244,8 @@ inline void sort_points_by_angle(std::vector<Point2<T>>& points, const Point2<T>
 template <typename T>
 inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
                                           long double eps = 1e-12L) {
+  EDULCNI_VIS(edulcni::live::points("convex_hull.points", points));
+  EDULCNI_STEP("Convex hull initialized");
   if (points.size() <= 1) {
     return points;
   }
@@ -257,6 +266,8 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
       lower.pop_back();
     }
     lower.push_back(p);
+    EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+    EDULCNI_STEP("Convex hull extends the lower chain");
   }
 
   for (int i = static_cast<int>(points.size()) - 1; i >= 0; --i) {
@@ -267,10 +278,14 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
       upper.pop_back();
     }
     upper.push_back(p);
+    EDULCNI_VIS(edulcni::live::points("convex_hull.chain", upper));
+    EDULCNI_STEP("Convex hull extends the upper chain");
   }
 
   lower.pop_back();
   upper.pop_back();
   lower.insert(lower.end(), upper.begin(), upper.end());
+  EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+  EDULCNI_STEP("Convex hull completed");
   return lower;
 }

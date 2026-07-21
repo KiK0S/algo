@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct BfsResult {
   std::vector<int> distance;
   std::vector<int> parent;
@@ -34,9 +41,19 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
     q.push(source);
   }
 
+  EDULCNI_VIS(edulcni::live::graph("bfs.graph", graph));
+  EDULCNI_VIS(edulcni::live::array("bfs.distance", result.distance));
+  EDULCNI_VIS(edulcni::live::array("bfs.parent", result.parent));
+  EDULCNI_VIS(edulcni::live::queue("bfs.frontier", q));
+  EDULCNI_STEP("BFS initialized");
+
   while (!q.empty()) {
     const int v = q.front();
     q.pop();
+    EDULCNI_VIS(edulcni::clear_graph_highlights("bfs.graph"));
+    EDULCNI_VIS(edulcni::highlight_vertex("bfs.graph", v));
+    EDULCNI_VIS(edulcni::live::queue("bfs.frontier", q));
+    EDULCNI_STEP("BFS visits a vertex");
 
     for (int to : graph[v]) {
       if (to < 0 || to >= n || result.distance[to] != -1) {
@@ -46,6 +63,12 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
       result.parent[to] = v;
       result.order.push_back(to);
       q.push(to);
+      EDULCNI_VIS(edulcni::highlight_edge("bfs.graph", v, to));
+      EDULCNI_VIS(edulcni::highlight_vertex("bfs.graph", to));
+      EDULCNI_VIS(edulcni::live::array("bfs.distance", result.distance));
+      EDULCNI_VIS(edulcni::live::array("bfs.parent", result.parent));
+      EDULCNI_VIS(edulcni::live::queue("bfs.frontier", q));
+      EDULCNI_STEP("BFS discovers a vertex");
     }
   }
 

@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 struct TurtleDpResult {
   long long value;
   std::vector<std::pair<int, int>> path;
@@ -11,11 +18,16 @@ inline long long turtle_count_paths(const std::vector<std::string>& grid,
   const int cols = static_cast<int>(grid[0].size());
   std::vector<long long> dp(cols);
   dp[0] = grid[0][0] == blocked ? 0 : 1;
-  for (int row = 0; row < rows; ++row)
+  EDULCNI_VIS(edulcni::live::array("turtle_dp.count", dp));
+  EDULCNI_STEP("Grid path counting initialized");
+  for (int row = 0; row < rows; ++row) {
     for (int col = 0; col < cols; ++col) {
       if (grid[row][col] == blocked) dp[col] = 0;
       else if (col > 0) dp[col] = (dp[col] + dp[col - 1]) % mod;
     }
+    EDULCNI_VIS(edulcni::live::array("turtle_dp.count", dp));
+    EDULCNI_STEP("Grid path counting completes a row");
+  }
   return dp.back();
 }
 
@@ -31,7 +43,10 @@ inline TurtleDpResult turtle_best_path(
   std::vector<std::vector<long long>> dp(rows, std::vector<long long>(cols, unreachable));
   std::vector<std::vector<char>> parent(rows, std::vector<char>(cols));
   if (blocked.empty() || blocked[0][0] != '#') dp[0][0] = value[0][0];
-  for (int row = 0; row < rows; ++row)
+  EDULCNI_VIS(edulcni::live::matrix("turtle_dp.value", value));
+  EDULCNI_VIS(edulcni::live::matrix("turtle_dp.best", dp));
+  EDULCNI_STEP("Grid path optimization initialized");
+  for (int row = 0; row < rows; ++row) {
     for (int col = 0; col < cols; ++col) {
       if ((!blocked.empty() && blocked[row][col] == '#') || (row == 0 && col == 0)) continue;
       if (row > 0 && (maximize ? dp[row - 1][col] > dp[row][col]
@@ -44,6 +59,9 @@ inline TurtleDpResult turtle_best_path(
       }
       if (dp[row][col] != unreachable) dp[row][col] += value[row][col];
     }
+    EDULCNI_VIS(edulcni::live::matrix("turtle_dp.best", dp));
+    EDULCNI_STEP("Grid path optimization completes a row");
+  }
   if (dp.back().back() == unreachable) return {unreachable, {}};
   std::vector<std::pair<int, int>> path;
   for (int row = rows - 1, col = cols - 1; ; ) {

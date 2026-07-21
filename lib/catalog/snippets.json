@@ -79,6 +79,13 @@
     "render": {
       "style": "inline-global",
       "namespace": "global"
+    },
+    "visualization": {
+      "status": "automatic",
+      "models": ["interval_tree"],
+      "layout": "single",
+      "defaultGranularity": "operations",
+      "limitations": ["MVP instrumentation covers the recursive sum preset"]
     }
   },
   {
@@ -252,7 +259,13 @@
       "targetName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["graph", "queue", "array"],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/linear_sieve",
@@ -396,7 +409,13 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["parent_forest", "array", "scalar"],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/rollback_dsu",
@@ -1173,7 +1192,14 @@
       "pointsName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["cartesian_geometry"],
+      "layout": "single",
+      "defaultGranularity": "operations",
+      "limitations": ["MVP instrumentation covers convex hull construction"]
+    }
   },
   {
     "path": "/solvers/halfplane_intersection",
@@ -1283,7 +1309,13 @@
     "insertMode": "cursor",
     "template": "bricks/lower_bound_l_false_r_true.cpp.tmpl",
     "description": "binary-search loop with false/true boundaries",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": ["array", "scalar"],
+      "layout": "single",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/prefix_2d",
@@ -1490,7 +1522,13 @@
     "template": "solvers/sos_dp/helpers.hpp.tmpl",
     "description": "subset/superset zeta and Möbius transforms",
     "detail": "SOS DP / O(bits * 2^bits)",
-    "exports": ["subset_zeta_transform", "subset_mobius_transform", "superset_zeta_transform"]
+    "exports": ["subset_zeta_transform", "subset_mobius_transform", "superset_zeta_transform"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["array", "bits"],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/turtle_dp",
@@ -1499,7 +1537,13 @@
     "template": "solvers/turtle_dp/helpers.hpp.tmpl",
     "description": "right/down grid path count, minimum, and maximum",
     "detail": "blocked cells + path reconstruction / O(rows * cols)",
-    "exports": ["TurtleDpResult", "turtle_count_paths", "turtle_best_path", "turtle_max_path", "turtle_min_path"]
+    "exports": ["TurtleDpResult", "turtle_count_paths", "turtle_best_path", "turtle_max_path", "turtle_min_path"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["matrix", "array"],
+      "layout": "single",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/substring_dp",

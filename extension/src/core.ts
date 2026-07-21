@@ -164,6 +164,15 @@ export interface CatalogEntry {
   pipeline?: Record<string, unknown>;
   form?: unknown[];
   render?: Record<string, unknown>;
+  visualization?: VisualizationSpec;
+}
+
+export interface VisualizationSpec {
+  status: "automatic" | "snapshot" | "manual" | "none";
+  models: string[];
+  layout?: string;
+  defaultGranularity?: "summary" | "operations" | "verbose";
+  limitations?: string[];
 }
 
 export function renderStaticTemplate(
@@ -7142,11 +7151,15 @@ export function renderBerlekampMassey(options: BerlekampMasseyOptions): string {
 export function stripHeaderGuard(content: string): string {
   const lines = content.split(/\r?\n/);
   let start = 0;
-  if (
-    lines.length >= 2 &&
-    /^\s*#ifndef\s+EDULCNI_/.test(lines[0]) &&
-    /^\s*#define\s+EDULCNI_/.test(lines[1])
-  ) {
+  let guardName: string | undefined;
+  const ifndef = lines[0]?.match(
+    /^\s*#ifndef\s+(EDULCNI_[A-Z0-9_]+_(?:H|HH|HPP|HXX))\s*$/
+  );
+  const define = lines[1]?.match(
+    /^\s*#define\s+(EDULCNI_[A-Z0-9_]+_(?:H|HH|HPP|HXX))\s*$/
+  );
+  if (ifndef && define && ifndef[1] === define[1]) {
+    guardName = ifndef[1];
     start = 2;
   }
 
@@ -7154,7 +7167,11 @@ export function stripHeaderGuard(content: string): string {
   while (end > start && lines[end - 1].trim() === "") {
     --end;
   }
-  if (end > start && /^\s*#endif\b.*EDULCNI_/.test(lines[end - 1])) {
+  if (
+    guardName &&
+    end > start &&
+    new RegExp(`^\\s*#endif\\b(?:\\s*//.*\\b${guardName}\\b)?\\s*$`).test(lines[end - 1])
+  ) {
     --end;
   }
 

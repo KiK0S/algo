@@ -1,3 +1,10 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 {{valueType}} neutral() {
   return {{valueType}}(0);
 }
@@ -28,6 +35,8 @@ void init_segtree(int n) {
   lazy_set.assign(4 * max(1, n), {{valueType}}(0));
   lazy_has_set.assign(4 * max(1, n), 0);
 {{/if}}
+  EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", n, t));
+  EDULCNI_STEP("Segment tree initialized");
 }
 
 {{#if rangeAssign}}
@@ -80,12 +89,20 @@ void push(int v, int tl, int tr) {
 void build(int v, int tl, int tr, const vector<{{valueType}}>& a) {
   if (tl == tr) {
     t[v] = make_node(a[tl]);
+    EDULCNI_VIS(v == 1
+        ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+           edulcni::live::step("Segment tree built"))
+        : static_cast<void>(0));
     return;
   }
   int tm = (tl + tr) / 2;
   build(v * 2, tl, tm, a);
   build(v * 2 + 1, tm + 1, tr, a);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1
+      ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+         edulcni::live::step("Segment tree built"))
+      : static_cast<void>(0));
 }
 
 {{valueType}} get(int v, int tl, int tr, int l, int r) {
@@ -102,6 +119,10 @@ void build(int v, int tl, int tr, const vector<{{valueType}}>& a) {
 void point_set(int v, int tl, int tr, int pos, {{valueType}} value) {
   if (tl == tr) {
     t[v] = make_node(value);
+    EDULCNI_VIS(v == 1
+        ? (edulcni::live::segment_tree("segtree.tree", 1, t),
+           edulcni::live::step("Segment tree updates a point"))
+        : static_cast<void>(0));
     return;
   }
 {{#if hasLazy}}
@@ -111,6 +132,10 @@ void point_set(int v, int tl, int tr, int pos, {{valueType}} value) {
   if (pos <= tm) point_set(v * 2, tl, tm, pos, value);
   else point_set(v * 2 + 1, tm + 1, tr, pos, value);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1
+      ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+         edulcni::live::step("Segment tree updates a point"))
+      : static_cast<void>(0));
 }
 {{/if}}
 
@@ -118,6 +143,10 @@ void point_set(int v, int tl, int tr, int pos, {{valueType}} value) {
 void point_add(int v, int tl, int tr, int pos, {{valueType}} delta) {
   if (tl == tr) {
     t[v] += delta;
+    EDULCNI_VIS(v == 1
+        ? (edulcni::live::segment_tree("segtree.tree", 1, t),
+           edulcni::live::step("Segment tree adds at a point"))
+        : static_cast<void>(0));
     return;
   }
 {{#if hasLazy}}
@@ -127,6 +156,10 @@ void point_add(int v, int tl, int tr, int pos, {{valueType}} delta) {
   if (pos <= tm) point_add(v * 2, tl, tm, pos, delta);
   else point_add(v * 2 + 1, tm + 1, tr, pos, delta);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1
+      ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+         edulcni::live::step("Segment tree adds at a point"))
+      : static_cast<void>(0));
 }
 {{/if}}
 
@@ -135,6 +168,10 @@ void range_add(int v, int tl, int tr, int l, int r, {{valueType}} delta) {
   if (tl > r || tr < l) return;
   if (l <= tl && tr <= r) {
     apply_add(v, tl, tr, delta);
+    EDULCNI_VIS(v == 1
+        ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+           edulcni::live::step("Segment tree adds over a range"))
+        : static_cast<void>(0));
     return;
   }
 {{#if hasLazy}}
@@ -144,6 +181,10 @@ void range_add(int v, int tl, int tr, int l, int r, {{valueType}} delta) {
   range_add(v * 2, tl, tm, l, r, delta);
   range_add(v * 2 + 1, tm + 1, tr, l, r, delta);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1
+      ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+         edulcni::live::step("Segment tree adds over a range"))
+      : static_cast<void>(0));
 }
 {{/if}}
 
@@ -152,6 +193,10 @@ void range_assign(int v, int tl, int tr, int l, int r, {{valueType}} value) {
   if (tl > r || tr < l) return;
   if (l <= tl && tr <= r) {
     apply_set(v, tl, tr, value);
+    EDULCNI_VIS(v == 1
+        ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+           edulcni::live::step("Segment tree assigns over a range"))
+        : static_cast<void>(0));
     return;
   }
 {{#if hasLazy}}
@@ -161,5 +206,9 @@ void range_assign(int v, int tl, int tr, int l, int r, {{valueType}} value) {
   range_assign(v * 2, tl, tm, l, r, value);
   range_assign(v * 2 + 1, tm + 1, tr, l, r, value);
   t[v] = merge(t[v * 2], t[v * 2 + 1]);
+  EDULCNI_VIS(v == 1
+      ? (edulcni::live::segment_tree("segtree.tree", tr - tl + 1, t),
+         edulcni::live::step("Segment tree assigns over a range"))
+      : static_cast<void>(0));
 }
 {{/if}}
