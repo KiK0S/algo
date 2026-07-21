@@ -15,6 +15,7 @@
     "onCommand:edulcni.segtree",
     "onCommand:edulcni.compressUnique",
     "onCommand:edulcni.readVector",
+    "onCommand:edulcni.readMatrix",
     "onCommand:edulcni.berlekampMassey",
     "onCommand:edulcni.sparseTable"
   ],
@@ -42,6 +43,10 @@
       {
         "command": "edulcni.readVector",
         "title": "edulcni: read_vector"
+      },
+      {
+        "command": "edulcni.readMatrix",
+        "title": "edulcni: read_matrix"
       },
       {
         "command": "edulcni.berlekampMassey",

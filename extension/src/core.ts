@@ -446,6 +446,14 @@ export interface ReadVectorOptions {
   containerType: string;
 }
 
+export interface ReadMatrixOptions {
+  name: string;
+  rowExpression: string;
+  columnExpression: string;
+  valueType: string;
+  stringGrid: boolean;
+}
+
 export interface DsuNames {
   className: string;
 }
@@ -2726,6 +2734,17 @@ export function renderReadVector(options: ReadVectorOptions): string {
     containerType: options.containerType,
     name: options.name,
     sizeExpression: options.sizeExpression
+  });
+}
+
+export function renderReadMatrix(options: ReadMatrixOptions): string {
+  return renderCodeTemplate("bricks/read_matrix.cpp.tmpl", {
+    name: options.name,
+    rowExpression: options.rowExpression,
+    columnExpression: options.columnExpression,
+    valueType: options.valueType,
+    stringGrid: options.stringGrid,
+    valueMatrix: !options.stringGrid
   });
 }
 

@@ -366,6 +366,17 @@
     "form": ["name", "sizeExpression", "valueType"]
   },
   {
+    "path": "/bricks/read_matrix",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "generator": "read_matrix",
+    "label": "/bricks/read_matrix",
+    "description": "interactive matrix or character-grid input snippet",
+    "detail": "interactive / brick",
+    "exports": ["a"],
+    "form": ["name", "rowExpression", "columnExpression", "valueType"]
+  },
+  {
     "path": "/solvers/dsu",
     "kind": "solver",
     "insertMode": "global",

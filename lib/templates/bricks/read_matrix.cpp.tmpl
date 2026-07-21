@@ -1,0 +1,9 @@
+{{#if stringGrid}}
+vector<string> {{name}}({{rowExpression}});
+for (auto& row : {{name}}) cin >> row;
+{{/if}}
+{{#if valueMatrix}}
+vector<vector<{{valueType}}>> {{name}}({{rowExpression}}, vector<{{valueType}}>({{columnExpression}}));
+for (auto& row : {{name}})
+	for (auto& value : row) cin >> value;
+{{/if}}

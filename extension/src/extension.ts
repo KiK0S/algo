@@ -208,6 +208,7 @@ import {
   renderOrderedSetRecipe,
   renderPolyHashRecipe,
   renderReadVector,
+  renderReadMatrix,
   renderRecipeSnippet,
   renderStaticTemplate,
   renderRollbackDsuRecipe,
@@ -223,6 +224,7 @@ import {
   resolveCatalogOrder,
   RenderedSnippet,
   ReadVectorOptions,
+  ReadMatrixOptions,
   ROLLBACK_DSU_APPLICATION_SPEC,
   RollbackDsuApplication,
   RollbackDsuIndexing,
@@ -710,6 +712,7 @@ const DIRECT_COMMANDS = [
   { command: "edulcni.segtree", snippetPath: "/solvers/segtree" },
   { command: "edulcni.compressUnique", snippetPath: "/bricks/compress_unique" },
   { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" },
+  { command: "edulcni.readMatrix", snippetPath: "/bricks/read_matrix" },
   { command: "edulcni.berlekampMassey", snippetPath: "/solvers/berlekamp_massey" },
   { command: "edulcni.sparseTable", snippetPath: "/solvers/sparse_table" }
 ] as const;
@@ -1510,6 +1513,66 @@ async function promptReadVectorOptions(
     sizeExpression: sizeExpression.trim(),
     valueType: valueType.trim(),
     containerType: vectorContainerTypeForValueType(analysis, valueType.trim())
+  };
+}
+
+async function promptReadMatrixOptions(
+  editor: vscode.TextEditor
+): Promise<ReadMatrixOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const title = "edulcni: read_matrix";
+  const nameInput = await showExplainedInputBox({
+    title,
+    prompt: "Matrix variable name",
+    value: suggestIdentifier(analysis, "a", "grid"),
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (nameInput === undefined || nameInput.trim() === "") return undefined;
+
+  const rowExpression = await pickStringWithCustom(
+    title,
+    "Row count",
+    sizeExpressionCandidates(analysis),
+    "Expression for the number of rows, for example n"
+  );
+  if (rowExpression === undefined || rowExpression.trim() === "") return undefined;
+
+  const columnExpression = await pickStringWithCustom(
+    title,
+    "Column count",
+    sizeExpressionCandidates(analysis),
+    "Expression for the number of columns, for example m"
+  );
+  if (columnExpression === undefined || columnExpression.trim() === "") return undefined;
+
+  const kind = await showExplainedQuickPick<ValuePickItem<"values" | "characters">>(
+    [
+      { label: "value matrix", value: "values", picked: true },
+      { label: "character grid", value: "characters" }
+    ],
+    { title, placeHolder: "Matrix input format", ignoreFocusOut: true }
+  );
+  if (!kind) return undefined;
+
+  let valueType = "char";
+  if (kind.value === "values") {
+    const selectedType = await pickStringWithCustom(
+      title,
+      "Value type",
+      ["int", "ll", "long long", "char"],
+      "C++ value type"
+    );
+    if (selectedType === undefined || selectedType.trim() === "") return undefined;
+    valueType = selectedType.trim();
+  }
+
+  return {
+    name: nameInput.trim(),
+    rowExpression: rowExpression.trim(),
+    columnExpression: columnExpression.trim(),
+    valueType,
+    stringGrid: kind.value === "characters"
   };
 }
 
@@ -5492,6 +5555,40 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
             sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
             valueType,
             containerType: vectorContainerTypeForValueType(analysis, valueType)
+          }),
+          renames: [],
+          exports: []
+        };
+      }
+    }
+  ],
+  [
+    "read_matrix",
+    {
+      catalogEntry: {
+        path: "/bricks/read_matrix",
+        kind: "brick",
+        insertMode: "cursor",
+        generator: "read_matrix",
+        label: "/bricks/read_matrix",
+        description: "interactive matrix or character-grid input snippet",
+        detail: "interactive / brick"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptReadMatrixOptions(editor);
+        return options
+          ? { content: renderReadMatrix(options), renames: [], exports: [] }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        const sizes = sizeExpressionCandidates(analysis);
+        return {
+          content: renderReadMatrix({
+            name: suggestIdentifier(analysis, "a", "grid"),
+            rowExpression: sizes[0] ?? "n",
+            columnExpression: sizes[1] ?? "m",
+            valueType: "int",
+            stringGrid: false
           }),
           renames: [],
           exports: []
