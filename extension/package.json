@@ -61,8 +61,12 @@
   "scripts": {
     "sync-library": "node ./scripts/sync-library.mjs",
     "build": "npm run sync-library && tsc -p .",
-    "test": "npm run build && npm run build-archive && node ./test/core.test.js",
+    "test": "npm run build && node ../tools/generate-solver-examples.mjs --check && npm run build-archive && node ./test/core.test.js",
     "test:visualization": "EDULCNI_ACTIVE_TESTS=1 npm test",
+    "generate:examples": "npm run build && node ../tools/generate-solver-examples.mjs",
+    "check:examples": "npm run build && node ../tools/generate-solver-examples.mjs --check",
+    "test:examples": "npm run check:examples && node ../tools/check-solver-examples.mjs",
+    "test:examples:visualization": "EDULCNI_ACTIVE_EXAMPLES=1 npm run test:examples",
     "build-archive": "node ../tools/build-archive-site.mjs",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run build"

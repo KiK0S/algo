@@ -23,6 +23,24 @@ Segment-tree presets are consolidated under /solvers/segtree. Segment Tree
 Beats remains /solvers/segtree_beats because it has a distinct invariant and
 prompt surface.
 
+## Runnable examples
+
+Every solver catalog entry has a generated, executable showcase under
+`examples/solvers`. The examples are rendered from the same templates used by
+the extension, then combined with small deterministic drivers that exercise the
+algorithm and its visualization hooks.
+
+For example:
+
+~~~bash
+cd examples/solvers/bfs
+xeppelin edulcni main
+~~~
+
+See `examples/README.md` for the complete index. From `extension/`, use
+`npm run generate:examples` after template changes and `npm run check:examples`
+to detect stale generated files.
+
 ## Archive website
 
 The static app in site presents the catalog as a searchable expandable tree
@@ -47,6 +65,8 @@ parameters:
 ~~~bash
 cd extension
 npm test
+npm run test:examples
+npm run test:examples:visualization
 ~~~
 
 Direct C++ tests that include archive snippets are intentionally unsupported;

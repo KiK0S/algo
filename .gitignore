@@ -4,3 +4,6 @@ extension/library
 .test-bin
 site/archive.json
 site/core-browser.js
+examples/**/main.edulcni
+examples/**/main.edulcni.dSYM/
+examples/**/output.out
