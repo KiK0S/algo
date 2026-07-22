@@ -82,10 +82,16 @@
     },
     "visualization": {
       "status": "automatic",
-      "models": ["interval_tree"],
-      "layout": "single",
+      "models": [
+        "array",
+        "interval_tree",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
       "defaultGranularity": "operations",
-      "limitations": ["MVP instrumentation covers the recursive sum preset"]
+      "limitations": [
+        "Custom node values that are not streamable are displayed as <value>."
+      ]
     }
   },
   {
@@ -115,6 +121,16 @@
     "render": {
       "style": "inline-global",
       "namespace": "global"
+    },
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "bits",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
     }
   },
   {
@@ -199,6 +215,16 @@
       "style": "inline-global",
       "namespace": "global",
       "interval": "inclusive"
+    },
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "matrix",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
     }
   },
   {
@@ -209,7 +235,18 @@
     "label": "/bricks/modpow",
     "description": "binary modular exponentiation",
     "detail": "template / brick",
-    "exports": ["modpow"]
+    "exports": ["modpow"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations",
+      "limitations": [
+        "The current hooks trace modular exponentiation; ordinary arithmetic operators remain uninstrumented."
+      ]
+    }
   },
   {
     "path": "/solvers/bfs",
@@ -262,7 +299,11 @@
     "sections": ["helpers", "solve"],
     "visualization": {
       "status": "automatic",
-      "models": ["graph", "queue", "array"],
+      "models": [
+        "graph",
+        "queue",
+        "array"
+      ],
       "layout": "graph_with_sidebar",
       "defaultGranularity": "operations"
     }
@@ -281,7 +322,16 @@
       "linear_sieve_primes"
     ],
     "features": ["lowest_prime", "primes", "factorization"],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/fenwick",
@@ -331,7 +381,17 @@
     "constraints": ["inverse_for_range_query", "monotone_for_descend"],
     "wrappers": ["build_from_vector", "range_update_sum"],
     "bindings": ["sizeExpression", "sourceName", "valueType", "instanceName", "answerName"],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "tree",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/modint",
@@ -346,7 +406,16 @@
       "DynamicModInt"
     ],
     "features": ["static_mod", "dynamic_mod", "inverse", "pow"],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/compress_unique",
@@ -357,7 +426,16 @@
     "description": "interactive coordinate compression snippet",
     "detail": "interactive / brick",
     "exports": ["vals", "get_id"],
-    "form": ["sourceName", "rewriteSource"]
+    "form": ["sourceName", "rewriteSource"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "table"
+      ],
+      "layout": "split_vertical",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/read_vector",
@@ -368,7 +446,15 @@
     "description": "interactive vector declaration and input snippet",
     "detail": "interactive / brick",
     "exports": ["a"],
-    "form": ["name", "sizeExpression", "valueType"]
+    "form": ["name", "sizeExpression", "valueType"],
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "array"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/read_matrix",
@@ -379,7 +465,15 @@
     "description": "interactive matrix or character-grid input snippet",
     "detail": "interactive / brick",
     "exports": ["a"],
-    "form": ["name", "rowExpression", "columnExpression", "valueType"]
+    "form": ["name", "rowExpression", "columnExpression", "valueType"],
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "matrix"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/solvers/dsu",
@@ -412,7 +506,11 @@
     "sections": ["helpers", "solve"],
     "visualization": {
       "status": "automatic",
-      "models": ["parent_forest", "array", "scalar"],
+      "models": [
+        "parent_forest",
+        "array",
+        "scalar"
+      ],
       "layout": "main_with_sidebar",
       "defaultGranularity": "operations"
     }
@@ -440,7 +538,18 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "parent_forest",
+        "array",
+        "stack",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/lca",
@@ -466,7 +575,17 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "tree",
+        "matrix",
+        "array"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/twosat",
@@ -487,7 +606,17 @@
       "at_most_one",
       "components"
     ],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "array",
+        "table"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/maxflow_dinic",
@@ -499,7 +628,18 @@
     "detail": "dynamic / solver",
     "exports": ["Dinic"],
     "features": ["add_edge", "max_flow", "min_cut", "graph_access", "reset_flows"],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "queue",
+        "array",
+        "scalar"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/mincost_maxflow",
@@ -518,7 +658,18 @@
       "graph_access",
       "potential_access"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "priority_queue",
+        "array",
+        "scalar"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/hungarian",
@@ -535,7 +686,17 @@
       "hungarian_maximize"
     ],
     "features": ["minimize", "maximize", "rectangular"],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "matrix",
+        "graph",
+        "array"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/kuhn",
@@ -558,7 +719,16 @@
       "right_matches",
       "vertex_cover"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "array"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/implicit_treap",
@@ -595,7 +765,19 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations",
+      "limitations": [
+        "Mutations publish operation and size snapshots; sequence contents are materialized only by an explicit to_vector() call."
+      ]
+    }
   },
   {
     "path": "/solvers/merge_sort_tree",
@@ -640,7 +822,17 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "interval_tree",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/poly_hash",
@@ -661,7 +853,17 @@
       "poly_hash_equal_substrings"
     ],
     "features": ["substring_equal", "reverse", "lcp", "concat"],
-    "sections": ["constants", "helpers"]
+    "sections": ["constants", "helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "string",
+        "matrix",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/suffix_array",
@@ -679,7 +881,17 @@
       "suffix_array_remove_empty_suffix"
     ],
     "features": ["rank", "lcp", "stripped_sa", "lcp_rmq"],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "string",
+        "array",
+        "matrix"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/segtree_beats",
@@ -716,7 +928,17 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "interval_tree",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/fft_ntt",
@@ -737,7 +959,17 @@
       "convolution_ntt_int"
     ],
     "features": ["fft", "ntt", "convolution", "mod_998244353"],
-    "sections": ["helpers"]
+    "sections": ["helpers"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "butterfly",
+        "geometry"
+      ],
+      "layout": "split_vertical",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/fast_allocator",
@@ -771,7 +1003,17 @@
       "arenaName",
       "containerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "diagnostic",
+      "models": [
+        "gauge",
+        "histogram",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/monotonic_stack",
@@ -819,7 +1061,16 @@
       "resultName",
       "valueType"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "stack"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/toposort",
@@ -858,7 +1109,17 @@
       "orderName",
       "dagName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "queue",
+        "array"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/kosaraju",
@@ -897,7 +1158,17 @@
       "graphName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "stack",
+        "array"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/dijkstra",
@@ -946,7 +1217,17 @@
       "targetName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "priority_queue",
+        "array"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/gp_hash_table",
@@ -985,7 +1266,16 @@
       "tableName",
       "sourceName"
     ],
-    "sections": ["includes", "helpers", "solve"]
+    "sections": ["includes", "helpers", "solve"],
+    "visualization": {
+      "status": "manual",
+      "models": [
+        "table"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary",
+      "reason": "The artifact is a PBDS alias, so operations cannot be intercepted without replacing its public type."
+    }
   },
   {
     "path": "/solvers/ordered_set",
@@ -1021,7 +1311,19 @@
       "keyType",
       "setName"
     ],
-    "sections": ["includes", "helpers", "solve"]
+    "sections": ["includes", "helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "sorted_collection",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations",
+      "limitations": [
+        "Mutations through raw() bypass visualization hooks."
+      ]
+    }
   },
   {
     "path": "/solvers/set_utils",
@@ -1054,7 +1356,19 @@
       "iteratorName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "sorted_collection",
+        "scalar"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary",
+      "limitations": [
+        "Iterator-only helpers do not own the container and therefore cannot publish a container snapshot."
+      ]
+    }
   },
   {
     "path": "/solvers/hld",
@@ -1097,7 +1411,17 @@
       "instanceName",
       "answerName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "tree",
+        "array",
+        "table"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/mo",
@@ -1144,7 +1468,17 @@
       "queriesName",
       "answersName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "table",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/geometry",
@@ -1195,10 +1529,12 @@
     "sections": ["helpers", "solve"],
     "visualization": {
       "status": "automatic",
-      "models": ["cartesian_geometry"],
-      "layout": "single",
-      "defaultGranularity": "operations",
-      "limitations": ["MVP instrumentation covers convex hull construction"]
+      "models": [
+        "geometry",
+        "scalar"
+      ],
+      "layout": "plane_with_sidebar",
+      "defaultGranularity": "operations"
     }
   },
   {
@@ -1237,7 +1573,16 @@
       "halfplanesName",
       "resultName"
     ],
-    "sections": ["helpers", "solve"]
+    "sections": ["helpers", "solve"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "geometry",
+        "deque"
+      ],
+      "layout": "plane_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/base_template",
@@ -1245,7 +1590,12 @@
     "insertMode": "cursor",
     "template": "bricks/base_template.cpp.tmpl",
     "description": "complete competitive-programming file template",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "none",
+      "models": [],
+      "reason": "The base template establishes the contest program and has no evolving algorithm state."
+    }
   },
   {
     "path": "/bricks/bfs_dist",
@@ -1253,7 +1603,17 @@
     "insertMode": "cursor",
     "template": "bricks/bfs_dist.cpp.tmpl",
     "description": "inline BFS distance traversal",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "queue",
+        "array"
+      ],
+      "layout": "graph_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/bitmask_loop",
@@ -1261,7 +1621,16 @@
     "insertMode": "cursor",
     "template": "bricks/bitmask_loop.cpp.tmpl",
     "description": "iterate all bitmasks",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits",
+        "array"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/decrement_indices",
@@ -1269,7 +1638,15 @@
     "insertMode": "cursor",
     "template": "bricks/decrement_indices.cpp.tmpl",
     "description": "convert two indices to zero-based",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "scalar"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/dfs_tree",
@@ -1277,7 +1654,17 @@
     "insertMode": "cursor",
     "template": "bricks/dfs_tree.cpp.tmpl",
     "description": "inline DFS parent/depth/subtree traversal",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "tree",
+        "stack",
+        "array"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/dsu_short",
@@ -1285,7 +1672,16 @@
     "insertMode": "cursor",
     "template": "bricks/dsu_short.cpp.tmpl",
     "description": "terse inline disjoint-set union",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "parent_forest",
+        "array"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/fenwick_sum",
@@ -1293,7 +1689,17 @@
     "insertMode": "cursor",
     "template": "bricks/fenwick_sum.cpp.tmpl",
     "description": "terse sum Fenwick tree",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "tree",
+        "scalar"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/grid4",
@@ -1301,7 +1707,15 @@
     "insertMode": "cursor",
     "template": "bricks/grid4.cpp.tmpl",
     "description": "four-neighbor grid directions",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "diagnostic",
+      "models": [
+        "array"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/lower_bound_l_false_r_true",
@@ -1312,8 +1726,11 @@
     "detail": "template / brick",
     "visualization": {
       "status": "automatic",
-      "models": ["array", "scalar"],
-      "layout": "single",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
       "defaultGranularity": "operations"
     }
   },
@@ -1323,7 +1740,16 @@
     "insertMode": "cursor",
     "template": "bricks/prefix_2d.cpp.tmpl",
     "description": "two-dimensional prefix sums",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "matrix",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/print_vector",
@@ -1331,7 +1757,15 @@
     "insertMode": "cursor",
     "template": "bricks/print_vector.cpp.tmpl",
     "description": "print a vector on one line",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "array"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/read_array",
@@ -1339,7 +1773,15 @@
     "insertMode": "cursor",
     "template": "bricks/read_array.cpp.tmpl",
     "description": "declare and read an integer vector",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "array"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/read_graph_undirected",
@@ -1347,7 +1789,15 @@
     "insertMode": "cursor",
     "template": "bricks/read_graph_undirected.cpp.tmpl",
     "description": "read an undirected graph",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "graph"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/read_tree_edges",
@@ -1355,7 +1805,15 @@
     "insertMode": "cursor",
     "template": "bricks/read_tree_edges.cpp.tmpl",
     "description": "read tree edges",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "tree"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/read_vector_ref",
@@ -1363,7 +1821,15 @@
     "insertMode": "cursor",
     "template": "bricks/read_vector_ref.cpp.tmpl",
     "description": "read an existing vector by reference",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "array"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/static_rsq",
@@ -1371,7 +1837,16 @@
     "insertMode": "cursor",
     "template": "bricks/static_rsq.cpp.tmpl",
     "description": "static range-sum prefix array",
-    "detail": "template / brick"
+    "detail": "template / brick",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/test_generators",
@@ -1381,7 +1856,18 @@
     "label": "/solvers/test_generators",
     "description": "random stress-test data generators",
     "detail": "template / solver",
-    "exports": ["TestGenerator"]
+    "exports": ["TestGenerator"],
+    "visualization": {
+      "status": "snapshot",
+      "models": [
+        "scalar",
+        "array",
+        "tree",
+        "graph"
+      ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
   },
   {
     "path": "/bricks/stress_test",
@@ -1391,7 +1877,12 @@
     "label": "/bricks/stress_test",
     "description": "multi-binary stress-test harness",
     "detail": "template / brick",
-    "dependsOn": ["/solvers/test_generators"]
+    "dependsOn": ["/solvers/test_generators"],
+    "visualization": {
+      "status": "none",
+      "models": [],
+      "reason": "The brick orchestrates external processes; visualization belongs to the contest runner."
+    }
   },
   {
     "path": "/bricks/interactive_query",
@@ -1401,7 +1892,18 @@
     "label": "/bricks/interactive_query",
     "description": "LOCAL callback or judge interactive query",
     "detail": "template / brick",
-    "exports": ["interactive_query"]
+    "exports": ["interactive_query"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "scalar"
+      ],
+      "layout": "split_vertical",
+      "defaultGranularity": "operations",
+      "limitations": [
+        "The LOCAL callback path forwards directly and is not instrumented; the judge path currently publishes answers only."
+      ]
+    }
   },
   {
     "path": "/solvers/tree_hash",
@@ -1411,7 +1913,17 @@
     "label": "/solvers/tree_hash",
     "description": "rooted and unrooted canonical tree hashing",
     "detail": "template / solver",
-    "exports": ["TreeHasher"]
+    "exports": ["TreeHasher"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "tree",
+        "queue",
+        "array"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/submasks",
@@ -1419,7 +1931,15 @@
     "insertMode": "cursor",
     "template": "bricks/submasks.cpp.tmpl",
     "description": "enumerate every submask, including zero",
-    "detail": "for (sub = mask; ; sub = (sub - 1) & mask)"
+    "detail": "for (sub = mask; ; sub = (sub - 1) & mask)",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/proper_submasks",
@@ -1427,7 +1947,15 @@
     "insertMode": "cursor",
     "template": "bricks/proper_submasks.cpp.tmpl",
     "description": "enumerate non-empty proper submasks",
-    "detail": "compact subset-transition loop"
+    "detail": "compact subset-transition loop",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/supermasks",
@@ -1435,7 +1963,15 @@
     "insertMode": "cursor",
     "template": "bricks/supermasks.cpp.tmpl",
     "description": "enumerate every fixed-width supermask",
-    "detail": "for (super = mask; super < 1 << bits; ...)"
+    "detail": "for (super = mask; super < 1 << bits; ...)",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/subset_partitions",
@@ -1443,7 +1979,15 @@
     "insertMode": "cursor",
     "template": "bricks/subset_partitions.cpp.tmpl",
     "description": "split a mask into complementary left/right subsets",
-    "detail": "enumerates ordered subset partitions"
+    "detail": "enumerates ordered subset partitions",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/disjoint_masks",
@@ -1451,7 +1995,15 @@
     "insertMode": "cursor",
     "template": "bricks/disjoint_masks.cpp.tmpl",
     "description": "enumerate ordered pairs of disjoint masks",
-    "detail": "O(3^bits) disjoint-pair loop"
+    "detail": "O(3^bits) disjoint-pair loop",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/subset_zeta",
@@ -1459,7 +2011,16 @@
     "insertMode": "cursor",
     "template": "bricks/subset_zeta.cpp.tmpl",
     "description": "in-place sums over all submasks",
-    "detail": "subset zeta transform in O(bits * 2^bits)"
+    "detail": "subset zeta transform in O(bits * 2^bits)",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/bricks/subset_mobius",
@@ -1467,7 +2028,16 @@
     "insertMode": "cursor",
     "template": "bricks/subset_mobius.cpp.tmpl",
     "description": "invert an in-place subset zeta transform",
-    "detail": "subset Möbius transform in O(bits * 2^bits)"
+    "detail": "subset Möbius transform in O(bits * 2^bits)",
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "bits"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/fwt_convolution",
@@ -1476,7 +2046,16 @@
     "template": "solvers/fwt_convolution/helpers.hpp.tmpl",
     "description": "XOR, AND, and OR convolutions",
     "detail": "bitwise convolution / O(n log n)",
-    "exports": ["BitwiseConvolution", "fwt_mod_pow", "fwt_transform", "bitwise_convolution"]
+    "exports": ["BitwiseConvolution", "fwt_mod_pow", "fwt_transform", "bitwise_convolution"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "butterfly"
+      ],
+      "layout": "split_vertical",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/offline_dynamic_connectivity",
@@ -1486,7 +2065,18 @@
     "dependsOn": ["/solvers/rollback_dsu"],
     "description": "edge add/remove and connectivity queries offline",
     "detail": "rollback DSU + segment tree over time / O(q log q log n)",
-    "exports": ["DynamicConnectivityOperationType", "DynamicConnectivityOperation", "OfflineDynamicConnectivity"]
+    "exports": ["DynamicConnectivityOperationType", "DynamicConnectivityOperation", "OfflineDynamicConnectivity"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "table",
+        "interval_tree",
+        "parent_forest",
+        "stack"
+      ],
+      "layout": "tree_with_array",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/dp_knapsack",
@@ -1495,7 +2085,16 @@
     "template": "solvers/dp_knapsack/helpers.hpp.tmpl",
     "description": "0/1 and unbounded one-dimensional knapsack",
     "detail": "capacity DP / O(items * capacity)",
-    "exports": ["knapsack_zero_one", "knapsack_unbounded"]
+    "exports": ["knapsack_zero_one", "knapsack_unbounded"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/lis",
@@ -1504,7 +2103,16 @@
     "template": "solvers/lis/helpers.hpp.tmpl",
     "description": "strict or nondecreasing LIS with reconstruction",
     "detail": "returns selected indices / O(n log n)",
-    "exports": ["longest_increasing_subsequence_indices"]
+    "exports": ["longest_increasing_subsequence_indices"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/digit_dp",
@@ -1513,7 +2121,17 @@
     "template": "solvers/digit_dp/helpers.hpp.tmpl",
     "description": "count values up to a decimal bound with custom states",
     "detail": "transition(state, digit), accept(state) / O(digits * states * 10)",
-    "exports": ["digit_dp_count"]
+    "exports": ["digit_dp_count"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "string",
+        "matrix",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/sos_dp",
@@ -1525,7 +2143,10 @@
     "exports": ["subset_zeta_transform", "subset_mobius_transform", "superset_zeta_transform"],
     "visualization": {
       "status": "automatic",
-      "models": ["array", "bits"],
+      "models": [
+        "array",
+        "bits"
+      ],
       "layout": "main_with_sidebar",
       "defaultGranularity": "operations"
     }
@@ -1540,8 +2161,11 @@
     "exports": ["TurtleDpResult", "turtle_count_paths", "turtle_best_path", "turtle_max_path", "turtle_min_path"],
     "visualization": {
       "status": "automatic",
-      "models": ["matrix", "array"],
-      "layout": "single",
+      "models": [
+        "matrix",
+        "array"
+      ],
+      "layout": "table_with_dependencies",
       "defaultGranularity": "operations"
     }
   },
@@ -1552,7 +2176,17 @@
     "template": "solvers/substring_dp/helpers.hpp.tmpl",
     "description": "substring partition DP and palindromic subsequence DP",
     "detail": "dp[l][r] and split transitions / O(n²)",
-    "exports": ["substring_partition_dp", "longest_palindromic_subsequence"]
+    "exports": ["substring_partition_dp", "longest_palindromic_subsequence"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "string",
+        "matrix",
+        "array"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/divide_conquer_dp",
@@ -1561,7 +2195,16 @@
     "template": "solvers/divide_conquer_dp/helpers.hpp.tmpl",
     "description": "divide-and-conquer optimization for partition DP",
     "detail": "requires monotone optimal split indices",
-    "exports": ["divide_conquer_dp_layer", "divide_conquer_partition_dp"]
+    "exports": ["divide_conquer_dp_layer", "divide_conquer_partition_dp"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/knuth_dp",
@@ -1570,7 +2213,16 @@
     "template": "solvers/knuth_dp/helpers.hpp.tmpl",
     "description": "Knuth optimization for interval partition costs",
     "detail": "requires quadrangle inequality and monotone opt / O(n²)",
-    "exports": ["knuth_interval_dp"]
+    "exports": ["knuth_interval_dp"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "matrix",
+        "scalar"
+      ],
+      "layout": "table_with_dependencies",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/convex_hull_trick",
@@ -1579,7 +2231,17 @@
     "template": "solvers/convex_hull_trick/helpers.hpp.tmpl",
     "description": "decreasing-slope lines and nondecreasing-x minimum queries",
     "detail": "deque convex hull trick / amortized O(1)",
-    "exports": ["MonotoneConvexHullTrick"]
+    "exports": ["MonotoneConvexHullTrick"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "geometry",
+        "deque",
+        "scalar"
+      ],
+      "layout": "plane_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/li_chao_tree",
@@ -1588,7 +2250,17 @@
     "template": "solvers/li_chao_tree/helpers.hpp.tmpl",
     "description": "arbitrary line insertion and minimum queries",
     "detail": "dynamic Li Chao tree / O(log coordinate range)",
-    "exports": ["LiChaoTree"]
+    "exports": ["LiChaoTree"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "geometry",
+        "interval_tree",
+        "scalar"
+      ],
+      "layout": "plane_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/monotone_queue_dp",
@@ -1597,7 +2269,16 @@
     "template": "solvers/monotone_queue_dp/helpers.hpp.tmpl",
     "description": "sliding-window minimum DP optimization",
     "detail": "dp[i] = cost[i] + min(dp[j]) / O(n)",
-    "exports": ["sliding_window_min_dp"]
+    "exports": ["sliding_window_min_dp"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "deque"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   },
   {
     "path": "/solvers/aliens_trick",
@@ -1606,6 +2287,15 @@
     "template": "solvers/aliens_trick/helpers.hpp.tmpl",
     "description": "lambda optimization for an exact selected count",
     "detail": "minimize exact k; penalized solver must prefer larger count on ties",
-    "exports": ["AliensTrickResult", "aliens_trick_min_exact"]
+    "exports": ["AliensTrickResult", "aliens_trick_min_exact"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "number_line",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
   }
 ]

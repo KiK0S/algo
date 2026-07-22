@@ -62,6 +62,7 @@
     "sync-library": "node ./scripts/sync-library.mjs",
     "build": "npm run sync-library && tsc -p .",
     "test": "npm run build && npm run build-archive && node ./test/core.test.js",
+    "test:visualization": "EDULCNI_ACTIVE_TESTS=1 npm test",
     "build-archive": "node ../tools/build-archive-site.mjs",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run build"

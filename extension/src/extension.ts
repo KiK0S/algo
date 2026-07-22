@@ -827,17 +827,33 @@ function compactCodePreview(content: string, exportedNames: string[] = []): stri
   return preview.length > 180 ? `${preview.slice(0, 177)}...` : preview;
 }
 
+function visualizationPickSummary(entry: CatalogEntry): string {
+  const visualization = entry.visualization;
+  if (!visualization) {
+    return "";
+  }
+  if (visualization.status === "none" || visualization.status === "manual") {
+    return `visualization: ${visualization.status}`;
+  }
+  const models = visualization.models.slice(0, 3).join(" + ");
+  const granularity = visualization.defaultGranularity ?? "operations";
+  return `visualization: ${models} · ${granularity}`;
+}
+
 async function snippetPickPreview(
   root: vscode.Uri,
   entry: CatalogEntry,
   analysis: CppAnalysis
 ): Promise<{ detail: string; content?: string }> {
+  const visualization = visualizationPickSummary(entry);
+  const withVisualization = (detail: string): string =>
+    [visualization, detail].filter((value) => value !== "").join(" · ");
   try {
     if (entry.generator) {
       const generated = generatorRegistry.get(entry.generator)?.defaultSnippet(analysis, []);
       const preview = generated ? compactCodePreview(generated.content, generated.exports) : "";
       return {
-        detail: preview || entry.detail || entry.kind,
+        detail: withVisualization(preview || entry.detail || entry.kind),
         content: generated?.content
       };
     }
@@ -847,14 +863,14 @@ async function snippetPickPreview(
       );
       const preview = compactCodePreview(source, entry.exports);
       return {
-        detail: preview || entry.detail || entry.kind,
+        detail: withVisualization(preview || entry.detail || entry.kind),
         content: source
       };
     }
   } catch {
     // Keep the picker usable when a preview cannot be produced.
   }
-  return { detail: entry.detail || entry.kind };
+  return { detail: withVisualization(entry.detail || entry.kind) };
 }
 
 async function buildPickItems(

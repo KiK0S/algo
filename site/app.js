@@ -59,6 +59,7 @@ function parameterValues(entry, name) {
 
 function renderDetails(entry) {
   const parameters = parameterNames(entry);
+  const visualization = entry.visualization;
   details.innerHTML = `
     <p class="eyebrow">${text(entry.kind)}</p>
     <h2 class="entry-path">${text(entry.path)}</h2>
@@ -67,7 +68,23 @@ function renderDetails(entry) {
       <span class="badge primary">${entry.generator ? "interactive generator" : "static template"}</span>
       <span class="badge">${text(entry.insertMode ?? (entry.kind === "solver" ? "global" : "cursor"))} insertion</span>
       ${entry.generator ? `<span class="badge">generator: ${text(entry.generator)}</span>` : ""}
+      ${visualization ? `<span class="badge">visualization: ${text(visualization.status)}</span>` : ""}
     </div>
+    ${visualization ? `
+      <section class="detail-section">
+        <h3>Visualization</h3>
+        <p class="description">${text(
+          visualization.reason ??
+          `${visualization.defaultGranularity ?? "operations"} granularity · ${visualization.layout ?? "single"} layout`
+        )}</p>
+        <div class="chips">${asArray(visualization.models).map(
+          (model) => `<span class="chip">${text(String(model))}</span>`
+        ).join("")}</div>
+        ${(visualization.limitations ?? []).map(
+          (limitation) => `<p class="description">${text(limitation)}</p>`
+        ).join("")}
+      </section>
+    ` : ""}
     <section class="detail-section">
       <h3>Extension parameters</h3>
       ${parameters.length === 0
@@ -215,7 +232,9 @@ function renderTree(query = "") {
       entry.path,
       entry.description,
       ...asArray(entry.features),
-      ...asArray(entry.applications)
+      ...asArray(entry.applications),
+      ...asArray(entry.visualization?.models),
+      entry.visualization?.status
     ].join(" ").toLowerCase();
     return haystack.includes(normalized);
   });

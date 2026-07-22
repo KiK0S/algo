@@ -7,6 +7,53 @@ const subprocess = require("node:child_process");
 const core = require("../out/core.js");
 const wizard = require("../out/wizard.js");
 
+const repoRoot = path.join(__dirname, "..", "..");
+const activeEdulcniTests = process.env.EDULCNI_ACTIVE_TESTS === "1";
+const edulcniRoot = path.resolve(
+  process.env.EDULCNI_ROOT ?? path.join(repoRoot, "..", "edulcni")
+);
+
+function compileCpp(cpp, exe) {
+  const compilerArguments = ["-std=c++17"];
+  if (activeEdulcniTests) {
+    const bootstrap = path.join(edulcniRoot, "include", "edulcni", "bootstrap.hpp");
+    const libraryDirectory = path.join(edulcniRoot, "lib");
+    assert.equal(fs.existsSync(bootstrap), true, `Edulcni bootstrap is missing: ${bootstrap}`);
+    assert.equal(
+      ["libedulcni.a", "libedulcni.dylib", "libedulcni.so"].some((name) =>
+        fs.existsSync(path.join(libraryDirectory, name))
+      ),
+      true,
+      `Edulcni producer library is missing under ${libraryDirectory}; run make mvp`
+    );
+    compilerArguments.push(
+      "-DEDULCNI_ENABLED=1",
+      "-include",
+      bootstrap,
+      `-I${path.join(edulcniRoot, "include")}`
+    );
+  }
+  compilerArguments.push(cpp, "-o", exe);
+  if (activeEdulcniTests) {
+    const libraryDirectory = path.join(edulcniRoot, "lib");
+    compilerArguments.push(
+      `-L${libraryDirectory}`,
+      `-Wl,-rpath,${libraryDirectory}`,
+      "-ledulcni",
+      "-pthread"
+    );
+  }
+  subprocess.execFileSync("g++", compilerArguments, { stdio: "inherit" });
+}
+
+function runCompiled(exe) {
+  const environment = { ...process.env };
+  delete environment.EDULCNI_HOST;
+  delete environment.EDULCNI_PORT;
+  delete environment.EDULCNI_TOKEN;
+  subprocess.execFileSync(exe, [], { stdio: "inherit", env: environment });
+}
+
 {
   const choices = [
     { value: "first" },
@@ -93,10 +140,8 @@ function compileGenerated(name, options, mainBody) {
     "}"
   ].join("\n");
   fs.writeFileSync(cpp, source);
-  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
-    stdio: "inherit"
-  });
-  subprocess.execFileSync(exe, [], { stdio: "inherit" });
+  compileCpp(cpp, exe);
+  runCompiled(exe);
 }
 
 function compileSource(name, source) {
@@ -105,10 +150,8 @@ function compileSource(name, source) {
   const cpp = path.join(dir, `${name}.cpp`);
   const exe = path.join(dir, name);
   fs.writeFileSync(cpp, source);
-  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
-    stdio: "inherit"
-  });
-  subprocess.execFileSync(exe, [], { stdio: "inherit" });
+  compileCpp(cpp, exe);
+  runCompiled(exe);
 }
 
 function compilerHasHeader(header) {
@@ -122,6 +165,28 @@ function compilerHasHeader(header) {
     }
   );
   return result.status === 0;
+}
+
+function testVisualizationHookContract() {
+  compileSource("visualization_hook_contract", [
+    "#include <cassert>",
+    "#ifndef EDULCNI_VIS",
+    "#define EDULCNI_VIS(...) ((void)0)",
+    "#endif",
+    "#ifndef EDULCNI_STEP",
+    "#define EDULCNI_STEP(...) ((void)0)",
+    "#endif",
+    "int main() {",
+    "  int evaluations = 0;",
+    "  EDULCNI_VIS(++evaluations);",
+    "#ifndef EDULCNI_ENABLED",
+    "  EDULCNI_VIS(edulcni::this_symbol_must_not_be_parsed());",
+    "#endif",
+    "  EDULCNI_STEP(\"contract\");",
+    "  assert(evaluations == 0);",
+    "  return 0;",
+    "}"
+  ].join("\n"));
 }
 
 function escapeRegExp(value) {
@@ -1727,10 +1792,33 @@ function testBundledCatalogGuardrails() {
   const catalogPath = path.join(extensionRoot, "library", "catalog", "snippets.json");
   const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
   const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+  const sourceCatalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
+  assert.deepEqual(parsed, sourceCatalog, "bundled catalog is not synchronized");
   const validSections = new Set(core.SOLUTION_SECTION_ORDER);
+  const visualizationStatuses = new Set([
+    "automatic",
+    "snapshot",
+    "diagnostic",
+    "manual",
+    "none"
+  ]);
+  const visualizationLayouts = new Set([
+    "single",
+    "main_with_sidebar",
+    "graph_with_sidebar",
+    "tree_with_array",
+    "table_with_dependencies",
+    "plane_with_sidebar",
+    "split_horizontal",
+    "split_vertical",
+    "tabs"
+  ]);
+  const granularities = new Set(["summary", "operations", "verbose"]);
   const seenPaths = new Set();
 
-  assert.ok(entries.length > 0);
+  assert.equal(entries.length, 78);
   for (const entry of entries) {
     assert.match(entry.path, /^\/(?:bricks|solvers)\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
@@ -1751,6 +1839,51 @@ function testBundledCatalogGuardrails() {
     }
     for (const section of entry.sections ?? []) {
       assert.equal(validSections.has(section), true);
+    }
+
+    const visualization = entry.visualization;
+    assert.equal(
+      visualization !== null && typeof visualization === "object",
+      true,
+      `${entry.path} has no visualization classification`
+    );
+    assert.equal(
+      visualizationStatuses.has(visualization.status),
+      true,
+      `${entry.path} has invalid visualization status`
+    );
+    assert.equal(Array.isArray(visualization.models), true);
+    assert.equal(new Set(visualization.models).size, visualization.models.length);
+    if (["automatic", "snapshot", "diagnostic"].includes(visualization.status)) {
+      assert.equal(
+        visualization.models.length > 0,
+        true,
+        `${entry.path} needs at least one visualization model`
+      );
+    }
+    if (["manual", "none"].includes(visualization.status)) {
+      assert.equal(
+        typeof visualization.reason === "string" && visualization.reason.length > 0,
+        true,
+        `${entry.path} must explain ${visualization.status} status`
+      );
+    }
+    if (visualization.layout !== undefined) {
+      assert.equal(
+        visualizationLayouts.has(visualization.layout),
+        true,
+        `${entry.path} has invalid visualization layout`
+      );
+    }
+    if (visualization.defaultGranularity !== undefined) {
+      assert.equal(
+        granularities.has(visualization.defaultGranularity),
+        true,
+        `${entry.path} has invalid visualization granularity`
+      );
+    }
+    for (const limitation of visualization.limitations ?? []) {
+      assert.equal(typeof limitation === "string" && limitation.length > 0, true);
     }
   }
 
@@ -1819,6 +1952,54 @@ function testFinalLibraryShapeGuardrails() {
 
   for (const templatePath of staticTemplates) {
     assert.equal(fs.existsSync(path.join(templateRoot, templatePath)), true);
+  }
+}
+
+function testVisualizationSourceCoverage() {
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
+  const templateRoot = path.join(repoRoot, "lib", "templates");
+  const generatorOverrides = new Map([
+    ["segtree", path.join(templateRoot, "solvers", "segment_tree")],
+    ["segtree_beats", path.join(templateRoot, "solvers", "segment_tree_beats")],
+    ["compress_unique", path.join(templateRoot, "bricks", "compress_unique.cpp.tmpl")],
+    ["read_vector", path.join(templateRoot, "bricks", "read_vector.cpp.tmpl")],
+    ["read_matrix", path.join(templateRoot, "bricks", "read_matrix.cpp.tmpl")]
+  ]);
+
+  for (const templateFile of collectFiles(templateRoot, new Set([".tmpl"]))) {
+    if (templateFile.endsWith(path.join("bricks", "base_template.cpp.tmpl"))) {
+      continue;
+    }
+    assert.doesNotMatch(
+      fs.readFileSync(templateFile, "utf8"),
+      /^\s*#\s*include\b/m,
+      `${templateFile} must remain a paste snippet without includes`
+    );
+  }
+
+  for (const entry of catalog) {
+    if (["manual", "none"].includes(entry.visualization.status)) {
+      continue;
+    }
+    let candidates;
+    if (entry.template) {
+      candidates = [path.join(templateRoot, entry.template)];
+    } else {
+      const generatorPath = generatorOverrides.get(entry.generator) ??
+        path.join(templateRoot, "solvers", entry.generator);
+      candidates = fs.statSync(generatorPath).isDirectory()
+        ? collectFiles(generatorPath, new Set([".tmpl"]))
+        : [generatorPath];
+    }
+    assert.equal(candidates.length > 0, true, `${entry.path} has no template sources`);
+    const source = candidates.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    assert.match(
+      source,
+      /EDULCNI_(?:VIS|STEP)/,
+      `${entry.path} is classified as ${entry.visualization.status} but has no hooks`
+    );
   }
 }
 
@@ -2094,15 +2275,16 @@ function testGeneratedSegmentTreeBeatsCompiles() {
 }
 
 function testInteractiveBrickRenderers() {
-  assert.equal(
-    core.renderReadVector({
-      name: "a",
-      sizeExpression: "n",
-      valueType: "int",
-      containerType: "vi"
-    }),
-    "vi a(n);\nfor (auto& x : a) cin >> x;\n"
-  );
+  const terseReadVector = core.renderReadVector({
+    name: "a",
+    sizeExpression: "n",
+    valueType: "int",
+    containerType: "vi"
+  });
+  assert.match(terseReadVector, /vi a\(n\);/);
+  assert.match(terseReadVector, /for \(auto& x : a\) cin >> x;/);
+  assert.match(terseReadVector, /EDULCNI_VIS\(edulcni::live::array/);
+  assert.match(terseReadVector, /EDULCNI_STEP\("Vector read"\)/);
 
   const compressed = core.renderCompressUnique({
     sourceName: "a",
@@ -2201,7 +2383,8 @@ function testSparseTableRenderer() {
     })
   );
   assert.match(gcdBitwise, /void build_sparse_gcd/);
-  assert.match(gcdBitwise, /return gcd\(lhs, rhs\);/);
+  assert.match(gcdBitwise, /const int result = gcd\(lhs, rhs\);/);
+  assert.match(gcdBitwise, /return result;/);
   assert.match(gcdBitwise, /void build_sparse_bit_and/);
   assert.match(gcdBitwise, /void build_sparse_bit_or/);
 
@@ -4881,7 +5064,10 @@ function testGeneratedMergeSortTreeCompiles() {
 function testGeneratedSuffixArrayCompiles() {
   {
     const generated = core.renderSuffixArray(
-      suffixArrayOptions({ includeUsageComment: false })
+      suffixArrayOptions({
+        features: ["rank", "lcp", "stripped_sa"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -5192,9 +5378,11 @@ testRecipeMetadata();
 testBundledCatalogGuardrails();
 testCompletedMigrationGuardrails();
 testFinalLibraryShapeGuardrails();
+testVisualizationSourceCoverage();
 testManifestCommands();
 testNamespaceUnwrap();
 testGlobalInsertionOffset();
+testVisualizationHookContract();
 function runTemplateScenario(snippetPath, parameters, test) {
   process.stdout.write(
     `[template:e2e] ${snippetPath} parameters=${JSON.stringify(parameters)}\n`

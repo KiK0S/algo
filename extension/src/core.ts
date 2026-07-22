@@ -168,11 +168,12 @@ export interface CatalogEntry {
 }
 
 export interface VisualizationSpec {
-  status: "automatic" | "snapshot" | "manual" | "none";
+  status: "automatic" | "snapshot" | "diagnostic" | "manual" | "none";
   models: string[];
   layout?: string;
   defaultGranularity?: "summary" | "operations" | "verbose";
   limitations?: string[];
+  reason?: string;
 }
 
 export function renderStaticTemplate(
