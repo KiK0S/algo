@@ -41,7 +41,14 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", ${JSON.stringify(spec.description)}));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
 ${indent(spec.mainBody, 2)}
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\\n";
   return 0;
@@ -73,7 +80,9 @@ xeppelin edulcni main
 
 The empty \`input.in\` is intentional: examples use small deterministic data in
 their drivers. The program writes \`ok\` to \`output.out\` after its assertions
-pass. Generated binaries and runtime output are ignored by Git.
+pass. Each driver adds scenario start/completion frames around the algorithm's
+own operation-level visualization steps. Generated binaries and runtime output
+are ignored by Git.
 
 Regenerate or check the committed files from \`extension/\`:
 

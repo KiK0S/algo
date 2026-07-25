@@ -1,0 +1,8 @@
+vector<{{valueType}}> powers({{limitExpression}} + 1, {{valueType}}(1));
+vector<{{valueType}}> inv_powers({{limitExpression}} + 1, {{valueType}}(1));
+const {{valueType}} power_base = {{valueType}}({{baseExpression}});
+const {{valueType}} inv_power_base = {{valueType}}(1) / power_base;
+for (int i = 1; i <= {{limitExpression}}; ++i) {
+	powers[i] = powers[i - 1] * power_base;
+	inv_powers[i] = inv_powers[i - 1] * inv_power_base;
+}

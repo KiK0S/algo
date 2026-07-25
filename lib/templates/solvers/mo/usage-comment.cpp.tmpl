@@ -1,6 +1,6 @@
 /*
 Example:
-std::vector<{{queryStructName}}> {{queriesName}};
-{{queriesName}}.push_back({{queryStructName}}(l, r));  // [l, r)
+std::vector<{{queryStructName}}> {{queriesName}}(q);
+for (auto& query : {{queriesName}}) std::cin >> query;  // [left, right)
 auto order = {{orderName}}({{queriesName}}, n);
 */

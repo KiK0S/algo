@@ -1,0 +1,22 @@
+/*
+Example:
+auto positive_blocks =
+		block_lengths(values, [](const auto& value) { return value > 0; });
+*/
+template <class Range, class Predicate>
+vector<int> block_lengths(const Range& values, Predicate predicate) {
+	vector<int> lengths;
+	int current_length = 0;
+
+	for (const auto& value : values) {
+		if (predicate(value)) {
+			++current_length;
+		} else if (current_length > 0) {
+			lengths.push_back(current_length);
+			current_length = 0;
+		}
+	}
+
+	if (current_length > 0) lengths.push_back(current_length);
+	return lengths;
+}

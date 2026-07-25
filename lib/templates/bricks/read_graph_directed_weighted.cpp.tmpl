@@ -1,0 +1,17 @@
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
+vector<vector<pair<int, ll>>> g(n);
+forn(i, m) {
+	int a, b;
+	ll w;
+	cin >> a >> b >> w;
+	--a, --b;
+	g[a].push_back({b, w});
+}
+EDULCNI_VIS(edulcni::live::weighted_graph("input.graph", g));
+EDULCNI_STEP("Directed weighted graph read");

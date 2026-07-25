@@ -21,6 +21,7 @@ import {
   composeRecipeSections,
   CompressUniqueOptions,
   CppAnalysis,
+  customValueTypeCandidates,
   defaultBerlekampMasseyFeatures,
   defaultInsertModeForKind,
   defaultMaxflowDinicCapType,
@@ -124,6 +125,7 @@ import {
   MO_APPLICATION_SPEC,
   ModIntMode,
   ModIntOptions,
+  ModularPrecalcOptions,
   MoApplication,
   MoIndexing,
   MoOptions,
@@ -188,6 +190,7 @@ import {
   renderDsuRecipe,
   renderFastAllocatorRecipe,
   renderFenwickRecipe,
+  renderFactorialPrecalc,
   renderGeometryRecipe,
   renderHalfplaneIntersectionRecipe,
   renderFftNttRecipe,
@@ -207,6 +210,7 @@ import {
   renderMonotonicStackRecipe,
   renderOrderedSetRecipe,
   renderPolyHashRecipe,
+  renderPowersPrecalc,
   renderReadVector,
   renderReadMatrix,
   renderRecipeSnippet,
@@ -446,7 +450,6 @@ const GENERATED_CHOICE_DESCRIPTIONS: Record<string, string> = {
   instance: "also adds an instance declaration and construction/build code",
   build_call: "also adds construction and a build call for the selected source",
   query_loop: "also adds input handling, operation dispatch, and example calls",
-  kruskal: "also adds edge input, sorting, DSU calls, and total-cost output",
   read_tree: "also adds tree input and the build call",
   read_queries: "also adds query input; callback processing remains up to you",
   single_source: "also adds a call from one source vertex",
@@ -498,7 +501,6 @@ const OBSOLETE_PLUMBING_CHOICES = new Set([
   "read_tree",
   "read_queries",
   "tree_query_loop",
-  "kruskal",
   "weighted_graph_read"
 ]);
 
@@ -2145,7 +2147,6 @@ function defaultDsuOptions(
   return {
     application: "connectivity",
     sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
-    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
     indexing: "zero_based",
     usageMode: "helper_only",
     instanceName: "dsu",
@@ -2184,9 +2185,7 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
   }
 
   const usagePick = await showExplainedQuickPick<ValuePickItem<DsuUsageMode>>(
-    scenarioPick.value === "kruskal"
-      ? [{ label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true }]
-      : scenarioPick.value === "query_loop"
+    scenarioPick.value === "query_loop"
         ? [{ label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true }]
         : [
             { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
@@ -2199,19 +2198,6 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
     }
   );
   if (!usagePick) {
-    return undefined;
-  }
-
-  const edgeCountName =
-    usagePick.value === "kruskal"
-      ? await pickStringWithCustom(
-          "edulcni: dsu",
-          "Edge count expression",
-          uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-          "Kruskal edge count expression"
-        )
-      : undefined;
-  if (usagePick.value === "kruskal" && (!edgeCountName || edgeCountName.trim() === "")) {
     return undefined;
   }
 
@@ -2233,7 +2219,6 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
   return {
     application: scenarioPick.value,
     sizeExpression: sizeExpression.trim(),
-    edgeCountName: edgeCountName?.trim(),
     indexing: indexingPick.value,
     usageMode: usagePick.value,
     instanceName: suggestIdentifier(analysis, "dsu", "sets"),
@@ -4091,6 +4076,49 @@ async function promptModIntOptions(
   };
 }
 
+async function promptModularPrecalcOptions(
+  editor: vscode.TextEditor,
+  title: string,
+  includeBase: boolean
+): Promise<ModularPrecalcOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const valueType = await pickStringWithCustom(
+    title,
+    "Value type",
+    customValueTypeCandidates(analysis),
+    "C++ type, for example Mint"
+  );
+  if (!valueType?.trim()) {
+    return undefined;
+  }
+  const limitExpression = await pickStringWithCustom(
+    title,
+    "Maximum exponent / index",
+    sizeExpressionCandidates(analysis),
+    "Maximum index expression, for example n or MAXN"
+  );
+  if (!limitExpression?.trim()) {
+    return undefined;
+  }
+  let baseExpression: string | undefined;
+  if (includeBase) {
+    baseExpression = await pickStringWithCustom(
+      title,
+      "Power base",
+      ["2", "base"],
+      "Base expression"
+    );
+    if (!baseExpression?.trim()) {
+      return undefined;
+    }
+  }
+  return {
+    valueType: valueType.trim(),
+    limitExpression: limitExpression.trim(),
+    baseExpression: baseExpression?.trim()
+  };
+}
+
 function defaultImplicitTreapOptions(
   analysis: CppAnalysis,
   extraReserved: string[] = []
@@ -5712,6 +5740,83 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         return renderRecipeSnippet(
           renderFenwickRecipe(defaultFenwickOptions(analysis, extraReserved))
         );
+      }
+    }
+  ],
+  [
+    "factorial_precalc",
+    {
+      catalogEntry: {
+        path: "/bricks/factorial_precalc",
+        kind: "brick",
+        insertMode: "cursor",
+        generator: "factorial_precalc",
+        label: "/bricks/factorial_precalc",
+        description: "factorials and inverse factorials for a selected value type",
+        detail: "interactive / brick"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptModularPrecalcOptions(
+          editor,
+          "edulcni: factorial_precalc",
+          false
+        );
+        return options
+          ? {
+              content: renderFactorialPrecalc(options),
+              renames: [],
+              exports: ["fact", "inv_fact"]
+            }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        return {
+          content: renderFactorialPrecalc({
+            valueType: customValueTypeCandidates(analysis)[0] ?? "Mint",
+            limitExpression: sizeExpressionCandidates(analysis)[0] ?? "n"
+          }),
+          renames: [],
+          exports: ["fact", "inv_fact"]
+        };
+      }
+    }
+  ],
+  [
+    "powers_precalc",
+    {
+      catalogEntry: {
+        path: "/bricks/powers_precalc",
+        kind: "brick",
+        insertMode: "cursor",
+        generator: "powers_precalc",
+        label: "/bricks/powers_precalc",
+        description: "powers and inverse powers for a selected value type",
+        detail: "interactive / brick"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptModularPrecalcOptions(
+          editor,
+          "edulcni: powers_precalc",
+          true
+        );
+        return options
+          ? {
+              content: renderPowersPrecalc(options),
+              renames: [],
+              exports: ["powers", "inv_powers"]
+            }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        return {
+          content: renderPowersPrecalc({
+            valueType: customValueTypeCandidates(analysis)[0] ?? "Mint",
+            limitExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+            baseExpression: "2"
+          }),
+          renames: [],
+          exports: ["powers", "inv_powers"]
+        };
       }
     }
   ],

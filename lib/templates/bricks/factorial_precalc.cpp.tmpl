@@ -1,0 +1,9 @@
+vector<{{valueType}}> fact({{limitExpression}} + 1, {{valueType}}(1));
+vector<{{valueType}}> inv_fact({{limitExpression}} + 1, {{valueType}}(1));
+for (int i = 1; i <= {{limitExpression}}; ++i) {
+	fact[i] = fact[i - 1] * {{valueType}}(i);
+}
+inv_fact[{{limitExpression}}] = {{valueType}}(1) / fact[{{limitExpression}}];
+for (int i = {{limitExpression}}; i > 0; --i) {
+	inv_fact[i - 1] = inv_fact[i] * {{valueType}}(i);
+}

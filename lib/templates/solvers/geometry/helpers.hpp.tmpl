@@ -54,6 +54,14 @@ struct Point2 {
   T cross(const Point2& a, const Point2& b) const { return (a - *this).cross(b - *this); }
 
   T norm2() const { return x * x + y * y; }
+
+  friend std::istream& operator>>(std::istream& in, Point2& point) {
+    return in >> point.x >> point.y;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const Point2& point) {
+    return out << point.x << ' ' << point.y;
+  }
 };
 
 template <typename T>

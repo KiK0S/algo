@@ -1122,17 +1122,6 @@ function testRecipeMetadata() {
   assert.match(dsuQueryRecipe.sections.solve[0], /Dsu dsu\(n\);/);
   assert.match(dsuQueryRecipe.sections.solve[0], /--u; --v;/);
 
-  const dsuKruskalRecipe = core.renderDsuRecipe(
-    dsuOptions({
-      usageMode: "kruskal",
-      sizeExpression: "n",
-      edgeCountName: "m",
-      includeUsageComment: false
-    })
-  );
-  assert.match(dsuKruskalRecipe.sections.solve[0], /struct Edge/);
-  assert.match(dsuKruskalRecipe.sections.solve[0], /vector<Edge> edges\(m\);/);
-
   const rollbackDsuRecipe = core.renderRollbackDsuRecipe(
     rollbackDsuOptions({ includeUsageComment: false })
   );
@@ -2429,15 +2418,6 @@ function testDsuRenderer() {
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /Dsu dsu\(n\);/);
 
-  const kruskalRecipe = core.renderDsuRecipe(
-    dsuOptions({
-      usageMode: "kruskal",
-      edgeCountName: "m",
-      includeUsageComment: false
-    })
-  );
-  assert.match(kruskalRecipe.sections.solve[0], /sort\(edges\.begin\(\), edges\.end\(\)/);
-  assert.match(kruskalRecipe.sections.solve[0], /mst_weight \+= e\.w;/);
 
   const collisionOptions = dsuOptions({
     existingText: "class Dsu {}; int dsu;"

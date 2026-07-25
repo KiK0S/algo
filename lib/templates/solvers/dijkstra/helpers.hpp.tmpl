@@ -12,6 +12,14 @@ struct DijkstraEdge {
 
   DijkstraEdge(int to_ = 0, const Weight& weight_ = Weight())
       : to(to_), weight(weight_) {}
+
+  friend std::istream& operator>>(std::istream& in, DijkstraEdge& edge) {
+    return in >> edge.to >> edge.weight;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const DijkstraEdge& edge) {
+    return out << edge.to << ' ' << edge.weight;
+  }
 };
 
 template <typename Weight>

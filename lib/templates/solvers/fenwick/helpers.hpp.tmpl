@@ -117,7 +117,14 @@ class Fenwick {
       bit_[i] = Op::combine(bit_[i], value);
     }
     EDULCNI_VIS(edulcni::live::array("fenwick.tree", bit_));
-    EDULCNI_VIS(edulcni::live::bits("fenwick.index", static_cast<std::uint64_t>(idx + 1), 32));
+    EDULCNI_VIS(([&] {
+      int width = 1;
+      for (int value = n_; value > 1; value >>= 1) {
+        ++width;
+      }
+      edulcni::live::bits(
+          "fenwick.index", static_cast<std::uint64_t>(idx + 1), width);
+    })());
     EDULCNI_STEP("Fenwick tree updated");
   }
 

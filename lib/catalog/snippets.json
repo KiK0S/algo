@@ -394,6 +394,40 @@
     }
   },
   {
+    "path": "/bricks/factorial_precalc",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "generator": "factorial_precalc",
+    "label": "/bricks/factorial_precalc",
+    "description": "factorials and inverse factorials for a selected value type",
+    "detail": "interactive / brick",
+    "exports": ["fact", "inv_fact"],
+    "form": ["valueType", "limitExpression"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["array"],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "summary"
+    }
+  },
+  {
+    "path": "/bricks/powers_precalc",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "generator": "powers_precalc",
+    "label": "/bricks/powers_precalc",
+    "description": "powers and inverse powers for a selected value type",
+    "detail": "interactive / brick",
+    "exports": ["powers", "inv_powers"],
+    "form": ["valueType", "limitExpression", "baseExpression"],
+    "visualization": {
+      "status": "automatic",
+      "models": ["array"],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "summary"
+    }
+  },
+  {
     "path": "/solvers/modint",
     "kind": "solver",
     "insertMode": "global",
@@ -499,7 +533,6 @@
     "wrappers": ["instance"],
     "bindings": [
       "sizeExpression",
-      "edgeCountName",
       "instanceName",
       "answerName"
     ],
@@ -1633,6 +1666,24 @@
     }
   },
   {
+    "path": "/bricks/block_lengths",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/block_lengths.cpp.tmpl",
+    "description": "lengths of contiguous blocks matching a predicate",
+    "detail": "template / brick",
+    "exports": ["block_lengths"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "array",
+        "scalar"
+      ],
+      "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
+  },
+  {
     "path": "/bricks/decrement_indices",
     "kind": "brick",
     "insertMode": "cursor",
@@ -1784,6 +1835,34 @@
     }
   },
   {
+    "path": "/bricks/read_graph_directed",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/read_graph_directed.cpp.tmpl",
+    "description": "read a directed graph",
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": ["graph"],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
+  },
+  {
+    "path": "/bricks/read_graph_directed_weighted",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/read_graph_directed_weighted.cpp.tmpl",
+    "description": "read a directed weighted graph",
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": ["graph"],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
+  },
+  {
     "path": "/bricks/read_graph_undirected",
     "kind": "brick",
     "insertMode": "cursor",
@@ -1795,6 +1874,20 @@
       "models": [
         "graph"
       ],
+      "layout": "single",
+      "defaultGranularity": "summary"
+    }
+  },
+  {
+    "path": "/bricks/read_graph_undirected_weighted",
+    "kind": "brick",
+    "insertMode": "cursor",
+    "template": "bricks/read_graph_undirected_weighted.cpp.tmpl",
+    "description": "read an undirected weighted graph",
+    "detail": "template / brick",
+    "visualization": {
+      "status": "snapshot",
+      "models": ["graph"],
       "layout": "single",
       "defaultGranularity": "summary"
     }
@@ -2036,6 +2129,27 @@
         "bits"
       ],
       "layout": "main_with_sidebar",
+      "defaultGranularity": "operations"
+    }
+  },
+  {
+    "path": "/solvers/kruskal",
+    "kind": "solver",
+    "insertMode": "global",
+    "template": "solvers/kruskal/helpers.hpp.tmpl",
+    "description": "minimum spanning tree with selected-edge recovery",
+    "detail": "Kruskal MST / O(m log m)",
+    "exports": ["KruskalEdge", "KruskalResult", "kruskal"],
+    "features": ["mst_weight", "edge_recovery", "connectivity_check"],
+    "constraints": ["undirected_weighted_edges"],
+    "visualization": {
+      "status": "automatic",
+      "models": [
+        "graph",
+        "parent_forest",
+        "scalar"
+      ],
+      "layout": "graph_with_sidebar",
       "defaultGranularity": "operations"
     }
   },

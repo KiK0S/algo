@@ -24,7 +24,6 @@ export function createDynamicSpecsA(core) {
   assert(tree.query(0, 4) == 10);
   tree.point_set(2, 10);
   assert(tree.query(1, 4) == 16);
-  std::cout << "range sum after update: " << tree.query(0, 4) << '\n';
 `
     },
     {
@@ -49,7 +48,6 @@ export function createDynamicSpecsA(core) {
   const long double term = linear_recurrence_kth(
       std::vector<long double>{0, 1}, coefficients, 10);
   assert(std::llround(term) == 55);
-  std::cout << "F(10): " << std::llround(term) << '\n';
 `
     },
     {
@@ -69,7 +67,6 @@ export function createDynamicSpecsA(core) {
   build_sparse_min(values);
   assert(query_sparse_min(0, 6) == 1);
   assert(query_sparse_min(1, 3) == 2);
-  std::cout << "minimum on [1, 3]: " << query_sparse_min(1, 3) << '\n';
 `
     },
     {
@@ -92,7 +89,6 @@ export function createDynamicSpecsA(core) {
   assert(result.distance[5] == 3);
   const auto path = bfs_restore_path(0, 5, result);
   assert((path == std::vector<int>{0, 1, 4, 5}));
-  std::cout << "distance from 0 to 5: " << result.distance[5] << '\n';
 `
     },
     {
@@ -111,7 +107,6 @@ export function createDynamicSpecsA(core) {
   assert(!sieve.is_prime(48));
   const auto factors = sieve.factorize(48);
   assert((factors == std::vector<std::pair<int, int>>{{2, 4}, {3, 1}}));
-  std::cout << "primes up to 50: " << sieve.primes().size() << '\n';
 `
     },
     {
@@ -131,7 +126,6 @@ export function createDynamicSpecsA(core) {
   for (int i = 0; i < static_cast<int>(values.size()); ++i) tree.add(i, values[i]);
   assert(tree.prefix(3) == 9);
   assert(tree.segment(2, 5) == 19);
-  std::cout << "sum on [2, 5]: " << tree.segment(2, 5) << '\n';
 `
     },
     {
@@ -150,7 +144,6 @@ export function createDynamicSpecsA(core) {
   assert(power.value() == 1024);
   assert((Mint(5) * Mint(5).inv()).value() == 1);
   assert((Mint(1000000006) + Mint(2)).value() == 1);
-  std::cout << "2^10 modulo 1e9+7: " << power.value() << '\n';
 `
     },
     {
@@ -170,7 +163,6 @@ export function createDynamicSpecsA(core) {
   assert(dsu.same(0, 2));
   assert(!dsu.same(2, 4));
   assert(dsu.component_size(1) == 3);
-  std::cout << "components: " << dsu.components() << '\n';
 `
     },
     {
@@ -191,7 +183,6 @@ export function createDynamicSpecsA(core) {
   dsu.rollback(snapshot);
   assert(!dsu.same(0, 2));
   assert(dsu.same(0, 1));
-  std::cout << "components after rollback: " << dsu.components() << '\n';
 `
     },
     {
@@ -215,7 +206,6 @@ export function createDynamicSpecsA(core) {
   assert(lca.lca(3, 4) == 1);
   assert(lca.lca(3, 6) == 0);
   assert(lca.dist(3, 6) == 4);
-  std::cout << "lca(3, 6): " << lca.lca(3, 6) << '\n';
 `
     },
     {
@@ -236,7 +226,6 @@ export function createDynamicSpecsA(core) {
   assert(sat.solve());
   assert(sat.value(1));
   assert(sat.value(2));
-  std::cout << "satisfiable assignment found\n";
 `
     },
     {
@@ -257,7 +246,6 @@ export function createDynamicSpecsA(core) {
   flow.add_edge(2, 3, 3);
   const long long result = flow.max_flow(0, 3);
   assert(result == 5);
-  std::cout << "maximum flow: " << result << '\n';
 `
     },
     {
@@ -279,7 +267,6 @@ export function createDynamicSpecsA(core) {
   const auto result = flow.min_cost_max_flow(0, 3);
   assert(result.first == 3);
   assert(result.second == 14);
-  std::cout << "flow: " << result.first << ", cost: " << result.second << '\n';
 `
     },
     {
@@ -300,7 +287,6 @@ export function createDynamicSpecsA(core) {
   const auto result = hungarian(cost);
   assert(result.min_cost == 5);
   assert(result.match_left.size() == 3);
-  std::cout << "minimum assignment cost: " << result.min_cost << '\n';
 `
     },
     {
@@ -322,7 +308,6 @@ export function createDynamicSpecsA(core) {
   matcher.add_edge(2, 2);
   const auto result = matcher.maximum_matching();
   assert(result.matching_size == 3);
-  std::cout << "matching size: " << result.matching_size << '\n';
 `
     },
     {
@@ -346,7 +331,6 @@ export function createDynamicSpecsA(core) {
   assert(treap.range_query(0, 3) == 65);
   treap.reverse(1, 3);
   assert((treap.to_vector() == std::vector<long long>{10, 30, 20, 5}));
-  std::cout << "sequence sum: " << treap.range_query(0, 3) << '\n';
 `
     },
     {
@@ -366,7 +350,6 @@ export function createDynamicSpecsA(core) {
   MergeSortTree<int> tree(values);
   assert(tree.count_less(1, 4, 5) == 2);
   assert(tree.count_in_range(0, 5, 2, 5) == 4);
-  std::cout << "values in [2, 5]: " << tree.count_in_range(0, 5, 2, 5) << '\n';
 `
     }
   ];

@@ -277,6 +277,7 @@ export interface CppSectionSpan {
 
 export interface CppAnalysis {
   identifiers: Set<string>;
+  typeAliases?: string[];
   annotatedSymbols: AnnotatedSymbol[];
   constantSymbols: AnnotatedSymbol[];
   inputSymbols: AnnotatedSymbol[];
@@ -468,14 +469,13 @@ export interface DsuNames {
   className: string;
 }
 
-export type DsuApplication = "connectivity" | "kruskal" | "query_loop";
+export type DsuApplication = "connectivity" | "query_loop";
 export type DsuIndexing = "zero_based" | "one_based_input";
-export type DsuUsageMode = "helper_only" | "instance" | "query_loop" | "kruskal";
+export type DsuUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface DsuOptions {
   application?: DsuApplication;
   sizeExpression?: string;
-  edgeCountName?: string;
   indexing?: DsuIndexing;
   usageMode?: DsuUsageMode;
   instanceName?: string;
@@ -1006,6 +1006,12 @@ export interface ModIntOptions {
   dynamicDefaultModExpression: string;
   names: ModIntNames;
   includeUsageComment: boolean;
+}
+
+export interface ModularPrecalcOptions {
+  valueType: string;
+  limitExpression: string;
+  baseExpression?: string;
 }
 
 export type TwoSatFeature =
@@ -1709,6 +1715,29 @@ function collectVectorAliases(text: string): Set<string> {
   return aliases;
 }
 
+function collectTypeAliases(text: string): string[] {
+  const aliases: string[] = [];
+  const seen = new Set<string>();
+  const add = (name: string) => {
+    if (!seen.has(name)) {
+      seen.add(name);
+      aliases.push(name);
+    }
+  };
+
+  for (const match of text.matchAll(
+    /^\s*using\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gm
+  )) {
+    add(match[1]);
+  }
+  for (const match of text.matchAll(
+    /^\s*typedef\b[^;]*\b([A-Za-z_][A-Za-z0-9_]*)\s*;/gm
+  )) {
+    add(match[1]);
+  }
+  return aliases;
+}
+
 function collectDeclaredSymbols(
   text: string,
   vectorAliases: Set<string>
@@ -1918,6 +1947,7 @@ export function analyzeCppDocument(text: string): CppAnalysis {
 
   return {
     identifiers,
+    typeAliases: collectTypeAliases(stripped),
     annotatedSymbols: collectAnnotatedSymbols(text),
     constantSymbols: declaredSymbols.constants,
     inputSymbols: declaredSymbols.inputs,
@@ -1926,6 +1956,18 @@ export function analyzeCppDocument(text: string): CppAnalysis {
     vectorAliases,
     sections: detectCppSections(text)
   };
+}
+
+export function customValueTypeCandidates(analysis: CppAnalysis): string[] {
+  const result: string[] = [];
+  const add = (value: string) => {
+    if (!result.includes(value)) {
+      result.push(value);
+    }
+  };
+  for (const alias of analysis.typeAliases ?? []) add(alias);
+  for (const builtin of ["Mint", "long long", "int"]) add(builtin);
+  return result;
 }
 
 export function sizeExpressionCandidates(analysis: CppAnalysis): string[] {
@@ -2773,14 +2815,12 @@ function renderDsuUsageSnippet(options: DsuOptions): string {
 
   const className = options.names.className;
   const n = options.sizeExpression?.trim() || "n";
-  const m = options.edgeCountName?.trim() || "m";
   const instance = sanitizeIdentifier(options.instanceName ?? "dsu", "dsu");
   const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
   const templateName = usageMode === "query_loop" ? "query_loop" : usageMode;
   return renderCodeTemplate(`solvers/dsu/${templateName}.cpp.tmpl`, {
     className,
     sizeExpression: n,
-    edgeCountName: m,
     instanceName: instance,
     answerName: answer,
     oneBasedInput: options.indexing === "one_based_input"
@@ -4332,11 +4372,6 @@ export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
       description: "Plain unite, same, component size, and component count."
     },
     {
-      id: "kruskal",
-      label: "Kruskal skeleton",
-      description: "Sort weighted edges and unite components for MST-style problems."
-    },
-    {
       id: "query_loop",
       label: "online connectivity queries",
       description: "Read type-coded unite/same/component-size queries."
@@ -4349,14 +4384,12 @@ export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
       choices: [
         { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
-        { id: "query_loop", label: "query loop skeleton" },
-        { id: "kruskal", label: "Kruskal skeleton" }
+        { id: "query_loop", label: "query loop skeleton" }
       ]
     }
   ],
   bindings: [
     { id: "sizeExpression", label: "Node count", kind: "size", required: true },
-    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
     { id: "instanceName", label: "Instance name", kind: "answer", required: false },
     { id: "answerName", label: "Answer name", kind: "answer", required: false }
   ],
@@ -5441,6 +5474,21 @@ export function renderModIntRecipe(options: ModIntOptions): RenderedRecipe {
 
 export function renderModInt(options: ModIntOptions): string {
   return composeRecipeSections(renderModIntRecipe(options));
+}
+
+export function renderFactorialPrecalc(options: ModularPrecalcOptions): string {
+  return renderCodeTemplate("bricks/factorial_precalc.cpp.tmpl", {
+    valueType: options.valueType.trim() || "Mint",
+    limitExpression: options.limitExpression.trim() || "n"
+  });
+}
+
+export function renderPowersPrecalc(options: ModularPrecalcOptions): string {
+  return renderCodeTemplate("bricks/powers_precalc.cpp.tmpl", {
+    valueType: options.valueType.trim() || "Mint",
+    limitExpression: options.limitExpression.trim() || "n",
+    baseExpression: options.baseExpression?.trim() || "base"
+  });
 }
 
 export function defaultTwoSatFeatures(): TwoSatFeature[] {

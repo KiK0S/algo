@@ -10,6 +10,14 @@ struct MoQuery {
   int right;  // [left, right)
 
   MoQuery(int left_ = 0, int right_ = 0) : left(left_), right(right_) {}
+
+  friend std::istream& operator>>(std::istream& in, MoQuery& query) {
+    return in >> query.left >> query.right;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const MoQuery& query) {
+    return out << query.left << ' ' << query.right;
+  }
 };
 
 inline int mo_default_block_size(int n, int q) {
