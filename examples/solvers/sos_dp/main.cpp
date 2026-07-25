@@ -60,12 +60,19 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Apply subset zeta, Mobius, and superset zeta transforms."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<long long> values = {1, 2, 3, 4, 5, 6, 7, 8};
     const auto subset_sums = subset_zeta_transform(values, 3);
     assert((subset_sums == std::vector<long long>{1, 3, 4, 10, 6, 14, 16, 36}));
     assert(subset_mobius_transform(subset_sums, 3) == values);
     const auto superset_sums = superset_zeta_transform(values, 3);
     assert((superset_sums == std::vector<long long>{36, 20, 22, 12, 26, 14, 15, 8}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

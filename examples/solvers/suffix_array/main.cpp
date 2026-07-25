@@ -156,12 +156,19 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Build the suffix array and LCP array for a short string."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::string text = "banana";
     const auto result = suffix_array_build(text);
     assert((result.sa == std::vector<int>{6, 5, 3, 1, 0, 4, 2}));
     assert((result.lcp == std::vector<int>{0, 0, 1, 3, 0, 0, 2}));
     const auto without_empty = suffix_array_remove_empty_suffix(result);
     assert((without_empty == std::vector<int>{5, 3, 1, 0, 4, 2}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -96,11 +96,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Safely inspect neighboring values in ordered containers."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::set<int> values = {2, 4, 8};
     assert(next_value(values, 4).value() == 8);
     assert(prev_value(values, 4).value() == 2);
     assert(!next_value(values, 8).has_value());
     assert(!prev_value(values, 2).has_value());
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

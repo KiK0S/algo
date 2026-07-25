@@ -131,6 +131,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Explore an unweighted graph and restore a shortest path."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<std::vector<int>> graph(6);
     bfs_add_edge(graph, 0, 1, true);
     bfs_add_edge(graph, 1, 2, true);
@@ -141,7 +145,9 @@ int main() {
     assert(result.distance[5] == 3);
     const auto path = bfs_restore_path(0, 5, result);
     assert((path == std::vector<int>{0, 1, 4, 5}));
-    std::cout << "distance from 0 to 5: " << result.distance[5] << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

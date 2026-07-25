@@ -87,6 +87,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Merge components and inspect the resulting parent forest."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   Dsu dsu(6);
     assert(dsu.unite(0, 1));
     assert(dsu.unite(1, 2));
@@ -94,7 +98,9 @@ int main() {
     assert(dsu.same(0, 2));
     assert(!dsu.same(2, 4));
     assert(dsu.component_size(1) == 3);
-    std::cout << "components: " << dsu.components() << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

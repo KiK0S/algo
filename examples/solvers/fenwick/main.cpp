@@ -64,7 +64,14 @@ class Fenwick {
       bit_[i] = Op::combine(bit_[i], value);
     }
     EDULCNI_VIS(edulcni::live::array("fenwick.tree", bit_));
-    EDULCNI_VIS(edulcni::live::bits("fenwick.index", static_cast<std::uint64_t>(idx + 1), 32));
+    EDULCNI_VIS(([&] {
+      int width = 1;
+      for (int value = n_; value > 1; value >>= 1) {
+        ++width;
+      }
+      edulcni::live::bits(
+          "fenwick.index", static_cast<std::uint64_t>(idx + 1), width);
+    })());
     EDULCNI_STEP("Fenwick tree updated");
   }
 
@@ -144,12 +151,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Accumulate point additions and query prefix and range sums."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   FenwickSumTree<int> tree(6);
     const std::vector<int> values = {3, 1, 4, 1, 5, 9};
     for (int i = 0; i < static_cast<int>(values.size()); ++i) tree.add(i, values[i]);
     assert(tree.prefix(3) == 9);
     assert(tree.segment(2, 5) == 19);
-    std::cout << "sum on [2, 5]: " << tree.segment(2, 5) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

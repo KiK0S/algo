@@ -111,6 +111,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Generate deterministic arrays, permutations, masks, trees, and graphs."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   TestGenerator generator(123456789);
     const auto values = generator.generate_array<int>(6, -5, 5);
     assert(values.size() == 6);
@@ -127,6 +131,9 @@ int main() {
     const auto graph = generator.generate_graph(6, 7, true);
     assert(graph.size() == 7);
     assert(generator.generate_mask(5) < (std::uint64_t{1} << 5));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

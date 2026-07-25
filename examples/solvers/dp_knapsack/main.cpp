@@ -51,10 +51,17 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Compare zero-one and unbounded one-dimensional knapsack."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> weights = {3, 4};
     const std::vector<long long> values = {5, 6};
     assert(knapsack_zero_one(weights, values, 6) == 6);
     assert(knapsack_unbounded(weights, values, 6) == 10);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -102,6 +102,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Query ranks and k-th elements with a GNU PBDS ordered set."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   OrderedSet<int> ordered;
     assert(ordered.insert(8));
     assert(ordered.insert(3));
@@ -110,6 +114,9 @@ int main() {
     assert(ordered.order_of_key(9) == 2);
     assert(ordered.find_by_order(1).value() == 8);
     assert(ordered.erase(3));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

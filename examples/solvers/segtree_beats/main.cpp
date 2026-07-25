@@ -377,6 +377,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Apply range chmin, chmax, and add updates with aggregate queries."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<long long> values = {5, 1, 7, 3, 9};
     SegmentTreeBeats<long long> tree(values);
     assert(tree.query_sum(0, 4) == 25);
@@ -386,6 +390,9 @@ int main() {
     tree.add(2, 4, -2);
     assert(tree.query_sum(0, 4) == 19);
     assert(tree.query_min(0, 4) == 2);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

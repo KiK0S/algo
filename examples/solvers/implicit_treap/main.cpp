@@ -353,6 +353,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Edit and aggregate a sequence represented by an implicit treap."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   ImplicitTreap<long long> treap(123);
     treap.push_back(10);
     treap.push_back(20);
@@ -361,7 +365,9 @@ int main() {
     assert(treap.range_query(0, 3) == 65);
     treap.reverse(1, 3);
     assert((treap.to_vector() == std::vector<long long>{10, 30, 20, 5}));
-    std::cout << "sequence sum: " << treap.range_query(0, 3) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -45,6 +45,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Optimize adjacent interval merging with Knuth's bounds."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<long long> weights = {1, 2, 3, 4};
     std::vector<long long> prefix(weights.size() + 1);
     std::partial_sum(weights.begin(), weights.end(), prefix.begin() + 1);
@@ -53,6 +57,9 @@ int main() {
         [&](int left, int right) { return prefix[right] - prefix[left]; });
     assert(cost[0][4] == 19);
     assert(0 < optimum[0][4] && optimum[0][4] < 4);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

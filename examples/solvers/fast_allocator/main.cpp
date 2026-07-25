@@ -123,6 +123,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Allocate standard containers from a resettable arena."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   FastAllocatorArena arena(1U << 16U);
     std::vector<int, FastAllocator<int>> values{FastAllocator<int>(arena)};
     for (int value = 0; value < 16; ++value) values.push_back(value * value);
@@ -130,6 +134,9 @@ int main() {
     const std::size_t remaining_after_allocations = arena.remaining();
     arena.reset();
     assert(arena.remaining() > remaining_after_allocations);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

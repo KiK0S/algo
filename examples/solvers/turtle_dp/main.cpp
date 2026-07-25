@@ -95,6 +95,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Count right-down grid paths and reconstruct minimum and maximum paths."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<std::string> grid = {"...", ".#.", "..."};
     assert(turtle_count_paths(grid) == 2);
 
@@ -109,6 +113,9 @@ int main() {
     assert(minimum.value == 21);
     assert((maximum.path.front() == std::pair<int, int>{0, 0}));
     assert((maximum.path.back() == std::pair<int, int>{2, 2}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

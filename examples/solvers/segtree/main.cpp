@@ -120,12 +120,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Point updates and range sums in an iterative segment tree."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<int> values = {1, 2, 3, 4};
     SegmentSumTree<int> tree(values);
     assert(tree.query(0, 4) == 10);
     tree.point_set(2, 10);
     assert(tree.query(1, 4) == 16);
-    std::cout << "range sum after update: " << tree.query(0, 4) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

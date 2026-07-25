@@ -48,11 +48,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Reconstruct strict and nondecreasing longest subsequences."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> values = {3, 1, 2, 2, 4};
     const auto strict = longest_increasing_subsequence_indices(values);
     const auto nondecreasing = longest_increasing_subsequence_indices(values, true);
     assert((strict == std::vector<int>{1, 3, 4}));
     assert((nondecreasing == std::vector<int>{1, 2, 3, 4}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

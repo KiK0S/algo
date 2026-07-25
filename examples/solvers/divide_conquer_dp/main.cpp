@@ -60,12 +60,19 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Optimize a partition DP with monotone split points."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const auto squared_length = [](int left, int right) {
       const long long length = right - left;
       return length * length;
     };
     const auto result = divide_conquer_partition_dp(5, 2, squared_length);
     assert(result[5] == 13);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

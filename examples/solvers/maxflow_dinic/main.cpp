@@ -152,6 +152,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Find the maximum flow through a small capacitated network."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   Dinic<long long> flow(4);
     flow.add_edge(0, 1, 3);
     flow.add_edge(0, 2, 2);
@@ -160,7 +164,9 @@ int main() {
     flow.add_edge(2, 3, 3);
     const long long result = flow.max_flow(0, 3);
     assert(result == 5);
-    std::cout << "maximum flow: " << result << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

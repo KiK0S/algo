@@ -244,6 +244,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Send maximum flow while minimizing its total edge cost."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   MinCostMaxFlow<long long, long long> flow(4);
     flow.add_edge(0, 1, 2, 1);
     flow.add_edge(0, 2, 1, 5);
@@ -253,7 +257,9 @@ int main() {
     const auto result = flow.min_cost_max_flow(0, 3);
     assert(result.first == 3);
     assert(result.second == 14);
-    std::cout << "flow: " << result.first << ", cost: " << result.second << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

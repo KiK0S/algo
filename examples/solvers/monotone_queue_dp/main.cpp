@@ -38,9 +38,16 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Optimize a sliding-window minimum transition with a deque."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<long long> transition_cost = {0, 5, 1, 2, 10, 1};
     const auto result = sliding_window_min_dp(transition_cost, 2);
     assert((result == std::vector<long long>{0, 5, 1, 3, 11, 4}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

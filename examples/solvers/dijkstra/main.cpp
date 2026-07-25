@@ -135,6 +135,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Trace shortest paths in a small weighted graph."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const long long infinity = std::numeric_limits<long long>::max();
     std::vector<std::vector<DijkstraEdge<long long>>> graph(5);
     dijkstra_add_edge(graph, 0, 1, 10);
@@ -146,6 +150,9 @@ int main() {
     const DijkstraResult<long long> result = dijkstra(graph, 0, infinity);
     assert(result.distance[4] == 8);
     assert((dijkstra_restore_path(0, 4, result) == std::vector<int>{0, 2, 1, 3, 4}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

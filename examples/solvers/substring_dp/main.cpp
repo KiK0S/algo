@@ -61,6 +61,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Partition a string into palindromes and solve palindromic subsequence DP."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::string text = "aab";
     const std::function<long long(int, int)> palindrome_cost =
         [&](int left, int right) {
@@ -72,6 +76,9 @@ int main() {
     assert(partition.first == 2);
     assert((partition.second == std::vector<std::pair<int, int>>{{0, 2}, {2, 3}}));
     assert(longest_palindromic_subsequence("bbbab") == 4);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

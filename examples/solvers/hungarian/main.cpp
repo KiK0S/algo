@@ -154,6 +154,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Compute a minimum-cost assignment in a square matrix."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<std::vector<long long>> cost = {
         {4, 1, 3},
         {2, 0, 5},
@@ -162,7 +166,9 @@ int main() {
     const auto result = hungarian(cost);
     assert(result.min_cost == 5);
     assert(result.match_left.size() == 3);
-    std::cout << "minimum assignment cost: " << result.min_cost << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

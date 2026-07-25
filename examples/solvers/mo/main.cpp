@@ -118,6 +118,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Answer offline range-distinct queries with Mo's ordering."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> values = {1, 2, 1, 3, 2, 4, 1};
     const std::vector<MoQuery> queries = {{0, 3}, {2, 7}, {0, 2}};
     std::vector<int> frequency(5, 0);
@@ -128,6 +132,9 @@ int main() {
     const std::vector<int> result = mo_process(
         static_cast<int>(values.size()), queries, add, add, remove, remove, answer);
     assert((result == std::vector<int>{2, 4, 2}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

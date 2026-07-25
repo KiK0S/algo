@@ -109,12 +109,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Generate primes and factor an integer with a linear sieve."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   LinearSieve sieve(50);
     assert(sieve.is_prime(47));
     assert(!sieve.is_prime(48));
     const auto factors = sieve.factorize(48);
     assert((factors == std::vector<std::pair<int, int>>{{2, 4}, {3, 1}}));
-    std::cout << "primes up to 50: " << sieve.primes().size() << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -89,6 +89,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Compare canonical hashes of two isomorphic unrooted trees."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<std::vector<int>> first(6), second(6);
     const auto add_edge = [](std::vector<std::vector<int>>& graph, int u, int v) {
       graph[u].push_back(v);
@@ -108,6 +112,9 @@ int main() {
 
     TreeHasher hasher;
     assert(hasher.hash(first) == hasher.hash(second));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

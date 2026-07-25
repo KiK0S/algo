@@ -78,11 +78,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Compute an XOR convolution with the Walsh-Hadamard transform."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<long long> first = {1, 2, 3, 4};
     const std::vector<long long> second = {4, 3, 2, 1};
     const auto result = bitwise_convolution(
         first, second, BitwiseConvolution::xor_convolution);
     assert((result == std::vector<long long>{20, 22, 28, 30}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

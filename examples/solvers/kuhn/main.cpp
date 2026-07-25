@@ -148,6 +148,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Find a maximum matching in a bipartite graph."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   KuhnMatcher matcher(3, 3);
     matcher.add_edge(0, 0);
     matcher.add_edge(0, 1);
@@ -156,7 +160,9 @@ int main() {
     matcher.add_edge(2, 2);
     const auto result = matcher.maximum_matching();
     assert(result.matching_size == 3);
-    std::cout << "matching size: " << result.matching_size << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

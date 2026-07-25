@@ -240,6 +240,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Compare substrings and compose polynomial hashes."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::string text = "abracadabra";
     PolyHash hash(text);
     assert(hash.size() == static_cast<int>(text.size()));
@@ -248,6 +252,9 @@ int main() {
     const PolyHashValue left = hash.hash_substring(0, 4);
     const PolyHashValue right = hash.hash_substring(4, 7);
     assert(hash.concat(left, right, 3) == hash.hash_substring(0, 7));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

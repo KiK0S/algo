@@ -232,6 +232,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Intersect four half-planes into a bounded polygon."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<HalfPlane> halfplanes = {
         HalfPlane(0.0L, 0.0L, 1.0L, 0.0L),
         HalfPlane(1.0L, 0.0L, 1.0L, 1.0L),
@@ -240,6 +244,9 @@ int main() {
     };
     const std::vector<Point2<long double>> polygon = halfplane_intersection(halfplanes);
     assert(polygon.size() == 4);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

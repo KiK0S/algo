@@ -161,6 +161,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Build binary lifting tables and answer ancestor queries."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   LcaBinaryLifting lca(7);
     lca.add_edge(0, 1);
     lca.add_edge(0, 2);
@@ -172,7 +176,9 @@ int main() {
     assert(lca.lca(3, 4) == 1);
     assert(lca.lca(3, 6) == 0);
     assert(lca.dist(3, 6) == 4);
-    std::cout << "lca(3, 6): " << lca.lca(3, 6) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

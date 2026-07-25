@@ -119,6 +119,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Find strongly connected components and their condensation graph."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<std::vector<int>> graph(6);
     kosaraju_add_edge(graph, 0, 1);
     kosaraju_add_edge(graph, 1, 2);
@@ -132,6 +136,9 @@ int main() {
     assert(result.component_of[0] == result.component_of[2]);
     assert(result.component_of[3] == result.component_of[4]);
     assert(result.component_of[4] != result.component_of[5]);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

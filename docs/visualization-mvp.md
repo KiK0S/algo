@@ -29,8 +29,9 @@ In an ordinary contest build, preprocessing discards each macro argument. The
 rendered snippet therefore needs no Edulcni include or link dependency, and its
 visualization expressions are neither parsed nor evaluated. In an active build,
 the bootstrap defines `EDULCNI_VIS(expression)` as guarded expression execution
-and `EDULCNI_STEP(label)` as `edulcni::live::step(label)`. Visualization failures
-must not escape into the algorithm.
+and `EDULCNI_STEP(label)` as `edulcni::live::step(label)`. Both macros capture
+the originating file, line, and expression for the viewer's source panel.
+Visualization failures must not escape into the algorithm.
 
 Algorithm code publishes semantic state through generic adapters; it does not
 select renderer-specific widgets or know which concrete algorithm preset will
@@ -69,6 +70,11 @@ the resulting frame immediately. Pair and tuple values are formatted recursively
 unknown non-streamable values retain their structural position and display as
 `<value>`.
 
+Top-level widgets are titled from the final segment of their stable ID, with
+underscores rendered as spaces. For example, `dijkstra.distance` is displayed as
+`distance`. The viewer associates each title with its latest publishing location,
+while the frame label is associated with its step location.
+
 ## Catalog classifications
 
 - `automatic`: the normal API publishes meaningful frames without caller work.
@@ -87,8 +93,10 @@ intentional `none` entries.
 
 ## Current compatibility limits
 
-The adapter layer currently streams complete legacy frames rather than deltas.
-Graph drawing is undirected, has no arrowheads, and deduplicates parallel edges;
+The adapter layer currently streams complete frames rather than deltas. Source
+documents are sent once per file over the authenticated loopback connection;
+missing source text falls back to the captured file, line, and expression. Graph
+drawing is undirected, has no arrowheads, and deduplicates parallel edges;
 weighted edges use a companion array instead of attached edge labels. Some
 high-level presets reuse arrays and labels, and container adapters copy their
 snapshots. Per-snippet limitations, including raw PBDS mutations and APIs that do

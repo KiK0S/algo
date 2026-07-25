@@ -118,10 +118,17 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Find the nearest smaller and greater elements on both sides."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> values = {5, 2, 4, 4, 1, 3};
     const auto nearest = nearest_all(values, true);
     assert((nearest.left_smaller == std::vector<int>{-1, -1, 1, 1, -1, 4}));
     assert((nearest.right_greater == std::vector<int>{-1, 2, -1, -1, 5, -1}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

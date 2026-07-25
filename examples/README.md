@@ -13,7 +13,9 @@ xeppelin edulcni main
 
 The empty `input.in` is intentional: examples use small deterministic data in
 their drivers. The program writes `ok` to `output.out` after its assertions
-pass. Generated binaries and runtime output are ignored by Git.
+pass. Each driver adds scenario start/completion frames around the algorithm's
+own operation-level visualization steps. Generated binaries and runtime output
+are ignored by Git.
 
 Regenerate or check the committed files from `extension/`:
 

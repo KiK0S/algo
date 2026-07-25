@@ -152,6 +152,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Answer connectivity queries across edge additions and removals."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   using Type = DynamicConnectivityOperationType;
     const std::vector<DynamicConnectivityOperation> operations = {
         {Type::add_edge, 0, 1},
@@ -164,6 +168,9 @@ int main() {
     OfflineDynamicConnectivity connectivity(3, operations);
     const auto answers = connectivity.solve();
     assert((answers == std::vector<bool>{false, true, false}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

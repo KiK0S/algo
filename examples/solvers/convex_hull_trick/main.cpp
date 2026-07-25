@@ -56,6 +56,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Query minima from decreasing-slope lines at increasing x coordinates."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   MonotoneConvexHullTrick hull;
     hull.add_line(5, 1);
     hull.add_line(3, 2);
@@ -63,6 +67,9 @@ int main() {
     assert(hull.query(0) == 1);
     assert(hull.query(2) == 8);
     assert(hull.query(10) == 20);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

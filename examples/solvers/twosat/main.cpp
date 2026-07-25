@@ -233,6 +233,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Solve a small implication system and inspect its assignment."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   TwoSat sat(3);
     sat.add_or(0, true, 1, true);
     sat.add_implication(1, true, 2, true);
@@ -240,7 +244,9 @@ int main() {
     assert(sat.solve());
     assert(sat.value(1));
     assert(sat.value(2));
-    std::cout << "satisfiable assignment found\n";
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

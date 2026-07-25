@@ -110,6 +110,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Topologically order a directed acyclic graph."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<std::vector<int>> graph(6);
     toposort_add_edge(graph, 5, 2);
     toposort_add_edge(graph, 5, 0);
@@ -120,6 +124,9 @@ int main() {
     bool is_dag = false;
     const std::vector<int> order = topological_sort(graph, &is_dag);
     assert(is_dag && is_topological_order(graph, order));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -300,6 +300,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Intersect segments and construct a convex hull."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   using Point = Point2<long long>;
     assert(segments_intersect(Point(0, 0), Point(2, 2), Point(0, 2), Point(2, 0)));
     const auto intersections = segment_intersection(
@@ -309,6 +313,9 @@ int main() {
         Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2), Point(1, 1)};
     const std::vector<Point> hull = convex_hull(points);
     assert((hull == std::vector<Point>{Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2)}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

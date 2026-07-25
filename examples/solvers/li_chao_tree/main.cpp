@@ -73,6 +73,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Insert arbitrary lines and query their minimum on an integer domain."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   LiChaoTree tree(0, 10);
     tree.add_line(2, 3);
     tree.add_line(-1, 10);
@@ -80,6 +84,9 @@ int main() {
     assert(tree.query(0) == 3);
     assert(tree.query(4) == 5);
     assert(tree.query(10) == 0);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

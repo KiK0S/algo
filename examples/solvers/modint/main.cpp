@@ -198,12 +198,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Perform modular arithmetic, exponentiation, and inversion."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   using Mint = StaticModInt<1000000007>;
     const Mint power = Mint(2).pow(10);
     assert(power.value() == 1024);
     assert((Mint(5) * Mint(5).inv()).value() == 1);
     assert((Mint(1000000006) + Mint(2)).value() == 1);
-    std::cout << "2^10 modulo 1e9+7: " << power.value() << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

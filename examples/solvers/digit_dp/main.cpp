@@ -47,11 +47,18 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Count values whose decimal digit sum is divisible by three."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const long long count = digit_dp_count(
         "25", 3, 0,
         [](int remainder, int digit) { return (remainder + digit) % 3; },
         [](int remainder) { return remainder == 0; });
     assert(count == 9);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

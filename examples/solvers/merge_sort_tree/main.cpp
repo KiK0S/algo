@@ -136,11 +136,17 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Count values in subarray ranges with a merge-sort tree."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> values = {5, 1, 7, 3, 5, 2};
     MergeSortTree<int> tree(values);
     assert(tree.count_less(1, 4, 5) == 2);
     assert(tree.count_in_range(0, 5, 2, 5) == 4);
-    std::cout << "values in [2, 5]: " << tree.count_in_range(0, 5, 2, 5) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

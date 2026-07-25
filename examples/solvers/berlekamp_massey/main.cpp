@@ -169,6 +169,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Recover the Fibonacci recurrence and evaluate a later term."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<long double> sequence = {0, 1, 1, 2, 3, 5, 8, 13};
     const auto coefficients = berlekamp_massey(sequence);
     assert(coefficients.size() == 2);
@@ -177,7 +181,9 @@ int main() {
     const long double term = linear_recurrence_kth(
         std::vector<long double>{0, 1}, coefficients, 10);
     assert(std::llround(term) == 55);
-    std::cout << "F(10): " << std::llround(term) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

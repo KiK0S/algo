@@ -148,10 +148,17 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Multiply two integer polynomials with the NTT."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::vector<int> a = {1, 2, 3, 4};
     const std::vector<int> b = {5, 6, 7};
     const std::vector<int> product = convolution_ntt_int(a, b);
     assert((product == std::vector<int>{5, 16, 34, 52, 45, 28}));
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

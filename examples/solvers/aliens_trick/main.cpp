@@ -47,6 +47,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Recover the optimum for an exact count through lambda search."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   const std::array<long long, 5> objective = {16, 9, 4, 1, 0};
     const auto solve_penalized = [&](long long lambda) {
       std::pair<long long, int> best = {
@@ -61,6 +65,9 @@ int main() {
     assert(result.objective == 4);
     assert(result.lambda == 5);
     assert(result.selected_count == 2);
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

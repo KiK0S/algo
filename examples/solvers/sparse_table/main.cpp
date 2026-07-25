@@ -81,11 +81,17 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Build a sparse table and answer immutable range minima."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   std::vector<int> values = {5, 2, 7, 3, 9, 1, 4};
     build_sparse_min(values);
     assert(query_sparse_min(0, 6) == 1);
     assert(query_sparse_min(1, 3) == 2);
-    std::cout << "minimum on [1, 3]: " << query_sparse_min(1, 3) << '\n';
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

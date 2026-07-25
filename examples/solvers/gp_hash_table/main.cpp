@@ -46,12 +46,19 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Use hardened hashes with GNU PBDS hash tables."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   GpHashTable<long long, int> table;
     table[5] = 11;
     table[5] += 4;
     table[8] = 3;
     assert(table[5] == 15);
     assert(table.find(8) != table.end());
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;

@@ -237,6 +237,10 @@ int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Decompose tree paths into contiguous heavy-light segments."));
+  EDULCNI_STEP("Example scenario initialized");
+  EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
+
   HeavyLightDecomposition hld(7);
     hld.add_edge(0, 1);
     hld.add_edge(0, 2);
@@ -251,6 +255,9 @@ int main() {
     assert(subtree.second - subtree.first + 1 == 3);
     const auto path = hld.path_segments(3, 6, true);
     assert(!path.empty());
+
+  EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
+  EDULCNI_STEP("Example scenario completed");
 
   cout << "ok\n";
   return 0;
