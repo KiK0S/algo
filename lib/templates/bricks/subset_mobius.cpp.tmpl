@@ -1,3 +1,0 @@
-for (int bit = 0; bit < bits; ++bit)
-  for (int mask = 0; mask < (1 << bits); ++mask)
-    if (mask & (1 << bit)) value[mask] -= value[mask ^ (1 << bit)];

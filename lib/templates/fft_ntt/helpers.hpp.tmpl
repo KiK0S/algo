@@ -1,0 +1,204 @@
+{{#if includeConvolution}}
+inline int fft_next_power_of_two(int n) {
+  int p = 1;
+  while (p < n) {
+    p <<= 1;
+  }
+  return p;
+}
+{{/if}}
+inline bool fft_is_power_of_two(int n) { return n > 0 && (n & (n - 1)) == 0; }
+
+template <typename T>
+inline void fft_bit_reverse(std::vector<T>& a) {
+  const int n = static_cast<int>(a.size());
+  for (int i = 1, j = 0; i < n; ++i) {
+    int bit = n >> 1;
+    while (j & bit) {
+      j ^= bit;
+      bit >>= 1;
+    }
+    j ^= bit;
+    if (i < j) {
+      std::swap(a[i], a[j]);
+    }
+  }
+}
+{{#if includeFft}}
+inline bool fft_transform(std::vector<std::complex<long double>>& a,
+                          bool invert = false) {
+  const int n = static_cast<int>(a.size());
+  if (n == 0) {
+    return true;
+  }
+  if (!fft_is_power_of_two(n)) {
+    return false;
+  }
+
+  fft_bit_reverse(a);
+  EDULCNI_VIS(edulcni::live::array("fft.values", a));
+  EDULCNI_STEP("FFT bit-reversal completed");
+  const long double pi = std::acos(static_cast<long double>(-1));
+  for (int len = 2; len <= n; len <<= 1) {
+    const long double ang = (invert ? -2.0L : 2.0L) * pi / len;
+    const std::complex<long double> wlen(std::cos(ang), std::sin(ang));
+    for (int i = 0; i < n; i += len) {
+      std::complex<long double> w(1.0L, 0.0L);
+      for (int j = 0; j < len / 2; ++j) {
+        const auto u = a[i + j];
+        const auto v = a[i + j + len / 2] * w;
+        a[i + j] = u + v;
+        a[i + j + len / 2] = u - v;
+        w *= wlen;
+      }
+    }
+    EDULCNI_VIS(edulcni::live::array("fft.values", a));
+    EDULCNI_STEP("FFT completed a butterfly stage");
+  }
+
+  if (invert) {
+    const long double inv_n = 1.0L / static_cast<long double>(n);
+    for (auto& x : a) {
+      x *= inv_n;
+    }
+  }
+  return true;
+}
+{{#if includeConvolution}}
+template <typename T>
+inline std::vector<long long> convolution_fft_round(const std::vector<T>& a,
+                                                    const std::vector<T>& b) {
+  if (a.empty() || b.empty()) {
+    return {};
+  }
+  const int need = static_cast<int>(a.size() + b.size() - 1);
+  const int n = fft_next_power_of_two(need);
+  std::vector<std::complex<long double>> fa(n), fb(n);
+  for (int i = 0; i < static_cast<int>(a.size()); ++i) {
+    fa[i] = static_cast<long double>(a[i]);
+  }
+  for (int i = 0; i < static_cast<int>(b.size()); ++i) {
+    fb[i] = static_cast<long double>(b[i]);
+  }
+  fft_transform(fa, false);
+  fft_transform(fb, false);
+  for (int i = 0; i < n; ++i) {
+    fa[i] *= fb[i];
+  }
+  fft_transform(fa, true);
+
+  std::vector<long long> result(need);
+  for (int i = 0; i < need; ++i) {
+    result[i] = static_cast<long long>(std::llround(fa[i].real()));
+  }
+  return result;
+}
+{{/if}}
+{{/if}}
+{{#if includeNtt}}
+inline int ntt_pow(int a, long long e, int mod) {
+  long long res = 1;
+  long long base = a % mod;
+  if (base < 0) {
+    base += mod;
+  }
+  while (e > 0) {
+    if (e & 1LL) {
+      res = res * base % mod;
+    }
+    base = base * base % mod;
+    e >>= 1LL;
+  }
+  return static_cast<int>(res);
+}
+
+inline bool ntt_transform(std::vector<int>& a, bool invert = false,
+                          int mod = {{modulusExpression}}, int primitive_root = {{primitiveRootExpression}}) {
+  const int n = static_cast<int>(a.size());
+  if (n == 0) {
+    return true;
+  }
+  if (!fft_is_power_of_two(n) || (mod - 1) % n != 0) {
+    return false;
+  }
+
+  fft_bit_reverse(a);
+  EDULCNI_VIS(edulcni::live::array("ntt.values", a));
+  EDULCNI_STEP("NTT bit-reversal completed");
+  for (int len = 2; len <= n; len <<= 1) {
+    int wlen = ntt_pow(primitive_root, (mod - 1) / len, mod);
+    if (invert) {
+      wlen = ntt_pow(wlen, mod - 2, mod);
+    }
+    for (int i = 0; i < n; i += len) {
+      long long w = 1;
+      for (int j = 0; j < len / 2; ++j) {
+        const int u = a[i + j];
+        const int v = static_cast<int>(w * a[i + j + len / 2] % mod);
+        int x = u + v;
+        if (x >= mod) {
+          x -= mod;
+        }
+        int y = u - v;
+        if (y < 0) {
+          y += mod;
+        }
+        a[i + j] = x;
+        a[i + j + len / 2] = y;
+        w = w * wlen % mod;
+      }
+    }
+    EDULCNI_VIS(edulcni::live::array("ntt.values", a));
+    EDULCNI_STEP("NTT completed a butterfly stage");
+  }
+
+  if (invert) {
+    const int inv_n = ntt_pow(n, mod - 2, mod);
+    for (int& x : a) {
+      x = static_cast<int>(1LL * x * inv_n % mod);
+    }
+  }
+  return true;
+}
+{{#if includeConvolution}}
+template <typename T>
+inline std::vector<int> convolution_ntt_int(const std::vector<T>& a,
+                                            const std::vector<T>& b,
+                                            int mod = {{modulusExpression}},
+                                            int primitive_root = {{primitiveRootExpression}}) {
+  if (a.empty() || b.empty()) {
+    return {};
+  }
+  const int need = static_cast<int>(a.size() + b.size() - 1);
+  const int n = fft_next_power_of_two(need);
+  std::vector<int> fa(n), fb(n);
+  for (int i = 0; i < static_cast<int>(a.size()); ++i) {
+    long long x = static_cast<long long>(a[i]) % mod;
+    if (x < 0) {
+      x += mod;
+    }
+    fa[i] = static_cast<int>(x);
+  }
+  for (int i = 0; i < static_cast<int>(b.size()); ++i) {
+    long long x = static_cast<long long>(b[i]) % mod;
+    if (x < 0) {
+      x += mod;
+    }
+    fb[i] = static_cast<int>(x);
+  }
+
+  if (!ntt_transform(fa, false, mod, primitive_root) ||
+      !ntt_transform(fb, false, mod, primitive_root)) {
+    return {};
+  }
+  for (int i = 0; i < n; ++i) {
+    fa[i] = static_cast<int>(1LL * fa[i] * fb[i] % mod);
+  }
+  if (!ntt_transform(fa, true, mod, primitive_root)) {
+    return {};
+  }
+  fa.resize(need);
+  return fa;
+}
+{{/if}}
+{{/if}}

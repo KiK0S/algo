@@ -1,0 +1,9 @@
+vector<vi> g(n);
+forn(i, m) {
+	int a, b;
+	cin >> a >> b;
+	--a, --b;
+	g[a].push_back(b);
+}
+EDULCNI_VIS(edulcni::live::graph("input.graph", g));
+EDULCNI_STEP("Directed graph read");

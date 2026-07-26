@@ -1,0 +1,31 @@
+template <typename Transition, typename Accept>
+inline long long digit_dp_count(const std::string& bound, int state_count,
+                                int initial_state, Transition transition,
+                                Accept accept) {
+  std::vector<std::vector<long long>> dp(state_count, std::vector<long long>(2));
+  dp[initial_state][1] = 1;
+  EDULCNI_VIS(edulcni::live::array("digit_dp.bound", bound));
+  EDULCNI_VIS(edulcni::live::matrix("digit_dp.states", dp));
+  EDULCNI_STEP("Digit DP initialized");
+  for (char bound_digit : bound) {
+    std::vector<std::vector<long long>> next(state_count, std::vector<long long>(2));
+    for (int state = 0; state < state_count; ++state)
+      for (int tight = 0; tight <= 1; ++tight)
+        for (int digit = 0; digit <= (tight ? bound_digit - '0' : 9); ++digit) {
+          const int next_state = transition(state, digit);
+          if (next_state < 0 || next_state >= state_count) continue;
+          const int next_tight = tight && digit == bound_digit - '0';
+          next[next_state][next_tight] += dp[state][tight];
+        }
+    dp.swap(next);
+    EDULCNI_VIS(edulcni::live::matrix("digit_dp.states", dp));
+    EDULCNI_VIS(edulcni::live::value("digit_dp.bound_digit", bound_digit));
+    EDULCNI_STEP("Digit DP consumes a digit");
+  }
+  long long answer = 0;
+  for (int state = 0; state < state_count; ++state)
+    if (accept(state)) answer += dp[state][0] + dp[state][1];
+  EDULCNI_VIS(edulcni::live::value("digit_dp.answer", answer));
+  EDULCNI_STEP("Digit DP accepts final states");
+  return answer;
+}

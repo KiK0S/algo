@@ -21,8 +21,8 @@ import {
   composeRecipeSections,
   CompressUniqueOptions,
   CppAnalysis,
+  customValueTypeCandidates,
   defaultBerlekampMasseyFeatures,
-  defaultInsertModeForKind,
   defaultMaxflowDinicCapType,
   defaultMaxflowDinicFeatures,
   defaultMinCostMaxFlowCapType,
@@ -124,6 +124,7 @@ import {
   MO_APPLICATION_SPEC,
   ModIntMode,
   ModIntOptions,
+  ModularPrecalcOptions,
   MoApplication,
   MoIndexing,
   MoOptions,
@@ -188,6 +189,7 @@ import {
   renderDsuRecipe,
   renderFastAllocatorRecipe,
   renderFenwickRecipe,
+  renderFactorialPrecalc,
   renderGeometryRecipe,
   renderHalfplaneIntersectionRecipe,
   renderFftNttRecipe,
@@ -207,7 +209,9 @@ import {
   renderMonotonicStackRecipe,
   renderOrderedSetRecipe,
   renderPolyHashRecipe,
+  renderPowersPrecalc,
   renderReadVector,
+  renderReadMatrix,
   renderRecipeSnippet,
   renderStaticTemplate,
   renderRollbackDsuRecipe,
@@ -223,6 +227,7 @@ import {
   resolveCatalogOrder,
   RenderedSnippet,
   ReadVectorOptions,
+  ReadMatrixOptions,
   ROLLBACK_DSU_APPLICATION_SPEC,
   RollbackDsuApplication,
   RollbackDsuIndexing,
@@ -248,7 +253,6 @@ import {
   defaultImplicitTreapFeatures,
   suggestIdentifier,
   vectorContainerTypeForValueType,
-  SnippetKind,
   SolutionSection,
   SparseTableOptions,
   SparseTableApplication,
@@ -278,7 +282,6 @@ type SnippetPickItem = vscode.QuickPickItem & {
   snippetPath: string;
   uri?: vscode.Uri;
   entry?: CatalogEntry;
-  snippetKind: SnippetKind;
   insertMode: InsertMode;
   previewContent?: string;
 };
@@ -444,9 +447,7 @@ const GENERATED_CHOICE_DESCRIPTIONS: Record<string, string> = {
   instance: "also adds an instance declaration and construction/build code",
   build_call: "also adds construction and a build call for the selected source",
   query_loop: "also adds input handling, operation dispatch, and example calls",
-  kruskal: "also adds edge input, sorting, DSU calls, and total-cost output",
   read_tree: "also adds tree input and the build call",
-  read_graph: "also adds graph input; algorithm calls remain up to you",
   read_queries: "also adds query input; callback processing remains up to you",
   single_source: "also adds a call from one source vertex",
   multi_source: "also adds source input and a multi-source call",
@@ -491,6 +492,22 @@ function explainPickItems<T extends vscode.QuickPickItem>(items: readonly T[]): 
   });
 }
 
+const OBSOLETE_PLUMBING_CHOICES = new Set([
+  "read_edges",
+  "read_graph",
+  "read_tree",
+  "read_queries",
+  "tree_query_loop",
+  "weighted_graph_read"
+]);
+
+function simplifyPickItems<T extends vscode.QuickPickItem>(items: readonly T[]): T[] {
+  return items.filter((item) => {
+    const value = (item as Partial<ValuePickItem>).value;
+    return value === undefined || !OBSOLETE_PLUMBING_CHOICES.has(value);
+  });
+}
+
 function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   items: readonly T[] | Thenable<readonly T[]>,
   options: vscode.QuickPickOptions & { canPickMany: true }
@@ -503,7 +520,16 @@ async function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   items: readonly T[] | Thenable<readonly T[]>,
   options?: vscode.QuickPickOptions
 ): Promise<T | T[] | undefined> {
-  const explainedItems = explainPickItems(await Promise.resolve(items));
+  const originalItems = await Promise.resolve(items);
+  const simplifiedItems = simplifyPickItems(originalItems);
+  const explainedItems = explainPickItems(
+    simplifiedItems.length > 0 ? simplifiedItems : originalItems
+  );
+  const automaticInputIndexing = options?.placeHolder === "Input indexing";
+  if (explainedItems.length === 1 || automaticInputIndexing) {
+    const picked = explainedItems.find((item) => item.picked) ?? explainedItems[0];
+    return (options?.canPickMany ? [picked] : picked) as T | T[];
+  }
   if (wizardReplayContext) {
     const fallback = defaultQuickPickAnswer(
       explainedItems,
@@ -707,15 +733,16 @@ interface GeneratorRegistration {
 }
 
 const DIRECT_COMMANDS = [
-  { command: "edulcni.segtree", snippetPath: "/solvers/segtree" },
-  { command: "edulcni.compressUnique", snippetPath: "/bricks/compress_unique" },
-  { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" },
-  { command: "edulcni.berlekampMassey", snippetPath: "/solvers/berlekamp_massey" },
-  { command: "edulcni.sparseTable", snippetPath: "/solvers/sparse_table" }
+  { command: "edulcni.segtree", snippetPath: "/templates/segtree" },
+  { command: "edulcni.compressUnique", snippetPath: "/templates/compress_unique" },
+  { command: "edulcni.readVector", snippetPath: "/templates/read_vector" },
+  { command: "edulcni.readMatrix", snippetPath: "/templates/read_matrix" },
+  { command: "edulcni.berlekampMassey", snippetPath: "/templates/berlekamp_massey" },
+  { command: "edulcni.sparseTable", snippetPath: "/templates/sparse_table" }
 ] as const;
 
 function isCatalogSnippetPath(displayPath: string): boolean {
-  return displayPath.startsWith("/bricks/") || displayPath.startsWith("/solvers/");
+  return displayPath.startsWith("/templates/") || displayPath.startsWith("/templates/");
 }
 
 async function resolveBundledLibraryRoot(
@@ -799,17 +826,33 @@ function compactCodePreview(content: string, exportedNames: string[] = []): stri
   return preview.length > 180 ? `${preview.slice(0, 177)}...` : preview;
 }
 
+function visualizationPickSummary(entry: CatalogEntry): string {
+  const visualization = entry.visualization;
+  if (!visualization) {
+    return "";
+  }
+  if (visualization.status === "none" || visualization.status === "manual") {
+    return `visualization: ${visualization.status}`;
+  }
+  const models = visualization.models.slice(0, 3).join(" + ");
+  const granularity = visualization.defaultGranularity ?? "operations";
+  return `visualization: ${models} · ${granularity}`;
+}
+
 async function snippetPickPreview(
   root: vscode.Uri,
   entry: CatalogEntry,
   analysis: CppAnalysis
 ): Promise<{ detail: string; content?: string }> {
+  const visualization = visualizationPickSummary(entry);
+  const withVisualization = (detail: string): string =>
+    [visualization, detail].filter((value) => value !== "").join(" · ");
   try {
     if (entry.generator) {
       const generated = generatorRegistry.get(entry.generator)?.defaultSnippet(analysis, []);
       const preview = generated ? compactCodePreview(generated.content, generated.exports) : "";
       return {
-        detail: preview || entry.detail || entry.kind,
+        detail: withVisualization(preview || entry.detail || "template"),
         content: generated?.content
       };
     }
@@ -819,14 +862,14 @@ async function snippetPickPreview(
       );
       const preview = compactCodePreview(source, entry.exports);
       return {
-        detail: preview || entry.detail || entry.kind,
+        detail: withVisualization(preview || entry.detail || "template"),
         content: source
       };
     }
   } catch {
     // Keep the picker usable when a preview cannot be produced.
   }
-  return { detail: entry.detail || entry.kind };
+  return { detail: withVisualization(entry.detail || "template") };
 }
 
 async function buildPickItems(
@@ -850,8 +893,7 @@ async function buildPickItems(
       previewContent: preview.content,
       snippetPath: entry.path,
       entry,
-      snippetKind: entry.kind,
-      insertMode: entry.insertMode ?? defaultInsertModeForKind(entry.kind)
+      insertMode: entry.insertMode
     });
   }
 
@@ -892,7 +934,7 @@ async function renderSnippetPath(
     if (!entry?.template) {
       throw new Error(`catalog entry has no generator or template: ${currentPath}`);
     }
-    const rendered = renderStaticTemplate(entry.template, entry.kind);
+    const rendered = renderStaticTemplate(entry.template);
     chunks.push(rendered.content.trim());
     exportedNames.push(...(entry.exports ?? rendered.exports));
   }
@@ -930,12 +972,33 @@ function cursorIndentation(editor: vscode.TextEditor, position: vscode.Position)
   return /^\s*$/.test(prefix) ? prefix : prefix.match(/^\s*/)?.[0] ?? "";
 }
 
+const VISUALIZATION_FALLBACK = `#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+`;
+
+function needsVisualizationFallback(documentText: string, content: string): boolean {
+  return (
+    /\bEDULCNI_(?:VIS|STEP)\s*\(/.test(content) &&
+    (
+      !/^\s*#\s*define\s+EDULCNI_VIS\b/m.test(documentText) ||
+      !/^\s*#\s*define\s+EDULCNI_STEP\b/m.test(documentText)
+    )
+  );
+}
+
 async function insertContent(
   editor: vscode.TextEditor,
   insertMode: InsertMode,
   content: string
 ): Promise<boolean> {
   const documentText = editor.document.getText();
+  const fallback = needsVisualizationFallback(documentText, content)
+    ? VISUALIZATION_FALLBACK
+    : "";
   const offset =
     insertMode === "global"
       ? findGlobalInsertionOffset(documentText)
@@ -949,6 +1012,21 @@ async function insertContent(
         );
   const position = positionAtOffset(editor, offset);
   return editor.edit((editBuilder) => {
+    if (fallback === "") {
+      editBuilder.insert(position, text);
+      return;
+    }
+    const fallbackOffset = findGlobalInsertionOffset(documentText);
+    const fallbackText = normalizeInsertionText(
+      documentText,
+      fallbackOffset,
+      fallback
+    );
+    if (fallbackOffset === offset) {
+      editBuilder.insert(position, `${fallbackText}${text}`);
+      return;
+    }
+    editBuilder.insert(positionAtOffset(editor, fallbackOffset), fallbackText);
     editBuilder.insert(position, text);
   });
 }
@@ -990,8 +1068,16 @@ async function insertRenderedSnippet(
 
   const documentText = editor.document.getText();
   const analysis = analyzeCppDocument(documentText);
-  const helperContent = composeRecipeSections(recipe, recipeSectionsExceptSolve());
+  let helperContent = composeRecipeSections(recipe, recipeSectionsExceptSolve());
   const usageContent = `${solveChunks.map((chunk) => chunk.trim()).filter(Boolean).join("\n\n")}\n`;
+  if (
+    needsVisualizationFallback(
+      documentText,
+      `${helperContent}\n${usageContent}`
+    )
+  ) {
+    helperContent = `${VISUALIZATION_FALLBACK}\n${helperContent}`;
+  }
   const globalOffset = findGlobalInsertionOffset(documentText);
   const solveOffset = solveBodyInsertionOffset(documentText, analysis);
 
@@ -1225,7 +1311,6 @@ async function promptSegmentTreeOptions(
     [
       { label: "empty size", value: "empty", picked: true },
       { label: "existing vector", value: "existing_vector" },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: segment tree",
@@ -1279,7 +1364,6 @@ async function promptSegmentTreeOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: segment tree",
@@ -1432,17 +1516,8 @@ async function promptCompressUniqueOptions(
 
   const used = new Set(analysis.identifiers);
   used.add(sourceName.trim());
-  const valuesName = await showExplainedInputBox({
-    title: "edulcni: compress_unique",
-    prompt: "Unique values vector name",
-    value: reserveIdentifier(used, "vals", "coords"),
-    validateInput: validateIdentifier,
-    ignoreFocusOut: true
-  });
-  if (valuesName === undefined || valuesName.trim() === "") {
-    return undefined;
-  }
-  used.add(valuesName.trim());
+  const valuesName = reserveIdentifier(used, "vals", "coords");
+  used.add(valuesName);
 
   const idFunctionName = reserveIdentifier(used, "get_id", "compress_id");
   const rewritePick = await showExplainedQuickPick<
@@ -1464,7 +1539,7 @@ async function promptCompressUniqueOptions(
 
   return {
     sourceName: sourceName.trim(),
-    valuesName: valuesName.trim(),
+    valuesName,
     idFunctionName,
     rewriteSource: rewritePick.value === "rewrite"
   };
@@ -1513,6 +1588,66 @@ async function promptReadVectorOptions(
   };
 }
 
+async function promptReadMatrixOptions(
+  editor: vscode.TextEditor
+): Promise<ReadMatrixOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const title = "edulcni: read_matrix";
+  const nameInput = await showExplainedInputBox({
+    title,
+    prompt: "Matrix variable name",
+    value: suggestIdentifier(analysis, "a", "grid"),
+    validateInput: validateIdentifier,
+    ignoreFocusOut: true
+  });
+  if (nameInput === undefined || nameInput.trim() === "") return undefined;
+
+  const rowExpression = await pickStringWithCustom(
+    title,
+    "Row count",
+    sizeExpressionCandidates(analysis),
+    "Expression for the number of rows, for example n"
+  );
+  if (rowExpression === undefined || rowExpression.trim() === "") return undefined;
+
+  const columnExpression = await pickStringWithCustom(
+    title,
+    "Column count",
+    sizeExpressionCandidates(analysis),
+    "Expression for the number of columns, for example m"
+  );
+  if (columnExpression === undefined || columnExpression.trim() === "") return undefined;
+
+  const kind = await showExplainedQuickPick<ValuePickItem<"values" | "characters">>(
+    [
+      { label: "value matrix", value: "values", picked: true },
+      { label: "character grid", value: "characters" }
+    ],
+    { title, placeHolder: "Matrix input format", ignoreFocusOut: true }
+  );
+  if (!kind) return undefined;
+
+  let valueType = "char";
+  if (kind.value === "values") {
+    const selectedType = await pickStringWithCustom(
+      title,
+      "Value type",
+      ["int", "ll", "long long", "char"],
+      "C++ value type"
+    );
+    if (selectedType === undefined || selectedType.trim() === "") return undefined;
+    valueType = selectedType.trim();
+  }
+
+  return {
+    name: nameInput.trim(),
+    rowExpression: rowExpression.trim(),
+    columnExpression: columnExpression.trim(),
+    valueType,
+    stringGrid: kind.value === "characters"
+  };
+}
+
 async function promptSegmentTreeBeatsOptions(
   editor: vscode.TextEditor
 ): Promise<SegmentTreeBeatsOptions | undefined> {
@@ -1541,7 +1676,6 @@ async function promptSegmentTreeBeatsOptions(
     [
       { label: "empty size", value: "empty", picked: true },
       { label: "existing vector", value: "existing_vector" },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: segtree_beats",
@@ -1675,7 +1809,6 @@ async function promptSegmentTreeBeatsOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: segtree_beats",
@@ -1732,7 +1865,6 @@ async function promptImplicitTreapOptions(
     [
       { label: "empty treap", value: "empty", picked: true },
       { label: "existing vector", value: "existing_vector" },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: implicit_treap",
@@ -1861,7 +1993,6 @@ async function promptImplicitTreapOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: implicit_treap",
@@ -1974,7 +2105,6 @@ async function promptMergeSortTreeOptions(
   >(
     [
       { label: "existing vector", value: "existing_vector", picked: true },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: merge_sort_tree",
@@ -2020,7 +2150,6 @@ async function promptMergeSortTreeOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance/build skeleton", value: "instance" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: merge_sort_tree",
@@ -2058,7 +2187,6 @@ function defaultDsuOptions(
   return {
     application: "connectivity",
     sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
-    edgeCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "m",
     indexing: "zero_based",
     usageMode: "helper_only",
     instanceName: "dsu",
@@ -2097,14 +2225,11 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
   }
 
   const usagePick = await showExplainedQuickPick<ValuePickItem<DsuUsageMode>>(
-    scenarioPick.value === "kruskal"
-      ? [{ label: "Kruskal skeleton", value: "kruskal", picked: true }]
-      : scenarioPick.value === "query_loop"
-        ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
+    scenarioPick.value === "query_loop"
+        ? [{ label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true }]
         : [
             { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "instance skeleton", value: "instance" },
-            { label: "query loop skeleton", value: "query_loop" }
           ],
     {
       title: "edulcni: dsu",
@@ -2113,19 +2238,6 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
     }
   );
   if (!usagePick) {
-    return undefined;
-  }
-
-  const edgeCountName =
-    usagePick.value === "kruskal"
-      ? await pickStringWithCustom(
-          "edulcni: dsu",
-          "Edge count expression",
-          uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-          "Kruskal edge count expression"
-        )
-      : undefined;
-  if (usagePick.value === "kruskal" && (!edgeCountName || edgeCountName.trim() === "")) {
     return undefined;
   }
 
@@ -2147,7 +2259,6 @@ async function promptDsuOptions(editor: vscode.TextEditor): Promise<DsuOptions |
   return {
     application: scenarioPick.value,
     sizeExpression: sizeExpression.trim(),
-    edgeCountName: edgeCountName?.trim(),
     indexing: indexingPick.value,
     usageMode: usagePick.value,
     instanceName: suggestIdentifier(analysis, "dsu", "sets"),
@@ -2212,7 +2323,6 @@ async function promptRollbackDsuOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance skeleton", value: "instance" },
-      { label: "snapshot query loop", value: "query_loop" }
     ],
     {
       title: "edulcni: rollback_dsu",
@@ -2314,7 +2424,6 @@ async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions |
   const sourcePick = await showExplainedQuickPick<ValuePickItem<LcaSourceMode>>(
     [
       { label: "empty helper", value: "empty", picked: true },
-      { label: "generated tree read loop", value: "read_tree" }
     ],
     {
       title: "edulcni: lca",
@@ -2328,12 +2437,10 @@ async function promptLcaOptions(editor: vscode.TextEditor): Promise<LcaOptions |
 
   const usagePick = await showExplainedQuickPick<ValuePickItem<LcaUsageMode>>(
     scenarioPick.value === "tree_query_loop"
-      ? [{ label: "query loop skeleton", value: "query_loop", picked: true }]
+      ? [{ label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true }]
       : [
           { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
           { label: "instance skeleton", value: "instance" },
-          { label: "read tree + build", value: "read_tree" },
-          { label: "query loop skeleton", value: "query_loop" }
         ],
     {
       title: "edulcni: lca",
@@ -2436,7 +2543,6 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
   const sourcePick = await showExplainedQuickPick<ValuePickItem<HldSourceMode>>(
     [
       { label: "empty helper", value: "empty", picked: true },
-      { label: "generated tree read loop", value: "read_tree" }
     ],
     {
       title: "edulcni: hld",
@@ -2466,16 +2572,13 @@ async function promptHldOptions(editor: vscode.TextEditor): Promise<HldOptions |
   const usagePick = await showExplainedQuickPick<ValuePickItem<HldUsageMode>>(
     scenarioPick.value === "path_query"
       ? [
-          { label: "path/subtree/LCA query loop", value: "query_loop", picked: true },
+          { label: "instance skeleton", value: "instance", picked: true },
           { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read tree + build", value: "read_tree" },
           { label: "instance skeleton", value: "instance" }
         ]
       : [
           { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
           { label: "instance skeleton", value: "instance" },
-          { label: "read tree + build", value: "read_tree" },
-          { label: "path/subtree/LCA query loop", value: "query_loop" }
         ],
     {
       title: "edulcni: hld",
@@ -2557,92 +2660,23 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     return undefined;
   }
 
-  const sourcePick = await showExplainedQuickPick<ValuePickItem<BfsSourceMode>>(
-    [
-      { label: "existing adjacency list", value: "existing_graph", picked: true },
-      { label: "generated edge read loop", value: "read_edges" }
-    ],
-    {
-      title: "edulcni: bfs",
-      placeHolder: "Graph source",
-      ignoreFocusOut: true
-    }
-  );
-  if (!sourcePick) {
-    return undefined;
-  }
-
-  const graphName = await pickStringWithCustom(
-    "edulcni: bfs",
-    "Graph variable",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
-    "Adjacency-list variable name"
-  );
-  if (graphName === undefined || graphName.trim() === "") {
-    return undefined;
-  }
-
-  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
-  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
-  if (sourcePick.value === "read_edges") {
-    const pickedSize = await pickStringWithCustom(
-      "edulcni: bfs",
-      "Node count expression",
-      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
-      "BFS node count expression"
-    );
-    if (pickedSize === undefined || pickedSize.trim() === "") {
-      return undefined;
-    }
-    sizeExpression = pickedSize.trim();
-
-    const pickedEdges = await pickStringWithCustom(
-      "edulcni: bfs",
-      "Edge count expression",
-      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-      "BFS edge count expression"
-    );
-    if (pickedEdges === undefined || pickedEdges.trim() === "") {
-      return undefined;
-    }
-    edgeCountName = pickedEdges.trim();
-  }
-
-  const graphModePick = await showExplainedQuickPick<ValuePickItem<BfsGraphMode>>(
-    [
-      { label: "undirected", value: "undirected", picked: true },
-      { label: "directed", value: "directed" }
-    ],
-    {
-      title: "edulcni: bfs",
-      placeHolder: "Graph direction",
-      ignoreFocusOut: true
-    }
-  );
-  if (!graphModePick) {
-    return undefined;
-  }
-
   const usagePick = await showExplainedQuickPick<ValuePickItem<BfsUsageMode>>(
     scenarioPick.value === "multi_source"
       ? [
           { label: "multi-source run", value: "multi_source", picked: true },
-          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read graph", value: "read_graph" }
+          { label: "Reusable API only", description: "Emit BFS result/path helpers without a call.", value: "helper_only" }
         ]
       : scenarioPick.value === "path_restore"
         ? [
             { label: "path query skeleton", value: "path_query", picked: true },
             { label: "single-source run", value: "single_source" },
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-            { label: "read graph", value: "read_graph" }
+            { label: "Reusable API only", description: "Emit BFS result/path helpers without a call.", value: "helper_only" }
           ]
         : [
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
-            { label: "read graph", value: "read_graph" },
-            { label: "single-source run", value: "single_source" },
-            { label: "multi-source run", value: "multi_source" },
-            { label: "path query skeleton", value: "path_query" }
+            { label: "Reusable API only", description: "Emit BFS result/path helpers without a call.", value: "helper_only", picked: true },
+            { label: "Run from one source", description: "Call bfs(graph, source) and store distances, parents, and order.", value: "single_source" },
+            { label: "Run from multiple sources", description: "Call multi-source BFS on the existing adjacency list.", value: "multi_source" },
+            { label: "Restore one path", description: "Run BFS, then restore source-to-target vertices.", value: "path_query" }
           ],
     {
       title: "edulcni: bfs",
@@ -2654,30 +2688,26 @@ async function promptBfsOptions(editor: vscode.TextEditor): Promise<BfsOptions |
     return undefined;
   }
 
-  const indexingPick = await showExplainedQuickPick<ValuePickItem<BfsIndexing>>(
-    [
-      { label: "0-indexed", value: "zero_based" },
-      { label: "1-indexed input", value: "one_based_input" }
-    ],
-    {
-      title: "edulcni: bfs",
-      placeHolder: "Input indexing",
-      ignoreFocusOut: true
-    }
-  );
-  if (!indexingPick) {
-    return undefined;
+  let graphName = "graph";
+  if (usagePick.value !== "helper_only") {
+    const pickedGraph = await pickStringWithCustom(
+      "edulcni: bfs",
+      "Existing graph variable",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+      "Adjacency-list variable name"
+    );
+    if (pickedGraph === undefined || pickedGraph.trim() === "") return undefined;
+    graphName = pickedGraph.trim();
   }
 
   return {
     application: scenarioPick.value,
-    sourceMode: sourcePick.value,
-    graphMode: graphModePick.value,
-    indexing: indexingPick.value,
+    sourceMode: "existing_graph",
+    graphMode: "directed",
+    indexing: "zero_based",
     usageMode: usagePick.value,
-    sizeExpression,
-    edgeCountName,
-    graphName: graphName.trim(),
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    graphName,
     sourceName: suggestIdentifier(analysis, "source", "s"),
     targetName: suggestIdentifier(analysis, "target", "t"),
     resultName: suggestIdentifier(analysis, "result", "bfs_result"),
@@ -2729,21 +2759,6 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const sourcePick = await showExplainedQuickPick<ValuePickItem<DijkstraSourceMode>>(
-    [
-      { label: "existing weighted adjacency list", value: "existing_graph", picked: true },
-      { label: "generated weighted edge loop", value: "read_edges" }
-    ],
-    {
-      title: "edulcni: dijkstra",
-      placeHolder: "Graph source",
-      ignoreFocusOut: true
-    }
-  );
-  if (!sourcePick) {
-    return undefined;
-  }
-
   const valueType = await pickStringWithCustom(
     "edulcni: dijkstra",
     "Weight type",
@@ -2767,83 +2782,23 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const graphName = await pickStringWithCustom(
-    "edulcni: dijkstra",
-    "Graph variable",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
-    "Weighted adjacency-list variable name"
-  );
-  if (graphName === undefined || graphName.trim() === "") {
-    return undefined;
-  }
-
-  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
-  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
-  if (sourcePick.value === "read_edges") {
-    const pickedSize = await pickStringWithCustom(
-      "edulcni: dijkstra",
-      "Node count expression",
-      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
-      "Dijkstra node count expression"
-    );
-    if (pickedSize === undefined || pickedSize.trim() === "") {
-      return undefined;
-    }
-    sizeExpression = pickedSize.trim();
-
-    const pickedEdges = await pickStringWithCustom(
-      "edulcni: dijkstra",
-      "Edge count expression",
-      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-      "Dijkstra edge count expression"
-    );
-    if (pickedEdges === undefined || pickedEdges.trim() === "") {
-      return undefined;
-    }
-    edgeCountName = pickedEdges.trim();
-  }
-
-  const graphModePick = await showExplainedQuickPick<ValuePickItem<DijkstraGraphMode>>(
-    [
-      { label: "directed", value: "directed", picked: true },
-      { label: "undirected", value: "undirected" }
-    ],
-    {
-      title: "edulcni: dijkstra",
-      placeHolder: "Graph direction",
-      ignoreFocusOut: true
-    }
-  );
-  if (!graphModePick) {
-    return undefined;
-  }
-
   const usagePick = await showExplainedQuickPick<ValuePickItem<DijkstraUsageMode>>(
     scenarioPick.value === "multi_source"
       ? [
           { label: "multi-source run", value: "multi_source", picked: true },
-          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read graph", value: "read_graph" }
+          { label: "Reusable API only", description: "Emit weighted shortest-path helpers without a call.", value: "helper_only" }
         ]
       : scenarioPick.value === "path_restore"
         ? [
             { label: "path query skeleton", value: "path_query", picked: true },
             { label: "single-source run", value: "single_source" },
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-            { label: "read graph", value: "read_graph" }
+            { label: "Reusable API only", description: "Emit weighted shortest-path helpers without a call.", value: "helper_only" }
           ]
-        : scenarioPick.value === "weighted_graph_read"
-          ? [
-              { label: "read graph", value: "read_graph", picked: true },
-              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-              { label: "single-source run", value: "single_source" }
-            ]
           : [
-              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
-              { label: "read graph", value: "read_graph" },
-              { label: "single-source run", value: "single_source" },
-              { label: "multi-source run", value: "multi_source" },
-              { label: "path query skeleton", value: "path_query" }
+              { label: "Reusable API only", description: "Emit weighted shortest-path helpers without a call.", value: "helper_only", picked: true },
+              { label: "Run from one source", description: "Call dijkstra(graph, source, inf) and store distances and parents.", value: "single_source" },
+              { label: "Run from multiple sources", description: "Call multi-source Dijkstra on the existing weighted adjacency list.", value: "multi_source" },
+              { label: "Restore one path", description: "Run Dijkstra, then restore source-to-target vertices.", value: "path_query" }
             ],
     {
       title: "edulcni: dijkstra",
@@ -2855,32 +2810,28 @@ async function promptDijkstraOptions(
     return undefined;
   }
 
-  const indexingPick = await showExplainedQuickPick<ValuePickItem<DijkstraIndexing>>(
-    [
-      { label: "0-indexed", value: "zero_based" },
-      { label: "1-indexed input", value: "one_based_input" }
-    ],
-    {
-      title: "edulcni: dijkstra",
-      placeHolder: "Input indexing",
-      ignoreFocusOut: true
-    }
-  );
-  if (!indexingPick) {
-    return undefined;
+  let graphName = "graph";
+  if (usagePick.value !== "helper_only") {
+    const pickedGraph = await pickStringWithCustom(
+      "edulcni: dijkstra",
+      "Existing weighted graph variable",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+      "Weighted adjacency-list variable name"
+    );
+    if (pickedGraph === undefined || pickedGraph.trim() === "") return undefined;
+    graphName = pickedGraph.trim();
   }
 
   return {
     application: scenarioPick.value,
-    sourceMode: sourcePick.value,
-    graphMode: graphModePick.value,
-    indexing: indexingPick.value,
+    sourceMode: "existing_graph",
+    graphMode: "directed",
+    indexing: "zero_based",
     usageMode: usagePick.value,
     valueType: valueType.trim(),
     infExpression: infExpression.trim(),
-    sizeExpression,
-    edgeCountName,
-    graphName: graphName.trim(),
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    graphName,
     sourceName: suggestIdentifier(analysis, "source", "s"),
     targetName: suggestIdentifier(analysis, "target", "t"),
     resultName: suggestIdentifier(analysis, "result", "dijkstra_result"),
@@ -2928,84 +2879,29 @@ async function promptToposortOptions(
     return undefined;
   }
 
-  const sourcePick = await showExplainedQuickPick<ValuePickItem<ToposortSourceMode>>(
-    [
-      { label: "existing adjacency list", value: "existing_graph", picked: true },
-      { label: "generated dependency edge loop", value: "read_edges" }
-    ],
-    {
-      title: "edulcni: toposort",
-      placeHolder: "Graph source",
-      ignoreFocusOut: true
-    }
-  );
-  if (!sourcePick) {
-    return undefined;
-  }
-
-  const graphName = await pickStringWithCustom(
-    "edulcni: toposort",
-    "Graph variable",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
-    "Directed adjacency-list variable name"
-  );
-  if (graphName === undefined || graphName.trim() === "") {
-    return undefined;
-  }
-
-  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
-  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
-  if (sourcePick.value === "read_edges") {
-    const pickedSize = await pickStringWithCustom(
-      "edulcni: toposort",
-      "Node count expression",
-      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
-      "Toposort node count expression"
-    );
-    if (pickedSize === undefined || pickedSize.trim() === "") {
-      return undefined;
-    }
-    sizeExpression = pickedSize.trim();
-
-    const pickedEdges = await pickStringWithCustom(
-      "edulcni: toposort",
-      "Edge count expression",
-      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-      "Toposort edge count expression"
-    );
-    if (pickedEdges === undefined || pickedEdges.trim() === "") {
-      return undefined;
-    }
-    edgeCountName = pickedEdges.trim();
-  }
-
   const usagePick = await showExplainedQuickPick<ValuePickItem<ToposortUsageMode>>(
     scenarioPick.value === "cycle_detection"
       ? [
           { label: "cycle check", value: "cycle_check", picked: true },
-          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read graph", value: "read_graph" },
+          { label: "Reusable API only", description: "Emit sorting and validation helpers without a call.", value: "helper_only" },
           { label: "sort and print order", value: "sort_order" }
         ]
       : scenarioPick.value === "order_validation"
         ? [
             { label: "validate supplied order", value: "validate_order", picked: true },
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-            { label: "read graph", value: "read_graph" }
+            { label: "Reusable API only", description: "Emit sorting and validation helpers without a call.", value: "helper_only" }
           ]
         : scenarioPick.value === "dependency_schedule"
           ? [
               { label: "sort and print order", value: "sort_order", picked: true },
-              { label: "read graph", value: "read_graph" },
               { label: "cycle check", value: "cycle_check" },
-              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" }
+              { label: "Reusable API only", description: "Emit sorting and validation helpers without a call.", value: "helper_only" }
             ]
           : [
-              { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
-              { label: "read graph", value: "read_graph" },
-              { label: "sort and print order", value: "sort_order" },
-              { label: "cycle check", value: "cycle_check" },
-              { label: "validate supplied order", value: "validate_order" }
+              { label: "Reusable API only", description: "Emit sorting and validation helpers without a call.", value: "helper_only", picked: true },
+              { label: "Sort and print order", description: "Call topological_sort(graph) and print the returned vertices.", value: "sort_order" },
+              { label: "Check for a cycle", description: "Call topological_sort(graph) and store whether all vertices were returned.", value: "cycle_check" },
+              { label: "Validate an order", description: "Call is_topological_order(graph, order) for an existing order.", value: "validate_order" }
             ],
     {
       title: "edulcni: toposort",
@@ -3017,29 +2913,24 @@ async function promptToposortOptions(
     return undefined;
   }
 
-  const indexingPick = await showExplainedQuickPick<ValuePickItem<ToposortIndexing>>(
-    [
-      { label: "0-indexed", value: "zero_based" },
-      { label: "1-indexed input", value: "one_based_input" }
-    ],
-    {
-      title: "edulcni: toposort",
-      placeHolder: "Input indexing",
-      ignoreFocusOut: true
-    }
-  );
-  if (!indexingPick) {
-    return undefined;
+  let graphName = "graph";
+  if (usagePick.value !== "helper_only") {
+    const pickedGraph = await pickStringWithCustom(
+      "edulcni: toposort", "Existing directed graph variable",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+      "Directed adjacency-list variable name"
+    );
+    if (pickedGraph === undefined || pickedGraph.trim() === "") return undefined;
+    graphName = pickedGraph.trim();
   }
 
   return {
     application: scenarioPick.value,
-    sourceMode: sourcePick.value,
-    indexing: indexingPick.value,
+    sourceMode: "existing_graph",
+    indexing: "zero_based",
     usageMode: usagePick.value,
-    sizeExpression,
-    edgeCountName,
-    graphName: graphName.trim(),
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+    graphName,
     orderName: suggestIdentifier(analysis, "order", "topo_order"),
     dagName: suggestIdentifier(analysis, "dag", "is_dag"),
     names: planToposortNames(analysis),
@@ -3086,78 +2977,23 @@ async function promptKosarajuOptions(
     return undefined;
   }
 
-  const sourcePick = await showExplainedQuickPick<ValuePickItem<KosarajuSourceMode>>(
-    [
-      { label: "existing directed graph", value: "existing_graph", picked: true },
-      { label: "generated directed edge loop", value: "read_edges" }
-    ],
-    {
-      title: "edulcni: kosaraju",
-      placeHolder: "Graph source",
-      ignoreFocusOut: true
-    }
-  );
-  if (!sourcePick) {
-    return undefined;
-  }
-
-  const graphName = await pickStringWithCustom(
-    "edulcni: kosaraju",
-    "Graph variable",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
-    "Directed graph variable name"
-  );
-  if (graphName === undefined || graphName.trim() === "") {
-    return undefined;
-  }
-
-  let sizeExpression = sizeExpressionCandidates(analysis)[0] ?? "n";
-  let edgeCountName = bindingCandidates(analysis, "query_count")[0]?.value ?? "m";
-  if (sourcePick.value === "read_edges") {
-    const pickedSize = await pickStringWithCustom(
-      "edulcni: kosaraju",
-      "Node count expression",
-      uniqueValues([...bindingCandidates(analysis, "size").map((item) => item.value), "n"]),
-      "Kosaraju node count expression"
-    );
-    if (pickedSize === undefined || pickedSize.trim() === "") {
-      return undefined;
-    }
-    sizeExpression = pickedSize.trim();
-
-    const pickedEdges = await pickStringWithCustom(
-      "edulcni: kosaraju",
-      "Edge count expression",
-      uniqueValues([...bindingCandidates(analysis, "query_count").map((item) => item.value), "m"]),
-      "Kosaraju edge count expression"
-    );
-    if (pickedEdges === undefined || pickedEdges.trim() === "") {
-      return undefined;
-    }
-    edgeCountName = pickedEdges.trim();
-  }
-
   const usagePick = await showExplainedQuickPick<ValuePickItem<KosarajuUsageMode>>(
     scenarioPick.value === "same_component"
       ? [
-          { label: "same-component query loop", value: "same_component_queries", picked: true },
+          { label: "compute SCC", value: "compute_scc", picked: true },
           { label: "compute SCC", value: "compute_scc" },
-          { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read graph", value: "read_graph" }
+          { label: "Reusable API only", description: "Emit SCC helpers without a call.", value: "helper_only" }
         ]
       : scenarioPick.value === "condensation_dag"
         ? [
             { label: "compute SCC", value: "compute_scc", picked: true },
             { label: "print components", value: "print_components" },
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-            { label: "read graph", value: "read_graph" }
+            { label: "Reusable API only", description: "Emit SCC helpers without a call.", value: "helper_only" }
           ]
         : [
-            { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
-            { label: "read graph", value: "read_graph" },
-            { label: "compute SCC", value: "compute_scc" },
-            { label: "same-component query loop", value: "same_component_queries" },
-            { label: "print components", value: "print_components" }
+            { label: "Reusable API only", description: "Emit SCC helpers without a call.", value: "helper_only", picked: true },
+            { label: "Compute SCC result", description: "Call kosaraju_scc(graph) and store component ids.", value: "compute_scc" },
+            { label: "Print components", description: "Compute SCCs, group vertices by id, and print each group.", value: "print_components" }
           ],
     {
       title: "edulcni: kosaraju",
@@ -3169,30 +3005,25 @@ async function promptKosarajuOptions(
     return undefined;
   }
 
-  const indexingPick = await showExplainedQuickPick<ValuePickItem<KosarajuIndexing>>(
-    [
-      { label: "0-indexed", value: "zero_based" },
-      { label: "1-indexed input", value: "one_based_input" }
-    ],
-    {
-      title: "edulcni: kosaraju",
-      placeHolder: "Input indexing",
-      ignoreFocusOut: true
-    }
-  );
-  if (!indexingPick) {
-    return undefined;
+  let graphName = "graph";
+  if (usagePick.value !== "helper_only") {
+    const pickedGraph = await pickStringWithCustom(
+      "edulcni: kosaraju", "Existing directed graph variable",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "graph"]),
+      "Directed adjacency-list variable name"
+    );
+    if (pickedGraph === undefined || pickedGraph.trim() === "") return undefined;
+    graphName = pickedGraph.trim();
   }
 
   return {
     application: scenarioPick.value,
-    sourceMode: sourcePick.value,
-    indexing: indexingPick.value,
+    sourceMode: "existing_graph",
+    indexing: "zero_based",
     usageMode: usagePick.value,
-    sizeExpression,
-    edgeCountName,
+    sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
     queryCountName: bindingCandidates(analysis, "query_count")[0]?.value ?? "q",
-    graphName: graphName.trim(),
+    graphName,
     resultName: suggestIdentifier(analysis, "scc", "kosaraju_result"),
     names: planKosarajuNames(analysis),
     includeUsageComment: usagePick.value === "helper_only"
@@ -3241,7 +3072,6 @@ async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | u
   const sourcePick = await showExplainedQuickPick<ValuePickItem<MoSourceMode>>(
     [
       { label: "existing query vector", value: "existing_queries", picked: true },
-      { label: "generated query read loop", value: "read_queries" }
     ],
     {
       title: "edulcni: mo",
@@ -3307,19 +3137,16 @@ async function promptMoOptions(editor: vscode.TextEditor): Promise<MoOptions | u
       ? [
           { label: "distinct-count skeleton", value: "distinct_count_skeleton", picked: true },
           { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-          { label: "read queries", value: "read_queries" },
           { label: "generic processor skeleton", value: "process_skeleton" }
         ]
       : scenarioPick.value === "custom_callbacks"
         ? [
             { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
             { label: "generic processor skeleton", value: "process_skeleton" },
-            { label: "read queries", value: "read_queries" }
           ]
         : [
             { label: "generic processor skeleton", value: "process_skeleton", picked: true },
             { label: "definitions only", description: "types and functions, without example calls", value: "helper_only" },
-            { label: "read queries", value: "read_queries" },
             { label: "distinct-count skeleton", value: "distinct_count_skeleton" }
           ],
     {
@@ -3430,8 +3257,8 @@ async function promptMonotonicStackOptions(
 
   const strictnessPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackStrictness>>(
     [
-      { label: "strict", value: "strict", picked: true },
-      { label: "allow equal", value: "non_strict" }
+      { label: "Strict", description: "Equal values do not qualify as smaller/greater neighbors.", value: "strict", picked: true },
+      { label: "Allow equal", description: "Equal values qualify as the nearest non-strict neighbor.", value: "non_strict" }
     ],
     {
       title: "edulcni: monotonic_stack",
@@ -3440,16 +3267,6 @@ async function promptMonotonicStackOptions(
     }
   );
   if (!strictnessPick) {
-    return undefined;
-  }
-
-  const sourceName = await pickStringWithCustom(
-    "edulcni: monotonic_stack",
-    "Source vector",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
-    "Source vector for nearest-index computation"
-  );
-  if (sourceName === undefined || sourceName.trim() === "") {
     return undefined;
   }
 
@@ -3469,13 +3286,24 @@ async function promptMonotonicStackOptions(
     return undefined;
   }
 
+  let sourceName = "values";
+  if (usagePick.value !== "helper_only") {
+    const pickedSource = await pickStringWithCustom(
+      "edulcni: monotonic_stack", "Existing source vector",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
+      "Source vector for nearest-index computation"
+    );
+    if (pickedSource === undefined || pickedSource.trim() === "") return undefined;
+    sourceName = pickedSource.trim();
+  }
+
   return {
     application: scenarioPick.value,
     direction: directionPick.value,
     relation: relationPick.value,
     strictness: strictnessPick.value,
     usageMode: usagePick.value,
-    sourceName: sourceName.trim(),
+    sourceName,
     resultName: suggestIdentifier(analysis, "nearest", "nearest_index"),
     valueType: "int",
     names: planMonotonicStackNames(analysis),
@@ -3572,14 +3400,15 @@ async function promptGpHashTableOptions(
     return undefined;
   }
 
-  const sourceName = await pickStringWithCustom(
-    "edulcni: gp_hash_table",
-    "Source vector",
-    uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
-    "Source vector for frequency loop"
-  );
-  if (sourceName === undefined || sourceName.trim() === "") {
-    return undefined;
+  let sourceName = "values";
+  if (usagePick.value === "frequency_loop") {
+    const pickedSource = await pickStringWithCustom(
+      "edulcni: gp_hash_table", "Existing source vector",
+      uniqueValues([...bindingCandidates(analysis, "source_vector").map((item) => item.value), "values", "a"]),
+      "Source vector for frequency loop"
+    );
+    if (pickedSource === undefined || pickedSource.trim() === "") return undefined;
+    sourceName = pickedSource.trim();
   }
 
   return {
@@ -3588,7 +3417,7 @@ async function promptGpHashTableOptions(
     keyType: keyType.trim(),
     valueType: valueType.trim(),
     tableName: suggestIdentifier(analysis, "table", "hash_table"),
-    sourceName: sourceName.trim(),
+    sourceName,
     names: planGpHashTableNames(analysis),
     includeUsageComment: usagePick.value === "helper_only"
   };
@@ -3761,16 +3590,6 @@ async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtil
     return undefined;
   }
 
-  const containerName = await pickStringWithCustom(
-    "edulcni: set_utils",
-    "Container variable",
-    ["container", "st", "mp", "s"],
-    "Ordered container variable"
-  );
-  if (containerName === undefined || containerName.trim() === "") {
-    return undefined;
-  }
-
   const usagePick = await showExplainedQuickPick<ValuePickItem<SetUtilsUsageMode>>(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
@@ -3786,12 +3605,22 @@ async function promptSetUtilsOptions(editor: vscode.TextEditor): Promise<SetUtil
     return undefined;
   }
 
+  let containerName = "container";
+  if (usagePick.value !== "helper_only") {
+    const pickedContainer = await pickStringWithCustom(
+      "edulcni: set_utils", "Existing ordered container",
+      ["container", "st", "mp", "s"], "Ordered container variable"
+    );
+    if (pickedContainer === undefined || pickedContainer.trim() === "") return undefined;
+    containerName = pickedContainer.trim();
+  }
+
   return {
     application: scenarioPick.value,
     lookup: lookupPick.value,
     target: targetPick.value,
     usageMode: usagePick.value,
-    containerName: containerName.trim(),
+    containerName,
     keyName: suggestIdentifier(analysis, "key", "x"),
     iteratorName: suggestIdentifier(analysis, "it", "iter"),
     resultName: suggestIdentifier(analysis, "neighbor", "adjacent"),
@@ -4124,7 +3953,6 @@ async function promptFenwickOptions(
     [
       { label: "empty size", value: "empty", picked: true },
       { label: "existing vector", value: "existing_vector" },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: fenwick",
@@ -4205,7 +4033,6 @@ async function promptFenwickOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "instance initialization", value: "instance" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: fenwick",
@@ -4240,19 +4067,19 @@ async function promptModIntOptions(
   const modePick = await showExplainedQuickPick<ValuePickItem<ModIntMode>>(
     [
       {
-        label: "Static and dynamic",
-        description: "Emit template and runtime-mod classes",
-        value: "both",
+        label: "Static only",
+        description: "Compile-time modulus; smallest and fastest generated API.",
+        value: "static",
         picked: true
       },
       {
-        label: "Static only",
-        description: "Emit template<class MOD>-style modint",
-        value: "static"
+        label: "Static and dynamic",
+        description: "Emit both APIs; use only when one solution needs compile-time and runtime moduli.",
+        value: "both"
       },
       {
         label: "Dynamic only",
-        description: "Emit one runtime-mod class with set_mod",
+        description: "Runtime-mutable modulus via set_mod; adds global mutable state.",
         value: "dynamic"
       }
     ],
@@ -4286,6 +4113,49 @@ async function promptModIntOptions(
     dynamicDefaultModExpression,
     names: planModIntNames(analysis),
     includeUsageComment: true
+  };
+}
+
+async function promptModularPrecalcOptions(
+  editor: vscode.TextEditor,
+  title: string,
+  includeBase: boolean
+): Promise<ModularPrecalcOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const valueType = await pickStringWithCustom(
+    title,
+    "Value type",
+    customValueTypeCandidates(analysis),
+    "C++ type, for example Mint"
+  );
+  if (!valueType?.trim()) {
+    return undefined;
+  }
+  const limitExpression = await pickStringWithCustom(
+    title,
+    "Maximum exponent / index",
+    sizeExpressionCandidates(analysis),
+    "Maximum index expression, for example n or MAXN"
+  );
+  if (!limitExpression?.trim()) {
+    return undefined;
+  }
+  let baseExpression: string | undefined;
+  if (includeBase) {
+    baseExpression = await pickStringWithCustom(
+      title,
+      "Power base",
+      ["2", "base"],
+      "Base expression"
+    );
+    if (!baseExpression?.trim()) {
+      return undefined;
+    }
+  }
+  return {
+    valueType: valueType.trim(),
+    limitExpression: limitExpression.trim(),
+    baseExpression: baseExpression?.trim()
   };
 }
 
@@ -4372,7 +4242,7 @@ function defaultFftNttOptions(
 ): FftNttOptions {
   return {
     transforms: defaultFftNttTransforms(),
-    includeConvolution: true,
+    includeConvolution: false,
     modulusExpression: "998244353",
     primitiveRootExpression: "3",
     names: planFftNttNames(analysis, extraReserved),
@@ -4538,7 +4408,6 @@ async function promptSparseTableOptions(
   >(
     [
       { label: "existing vector", value: "existing_vector", picked: true },
-      { label: "generated read loop", value: "read_loop" }
     ],
     {
       title: "edulcni: sparse_table",
@@ -4584,7 +4453,6 @@ async function promptSparseTableOptions(
     [
       { label: "definitions only", description: "types and functions, without example calls", value: "helper_only", picked: true },
       { label: "build call", value: "build_call" },
-      { label: "query loop skeleton", value: "query_loop" }
     ],
     {
       title: "edulcni: sparse_table",
@@ -4636,36 +4504,16 @@ async function promptSuffixArrayOptions(
     return undefined;
   }
 
-  let sourceName: string | undefined;
-  if (inputPick.value === "string") {
-    sourceName = await promptStringName(
-      "edulcni: suffix_array",
-      "Source string",
-      analysis.stringSymbols,
-      "Source string variable name"
-    );
-  } else {
-    sourceName = await promptVectorName(
-      "edulcni: suffix_array",
-      inputPick.value === "ints"
-        ? "Source int vector"
-        : "Source positive-code vector",
-      analysis.vectorSymbols,
-      "Source vector variable name"
-    );
-  }
-  if (sourceName === undefined || sourceName.trim() === "") {
-    return undefined;
-  }
+  const sourceName = inputPick.value === "string" ? "s" : "values";
 
   const featurePicks = await showExplainedQuickPick<
     ValuePickItem<SuffixArrayFeature>
   >(
     [
-      { label: "strip empty suffix", value: "stripped_sa", picked: true },
-      { label: "rank array", value: "rank", picked: true },
-      { label: "lcp array", value: "lcp", picked: true },
-      { label: "lcp range queries", value: "lcp_rmq" }
+      { label: "strip empty suffix", description: "Return only suffixes of the original sequence, excluding the sentinel.", value: "stripped_sa" },
+      { label: "rank array", description: "Also map each suffix start to its position in suffix order.", value: "rank" },
+      { label: "lcp array", description: "Also compute adjacent longest-common-prefix lengths.", value: "lcp" },
+      { label: "lcp range queries", description: "Add sparse-table RMQ over LCP; also enables rank and LCP arrays.", value: "lcp_rmq" }
     ],
     {
       title: "edulcni: suffix_array",
@@ -4680,7 +4528,7 @@ async function promptSuffixArrayOptions(
 
   return {
     inputKind: inputPick.value,
-    sourceName: sourceName.trim(),
+    sourceName,
     features: featurePicks.map((item) => item.value),
     names: planSuffixArrayNames(analysis),
     includeUsageComment: true
@@ -4691,34 +4539,30 @@ async function promptFftNttOptions(
   editor: vscode.TextEditor
 ): Promise<FftNttOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const transformPicks = await showExplainedQuickPick<
+  const transformPick = await showExplainedQuickPick<
     ValuePickItem<FftNttTransform>
   >(
     [
-      { label: "complex FFT", value: "fft", picked: true },
-      { label: "modular NTT", value: "ntt", picked: true }
+      { label: "Complex FFT", description: "Floating-point transform; convolution rounds coefficients back to integers.", value: "fft", picked: true },
+      { label: "Modular NTT", description: "Exact modulo a suitable prime; length must divide mod - 1 and use its primitive root.", value: "ntt" }
     ],
     {
       title: "edulcni: fft_ntt",
-      placeHolder: "Transforms to generate",
-      canPickMany: true,
+      placeHolder: "Transform to generate",
       ignoreFocusOut: true
     }
   );
-  if (!transformPicks) {
+  if (!transformPick) {
     return undefined;
   }
-  const transforms =
-    transformPicks.length === 0
-      ? defaultFftNttTransforms()
-      : transformPicks.map((item) => item.value);
+  const transforms = [transformPick.value];
 
   const helperPick = await showExplainedQuickPick<
     ValuePickItem<"convolution" | "transform">
   >(
     [
-      { label: "transform + convolution wrappers", value: "convolution", picked: true },
-      { label: "transform only", value: "transform" }
+      { label: "Transform only", description: "Emit the selected transform API without convolution wrappers.", value: "transform", picked: true },
+      { label: "Transform + convolution", description: "Also emit a ready-to-call polynomial convolution wrapper.", value: "convolution" }
     ],
     {
       title: "edulcni: fft_ntt",
@@ -4787,25 +4631,7 @@ async function promptPolyHashOptions(
     return undefined;
   }
 
-  let sourceName: string | undefined;
-  if (inputPick.value === "string") {
-    sourceName = await promptStringName(
-      "edulcni: poly_hash",
-      "Source string",
-      analysis.stringSymbols,
-      "Source string variable name"
-    );
-  } else {
-    sourceName = await promptVectorName(
-      "edulcni: poly_hash",
-      "Source int vector",
-      analysis.vectorSymbols,
-      "Source vector variable name"
-    );
-  }
-  if (sourceName === undefined || sourceName.trim() === "") {
-    return undefined;
-  }
+  const sourceName = inputPick.value === "string" ? "s" : "values";
 
   const featurePicks = await showExplainedQuickPick<
     ValuePickItem<PolyHashFeature>
@@ -4813,8 +4639,8 @@ async function promptPolyHashOptions(
     [
       { label: "substring equality", value: "substring_equal", picked: true },
       { label: "combine hashes", value: "concat", picked: true },
-      { label: "reverse/palindrome queries", value: "reverse" },
-      { label: "lcp by binary search", value: "lcp" }
+      { label: "reverse/palindrome queries", description: "Add reverse hashes used to compare a range with its reversal.", value: "reverse" },
+      { label: "lcp by binary search", description: "Add LCP search built on substring-hash comparisons.", value: "lcp" }
     ],
     {
       title: "edulcni: poly_hash",
@@ -4831,7 +4657,7 @@ async function promptPolyHashOptions(
     ValuePickItem<"default" | "custom">
   >(
     [
-      { label: "current constants", value: "default", picked: true },
+      { label: "Defaults: 1e9+7, 1e9+9, base 911382323", description: "Use the built-in double-hash constants.", value: "default", picked: true },
       { label: "custom expressions", value: "custom" }
     ],
     {
@@ -4883,7 +4709,7 @@ async function promptPolyHashOptions(
 
   return {
     inputKind: inputPick.value,
-    sourceName: sourceName.trim(),
+    sourceName,
     mod1Expression,
     mod2Expression,
     baseExpression,
@@ -4912,9 +4738,9 @@ async function promptMaxflowDinicOptions(
     ValuePickItem<MaxflowDinicFeature>
   >(
     [
-      { label: "min-cut side", value: "min_cut", picked: true },
-      { label: "graph/edge access", value: "graph_access", picked: true },
-      { label: "reset flows", value: "reset_flows", picked: true }
+      { label: "min-cut side", description: "Add residual reachability after max-flow for extracting a minimum cut.", value: "min_cut" },
+      { label: "graph/edge access", description: "Expose residual edges for post-processing.", value: "graph_access" },
+      { label: "reset flows", description: "Add a method that restores every residual capacity for reruns.", value: "reset_flows" }
     ],
     {
       title: "edulcni: maxflow_dinic",
@@ -4932,7 +4758,6 @@ async function promptMaxflowDinicOptions(
   >(
     [
       { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
-      { label: "read directed edges and call maxflow", value: "read_call" }
     ],
     {
       title: "edulcni: maxflow_dinic",
@@ -4946,10 +4771,7 @@ async function promptMaxflowDinicOptions(
 
   return {
     capType: capType.trim(),
-    features:
-      featurePicks.length === 0
-        ? defaultMaxflowDinicFeatures()
-        : featurePicks.map((item) => item.value),
+    features: featurePicks.map((item) => item.value),
     generateInput: inputPick.value === "read_call",
     names: planMaxflowDinicNames(analysis),
     nodeCountName: suggestIdentifier(analysis, "n", "flow_n"),
@@ -4994,8 +4816,8 @@ async function promptMinCostMaxFlowOptions(
     ValuePickItem<MinCostMaxFlowFeature>
   >(
     [
-      { label: "graph/edge access", value: "graph_access", picked: true },
-      { label: "potential access", value: "potential_access", picked: true }
+      { label: "graph/edge access", description: "Expose residual edges for post-processing.", value: "graph_access" },
+      { label: "potential access", description: "Expose final Johnson potentials for inspection.", value: "potential_access" }
     ],
     {
       title: "edulcni: mincost_maxflow",
@@ -5030,7 +4852,6 @@ async function promptMinCostMaxFlowOptions(
   >(
     [
       { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
-      { label: "read directed edges and call min-cost flow", value: "read_call" }
     ],
     {
       title: "edulcni: mincost_maxflow",
@@ -5068,7 +4889,6 @@ async function promptHungarianOptions(
   >(
     [
       { label: "use existing matrix", value: "existing", picked: true },
-      { label: "read cost matrix in solve", value: "read" }
     ],
     {
       title: "edulcni: hungarian",
@@ -5187,7 +5007,6 @@ async function promptKuhnOptions(
   >(
     [
       { label: "definitions only", description: "types and functions, without input or example calls", value: "helper", picked: true },
-      { label: "read bipartite edges and call matching", value: "read_call" }
     ],
     {
       title: "edulcni: kuhn",
@@ -5278,46 +5097,6 @@ async function promptBerlekampMasseyOptions(
   editor: vscode.TextEditor
 ): Promise<BerlekampMasseyOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const sequenceName = await promptVectorName(
-    "edulcni: berlekamp_massey",
-    "Sequence vector",
-    analysis.vectorSymbols,
-    "Sequence vector variable name"
-  );
-  if (sequenceName === undefined || sequenceName.trim() === "") {
-    return undefined;
-  }
-
-  const sequenceSymbol = analysis.vectorSymbols.find(
-    (symbol) => symbol.name === sequenceName.trim()
-  );
-  const valueTypes = uniqueValues([
-    vectorValueType(sequenceSymbol?.type) ?? "",
-    "Mint",
-    "int",
-    "ll",
-    "long long"
-  ]);
-  const valueType = await pickStringWithCustom(
-    "edulcni: berlekamp_massey",
-    "Field/modint type for the usage comment",
-    valueTypes,
-    "C++ field-like type with division, for example Mint"
-  );
-  if (valueType === undefined || valueType.trim() === "") {
-    return undefined;
-  }
-
-  const indexName = await pickStringWithCustom(
-    "edulcni: berlekamp_massey",
-    "Index expression for the usage comment",
-    uniqueValues([...sizeExpressionCandidates(analysis), "k"]),
-    "Index expression, for example k"
-  );
-  if (indexName === undefined || indexName.trim() === "") {
-    return undefined;
-  }
-
   const featurePicks = await showExplainedQuickPick<
     ValuePickItem<BerlekampMasseyFeature>
   >(
@@ -5325,17 +5104,18 @@ async function promptBerlekampMasseyOptions(
       {
         label: "minimal recurrence",
         value: "minimal_recurrence",
-        picked: true
+        picked: true,
+        description: "Recover the shortest linear recurrence from field-valued samples."
       },
       {
         label: "kth from recurrence",
         value: "kth_term",
-        picked: true
+        description: "Evaluate a known recurrence at an arbitrary nonnegative index."
       },
       {
         label: "one-shot kth",
         value: "one_shot_kth",
-        picked: true
+        description: "Recover the recurrence and evaluate its kth term in one call."
       }
     ],
     {
@@ -5350,9 +5130,9 @@ async function promptBerlekampMasseyOptions(
   }
 
   return {
-    valueType: valueType.trim(),
-    sequenceName: sequenceName.trim(),
-    indexName: indexName.trim(),
+    valueType: "Mint",
+    sequenceName: "sequence",
+    indexName: "k",
     features:
       featurePicks.length === 0
         ? ["minimal_recurrence"]
@@ -5367,13 +5147,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "segtree",
     {
       catalogEntry: {
-        path: "/solvers/segtree",
-        kind: "solver",
+        path: "/templates/segtree",
         insertMode: "global",
         generator: "segtree",
-        label: "/solvers/segtree",
+        label: "/templates/segtree",
         description: "interactive inline segment tree generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         return promptSegmentTreeOptions(editor);
@@ -5403,13 +5182,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "segtree_beats",
     {
       catalogEntry: {
-        path: "/solvers/segtree_beats",
-        kind: "solver",
+        path: "/templates/segtree_beats",
         insertMode: "global",
         generator: "segtree_beats",
-        label: "/solvers/segtree_beats",
+        label: "/templates/segtree_beats",
         description: "dynamic segment tree beats helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSegmentTreeBeatsOptions(editor);
@@ -5433,13 +5211,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "compress_unique",
     {
       catalogEntry: {
-        path: "/bricks/compress_unique",
-        kind: "brick",
+        path: "/templates/compress_unique",
         insertMode: "cursor",
         generator: "compress_unique",
-        label: "/bricks/compress_unique",
+        label: "/templates/compress_unique",
         description: "interactive coordinate compression snippet",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptCompressUniqueOptions(editor);
@@ -5470,13 +5247,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "read_vector",
     {
       catalogEntry: {
-        path: "/bricks/read_vector",
-        kind: "brick",
+        path: "/templates/read_vector",
         insertMode: "cursor",
         generator: "read_vector",
-        label: "/bricks/read_vector",
+        label: "/templates/read_vector",
         description: "interactive vector declaration and input snippet",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptReadVectorOptions(editor);
@@ -5500,16 +5276,48 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     }
   ],
   [
+    "read_matrix",
+    {
+      catalogEntry: {
+        path: "/templates/read_matrix",
+        insertMode: "cursor",
+        generator: "read_matrix",
+        label: "/templates/read_matrix",
+        description: "interactive matrix or character-grid input snippet",
+        detail: "interactive / template"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptReadMatrixOptions(editor);
+        return options
+          ? { content: renderReadMatrix(options), renames: [], exports: [] }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        const sizes = sizeExpressionCandidates(analysis);
+        return {
+          content: renderReadMatrix({
+            name: suggestIdentifier(analysis, "a", "grid"),
+            rowExpression: sizes[0] ?? "n",
+            columnExpression: sizes[1] ?? "m",
+            valueType: "int",
+            stringGrid: false
+          }),
+          renames: [],
+          exports: []
+        };
+      }
+    }
+  ],
+  [
     "dsu",
     {
       catalogEntry: {
-        path: "/solvers/dsu",
-        kind: "solver",
+        path: "/templates/dsu",
         insertMode: "global",
         generator: "dsu",
-        label: "/solvers/dsu",
+        label: "/templates/dsu",
         description: "dynamic disjoint set union helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptDsuOptions(editor);
@@ -5529,13 +5337,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "rollback_dsu",
     {
       catalogEntry: {
-        path: "/solvers/rollback_dsu",
-        kind: "solver",
+        path: "/templates/rollback_dsu",
         insertMode: "global",
         generator: "rollback_dsu",
-        label: "/solvers/rollback_dsu",
+        label: "/templates/rollback_dsu",
         description: "dynamic rollback disjoint set union helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptRollbackDsuOptions(editor);
@@ -5557,13 +5364,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "lca",
     {
       catalogEntry: {
-        path: "/solvers/lca",
-        kind: "solver",
+        path: "/templates/lca",
         insertMode: "global",
         generator: "lca",
-        label: "/solvers/lca",
+        label: "/templates/lca",
         description: "dynamic binary lifting LCA helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptLcaOptions(editor);
@@ -5583,13 +5389,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "hld",
     {
       catalogEntry: {
-        path: "/solvers/hld",
-        kind: "solver",
+        path: "/templates/hld",
         insertMode: "global",
         generator: "hld",
-        label: "/solvers/hld",
+        label: "/templates/hld",
         description: "dynamic heavy-light decomposition helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHldOptions(editor);
@@ -5609,13 +5414,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "bfs",
     {
       catalogEntry: {
-        path: "/solvers/bfs",
-        kind: "solver",
+        path: "/templates/bfs",
         insertMode: "global",
         generator: "bfs",
-        label: "/solvers/bfs",
+        label: "/templates/bfs",
         description: "dynamic BFS graph traversal helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptBfsOptions(editor);
@@ -5635,13 +5439,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "dijkstra",
     {
       catalogEntry: {
-        path: "/solvers/dijkstra",
-        kind: "solver",
+        path: "/templates/dijkstra",
         insertMode: "global",
         generator: "dijkstra",
-        label: "/solvers/dijkstra",
+        label: "/templates/dijkstra",
         description: "dynamic Dijkstra shortest path helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptDijkstraOptions(editor);
@@ -5661,13 +5464,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "toposort",
     {
       catalogEntry: {
-        path: "/solvers/toposort",
-        kind: "solver",
+        path: "/templates/toposort",
         insertMode: "global",
         generator: "toposort",
-        label: "/solvers/toposort",
+        label: "/templates/toposort",
         description: "dynamic topological sorting helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptToposortOptions(editor);
@@ -5687,13 +5489,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "kosaraju",
     {
       catalogEntry: {
-        path: "/solvers/kosaraju",
-        kind: "solver",
+        path: "/templates/kosaraju",
         insertMode: "global",
         generator: "kosaraju",
-        label: "/solvers/kosaraju",
+        label: "/templates/kosaraju",
         description: "dynamic Kosaraju SCC helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptKosarajuOptions(editor);
@@ -5713,13 +5514,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "mo",
     {
       catalogEntry: {
-        path: "/solvers/mo",
-        kind: "solver",
+        path: "/templates/mo",
         insertMode: "global",
         generator: "mo",
-        label: "/solvers/mo",
+        label: "/templates/mo",
         description: "dynamic Mo offline range query helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMoOptions(editor);
@@ -5739,13 +5539,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "monotonic_stack",
     {
       catalogEntry: {
-        path: "/solvers/monotonic_stack",
-        kind: "solver",
+        path: "/templates/monotonic_stack",
         insertMode: "global",
         generator: "monotonic_stack",
-        label: "/solvers/monotonic_stack",
+        label: "/templates/monotonic_stack",
         description: "dynamic monotonic stack nearest-index helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMonotonicStackOptions(editor);
@@ -5767,13 +5566,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "gp_hash_table",
     {
       catalogEntry: {
-        path: "/solvers/gp_hash_table",
-        kind: "solver",
+        path: "/templates/gp_hash_table",
         insertMode: "global",
         generator: "gp_hash_table",
-        label: "/solvers/gp_hash_table",
+        label: "/templates/gp_hash_table",
         description: "dynamic PBDS hash table helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptGpHashTableOptions(editor);
@@ -5793,13 +5591,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "ordered_set",
     {
       catalogEntry: {
-        path: "/solvers/ordered_set",
-        kind: "solver",
+        path: "/templates/ordered_set",
         insertMode: "global",
         generator: "ordered_set",
-        label: "/solvers/ordered_set",
+        label: "/templates/ordered_set",
         description: "dynamic PBDS ordered set helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptOrderedSetOptions(editor);
@@ -5819,13 +5616,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "set_utils",
     {
       catalogEntry: {
-        path: "/solvers/set_utils",
-        kind: "solver",
+        path: "/templates/set_utils",
         insertMode: "global",
         generator: "set_utils",
-        label: "/solvers/set_utils",
+        label: "/templates/set_utils",
         description: "dynamic ordered-container neighbor helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSetUtilsOptions(editor);
@@ -5845,13 +5641,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fast_allocator",
     {
       catalogEntry: {
-        path: "/solvers/fast_allocator",
-        kind: "solver",
+        path: "/templates/fast_allocator",
         insertMode: "global",
         generator: "fast_allocator",
-        label: "/solvers/fast_allocator",
+        label: "/templates/fast_allocator",
         description: "dynamic arena-backed allocator helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFastAllocatorOptions(editor);
@@ -5871,13 +5666,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "geometry",
     {
       catalogEntry: {
-        path: "/solvers/geometry",
-        kind: "solver",
+        path: "/templates/geometry",
         insertMode: "global",
         generator: "geometry",
-        label: "/solvers/geometry",
+        label: "/templates/geometry",
         description: "dynamic 2D geometry helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptGeometryOptions(editor);
@@ -5892,13 +5686,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "halfplane_intersection",
     {
       catalogEntry: {
-        path: "/solvers/halfplane_intersection",
-        kind: "solver",
+        path: "/templates/halfplane_intersection",
         insertMode: "global",
         generator: "halfplane_intersection",
-        label: "/solvers/halfplane_intersection",
+        label: "/templates/halfplane_intersection",
         description: "dynamic half-plane intersection helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHalfplaneIntersectionOptions(editor);
@@ -5917,13 +5710,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "linear_sieve",
     {
       catalogEntry: {
-        path: "/solvers/linear_sieve",
-        kind: "solver",
+        path: "/templates/linear_sieve",
         insertMode: "global",
         generator: "linear_sieve",
-        label: "/solvers/linear_sieve",
+        label: "/templates/linear_sieve",
         description: "dynamic linear sieve helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const analysis = analyzeCppDocument(editor.document.getText());
@@ -5947,13 +5739,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fenwick",
     {
       catalogEntry: {
-        path: "/solvers/fenwick",
-        kind: "solver",
+        path: "/templates/fenwick",
         insertMode: "global",
         generator: "fenwick",
-        label: "/solvers/fenwick",
+        label: "/templates/fenwick",
         description: "dynamic Fenwick tree helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFenwickOptions(editor);
@@ -5970,16 +5761,90 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     }
   ],
   [
+    "factorial_precalc",
+    {
+      catalogEntry: {
+        path: "/templates/factorial_precalc",
+        insertMode: "cursor",
+        generator: "factorial_precalc",
+        label: "/templates/factorial_precalc",
+        description: "factorials and inverse factorials for a selected value type",
+        detail: "interactive / template"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptModularPrecalcOptions(
+          editor,
+          "edulcni: factorial_precalc",
+          false
+        );
+        return options
+          ? {
+              content: renderFactorialPrecalc(options),
+              renames: [],
+              exports: ["fact", "inv_fact"]
+            }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        return {
+          content: renderFactorialPrecalc({
+            valueType: customValueTypeCandidates(analysis)[0] ?? "Mint",
+            limitExpression: sizeExpressionCandidates(analysis)[0] ?? "n"
+          }),
+          renames: [],
+          exports: ["fact", "inv_fact"]
+        };
+      }
+    }
+  ],
+  [
+    "powers_precalc",
+    {
+      catalogEntry: {
+        path: "/templates/powers_precalc",
+        insertMode: "cursor",
+        generator: "powers_precalc",
+        label: "/templates/powers_precalc",
+        description: "powers and inverse powers for a selected value type",
+        detail: "interactive / template"
+      },
+      async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
+        const options = await promptModularPrecalcOptions(
+          editor,
+          "edulcni: powers_precalc",
+          true
+        );
+        return options
+          ? {
+              content: renderPowersPrecalc(options),
+              renames: [],
+              exports: ["powers", "inv_powers"]
+            }
+          : undefined;
+      },
+      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
+        return {
+          content: renderPowersPrecalc({
+            valueType: customValueTypeCandidates(analysis)[0] ?? "Mint",
+            limitExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+            baseExpression: "2"
+          }),
+          renames: [],
+          exports: ["powers", "inv_powers"]
+        };
+      }
+    }
+  ],
+  [
     "modint",
     {
       catalogEntry: {
-        path: "/solvers/modint",
-        kind: "solver",
+        path: "/templates/modint",
         insertMode: "global",
         generator: "modint",
-        label: "/solvers/modint",
+        label: "/templates/modint",
         description: "dynamic modular integer helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptModIntOptions(editor);
@@ -5999,13 +5864,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "twosat",
     {
       catalogEntry: {
-        path: "/solvers/twosat",
-        kind: "solver",
+        path: "/templates/twosat",
         insertMode: "global",
         generator: "twosat",
-        label: "/solvers/twosat",
+        label: "/templates/twosat",
         description: "dynamic 2-SAT helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptTwoSatOptions(editor);
@@ -6025,13 +5889,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "maxflow_dinic",
     {
       catalogEntry: {
-        path: "/solvers/maxflow_dinic",
-        kind: "solver",
+        path: "/templates/maxflow_dinic",
         insertMode: "global",
         generator: "maxflow_dinic",
-        label: "/solvers/maxflow_dinic",
+        label: "/templates/maxflow_dinic",
         description: "dynamic Dinic maxflow helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMaxflowDinicOptions(editor);
@@ -6066,13 +5929,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "mincost_maxflow",
     {
       catalogEntry: {
-        path: "/solvers/mincost_maxflow",
-        kind: "solver",
+        path: "/templates/mincost_maxflow",
         insertMode: "global",
         generator: "mincost_maxflow",
-        label: "/solvers/mincost_maxflow",
+        label: "/templates/mincost_maxflow",
         description: "dynamic min-cost max-flow helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMinCostMaxFlowOptions(editor);
@@ -6096,13 +5958,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "hungarian",
     {
       catalogEntry: {
-        path: "/solvers/hungarian",
-        kind: "solver",
+        path: "/templates/hungarian",
         insertMode: "global",
         generator: "hungarian",
-        label: "/solvers/hungarian",
+        label: "/templates/hungarian",
         description: "dynamic Hungarian assignment helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHungarianOptions(editor);
@@ -6122,13 +5983,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "kuhn",
     {
       catalogEntry: {
-        path: "/solvers/kuhn",
-        kind: "solver",
+        path: "/templates/kuhn",
         insertMode: "global",
         generator: "kuhn",
-        label: "/solvers/kuhn",
+        label: "/templates/kuhn",
         description: "dynamic Kuhn bipartite matching helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptKuhnOptions(editor);
@@ -6148,13 +6008,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "implicit_treap",
     {
       catalogEntry: {
-        path: "/solvers/implicit_treap",
-        kind: "solver",
+        path: "/templates/implicit_treap",
         insertMode: "global",
         generator: "implicit_treap",
-        label: "/solvers/implicit_treap",
+        label: "/templates/implicit_treap",
         description: "dynamic implicit treap helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptImplicitTreapOptions(editor);
@@ -6178,13 +6037,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "merge_sort_tree",
     {
       catalogEntry: {
-        path: "/solvers/merge_sort_tree",
-        kind: "solver",
+        path: "/templates/merge_sort_tree",
         insertMode: "global",
         generator: "merge_sort_tree",
-        label: "/solvers/merge_sort_tree",
+        label: "/templates/merge_sort_tree",
         description: "dynamic merge-sort tree helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMergeSortTreeOptions(editor);
@@ -6208,13 +6066,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "sparse_table",
     {
       catalogEntry: {
-        path: "/solvers/sparse_table",
-        kind: "solver",
+        path: "/templates/sparse_table",
         insertMode: "global",
         generator: "sparse_table",
-        label: "/solvers/sparse_table",
+        label: "/templates/sparse_table",
         description: "interactive sparse table generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSparseTableOptions(editor);
@@ -6239,13 +6096,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "suffix_array",
     {
       catalogEntry: {
-        path: "/solvers/suffix_array",
-        kind: "solver",
+        path: "/templates/suffix_array",
         insertMode: "global",
         generator: "suffix_array",
-        label: "/solvers/suffix_array",
+        label: "/templates/suffix_array",
         description: "dynamic suffix-array helper generator",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSuffixArrayOptions(editor);
@@ -6265,13 +6121,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "poly_hash",
     {
       catalogEntry: {
-        path: "/solvers/poly_hash",
-        kind: "solver",
+        path: "/templates/poly_hash",
         insertMode: "global",
         generator: "poly_hash",
-        label: "/solvers/poly_hash",
+        label: "/templates/poly_hash",
         description: "dynamic polynomial rolling hash helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptPolyHashOptions(editor);
@@ -6291,13 +6146,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fft_ntt",
     {
       catalogEntry: {
-        path: "/solvers/fft_ntt",
-        kind: "solver",
+        path: "/templates/fft_ntt",
         insertMode: "global",
         generator: "fft_ntt",
-        label: "/solvers/fft_ntt",
+        label: "/templates/fft_ntt",
         description: "dynamic FFT/NTT convolution helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFftNttOptions(editor);
@@ -6317,13 +6171,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "berlekamp_massey",
     {
       catalogEntry: {
-        path: "/solvers/berlekamp_massey",
-        kind: "solver",
+        path: "/templates/berlekamp_massey",
         insertMode: "global",
         generator: "berlekamp_massey",
-        label: "/solvers/berlekamp_massey",
+        label: "/templates/berlekamp_massey",
         description: "interactive linear recurrence helper generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptBerlekampMasseyOptions(editor);
@@ -6403,24 +6256,22 @@ async function insertSnippet(
       picked = {
         ...picked,
         entry: { ...(picked.entry ?? {}), ...directEntry },
-        snippetKind: directEntry.kind,
-        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+        insertMode: directEntry.insertMode
       };
     } else if (!picked && directEntry) {
       picked = {
         label: directEntry.label ?? directEntry.path,
         description: directEntry.description ?? "",
-        detail: directEntry.detail ?? directEntry.kind,
+        detail: directEntry.detail ?? "template",
         snippetPath: directEntry.path,
         entry: directEntry,
-        snippetKind: directEntry.kind,
-        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+        insertMode: directEntry.insertMode
       };
     }
   } else {
     picked = await showExplainedQuickPick(items, {
       title: "edulcni:browse",
-      placeHolder: "Type a slash path, for example /solvers/segtree",
+      placeHolder: "Type a slash path, for example /templates/segtree",
       matchOnDescription: true,
       matchOnDetail: true,
       ignoreFocusOut: true

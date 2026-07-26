@@ -1,0 +1,44 @@
+template <typename T>
+inline std::vector<T> subset_zeta_transform(std::vector<T> value, int bits) {
+  EDULCNI_VIS(edulcni::live::array("sos.values", value));
+  EDULCNI_STEP("Subset zeta transform initialized");
+  for (int bit = 0; bit < bits; ++bit) {
+    for (int mask = 0; mask < (1 << bits); ++mask)
+      if (mask & (1 << bit)) value[mask] += value[mask ^ (1 << bit)];
+    EDULCNI_VIS(edulcni::live::array("sos.values", value));
+    EDULCNI_VIS(edulcni::live::bits(
+        "sos.active_bit", static_cast<unsigned long long>(1) << bit, bits));
+    EDULCNI_STEP("Subset zeta transform completes a bit");
+  }
+  return value;
+}
+
+template <typename T>
+inline std::vector<T> subset_mobius_transform(std::vector<T> value, int bits) {
+  EDULCNI_VIS(edulcni::live::array("sos.values", value));
+  EDULCNI_STEP("Subset Mobius transform initialized");
+  for (int bit = 0; bit < bits; ++bit) {
+    for (int mask = 0; mask < (1 << bits); ++mask)
+      if (mask & (1 << bit)) value[mask] -= value[mask ^ (1 << bit)];
+    EDULCNI_VIS(edulcni::live::array("sos.values", value));
+    EDULCNI_VIS(edulcni::live::bits(
+        "sos.active_bit", static_cast<unsigned long long>(1) << bit, bits));
+    EDULCNI_STEP("Subset Mobius transform completes a bit");
+  }
+  return value;
+}
+
+template <typename T>
+inline std::vector<T> superset_zeta_transform(std::vector<T> value, int bits) {
+  EDULCNI_VIS(edulcni::live::array("sos.values", value));
+  EDULCNI_STEP("Superset zeta transform initialized");
+  for (int bit = 0; bit < bits; ++bit) {
+    for (int mask = 0; mask < (1 << bits); ++mask)
+      if (!(mask & (1 << bit))) value[mask] += value[mask ^ (1 << bit)];
+    EDULCNI_VIS(edulcni::live::array("sos.values", value));
+    EDULCNI_VIS(edulcni::live::bits(
+        "sos.active_bit", static_cast<unsigned long long>(1) << bit, bits));
+    EDULCNI_STEP("Superset zeta transform completes a bit");
+  }
+  return value;
+}

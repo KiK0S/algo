@@ -1,0 +1,8 @@
+for (int left = 0; left < (1 << bits); ++left)
+  for (int right = ((1 << bits) - 1) ^ left; ; right = (right - 1) & (((1 << bits) - 1) ^ left)) {
+    EDULCNI_VIS(edulcni::live::bits("disjoint.left", left, bits));
+    EDULCNI_VIS(edulcni::live::bits("disjoint.right", right, bits));
+    EDULCNI_STEP("Disjoint mask pair");
+    // left & right == 0
+    if (right == 0) break;
+  }

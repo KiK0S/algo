@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-export type SnippetKind = "brick" | "solver";
 export type InsertMode = "cursor" | "global";
 export type SolutionSection =
   | "includes"
@@ -142,15 +141,14 @@ function renderSolverTemplate(
   renames: IdentifierRename[] = []
 ): string {
   return applyIdentifierRenames(
-    renderCodeTemplate(`solvers/${templateDirectory}/helpers.hpp.tmpl`, {}),
+    renderCodeTemplate(`${templateDirectory}/helpers.hpp.tmpl`, {}),
     renames
   );
 }
 
 export interface CatalogEntry {
   path: string;
-  kind: SnippetKind;
-  insertMode?: InsertMode;
+  insertMode: InsertMode;
   generator?: string;
   template?: string;
   label?: string;
@@ -164,18 +162,31 @@ export interface CatalogEntry {
   pipeline?: Record<string, unknown>;
   form?: unknown[];
   render?: Record<string, unknown>;
+  visualization?: VisualizationSpec;
+}
+
+export interface VisualizationSpec {
+  status: "automatic" | "snapshot" | "diagnostic" | "manual" | "none";
+  models: string[];
+  layout?: string;
+  defaultGranularity?: "summary" | "operations" | "verbose";
+  limitations?: string[];
+  reason?: string;
 }
 
 export function renderStaticTemplate(
-  templatePath: string,
-  kind: SnippetKind
+  templatePath: string
 ): RenderedSnippet {
-  const content = renderHeaderContent(renderCodeTemplate(templatePath, {}), kind);
+  const content = renderHeaderContent(
+    renderCodeTemplate(templatePath, {}),
+    templatePath.endsWith(".hpp.tmpl")
+  );
   return {
     content,
     renames: [],
-    exports:
-      kind === "solver" ? collectGlobalExportedIdentifiers(content) : []
+    exports: templatePath.endsWith(".hpp.tmpl")
+      ? collectGlobalExportedIdentifiers(content)
+      : []
   };
 }
 
@@ -267,6 +278,7 @@ export interface CppSectionSpan {
 
 export interface CppAnalysis {
   identifiers: Set<string>;
+  typeAliases?: string[];
   annotatedSymbols: AnnotatedSymbol[];
   constantSymbols: AnnotatedSymbol[];
   inputSymbols: AnnotatedSymbol[];
@@ -446,18 +458,25 @@ export interface ReadVectorOptions {
   containerType: string;
 }
 
+export interface ReadMatrixOptions {
+  name: string;
+  rowExpression: string;
+  columnExpression: string;
+  valueType: string;
+  stringGrid: boolean;
+}
+
 export interface DsuNames {
   className: string;
 }
 
-export type DsuApplication = "connectivity" | "kruskal" | "query_loop";
+export type DsuApplication = "connectivity" | "query_loop";
 export type DsuIndexing = "zero_based" | "one_based_input";
-export type DsuUsageMode = "helper_only" | "instance" | "query_loop" | "kruskal";
+export type DsuUsageMode = "helper_only" | "instance" | "query_loop";
 
 export interface DsuOptions {
   application?: DsuApplication;
   sizeExpression?: string;
-  edgeCountName?: string;
   indexing?: DsuIndexing;
   usageMode?: DsuUsageMode;
   instanceName?: string;
@@ -554,12 +573,11 @@ export type BfsApplication =
   | "multi_source"
   | "path_restore"
   | "traversal_order";
-export type BfsSourceMode = "existing_graph" | "read_edges";
+export type BfsSourceMode = "existing_graph";
 export type BfsGraphMode = "directed" | "undirected";
 export type BfsIndexing = "zero_based" | "one_based_input";
 export type BfsUsageMode =
   | "helper_only"
-  | "read_graph"
   | "single_source"
   | "multi_source"
   | "path_query";
@@ -592,14 +610,12 @@ export interface DijkstraNames {
 export type DijkstraApplication =
   | "shortest_paths"
   | "multi_source"
-  | "path_restore"
-  | "weighted_graph_read";
-export type DijkstraSourceMode = "existing_graph" | "read_edges";
+  | "path_restore";
+export type DijkstraSourceMode = "existing_graph";
 export type DijkstraGraphMode = "directed" | "undirected";
 export type DijkstraIndexing = "zero_based" | "one_based_input";
 export type DijkstraUsageMode =
   | "helper_only"
-  | "read_graph"
   | "single_source"
   | "multi_source"
   | "path_query";
@@ -991,6 +1007,12 @@ export interface ModIntOptions {
   dynamicDefaultModExpression: string;
   names: ModIntNames;
   includeUsageComment: boolean;
+}
+
+export interface ModularPrecalcOptions {
+  valueType: string;
+  limitExpression: string;
+  baseExpression?: string;
 }
 
 export type TwoSatFeature =
@@ -1694,6 +1716,29 @@ function collectVectorAliases(text: string): Set<string> {
   return aliases;
 }
 
+function collectTypeAliases(text: string): string[] {
+  const aliases: string[] = [];
+  const seen = new Set<string>();
+  const add = (name: string) => {
+    if (!seen.has(name)) {
+      seen.add(name);
+      aliases.push(name);
+    }
+  };
+
+  for (const match of text.matchAll(
+    /^\s*using\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gm
+  )) {
+    add(match[1]);
+  }
+  for (const match of text.matchAll(
+    /^\s*typedef\b[^;]*\b([A-Za-z_][A-Za-z0-9_]*)\s*;/gm
+  )) {
+    add(match[1]);
+  }
+  return aliases;
+}
+
 function collectDeclaredSymbols(
   text: string,
   vectorAliases: Set<string>
@@ -1903,6 +1948,7 @@ export function analyzeCppDocument(text: string): CppAnalysis {
 
   return {
     identifiers,
+    typeAliases: collectTypeAliases(stripped),
     annotatedSymbols: collectAnnotatedSymbols(text),
     constantSymbols: declaredSymbols.constants,
     inputSymbols: declaredSymbols.inputs,
@@ -1911,6 +1957,18 @@ export function analyzeCppDocument(text: string): CppAnalysis {
     vectorAliases,
     sections: detectCppSections(text)
   };
+}
+
+export function customValueTypeCandidates(analysis: CppAnalysis): string[] {
+  const result: string[] = [];
+  const add = (value: string) => {
+    if (!result.includes(value)) {
+      result.push(value);
+    }
+  };
+  for (const alias of analysis.typeAliases ?? []) add(alias);
+  for (const builtin of ["Mint", "long long", "int"]) add(builtin);
+  return result;
 }
 
 export function sizeExpressionCandidates(analysis: CppAnalysis): string[] {
@@ -2459,7 +2517,7 @@ function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
     : options.outputMode === "iterative_class"
       ? "solve-iterative.cpp.tmpl"
       : "solve-global.cpp.tmpl";
-  return renderCodeTemplate(`solvers/segment_tree/${templateName}`, {
+  return renderCodeTemplate(`segment_tree/${templateName}`, {
     ...options.names,
     valueType,
     sourceName,
@@ -2480,7 +2538,7 @@ function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
 
 function renderMaxSubarraySegmentTree(options: SegmentTreeOptions): string {
   return applyIdentifierRenames(
-    renderCodeTemplate("solvers/segment_tree/max-subarray.hpp.tmpl", {}),
+    renderCodeTemplate("segment_tree/max-subarray.hpp.tmpl", {}),
     [
       { from: "MaxSubarrayNode", to: options.names.maxSubarrayNodeName },
       { from: "MaxSubarraySegTree", to: options.names.maxSubarrayClassName }
@@ -2491,7 +2549,7 @@ function renderMaxSubarraySegmentTree(options: SegmentTreeOptions): string {
 function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
   const names = options.names;
   return applyIdentifierRenames(
-    renderCodeTemplate("solvers/segment_tree/iterative.hpp.tmpl", {
+    renderCodeTemplate("segment_tree/iterative.hpp.tmpl", {
       pointAdd: hasUpdate(options, "point_add")
     }),
     [
@@ -2542,7 +2600,7 @@ export function renderSegmentTree(options: SegmentTreeOptions): string {
     });
   }
   let helpers = renderCodeTemplate(
-    `solvers/segment_tree/global-${options.aggregate}.hpp.tmpl`, context
+    `segment_tree/global-${options.aggregate}.hpp.tmpl`, context
   );
   helpers = applyIdentifierRenames(helpers, [
     { from: "t", to: names.storageName },
@@ -2568,11 +2626,11 @@ export function renderSegmentTree(options: SegmentTreeOptions): string {
 }
 
 export function defaultSegmentTreeBeatsUpdates(): SegmentTreeBeatsUpdate[] {
-  return ["chmin", "chmax", "add"];
+  return ["chmin"];
 }
 
 export function defaultSegmentTreeBeatsQueries(): SegmentTreeBeatsQuery[] {
-  return ["sum", "min", "max"];
+  return ["sum"];
 }
 
 export function planSegmentTreeBeatsNames(
@@ -2601,7 +2659,7 @@ function segmentTreeBeatsUpdateSet(
 function segmentTreeBeatsQuerySet(
   queries: SegmentTreeBeatsQuery[]
 ): Set<SegmentTreeBeatsQuery> {
-  return new Set(queries.length === 0 ? defaultSegmentTreeBeatsQueries() : queries);
+  return new Set(queries);
 }
 
 function segmentTreeBeatsExports(options: SegmentTreeBeatsOptions): string[] {
@@ -2613,7 +2671,7 @@ function renderSegmentTreeBeatsUsage(
   updates: Set<SegmentTreeBeatsUpdate>,
   queries: Set<SegmentTreeBeatsQuery>
 ): string {
-  return renderCodeTemplate("solvers/segment_tree_beats/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("segment_tree_beats/usage-comment.cpp.tmpl", {
     ...options.names,
     valueType: options.valueType,
     chminUpdate: updates.has("chmin"), chmaxUpdate: updates.has("chmax"), addUpdate: updates.has("add"),
@@ -2645,7 +2703,7 @@ function renderSegmentTreeBeatsUsageSnippet(
   const chminUpdate = updates.has("chmin");
   const chmaxUpdate = updates.has("chmax");
   const query = firstSegmentTreeBeatsQuery(queries);
-  return renderCodeTemplate("solvers/segment_tree_beats/solve.cpp.tmpl", {
+  return renderCodeTemplate("segment_tree_beats/solve.cpp.tmpl", {
     ...options.names,
     valueType: options.valueType,
     sourceName,
@@ -2674,7 +2732,7 @@ export function renderSegmentTreeBeatsRecipe(
   const addUpdate = updates.has("add");
   const chminUpdate = updates.has("chmin");
   const chmaxUpdate = updates.has("chmax");
-  let helpers = renderCodeTemplate("solvers/segment_tree_beats/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("segment_tree_beats/helpers.hpp.tmpl", {
     addUpdate, chminUpdate, chmaxUpdate,
     hasUpdates: addUpdate || chminUpdate || chmaxUpdate,
     sumQuery: queries.has("sum"), minQuery: queries.has("min"), maxQuery: queries.has("max")
@@ -2711,7 +2769,7 @@ export function renderSegmentTreeBeats(options: SegmentTreeBeatsOptions): string
 }
 
 export function renderCompressUnique(options: CompressUniqueOptions): string {
-  return renderCodeTemplate("bricks/compress_unique.cpp.tmpl", {
+  return renderCodeTemplate("compress_unique.cpp.tmpl", {
     sourceName: options.sourceName,
     valuesName: options.valuesName,
     idFunctionName: options.idFunctionName,
@@ -2722,10 +2780,21 @@ export function renderCompressUnique(options: CompressUniqueOptions): string {
 }
 
 export function renderReadVector(options: ReadVectorOptions): string {
-  return renderCodeTemplate("bricks/read_vector.cpp.tmpl", {
+  return renderCodeTemplate("read_vector.cpp.tmpl", {
     containerType: options.containerType,
     name: options.name,
     sizeExpression: options.sizeExpression
+  });
+}
+
+export function renderReadMatrix(options: ReadMatrixOptions): string {
+  return renderCodeTemplate("read_matrix.cpp.tmpl", {
+    name: options.name,
+    rowExpression: options.rowExpression,
+    columnExpression: options.columnExpression,
+    valueType: options.valueType,
+    stringGrid: options.stringGrid,
+    valueMatrix: !options.stringGrid
   });
 }
 
@@ -2747,14 +2816,12 @@ function renderDsuUsageSnippet(options: DsuOptions): string {
 
   const className = options.names.className;
   const n = options.sizeExpression?.trim() || "n";
-  const m = options.edgeCountName?.trim() || "m";
   const instance = sanitizeIdentifier(options.instanceName ?? "dsu", "dsu");
   const answer = sanitizeIdentifier(options.answerName ?? "ans", "ans");
   const templateName = usageMode === "query_loop" ? "query_loop" : usageMode;
-  return renderCodeTemplate(`solvers/dsu/${templateName}.cpp.tmpl`, {
+  return renderCodeTemplate(`dsu/${templateName}.cpp.tmpl`, {
     className,
     sizeExpression: n,
-    edgeCountName: m,
     instanceName: instance,
     answerName: answer,
     oneBasedInput: options.indexing === "one_based_input"
@@ -2763,7 +2830,7 @@ function renderDsuUsageSnippet(options: DsuOptions): string {
 
 export function renderDsuRecipe(options: DsuOptions): RenderedRecipe {
   const className = options.names.className;
-  const helpers = renderCodeTemplate("solvers/dsu/helpers.hpp.tmpl", {
+  const helpers = renderCodeTemplate("dsu/helpers.hpp.tmpl", {
     className,
     instanceName: sanitizeIdentifier(options.instanceName ?? "dsu", "dsu"),
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2792,7 +2859,7 @@ export function planRollbackDsuNames(
 }
 
 function renderRollbackDsuUsage(options: RollbackDsuOptions): string {
-  return renderCodeTemplate("solvers/rollback_dsu/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("rollback_dsu/usage-comment.cpp.tmpl", {
     className: options.names.className,
     instanceName: options.instanceName?.trim() || "dsu",
     sizeExpression: options.sizeExpression?.trim() || "n"
@@ -2802,7 +2869,7 @@ function renderRollbackDsuUsage(options: RollbackDsuOptions): string {
 function renderRollbackDsuUsageSnippet(options: RollbackDsuOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/rollback_dsu/solve.cpp.tmpl", {
+  return renderCodeTemplate("rollback_dsu/solve.cpp.tmpl", {
     className: options.names.className,
     instanceName: sanitizeIdentifier(options.instanceName ?? "dsu", "dsu"),
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2844,7 +2911,7 @@ export function planLcaNames(
 }
 
 function renderLcaUsage(options: LcaOptions): string {
-  return renderCodeTemplate("solvers/lca/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("lca/usage-comment.cpp.tmpl", {
     className: options.names.className,
     instanceName: options.instanceName?.trim() || "lca",
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2855,7 +2922,7 @@ function renderLcaUsage(options: LcaOptions): string {
 function renderLcaUsageSnippet(options: LcaOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/lca/solve.cpp.tmpl", {
+  return renderCodeTemplate("lca/solve.cpp.tmpl", {
     className: options.names.className,
     instanceName: sanitizeIdentifier(options.instanceName ?? "lca", "lca"),
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2897,7 +2964,7 @@ export function planHldNames(
 }
 
 function renderHldUsage(options: HldOptions): string {
-  return renderCodeTemplate("solvers/hld/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("hld/usage-comment.cpp.tmpl", {
     className: options.names.className,
     instanceName: options.instanceName?.trim() || "hld",
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2908,7 +2975,7 @@ function renderHldUsage(options: HldOptions): string {
 function renderHldUsageSnippet(options: HldOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/hld/solve.cpp.tmpl", {
+  return renderCodeTemplate("hld/solve.cpp.tmpl", {
     className: options.names.className,
     instanceName: sanitizeIdentifier(options.instanceName ?? "hld", "hld"),
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -2959,7 +3026,7 @@ export function planBfsNames(
 }
 
 function renderBfsUsage(options: BfsOptions): string {
-  return renderCodeTemplate("solvers/bfs/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("bfs/usage-comment.cpp.tmpl", {
     graphName: options.graphName ?? "graph",
     sourceName: options.sourceName ?? "source",
     targetName: options.targetName ?? "target",
@@ -2975,7 +3042,7 @@ function renderBfsUsageSnippet(options: BfsOptions): string {
   if (usageMode === "helper_only") {
     return "";
   }
-  return renderCodeTemplate("solvers/bfs/solve.cpp.tmpl", {
+  return renderCodeTemplate("bfs/solve.cpp.tmpl", {
     sizeExpression: options.sizeExpression?.trim() || "n",
     edgeCountName: options.edgeCountName?.trim() || "m",
     graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
@@ -2987,11 +3054,11 @@ function renderBfsUsageSnippet(options: BfsOptions): string {
     singleSourceName: options.names.singleSourceName,
     restorePathName: options.names.restorePathName,
     undirected: options.graphMode === "undirected" ? "true" : "false",
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     multiSource: usageMode === "multi_source",
     pathQuery: usageMode === "path_query",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3044,7 +3111,7 @@ export function planDijkstraNames(
 
 function renderDijkstraUsage(options: DijkstraOptions): string {
   const valueType = options.valueType?.trim() || "long long";
-  return renderCodeTemplate("solvers/dijkstra/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("dijkstra/usage-comment.cpp.tmpl", {
     valueType,
     infExpression: options.infExpression?.trim() || "numeric_limits<long long>::max()",
     graphName: options.graphName ?? "graph",
@@ -3064,7 +3131,7 @@ function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
     return "";
   }
   const valueType = options.valueType?.trim() || "long long";
-  return renderCodeTemplate("solvers/dijkstra/solve.cpp.tmpl", {
+  return renderCodeTemplate("dijkstra/solve.cpp.tmpl", {
     valueType,
     infExpression: options.infExpression?.trim() || `std::numeric_limits<${valueType}>::max()`,
     sizeExpression: options.sizeExpression?.trim() || "n",
@@ -3079,11 +3146,11 @@ function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
     singleSourceName: options.names.singleSourceName,
     restorePathName: options.names.restorePathName,
     undirected: options.graphMode === "undirected" ? "true" : "false",
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     multiSource: usageMode === "multi_source",
     pathQuery: usageMode === "path_query",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3132,7 +3199,7 @@ export function planToposortNames(
 }
 
 function renderToposortUsage(options: ToposortOptions): string {
-  return renderCodeTemplate("solvers/toposort/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("toposort/usage-comment.cpp.tmpl", {
     graphName: options.graphName?.trim() || "graph",
     orderName: options.orderName?.trim() || "order",
     dagName: options.dagName?.trim() || "dag",
@@ -3144,7 +3211,7 @@ function renderToposortUsage(options: ToposortOptions): string {
 function renderToposortUsageSnippet(options: ToposortOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/toposort/solve.cpp.tmpl", {
+  return renderCodeTemplate("toposort/solve.cpp.tmpl", {
     sizeExpression: options.sizeExpression?.trim() || "n",
     edgeCountName: options.edgeCountName?.trim() || "m",
     graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
@@ -3153,11 +3220,11 @@ function renderToposortUsageSnippet(options: ToposortOptions): string {
     addEdgeName: options.names.addEdgeName,
     sortName: options.names.sortName,
     validateName: options.names.validateName,
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     validateOrder: usageMode === "validate_order",
     cycleCheck: usageMode === "cycle_check",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3196,7 +3263,7 @@ export function planKosarajuNames(
 }
 
 function renderKosarajuUsage(options: KosarajuOptions): string {
-  return renderCodeTemplate("solvers/kosaraju/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("kosaraju/usage-comment.cpp.tmpl", {
     graphName: options.graphName?.trim() || "graph",
     resultName: options.resultName?.trim() || "scc",
     addEdgeName: options.names.addEdgeName,
@@ -3207,7 +3274,7 @@ function renderKosarajuUsage(options: KosarajuOptions): string {
 function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/kosaraju/solve.cpp.tmpl", {
+  return renderCodeTemplate("kosaraju/solve.cpp.tmpl", {
     sizeExpression: options.sizeExpression?.trim() || "n",
     edgeCountName: options.edgeCountName?.trim() || "m",
     graphName: sanitizeIdentifier(options.graphName ?? "graph", "graph"),
@@ -3215,12 +3282,12 @@ function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
     resultStructName: options.names.resultStructName,
     addEdgeName: options.names.addEdgeName,
     sccName: options.names.sccName,
-    readGraph: options.sourceMode !== "existing_graph",
-    readGraphOnly: usageMode === "read_graph",
+    readGraph: false,
+    readGraphOnly: false,
     computeScc: usageMode === "compute_scc",
     printComponents: usageMode === "print_components",
     sameComponentQueries: usageMode === "same_component_queries",
-    oneBasedInput: options.indexing === "one_based_input"
+    oneBasedInput: false
   });
 }
 
@@ -3261,7 +3328,7 @@ export function planMoNames(
 }
 
 function renderMoUsage(options: MoOptions): string {
-  return renderCodeTemplate("solvers/mo/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("mo/usage-comment.cpp.tmpl", {
     queryStructName: options.names.queryStructName,
     queriesName: options.queriesName?.trim() || "queries",
     orderName: options.names.orderName
@@ -3271,7 +3338,7 @@ function renderMoUsage(options: MoOptions): string {
 function renderMoUsageSnippet(options: MoOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/mo/solve.cpp.tmpl", {
+  return renderCodeTemplate("mo/solve.cpp.tmpl", {
     sizeExpression: options.sizeExpression?.trim() || "n",
     queryCountName: options.queryCountName?.trim() || "q",
     valuesName: sanitizeIdentifier(options.valuesName ?? "a", "a"),
@@ -3355,7 +3422,7 @@ function monotonicStackCallName(options: MonotonicStackOptions): string {
 
 function renderMonotonicStackUsage(options: MonotonicStackOptions): string {
   const callName = monotonicStackCallName(options);
-  return renderCodeTemplate("solvers/monotonic_stack/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("monotonic_stack/usage-comment.cpp.tmpl", {
     callName,
     sourceName: options.sourceName?.trim() || "values",
     resultName: options.resultName?.trim() || "nearest",
@@ -3374,7 +3441,7 @@ function renderMonotonicStackUsageSnippet(options: MonotonicStackOptions): strin
   if (options.direction === "right") return names.nearestSmallerRightName;
   return names.nearestSmallerLeftName;
 })(options);
-  return renderCodeTemplate("solvers/monotonic_stack/solve.cpp.tmpl", {
+  return renderCodeTemplate("monotonic_stack/solve.cpp.tmpl", {
     callName,
     sourceName: options.sourceName?.trim() || "values",
     resultName: sanitizeIdentifier(options.resultName ?? "nearest", "nearest"),
@@ -3435,7 +3502,7 @@ export function planGpHashTableNames(
 }
 
 function renderGpHashTableUsage(options: GpHashTableOptions): string {
-  return renderCodeTemplate("solvers/gp_hash_table/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("gp_hash_table/usage-comment.cpp.tmpl", {
     tableAliasName: options.names.tableAliasName,
     keyType: options.keyType?.trim() || "long long",
     valueType: options.valueType?.trim() || "int",
@@ -3446,7 +3513,7 @@ function renderGpHashTableUsage(options: GpHashTableOptions): string {
 function renderGpHashTableUsageSnippet(options: GpHashTableOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/gp_hash_table/solve.cpp.tmpl", {
+  return renderCodeTemplate("gp_hash_table/solve.cpp.tmpl", {
     tableAliasName: options.names.tableAliasName,
     keyType: options.keyType?.trim() || "long long",
     valueType: options.valueType?.trim() || "int",
@@ -3492,7 +3559,7 @@ export function planOrderedSetNames(
 }
 
 function renderOrderedSetUsage(options: OrderedSetOptions): string {
-  return renderCodeTemplate("solvers/ordered_set/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("ordered_set/usage-comment.cpp.tmpl", {
     className: options.names.className,
     keyType: options.keyType?.trim() || "int",
     setName: options.setName?.trim() || "os"
@@ -3502,7 +3569,7 @@ function renderOrderedSetUsage(options: OrderedSetOptions): string {
 function renderOrderedSetUsageSnippet(options: OrderedSetOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/ordered_set/solve.cpp.tmpl", {
+  return renderCodeTemplate("ordered_set/solve.cpp.tmpl", {
     className: options.names.className,
     keyType: options.keyType?.trim() || "int",
     setName: sanitizeIdentifier(options.setName ?? "os", "os"),
@@ -3559,7 +3626,7 @@ function setUtilsCallName(options: SetUtilsOptions): string {
 
 function renderSetUtilsUsage(options: SetUtilsOptions): string {
   const callName = setUtilsCallName(options);
-  return renderCodeTemplate("solvers/set_utils/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("set_utils/usage-comment.cpp.tmpl", {
     callName,
     containerName: options.containerName?.trim() || "container",
     argumentName: options.target === "iterator"
@@ -3577,7 +3644,7 @@ function renderSetUtilsUsageSnippet(options: SetUtilsOptions): string {
   }
   return options.lookup === "prev" ? options.names.prevValueName : options.names.nextValueName;
 })(options);
-  return renderCodeTemplate("solvers/set_utils/solve.cpp.tmpl", {
+  return renderCodeTemplate("set_utils/solve.cpp.tmpl", {
     callName,
     containerName: options.containerName?.trim() || "container",
     argumentName: options.target === "iterator"
@@ -3628,7 +3695,7 @@ export function planFastAllocatorNames(
 }
 
 function renderFastAllocatorUsage(options: FastAllocatorOptions): string {
-  return renderCodeTemplate("solvers/fast_allocator/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("fast_allocator/usage-comment.cpp.tmpl", {
     arenaClassName: options.names.arenaClassName,
     allocatorClassName: options.names.allocatorClassName,
     arenaName: sanitizeIdentifier(options.arenaName ?? "arena", "arena"),
@@ -3641,7 +3708,7 @@ function renderFastAllocatorUsage(options: FastAllocatorOptions): string {
 function renderFastAllocatorUsageSnippet(options: FastAllocatorOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/fast_allocator/solve.cpp.tmpl", {
+  return renderCodeTemplate("fast_allocator/solve.cpp.tmpl", {
     arenaClassName: options.names.arenaClassName,
     allocatorClassName: options.names.allocatorClassName,
     arenaName: sanitizeIdentifier(options.arenaName ?? "arena", "arena"),
@@ -3699,7 +3766,7 @@ function renderGeometryUsage(options: GeometryOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
   const valueType = options.valueType?.trim() || "long long";
-  return renderCodeTemplate("solvers/geometry/solve.cpp.tmpl", {
+  return renderCodeTemplate("geometry/solve.cpp.tmpl", {
     pointType: `Point2<${valueType}>`,
     pointsName: sanitizeIdentifier(options.pointsName ?? "points", "points"),
     resultName: sanitizeIdentifier(options.resultName ?? "answer", "answer"),
@@ -3713,7 +3780,7 @@ function renderGeometryUsage(options: GeometryOptions): string {
 export function renderGeometryRecipe(options: GeometryOptions): RenderedRecipe {
   let helpers = renderSolverTemplate("geometry");
   if (options.includeUsageComment) {
-    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/geometry/usage-comment.cpp.tmpl", {})}`;
+    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("geometry/usage-comment.cpp.tmpl", {})}`;
   }
   const usage = renderGeometryUsage(options);
   return createRenderedRecipe(
@@ -3741,7 +3808,7 @@ const HALFPLANE_INTERSECTION_EXPORTS = [
 function renderHalfplaneIntersectionUsage(options: HalfplaneIntersectionOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
-  return renderCodeTemplate("solvers/halfplane_intersection/solve.cpp.tmpl", {
+  return renderCodeTemplate("halfplane_intersection/solve.cpp.tmpl", {
     halfplanesName: sanitizeIdentifier(options.halfplanesName ?? "halfplanes", "halfplanes"),
     resultName: sanitizeIdentifier(options.resultName ?? "polygon", "polygon"),
     halfplaneVector: usageMode === "halfplane_vector",
@@ -3755,7 +3822,7 @@ export function renderHalfplaneIntersectionRecipe(
 ): RenderedRecipe {
   let helpers = renderSolverTemplate("halfplane_intersection");
   if (options.includeUsageComment) {
-    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("solvers/halfplane_intersection/usage-comment.cpp.tmpl", {})}`;
+    helpers = `${helpers.trim()}\n\n${renderCodeTemplate("halfplane_intersection/usage-comment.cpp.tmpl", {})}`;
   }
   const usage = renderHalfplaneIntersectionUsage(options);
   return createRenderedRecipe(
@@ -3800,7 +3867,7 @@ function hasLinearSieveFeature(
 }
 
 function renderLinearSieveUsage(options: LinearSieveOptions): string {
-  return renderCodeTemplate("solvers/linear_sieve/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("linear_sieve/usage-comment.cpp.tmpl", {
     className: options.names.className,
     primesFunctionName: options.names.primesFunctionName,
     includeLowestPrime: hasLinearSieveFeature(options, "lowest_prime"),
@@ -3816,7 +3883,7 @@ export function renderLinearSieveRecipe(
   const includeLowestPrime = hasLinearSieveFeature(options, "lowest_prime");
   const includePrimes = hasLinearSieveFeature(options, "primes");
   const includeFactorization = hasLinearSieveFeature(options, "factorization");
-  let helpers = renderCodeTemplate("solvers/linear_sieve/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("linear_sieve/helpers.hpp.tmpl", {
     className: names.className,
     lowestPrimeFunctionName: names.lowestPrimeFunctionName,
     primesFunctionName: names.primesFunctionName,
@@ -3842,7 +3909,7 @@ export function defaultFenwickOperations(): FenwickOperation[] {
 }
 
 export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/segtree",
+  path: "/templates/segtree",
   title: "Segment tree",
   scenarios: [
     {
@@ -3937,7 +4004,7 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const SEGMENT_TREE_BEATS_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/segtree_beats",
+  path: "/templates/segtree_beats",
   title: "Segment tree beats",
   scenarios: [
     {
@@ -4010,7 +4077,7 @@ export const SEGMENT_TREE_BEATS_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const FENWICK_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/fenwick",
+  path: "/templates/fenwick",
   title: "Fenwick",
   scenarios: [
     {
@@ -4094,7 +4161,7 @@ export const FENWICK_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const SPARSE_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/sparse_table",
+  path: "/templates/sparse_table",
   title: "Sparse table",
   scenarios: [
     {
@@ -4158,7 +4225,7 @@ export const SPARSE_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const MERGE_SORT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/merge_sort_tree",
+  path: "/templates/merge_sort_tree",
   title: "Merge sort tree",
   scenarios: [
     {
@@ -4222,7 +4289,7 @@ export const MERGE_SORT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const IMPLICIT_TREAP_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/implicit_treap",
+  path: "/templates/implicit_treap",
   title: "Implicit treap",
   scenarios: [
     {
@@ -4297,18 +4364,13 @@ export const IMPLICIT_TREAP_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/dsu",
+  path: "/templates/dsu",
   title: "DSU",
   scenarios: [
     {
       id: "connectivity",
       label: "connectivity / components",
       description: "Plain unite, same, component size, and component count."
-    },
-    {
-      id: "kruskal",
-      label: "Kruskal skeleton",
-      description: "Sort weighted edges and unite components for MST-style problems."
     },
     {
       id: "query_loop",
@@ -4323,14 +4385,12 @@ export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
       choices: [
         { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance skeleton" },
-        { id: "query_loop", label: "query loop skeleton" },
-        { id: "kruskal", label: "Kruskal skeleton" }
+        { id: "query_loop", label: "query loop skeleton" }
       ]
     }
   ],
   bindings: [
     { id: "sizeExpression", label: "Node count", kind: "size", required: true },
-    { id: "edgeCountName", label: "Edge count", kind: "query_count", required: false },
     { id: "instanceName", label: "Instance name", kind: "answer", required: false },
     { id: "answerName", label: "Answer name", kind: "answer", required: false }
   ],
@@ -4341,7 +4401,7 @@ export const DSU_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const ROLLBACK_DSU_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/rollback_dsu",
+  path: "/templates/rollback_dsu",
   title: "Rollback DSU",
   scenarios: [
     {
@@ -4379,7 +4439,7 @@ export const ROLLBACK_DSU_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const LCA_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/lca",
+  path: "/templates/lca",
   title: "LCA",
   scenarios: [
     {
@@ -4432,7 +4492,7 @@ export const LCA_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const HLD_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/hld",
+  path: "/templates/hld",
   title: "Heavy-light decomposition",
   scenarios: [
     {
@@ -4498,7 +4558,7 @@ export const HLD_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const BFS_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/bfs",
+  path: "/templates/bfs",
   title: "BFS",
   scenarios: [
     {
@@ -4566,7 +4626,7 @@ export const BFS_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const DIJKSTRA_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/dijkstra",
+  path: "/templates/dijkstra",
   title: "Dijkstra",
   scenarios: [
     {
@@ -4634,7 +4694,7 @@ export const DIJKSTRA_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const TOPOSORT_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/toposort",
+  path: "/templates/toposort",
   title: "Topological sort",
   scenarios: [
     {
@@ -4693,7 +4753,7 @@ export const TOPOSORT_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const KOSARAJU_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/kosaraju",
+  path: "/templates/kosaraju",
   title: "Kosaraju SCC",
   scenarios: [
     {
@@ -4752,7 +4812,7 @@ export const KOSARAJU_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const MO_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/mo",
+  path: "/templates/mo",
   title: "Mo's algorithm",
   scenarios: [
     {
@@ -4818,7 +4878,7 @@ export const MO_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const MONOTONIC_STACK_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/monotonic_stack",
+  path: "/templates/monotonic_stack",
   title: "Monotonic stack",
   scenarios: [
     {
@@ -4882,7 +4942,7 @@ export const MONOTONIC_STACK_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const GP_HASH_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/gp_hash_table",
+  path: "/templates/gp_hash_table",
   title: "PBDS hash table",
   scenarios: [
     {
@@ -4931,7 +4991,7 @@ export const GP_HASH_TABLE_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const ORDERED_SET_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/ordered_set",
+  path: "/templates/ordered_set",
   title: "Ordered set",
   scenarios: [
     {
@@ -4979,7 +5039,7 @@ export const ORDERED_SET_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const SET_UTILS_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/set_utils",
+  path: "/templates/set_utils",
   title: "Ordered container neighbors",
   scenarios: [
     {
@@ -5034,7 +5094,7 @@ export const SET_UTILS_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const FAST_ALLOCATOR_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/fast_allocator",
+  path: "/templates/fast_allocator",
   title: "Arena-backed allocator",
   scenarios: [
     {
@@ -5083,7 +5143,7 @@ export const FAST_ALLOCATOR_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const GEOMETRY_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/geometry",
+  path: "/templates/geometry",
   title: "2D geometry",
   scenarios: [
     {
@@ -5132,7 +5192,7 @@ export const GEOMETRY_APPLICATION_SPEC: SolverApplicationSpec = {
 };
 
 export const HALFPLANE_INTERSECTION_APPLICATION_SPEC: SolverApplicationSpec = {
-  path: "/solvers/halfplane_intersection",
+  path: "/templates/halfplane_intersection",
   title: "Half-plane intersection",
   scenarios: [
     {
@@ -5270,7 +5330,7 @@ function renderFenwickUsageSnippet(options: FenwickOptions): string {
     : application === "range_point"
       ? "solve-range-point.cpp.tmpl"
       : "solve-point.cpp.tmpl";
-  return renderCodeTemplate(`solvers/fenwick/${templateName}`, {
+  return renderCodeTemplate(`fenwick/${templateName}`, {
     ...options.names,
     aliasName: fenwickAliasForOperation(options.names, operation),
     valueType: fenwickValueType(options),
@@ -5287,7 +5347,7 @@ function renderFenwickUsageSnippet(options: FenwickOptions): string {
 }
 
 function renderFenwickUsage(options: FenwickOptions): string {
-  return renderCodeTemplate("solvers/fenwick/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("fenwick/usage-comment.cpp.tmpl", {
     ...options.names,
     sumOp: hasFenwickOperation(options, "sum"),
     maxOp: hasFenwickOperation(options, "max"),
@@ -5307,7 +5367,7 @@ export function renderFenwickRecipe(options: FenwickOptions): RenderedRecipe {
     ["custom_invertible", names.customInvertibleOpName, names.customInvertibleAliasName]
   ];
   const included = new Set(options.operations);
-  let helpers = renderCodeTemplate("solvers/fenwick/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("fenwick/helpers.hpp.tmpl", {
     sumOp: included.has("sum"), xorOp: included.has("xor"),
     maxOp: included.has("max"), minOp: included.has("min"),
     customOp: included.has("custom"), customInvertibleOp: included.has("custom_invertible"),
@@ -5362,7 +5422,7 @@ export function defaultModIntOptions(
   extraReserved: string[] = []
 ): ModIntOptions {
   return {
-    mode: "both",
+    mode: "static",
     dynamicDefaultModExpression: "1000000007",
     names: planModIntNames(analysis, extraReserved),
     includeUsageComment: true
@@ -5378,7 +5438,7 @@ function includeDynamicModInt(options: ModIntOptions): boolean {
 }
 
 function renderModIntUsage(options: ModIntOptions): string {
-  return renderCodeTemplate("solvers/modint/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("modint/usage-comment.cpp.tmpl", {
     staticClassName: options.names.staticClassName,
     dynamicClassName: options.names.dynamicClassName,
     includeStatic: includeStaticModInt(options),
@@ -5395,7 +5455,7 @@ function renderModIntUsage(options: ModIntOptions): string {
 export function renderModIntRecipe(options: ModIntOptions): RenderedRecipe {
   const includeStatic = includeStaticModInt(options);
   const includeDynamic = includeDynamicModInt(options);
-  let helpers = renderCodeTemplate("solvers/modint/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("modint/helpers.hpp.tmpl", {
     includeStatic,
     includeDynamic,
     dynamicDefaultModExpression: options.dynamicDefaultModExpression.trim() || "1000000007"
@@ -5415,6 +5475,21 @@ export function renderModIntRecipe(options: ModIntOptions): RenderedRecipe {
 
 export function renderModInt(options: ModIntOptions): string {
   return composeRecipeSections(renderModIntRecipe(options));
+}
+
+export function renderFactorialPrecalc(options: ModularPrecalcOptions): string {
+  return renderCodeTemplate("factorial_precalc.cpp.tmpl", {
+    valueType: options.valueType.trim() || "Mint",
+    limitExpression: options.limitExpression.trim() || "n"
+  });
+}
+
+export function renderPowersPrecalc(options: ModularPrecalcOptions): string {
+  return renderCodeTemplate("powers_precalc.cpp.tmpl", {
+    valueType: options.valueType.trim() || "Mint",
+    limitExpression: options.limitExpression.trim() || "n",
+    baseExpression: options.baseExpression?.trim() || "base"
+  });
 }
 
 export function defaultTwoSatFeatures(): TwoSatFeature[] {
@@ -5489,7 +5564,7 @@ function renderTwoSatUsage(
   options: TwoSatOptions,
   features: Set<TwoSatFeature>
 ): string {
-  return renderCodeTemplate("solvers/twosat/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("twosat/usage-comment.cpp.tmpl", {
     ...options.names,
     xorFeature: features.has("xor"),
     equalFeature: features.has("equal"),
@@ -5500,7 +5575,7 @@ function renderTwoSatUsage(
 export function renderTwoSatRecipe(options: TwoSatOptions): RenderedRecipe {
   const names = options.names;
   const features = twoSatFeatureSet(options.features);
-  let helpers = renderCodeTemplate("solvers/twosat/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("twosat/helpers.hpp.tmpl", {
     xorFeature: features.has("xor"),
     equalFeature: features.has("equal"),
     forceFeature: features.has("force"),
@@ -5541,7 +5616,7 @@ export function renderTwoSat(options: TwoSatOptions): string {
 }
 
 export function defaultMaxflowDinicFeatures(): MaxflowDinicFeature[] {
-  return ["min_cut", "graph_access", "reset_flows"];
+  return [];
 }
 
 export function defaultMaxflowDinicCapType(analysis: CppAnalysis): string {
@@ -5616,7 +5691,7 @@ function renderMaxflowDinicUsage(
   features: Set<MaxflowDinicFeature>
 ): string {
   const names = options.names;
-  return renderCodeTemplate("solvers/maxflow_dinic/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("maxflow_dinic/usage-comment.cpp.tmpl", {
     className: names.className,
     capType: options.capType,
     instanceName: names.instanceName,
@@ -5632,7 +5707,7 @@ function renderMaxflowDinicUsage(
 
 function renderMaxflowDinicSolveSection(options: MaxflowDinicOptions): string {
   const names = options.names;
-  return renderCodeTemplate("solvers/maxflow_dinic/solve.cpp.tmpl", {
+  return renderCodeTemplate("maxflow_dinic/solve.cpp.tmpl", {
     solveName: names.solveName,
     className: names.className,
     capType: options.capType,
@@ -5655,7 +5730,7 @@ export function renderMaxflowDinicRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const features = maxflowDinicFeatureSet(options.features);
-  let helpers = renderCodeTemplate("solvers/maxflow_dinic/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("maxflow_dinic/helpers.hpp.tmpl", {
     minCut: features.has("min_cut"),
     graphAccess: features.has("graph_access"),
     resetFlows: features.has("reset_flows")
@@ -5688,7 +5763,7 @@ export function renderMaxflowDinic(options: MaxflowDinicOptions): string {
 }
 
 export function defaultMinCostMaxFlowFeatures(): MinCostMaxFlowFeature[] {
-  return ["graph_access", "potential_access"];
+  return [];
 }
 
 export function defaultMinCostMaxFlowCapType(analysis: CppAnalysis): string {
@@ -5794,7 +5869,7 @@ function renderMinCostMaxFlowUsage(
   features: Set<MinCostMaxFlowFeature>
 ): string {
   const names = options.names;
-  return renderCodeTemplate("solvers/mincost_maxflow/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("mincost_maxflow/usage-comment.cpp.tmpl", {
     className: names.className,
     capType: options.capType,
     costType: options.costType,
@@ -5816,7 +5891,7 @@ function renderMinCostMaxFlowSolveSection(
   options: MinCostMaxFlowOptions
 ): string {
   const names = options.names;
-  return renderCodeTemplate("solvers/mincost_maxflow/solve.cpp.tmpl", {
+  return renderCodeTemplate("mincost_maxflow/solve.cpp.tmpl", {
     solveName: names.solveName,
     className: names.className,
     capType: options.capType,
@@ -5844,7 +5919,7 @@ export function renderMinCostMaxFlowRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const features = minCostMaxFlowFeatureSet(options.features);
-  let helpers = renderCodeTemplate("solvers/mincost_maxflow/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("mincost_maxflow/helpers.hpp.tmpl", {
     graphAccess: features.has("graph_access"),
     potentialAccess: features.has("potential_access")
   });
@@ -5943,7 +6018,7 @@ function hungarianExports(options: HungarianOptions): string[] {
 }
 
 function renderHungarianUsage(options: HungarianOptions): string {
-  return renderCodeTemplate("solvers/hungarian/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("hungarian/usage-comment.cpp.tmpl", {
     resultName: options.resultName,
     callName: hungarianCallName(options),
     sourceName: options.sourceName
@@ -5951,7 +6026,7 @@ function renderHungarianUsage(options: HungarianOptions): string {
 }
 
 function renderHungarianSolveSection(options: HungarianOptions): string {
-  return renderCodeTemplate("solvers/hungarian/solve.cpp.tmpl", {
+  return renderCodeTemplate("hungarian/solve.cpp.tmpl", {
     solveName: options.names.solveName,
     rowCountName: options.rowCountName,
     colCountName: options.colCountName,
@@ -5964,7 +6039,7 @@ function renderHungarianSolveSection(options: HungarianOptions): string {
 
 export function renderHungarianRecipe(options: HungarianOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderCodeTemplate("solvers/hungarian/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("hungarian/helpers.hpp.tmpl", {
     rectangular: options.rectangular,
     maximize: options.mode === "maximize"
   });
@@ -6074,7 +6149,7 @@ function renderKuhnUsage(
   options: KuhnOptions,
   features: Set<KuhnFeature>
 ): string {
-  return renderCodeTemplate("solvers/kuhn/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("kuhn/usage-comment.cpp.tmpl", {
     className: options.names.className,
     instanceName: options.instanceName,
     leftCountName: options.leftCountName,
@@ -6093,7 +6168,7 @@ function renderKuhnUsage(
 }
 
 function renderKuhnSolveSection(options: KuhnOptions): string {
-  return renderCodeTemplate("solvers/kuhn/solve.cpp.tmpl", {
+  return renderCodeTemplate("kuhn/solve.cpp.tmpl", {
     solveName: options.names.solveName,
     className: options.names.className,
     addEdgeName: options.names.addEdgeName,
@@ -6113,7 +6188,7 @@ function renderKuhnSolveSection(options: KuhnOptions): string {
 export function renderKuhnRecipe(options: KuhnOptions): RenderedRecipe {
   const features = kuhnFeatureSet(options.features);
   const names = options.names;
-  let helpers = renderCodeTemplate("solvers/kuhn/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("kuhn/helpers.hpp.tmpl", {
     vertexCover: features.has("vertex_cover")
   });
   helpers = applyIdentifierRenames(helpers, [
@@ -6191,7 +6266,7 @@ function renderImplicitTreapUsage(
   features: Set<ImplicitTreapFeature>
 ): string {
   const opName = implicitTreapOpName(options);
-  return renderCodeTemplate("solvers/implicit_treap/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("implicit_treap/usage-comment.cpp.tmpl", {
     ...options.names,
     typeArgs: options.aggregate === "custom"
       ? `<${options.valueType}, ${opName}<${options.valueType}>>`
@@ -6210,7 +6285,7 @@ function renderImplicitTreapUsageSnippet(
   const opName = implicitTreapOpName(options);
   const reverseFeature = features.has("reverse");
   const sourceMode = options.sourceMode ?? "empty";
-  return renderCodeTemplate("solvers/implicit_treap/solve.cpp.tmpl", {
+  return renderCodeTemplate("implicit_treap/solve.cpp.tmpl", {
     ...options.names,
     valueType: options.valueType,
     typeArgs: options.aggregate === "custom"
@@ -6236,8 +6311,8 @@ function renderImplicitTreapOp(
 ): string {
   return renderCodeTemplate(
     options.aggregate === "custom"
-      ? "solvers/implicit_treap/op-custom.hpp.tmpl"
-      : "solvers/implicit_treap/op-sum.hpp.tmpl",
+      ? "implicit_treap/op-custom.hpp.tmpl"
+      : "implicit_treap/op-sum.hpp.tmpl",
     { rangeAddFeature: features.has("range_add") }
   );
 }
@@ -6252,7 +6327,7 @@ export function renderImplicitTreapRecipe(
   opDefinition = applyIdentifierRenames(opDefinition, [
     { from: options.aggregate === "custom" ? "TreapCustomOp" : "TreapSumOp", to: opName }
   ]);
-  let helpers = renderCodeTemplate("solvers/implicit_treap/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("implicit_treap/helpers.hpp.tmpl", {
     opDefinition,
     reverseFeature: features.has("reverse"),
     rangeAddFeature: features.has("range_add")
@@ -6336,7 +6411,7 @@ function renderMergeSortTreeUsage(
   options: MergeSortTreeOptions,
   queries: Set<MergeSortTreeQuery>
 ): string {
-  return renderCodeTemplate("solvers/merge_sort_tree/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("merge_sort_tree/usage-comment.cpp.tmpl", {
     ...options.names,
     valueType: options.valueType,
     sourceName: options.sourceName,
@@ -6370,7 +6445,7 @@ function renderMergeSortTreeUsageSnippet(
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
   const query = firstMergeSortTreeQuery(queries);
-  return renderCodeTemplate("solvers/merge_sort_tree/solve.cpp.tmpl", {
+  return renderCodeTemplate("merge_sort_tree/solve.cpp.tmpl", {
     ...options.names,
     valueType: options.valueType,
     sourceName: options.sourceName.trim() || "a",
@@ -6393,7 +6468,7 @@ export function renderMergeSortTreeRecipe(
 ): RenderedRecipe {
   const queries = mergeSortTreeQuerySet(options.queries);
   const names = options.names;
-  let helpers = renderCodeTemplate("solvers/merge_sort_tree/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("merge_sort_tree/helpers.hpp.tmpl", {
     countLess: queries.has("count_less"),
     countLessEqual: queries.has("count_less_equal"),
     countEqual: queries.has("count_equal"),
@@ -6534,14 +6609,14 @@ function renderSparseTableCommentUsage(
   };
   const variantExamples = [...variants].map((variant) => {
     const names = sparseTableVariantNames(options, variant);
-    return renderCodeTemplate("solvers/sparse_table/usage-comment-variant.cpp.tmpl", {
+    return renderCodeTemplate("sparse_table/usage-comment-variant.cpp.tmpl", {
       buildName: names.buildName,
       queryName: names.queryName,
       sourceName: options.sourceName,
       answerName: answerNames[variant]
     }).trim();
   }).join("\n");
-  return renderCodeTemplate("solvers/sparse_table/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("sparse_table/usage-comment.cpp.tmpl", {
     variantExamples
   });
 }
@@ -6564,7 +6639,7 @@ function renderSparseTableVariant(
   variant: SparseTableVariant
 ): string {
   const names = sparseTableVariantNames(options, variant);
-  return renderCodeTemplate("solvers/sparse_table/variant.hpp.tmpl", {
+  return renderCodeTemplate("sparse_table/variant.hpp.tmpl", {
     valueType: options.valueType,
     logName: options.names.logName,
     ensureLogName: options.names.ensureLogName,
@@ -6599,21 +6674,21 @@ function renderSparseTableUsageSnippet(
   const sourceName = options.sourceName.trim() || "a";
   const chunks: string[] = [];
   if (options.sourceMode === "read_loop") {
-    chunks.push(renderCodeTemplate("solvers/sparse_table/read-source.cpp.tmpl", {
+    chunks.push(renderCodeTemplate("sparse_table/read-source.cpp.tmpl", {
       valueType: options.valueType,
       sourceName,
       sizeExpression: options.sizeExpression?.trim() || "n"
     }));
   }
   for (const variant of variants) {
-    chunks.push(renderCodeTemplate("solvers/sparse_table/build.cpp.tmpl", {
+    chunks.push(renderCodeTemplate("sparse_table/build.cpp.tmpl", {
       buildName: sparseTableVariantNames(options, variant).buildName,
       sourceName
     }));
   }
   if (usageMode === "query_loop") {
     const queryName = sparseTableVariantNames(options, firstSparseTableVariant(variants)).queryName;
-    chunks.push(renderCodeTemplate("solvers/sparse_table/query-loop.cpp.tmpl", {
+    chunks.push(renderCodeTemplate("sparse_table/query-loop.cpp.tmpl", {
       queryName,
       answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
       oneBasedInput: options.indexing === "one_based_input"
@@ -6624,7 +6699,7 @@ function renderSparseTableUsageSnippet(
 
 export function renderSparseTableRecipe(options: SparseTableOptions): RenderedRecipe {
   const variants = sparseTableVariantSet(options.variants);
-  const chunks = [renderCodeTemplate("solvers/sparse_table/base.hpp.tmpl", {
+  const chunks = [renderCodeTemplate("sparse_table/base.hpp.tmpl", {
     logName: options.names.logName,
     ensureLogName: options.names.ensureLogName
   })];
@@ -6643,7 +6718,7 @@ export function renderSparseTable(options: SparseTableOptions): string {
 }
 
 export function defaultSuffixArrayFeatures(): SuffixArrayFeature[] {
-  return ["rank", "lcp", "stripped_sa"];
+  return [];
 }
 
 export function planSuffixArrayNames(
@@ -6738,7 +6813,7 @@ function renderSuffixArrayUsage(
   options: SuffixArrayOptions,
   features: Set<SuffixArrayFeature>
 ): string {
-  return renderCodeTemplate("solvers/suffix_array/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("suffix_array/usage-comment.cpp.tmpl", {
     resultName: options.names.resultName,
     buildCall: suffixArrayBuildCall(options),
     strippedFeature: features.has("stripped_sa"),
@@ -6759,7 +6834,7 @@ function renderSuffixArrayHelpers(
   features: Set<SuffixArrayFeature>
 ): string {
   const names = options.names;
-  let helpers = renderCodeTemplate("solvers/suffix_array/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("suffix_array/helpers.hpp.tmpl", {
     lcpFeature: features.has("lcp"),
     rankFeature: features.has("rank"),
     needsRank: features.has("rank") || features.has("lcp"),
@@ -6810,7 +6885,7 @@ export function renderSuffixArray(options: SuffixArrayOptions): string {
 }
 
 export function defaultFftNttTransforms(): FftNttTransform[] {
-  return ["fft", "ntt"];
+  return ["fft"];
 }
 
 export function planFftNttNames(
@@ -6833,7 +6908,7 @@ export function planFftNttNames(
 function fftNttTransformSet(
   transforms: FftNttTransform[]
 ): Set<FftNttTransform> {
-  return new Set(transforms.length === 0 ? defaultFftNttTransforms() : transforms);
+  return new Set(transforms);
 }
 
 function fftNttExports(
@@ -6872,7 +6947,7 @@ function renderFftNttUsage(
   options: FftNttOptions,
   transforms: Set<FftNttTransform>
 ): string {
-  return renderCodeTemplate("solvers/fft_ntt/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("fft_ntt/usage-comment.cpp.tmpl", {
     includeFft: transforms.has("fft"),
     includeNtt: transforms.has("ntt"),
     includeConvolution: options.includeConvolution,
@@ -6886,7 +6961,7 @@ function renderFftNttUsage(
 export function renderFftNttRecipe(options: FftNttOptions): RenderedRecipe {
   const transforms = fftNttTransformSet(options.transforms);
   const names = options.names;
-  let helpers = renderCodeTemplate("solvers/fft_ntt/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("fft_ntt/helpers.hpp.tmpl", {
     includeFft: transforms.has("fft"),
     includeNtt: transforms.has("ntt"),
     includeConvolution: options.includeConvolution,
@@ -6983,7 +7058,7 @@ function renderPolyHashUsage(
   options: PolyHashOptions,
   features: Set<PolyHashFeature>
 ): string {
-  return renderCodeTemplate("solvers/poly_hash/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("poly_hash/usage-comment.cpp.tmpl", {
     className: options.names.className,
     sourceName: options.sourceName,
     equalFeature: features.has("substring_equal"),
@@ -6996,7 +7071,7 @@ function renderPolyHashUsage(
 export function renderPolyHashRecipe(options: PolyHashOptions): RenderedRecipe {
   const features = polyHashFeatureSet(options.features);
   const names = options.names;
-  const constants = renderCodeTemplate("solvers/poly_hash/constants.hpp.tmpl", {
+  const constants = renderCodeTemplate("poly_hash/constants.hpp.tmpl", {
     mod1Name: names.mod1Name,
     mod1Expression: options.mod1Expression,
     mod2Name: names.mod2Name,
@@ -7004,7 +7079,7 @@ export function renderPolyHashRecipe(options: PolyHashOptions): RenderedRecipe {
     baseName: names.baseName,
     baseExpression: options.baseExpression
   });
-  let helpers = renderCodeTemplate("solvers/poly_hash/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("poly_hash/helpers.hpp.tmpl", {
     vectorInput: options.inputKind === "vector_int",
     equalFeature: features.has("substring_equal"),
     concatFeature: features.has("concat"),
@@ -7082,7 +7157,7 @@ function renderBerlekampMasseyUsage(
   options: BerlekampMasseyOptions,
   features: Set<BerlekampMasseyFeature>
 ): string {
-  return renderCodeTemplate("solvers/berlekamp_massey/usage-comment.cpp.tmpl", {
+  return renderCodeTemplate("berlekamp_massey/usage-comment.cpp.tmpl", {
     valueType: options.valueType,
     sequenceName: options.sequenceName,
     indexName: options.indexName,
@@ -7100,7 +7175,7 @@ export function renderBerlekampMasseyRecipe(
   options: BerlekampMasseyOptions
 ): RenderedRecipe {
   const features = berlekampMasseyFeatureSet(options.features);
-  let helpers = renderCodeTemplate("solvers/berlekamp_massey/helpers.hpp.tmpl", {
+  let helpers = renderCodeTemplate("berlekamp_massey/helpers.hpp.tmpl", {
     minimalRecurrence: features.has("minimal_recurrence"),
     kthTerm: features.has("kth_term"),
     oneShotKth: features.has("one_shot_kth")
@@ -7126,11 +7201,15 @@ export function renderBerlekampMassey(options: BerlekampMasseyOptions): string {
 export function stripHeaderGuard(content: string): string {
   const lines = content.split(/\r?\n/);
   let start = 0;
-  if (
-    lines.length >= 2 &&
-    /^\s*#ifndef\s+EDULCNI_/.test(lines[0]) &&
-    /^\s*#define\s+EDULCNI_/.test(lines[1])
-  ) {
+  let guardName: string | undefined;
+  const ifndef = lines[0]?.match(
+    /^\s*#ifndef\s+(EDULCNI_[A-Z0-9_]+_(?:H|HH|HPP|HXX))\s*$/
+  );
+  const define = lines[1]?.match(
+    /^\s*#define\s+(EDULCNI_[A-Z0-9_]+_(?:H|HH|HPP|HXX))\s*$/
+  );
+  if (ifndef && define && ifndef[1] === define[1]) {
+    guardName = ifndef[1];
     start = 2;
   }
 
@@ -7138,7 +7217,11 @@ export function stripHeaderGuard(content: string): string {
   while (end > start && lines[end - 1].trim() === "") {
     --end;
   }
-  if (end > start && /^\s*#endif\b.*EDULCNI_/.test(lines[end - 1])) {
+  if (
+    guardName &&
+    end > start &&
+    new RegExp(`^\\s*#endif\\b(?:\\s*//.*\\b${guardName}\\b)?\\s*$`).test(lines[end - 1])
+  ) {
     --end;
   }
 
@@ -7159,8 +7242,8 @@ export function unwrapEdulcniNamespace(content: string): string {
   return `${result.trim()}\n`;
 }
 
-export function renderHeaderContent(content: string, kind: SnippetKind): string {
-  return kind === "solver" ? unwrapEdulcniNamespace(content) : content;
+export function renderHeaderContent(content: string, unwrapHeader: boolean): string {
+  return unwrapHeader ? unwrapEdulcniNamespace(content) : content;
 }
 
 function addUniqueIdentifier(result: string[], seen: Set<string>, name: string | undefined): void {
@@ -7357,26 +7440,18 @@ export function applyIdentifierRenames(
 
 export function renderSnippetContent(
   content: string,
-  kind: SnippetKind,
+  unwrapHeader: boolean,
   analysis: CppAnalysis,
   exportedNames?: string[]
 ): RenderedSnippet {
-  const rendered = renderHeaderContent(content, kind);
-  const exports = exportedNames ?? (kind === "solver" ? collectGlobalExportedIdentifiers(rendered) : []);
+  const rendered = renderHeaderContent(content, unwrapHeader);
+  const exports = exportedNames ?? (unwrapHeader ? collectGlobalExportedIdentifiers(rendered) : []);
   const renames = planIdentifierRenames(analysis, exports);
   return {
     content: applyIdentifierRenames(rendered, renames),
     renames,
     exports
   };
-}
-
-export function defaultKindForPath(path: string): SnippetKind {
-  return path.startsWith("/bricks/") ? "brick" : "solver";
-}
-
-export function defaultInsertModeForKind(kind: SnippetKind): InsertMode {
-  return kind === "brick" ? "cursor" : "global";
 }
 
 export function resolveCatalogOrder(

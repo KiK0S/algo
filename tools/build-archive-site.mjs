@@ -78,14 +78,14 @@ async function filesBelow(directory) {
 }
 
 function generatorTemplateLocation(entry) {
-  if (entry.kind === "brick") {
-    return path.join(templateRoot, "bricks", `${entry.generator}.cpp.tmpl`);
+  if (entry.insertMode === "cursor") {
+    return path.join(templateRoot, `${entry.generator}.cpp.tmpl`);
   }
   const directory = {
     segtree: "segment_tree",
     segtree_beats: "segment_tree_beats"
   }[entry.generator] ?? entry.generator;
-  return path.join(templateRoot, "solvers", directory);
+  return path.join(templateRoot, directory);
 }
 
 async function previewFiles(entry) {

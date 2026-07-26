@@ -1,0 +1,17 @@
+{{#if copySource}}
+auto {{valuesName}} = {{sourceName}};
+{{/if}}
+EDULCNI_VIS(edulcni::live::array("compress.values", {{valuesName}}));
+EDULCNI_STEP("Coordinate compression initialized");
+sort(all({{valuesName}}));
+{{valuesName}}.resize(unique(all({{valuesName}})) - {{valuesName}}.begin());
+EDULCNI_VIS(edulcni::live::array("compress.values", {{valuesName}}));
+EDULCNI_STEP("Coordinate values sorted and deduplicated");
+auto {{idFunctionName}} = [&](auto x) {
+  return lower_bound(all({{valuesName}}), x) - {{valuesName}}.begin();
+};
+{{#if rewriteSource}}
+for (auto& x : {{sourceName}}) x = {{idFunctionName}}(x);
+EDULCNI_VIS(edulcni::live::array("compress.source", {{sourceName}}));
+EDULCNI_STEP("Source values replaced by compressed indices");
+{{/if}}

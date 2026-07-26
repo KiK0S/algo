@@ -1,0 +1,14 @@
+EDULCNI_VIS(edulcni::live::array(
+    "binary_search.bounds", std::vector<int>{l, -1, r}));
+EDULCNI_STEP("Binary search initialized");
+while (l + 1 < r) {
+	int mid = (l + r) / 2;
+	if (can(mid)) {
+		r = mid;
+	} else {
+		l = mid;
+	}
+	EDULCNI_VIS(edulcni::live::array(
+	    "binary_search.bounds", std::vector<int>{l, mid, r}));
+	EDULCNI_STEP("Binary search narrows its bounds");
+}

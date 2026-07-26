@@ -1,0 +1,43 @@
+template <typename T>
+inline std::vector<int> longest_increasing_subsequence_indices(
+    const std::vector<T>& a, bool nondecreasing = false) {
+  std::vector<T> tails;
+  std::vector<int> tail_index, parent(a.size(), -1);
+  EDULCNI_VIS(edulcni::live::array("lis.values", a));
+  EDULCNI_STEP("Longest increasing subsequence initialized");
+  for (int i = 0; i < static_cast<int>(a.size()); ++i) {
+    int pos = nondecreasing
+        ? static_cast<int>(std::upper_bound(tails.begin(), tails.end(), a[i]) - tails.begin())
+        : static_cast<int>(std::lower_bound(tails.begin(), tails.end(), a[i]) - tails.begin());
+    if (pos > 0) parent[i] = tail_index[pos - 1];
+    if (pos == static_cast<int>(tails.size())) {
+      tails.push_back(a[i]);
+      tail_index.push_back(i);
+    } else {
+      tails[pos] = a[i];
+      tail_index[pos] = i;
+    }
+    EDULCNI_VIS(edulcni::live::array("lis.tails", tails));
+    EDULCNI_VIS(edulcni::live::array("lis.parent", parent));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.values", i, edulcni::live::FocusRole::active,
+        "current value"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.tails", pos, edulcni::live::FocusRole::changed,
+        "best tail for this length"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.parent", i, edulcni::live::FocusRole::changed,
+        pos > 0 ? "predecessor selected" : "starts a subsequence"));
+    EDULCNI_STEP("Longest increasing subsequence processes a value");
+  }
+  std::vector<int> result;
+  for (int at = tail_index.empty() ? -1 : tail_index.back(); at != -1; at = parent[at])
+    result.push_back(at);
+  std::reverse(result.begin(), result.end());
+  EDULCNI_VIS(edulcni::live::array("lis.result_indices", result));
+  EDULCNI_VIS(edulcni::live::array_focus(
+      "lis.values", result, edulcni::live::FocusRole::result,
+      "longest increasing subsequence"));
+  EDULCNI_STEP("Longest increasing subsequence reconstructed");
+  return result;
+}

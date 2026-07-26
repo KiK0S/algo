@@ -1,0 +1,94 @@
+class {{className}} {
+ public:
+  explicit {{className}}(int limit = 0) : limit_(0) { build(limit); }
+
+  void build(int limit) {
+    limit_ = (limit < 0 ? 0 : limit);
+    lowest_prime_.assign(limit_ + 1, 0);
+    primes_.clear();
+
+    if (limit_ >= 1) {
+      lowest_prime_[1] = 1;
+    }
+
+    for (int i = 2; i <= limit_; ++i) {
+      if (lowest_prime_[i] == 0) {
+        lowest_prime_[i] = i;
+        primes_.push_back(i);
+      }
+      for (int p : primes_) {
+        const long long next = static_cast<long long>(i) * p;
+        if (next > limit_ || p > lowest_prime_[i]) {
+          break;
+        }
+        lowest_prime_[static_cast<int>(next)] = p;
+      }
+    }
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.lowest_prime", lowest_prime_));
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.primes", primes_));
+    EDULCNI_STEP("Linear sieve built");
+  }
+
+  int limit() const { return limit_; }
+{{#if includeLowestPrime}}
+
+  const std::vector<int>& lowest_prime() const { return lowest_prime_; }
+
+  int lowest_prime_of(int value) const {
+    if (value < 0 || value > limit_) {
+      return 0;
+    }
+    return lowest_prime_[value];
+  }
+
+  bool is_prime(int value) const {
+    return value >= 2 && value <= limit_ && lowest_prime_[value] == value;
+  }
+{{/if}}
+{{#if includePrimes}}
+
+  const std::vector<int>& primes() const { return primes_; }
+{{/if}}
+{{#if includeFactorization}}
+
+  std::vector<std::pair<int, int>> factorize(int value) const {
+    std::vector<std::pair<int, int>> factors;
+    if (value < 2 || value > limit_) {
+      return factors;
+    }
+
+    int x = value;
+    while (x > 1) {
+      const int p = lowest_prime_[x];
+      int exponent = 0;
+      while (x % p == 0) {
+        x /= p;
+        ++exponent;
+      }
+      factors.push_back(std::make_pair(p, exponent));
+    }
+    EDULCNI_VIS(edulcni::live::array("linear_sieve.factorization", factors));
+    EDULCNI_STEP("Linear sieve factorized a value");
+    return factors;
+  }
+{{/if}}
+
+ private:
+  int limit_;
+  std::vector<int> lowest_prime_;
+  std::vector<int> primes_;
+};
+{{#if includeLowestPrime}}
+
+inline std::vector<int> {{lowestPrimeFunctionName}}(int limit) {
+  {{className}} sieve(limit);
+  return sieve.lowest_prime();
+}
+{{/if}}
+{{#if includePrimes}}
+
+inline std::vector<int> {{primesFunctionName}}(int limit) {
+  {{className}} sieve(limit);
+  return sieve.primes();
+}
+{{/if}}

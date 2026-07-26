@@ -1,0 +1,10 @@
+EDULCNI_VIS(edulcni::live::array("subset_zeta.values", value));
+EDULCNI_STEP("Subset zeta transform initialized");
+for (int bit = 0; bit < bits; ++bit) {
+  for (int mask = 0; mask < (1 << bits); ++mask)
+    if (mask & (1 << bit)) value[mask] += value[mask ^ (1 << bit)];
+  EDULCNI_VIS(edulcni::live::array("subset_zeta.values", value));
+  EDULCNI_VIS(edulcni::live::bits(
+      "subset_zeta.active_bit", std::uint64_t(1) << bit, bits));
+  EDULCNI_STEP("Subset zeta transform completes a bit");
+}

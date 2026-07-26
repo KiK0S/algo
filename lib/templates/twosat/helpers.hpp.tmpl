@@ -1,0 +1,247 @@
+class TwoSat {
+ public:
+  explicit TwoSat(int variables = 0) { reset(variables); }
+
+  void reset(int variables) {
+    variables_ = variables < 0 ? 0 : variables;
+    graph_.assign(2 * variables_, std::vector<int>());
+    assignment_.assign(variables_, false);
+{{#if componentsFeature}}
+    component_.assign(2 * variables_, -1);
+{{/if}}
+    solved_ = false;
+    satisfiable_ = false;
+    trace("Two-SAT reset");
+  }
+
+  int size() const { return variables_; }
+
+  void add_or(int a, bool a_value, int b, bool b_value) {
+    if (!ok_var(a) || !ok_var(b)) {
+      return;
+    }
+    add_direct(a, !a_value, b, b_value);
+    add_direct(b, !b_value, a, a_value);
+    trace("Two-SAT clause added");
+  }
+
+  void add_implication(int a, bool a_value, int b, bool b_value) {
+    if (!ok_var(a) || !ok_var(b)) {
+      return;
+    }
+    add_direct(a, a_value, b, b_value);
+    add_direct(b, !b_value, a, !a_value);
+    trace("Two-SAT implication added");
+  }
+
+{{#if xorFeature}}
+  void add_xor(int a, bool a_value, int b, bool b_value) {
+    add_or(a, a_value, b, b_value);
+    add_or(a, !a_value, b, !b_value);
+  }
+{{/if}}
+
+{{#if equalFeature}}
+  void add_equal(int a, bool a_value, int b, bool b_value) {
+    add_or(a, a_value, b, !b_value);
+    add_or(a, !a_value, b, b_value);
+  }
+{{/if}}
+
+{{#if forceFeature}}
+  void add_true(int var, bool value = true) {
+    if (ok_var(var)) {
+      add_direct(var, !value, var, value);
+    }
+  }
+
+  void add_false(int var) {
+    add_true(var, false);
+  }
+{{/if}}
+
+{{#if atMostOneFeature}}
+  void add_at_most_one(const std::vector<int>& vars) {
+    for (int i = 0; i < static_cast<int>(vars.size()); ++i) {
+      for (int j = i + 1; j < static_cast<int>(vars.size()); ++j) {
+        add_or(vars[i], false, vars[j], false);
+      }
+    }
+  }
+{{/if}}
+
+  bool solve() {
+    solved_ = true;
+    satisfiable_ = true;
+    assignment_.assign(variables_, false);
+
+    const std::vector<int> comp = strongly_connected_components();
+{{#if componentsFeature}}
+    component_ = comp;
+{{/if}}
+    int components = 0;
+    for (int x : comp) {
+      components = std::max(components, x + 1);
+    }
+
+    for (int var = 0; var < variables_; ++var) {
+      if (comp[node(var, true)] == comp[node(var, false)]) {
+        satisfiable_ = false;
+        assignment_.assign(variables_, false);
+        trace("Two-SAT found a contradiction");
+        return false;
+      }
+    }
+
+    std::vector<std::vector<int>> dag(components);
+    std::vector<int> indegree(components, 0);
+    for (int v = 0; v < static_cast<int>(graph_.size()); ++v) {
+      for (int to : graph_[v]) {
+        const int a = comp[v];
+        const int b = comp[to];
+        if (a != b) {
+          dag[a].push_back(b);
+        }
+      }
+    }
+    for (int v = 0; v < components; ++v) {
+      std::sort(dag[v].begin(), dag[v].end());
+      dag[v].resize(std::unique(dag[v].begin(), dag[v].end()) - dag[v].begin());
+      for (int to : dag[v]) {
+        ++indegree[to];
+      }
+    }
+
+    std::vector<int> q;
+    q.reserve(components);
+    for (int i = 0; i < components; ++i) {
+      if (indegree[i] == 0) {
+        q.push_back(i);
+      }
+    }
+    std::vector<int> rank(components, 0);
+    for (int i = 0; i < static_cast<int>(q.size()); ++i) {
+      const int v = q[i];
+      rank[v] = i;
+      for (int to : dag[v]) {
+        if (--indegree[to] == 0) {
+          q.push_back(to);
+        }
+      }
+    }
+
+    for (int var = 0; var < variables_; ++var) {
+      assignment_[var] = rank[comp[node(var, true)]] > rank[comp[node(var, false)]];
+    }
+    trace("Two-SAT solved");
+    return true;
+  }
+
+  bool solved() const { return solved_; }
+
+  bool satisfiable() const { return solved_ && satisfiable_; }
+
+  bool value(int var) const {
+    return ok_var(var) && satisfiable() ? assignment_[var] : false;
+  }
+
+  const std::vector<bool>& assignment() const {
+    return assignment_;
+  }
+
+  const std::vector<std::vector<int>>& implication_graph() const {
+    return graph_;
+  }
+
+{{#if componentsFeature}}
+  int component(int var, bool value) const {
+    return ok_var(var) && solved_ ? component_[node(var, value)] : -1;
+  }
+{{/if}}
+
+ private:
+  int variables_;
+  std::vector<std::vector<int>> graph_;
+  std::vector<bool> assignment_;
+{{#if componentsFeature}}
+  std::vector<int> component_;
+{{/if}}
+  bool solved_;
+  bool satisfiable_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::graph("twosat.implications", graph_));
+    EDULCNI_VIS(edulcni::live::array("twosat.assignment", assignment_));
+{{#if componentsFeature}}
+    EDULCNI_VIS(edulcni::live::array("twosat.components", component_));
+{{/if}}
+    EDULCNI_STEP(label);
+  }
+
+  bool ok_var(int var) const { return var >= 0 && var < variables_; }
+
+  static int node(int var, bool value) { return 2 * var + (value ? 0 : 1); }
+
+  void add_direct(int a, bool a_value, int b, bool b_value) {
+    graph_[node(a, a_value)].push_back(node(b, b_value));
+  }
+
+  std::vector<int> strongly_connected_components() const {
+    const int n = static_cast<int>(graph_.size());
+    std::vector<std::vector<int>> rev(n);
+    for (int v = 0; v < n; ++v) {
+      for (int to : graph_[v]) {
+        rev[to].push_back(v);
+      }
+    }
+
+    std::vector<char> used(n, 0);
+    std::vector<int> order;
+    order.reserve(n);
+    for (int start = 0; start < n; ++start) {
+      if (used[start]) {
+        continue;
+      }
+      std::vector<std::pair<int, int>> stack;
+      stack.push_back({start, 0});
+      used[start] = 1;
+      while (!stack.empty()) {
+        int v = stack.back().first;
+        int& idx = stack.back().second;
+        if (idx < static_cast<int>(graph_[v].size())) {
+          const int to = graph_[v][idx++];
+          if (!used[to]) {
+            used[to] = 1;
+            stack.push_back({to, 0});
+          }
+        } else {
+          order.push_back(v);
+          stack.pop_back();
+        }
+      }
+    }
+
+    std::vector<int> comp(n, -1);
+    int comp_id = 0;
+    for (int i = n - 1; i >= 0; --i) {
+      const int start = order[i];
+      if (comp[start] != -1) {
+        continue;
+      }
+      std::vector<int> stack(1, start);
+      comp[start] = comp_id;
+      while (!stack.empty()) {
+        const int v = stack.back();
+        stack.pop_back();
+        for (int to : rev[v]) {
+          if (comp[to] == -1) {
+            comp[to] = comp_id;
+            stack.push_back(to);
+          }
+        }
+      }
+      ++comp_id;
+    }
+    return comp;
+  }
+};

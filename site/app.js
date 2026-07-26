@@ -59,15 +59,32 @@ function parameterValues(entry, name) {
 
 function renderDetails(entry) {
   const parameters = parameterNames(entry);
+  const visualization = entry.visualization;
   details.innerHTML = `
-    <p class="eyebrow">${text(entry.kind)}</p>
+    <p class="eyebrow">template</p>
     <h2 class="entry-path">${text(entry.path)}</h2>
     <p class="description">${text(entry.description ?? "No description yet.")}</p>
     <div class="badges">
       <span class="badge primary">${entry.generator ? "interactive generator" : "static template"}</span>
-      <span class="badge">${text(entry.insertMode ?? (entry.kind === "solver" ? "global" : "cursor"))} insertion</span>
+      <span class="badge">${text(entry.insertMode)} insertion</span>
       ${entry.generator ? `<span class="badge">generator: ${text(entry.generator)}</span>` : ""}
+      ${visualization ? `<span class="badge">visualization: ${text(visualization.status)}</span>` : ""}
     </div>
+    ${visualization ? `
+      <section class="detail-section">
+        <h3>Visualization</h3>
+        <p class="description">${text(
+          visualization.reason ??
+          `${visualization.defaultGranularity ?? "operations"} granularity · ${visualization.layout ?? "single"} layout`
+        )}</p>
+        <div class="chips">${asArray(visualization.models).map(
+          (model) => `<span class="chip">${text(String(model))}</span>`
+        ).join("")}</div>
+        ${(visualization.limitations ?? []).map(
+          (limitation) => `<p class="description">${text(limitation)}</p>`
+        ).join("")}
+      </section>
+    ` : ""}
     <section class="detail-section">
       <h3>Extension parameters</h3>
       ${parameters.length === 0
@@ -215,34 +232,32 @@ function renderTree(query = "") {
       entry.path,
       entry.description,
       ...asArray(entry.features),
-      ...asArray(entry.applications)
+      ...asArray(entry.applications),
+      ...asArray(entry.visualization?.models),
+      entry.visualization?.status
     ].join(" ").toLowerCase();
     return haystack.includes(normalized);
   });
   tree.replaceChildren();
-  for (const kind of ["solver", "brick"]) {
-    const group = filtered
-      .filter((entry) => entry.kind === kind)
-      .sort((left, right) => left.path.localeCompare(right.path));
-    if (group.length === 0) continue;
-    const container = document.createElement("details");
-    container.open = true;
-    const summary = document.createElement("summary");
-    summary.textContent = `${kind}s · ${group.length}`;
-    const list = document.createElement("div");
-    list.className = "tree-list";
-    for (const entry of group) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.path = entry.path;
-      button.textContent = entry.path.split("/").at(-1);
-      button.classList.toggle("active", selectedPath === entry.path);
-      button.addEventListener("click", () => selectEntry(entry.path));
-      list.append(button);
-    }
-    container.append(summary, list);
-    tree.append(container);
+  const group = filtered.sort((left, right) => left.path.localeCompare(right.path));
+  if (group.length === 0) return;
+  const container = document.createElement("details");
+  container.open = true;
+  const summary = document.createElement("summary");
+  summary.textContent = `templates · ${group.length}`;
+  const list = document.createElement("div");
+  list.className = "tree-list";
+  for (const entry of group) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.path = entry.path;
+    button.textContent = entry.path.split("/").at(-1);
+    button.classList.toggle("active", selectedPath === entry.path);
+    button.addEventListener("click", () => selectEntry(entry.path));
+    list.append(button);
   }
+  container.append(summary, list);
+  tree.append(container);
 }
 
 search.addEventListener("input", () => renderTree(search.value));

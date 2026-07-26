@@ -7,6 +7,53 @@ const subprocess = require("node:child_process");
 const core = require("../out/core.js");
 const wizard = require("../out/wizard.js");
 
+const repoRoot = path.join(__dirname, "..", "..");
+const activeEdulcniTests = process.env.EDULCNI_ACTIVE_TESTS === "1";
+const edulcniRoot = path.resolve(
+  process.env.EDULCNI_ROOT ?? path.join(repoRoot, "..", "edulcni")
+);
+
+function compileCpp(cpp, exe) {
+  const compilerArguments = ["-std=c++17"];
+  if (activeEdulcniTests) {
+    const bootstrap = path.join(edulcniRoot, "include", "edulcni", "bootstrap.hpp");
+    const libraryDirectory = path.join(edulcniRoot, "lib");
+    assert.equal(fs.existsSync(bootstrap), true, `Edulcni bootstrap is missing: ${bootstrap}`);
+    assert.equal(
+      ["libedulcni.a", "libedulcni.dylib", "libedulcni.so"].some((name) =>
+        fs.existsSync(path.join(libraryDirectory, name))
+      ),
+      true,
+      `Edulcni producer library is missing under ${libraryDirectory}; run make mvp`
+    );
+    compilerArguments.push(
+      "-DEDULCNI_ENABLED=1",
+      "-include",
+      bootstrap,
+      `-I${path.join(edulcniRoot, "include")}`
+    );
+  }
+  compilerArguments.push(cpp, "-o", exe);
+  if (activeEdulcniTests) {
+    const libraryDirectory = path.join(edulcniRoot, "lib");
+    compilerArguments.push(
+      `-L${libraryDirectory}`,
+      `-Wl,-rpath,${libraryDirectory}`,
+      "-ledulcni",
+      "-pthread"
+    );
+  }
+  subprocess.execFileSync("g++", compilerArguments, { stdio: "inherit" });
+}
+
+function runCompiled(exe) {
+  const environment = { ...process.env };
+  delete environment.EDULCNI_HOST;
+  delete environment.EDULCNI_PORT;
+  delete environment.EDULCNI_TOKEN;
+  subprocess.execFileSync(exe, [], { stdio: "inherit", env: environment });
+}
+
 {
   const choices = [
     { value: "first" },
@@ -93,10 +140,8 @@ function compileGenerated(name, options, mainBody) {
     "}"
   ].join("\n");
   fs.writeFileSync(cpp, source);
-  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
-    stdio: "inherit"
-  });
-  subprocess.execFileSync(exe, [], { stdio: "inherit" });
+  compileCpp(cpp, exe);
+  runCompiled(exe);
 }
 
 function compileSource(name, source) {
@@ -105,10 +150,8 @@ function compileSource(name, source) {
   const cpp = path.join(dir, `${name}.cpp`);
   const exe = path.join(dir, name);
   fs.writeFileSync(cpp, source);
-  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
-    stdio: "inherit"
-  });
-  subprocess.execFileSync(exe, [], { stdio: "inherit" });
+  compileCpp(cpp, exe);
+  runCompiled(exe);
 }
 
 function compilerHasHeader(header) {
@@ -122,6 +165,77 @@ function compilerHasHeader(header) {
     }
   );
   return result.status === 0;
+}
+
+function testVisualizationHookContract() {
+  compileSource("visualization_hook_contract", [
+    "#include <cassert>",
+    "#ifndef EDULCNI_VIS",
+    "#define EDULCNI_VIS(...) ((void)0)",
+    "#endif",
+    "#ifndef EDULCNI_STEP",
+    "#define EDULCNI_STEP(...) ((void)0)",
+    "#endif",
+    "int main() {",
+    "  int evaluations = 0;",
+    "  EDULCNI_VIS(++evaluations);",
+    "#ifndef EDULCNI_ENABLED",
+    "  EDULCNI_VIS(edulcni::this_symbol_must_not_be_parsed());",
+    "#endif",
+    "  EDULCNI_STEP(\"contract\");",
+    "  assert(evaluations == 0);",
+    "  return 0;",
+    "}"
+  ].join("\n"));
+}
+
+function compileStandaloneSource(name, source) {
+  const dir = path.join(os.tmpdir(), "edulcni-extension-core-tests");
+  fs.mkdirSync(dir, { recursive: true });
+  const cpp = path.join(dir, `${name}.cpp`);
+  const exe = path.join(dir, name);
+  fs.writeFileSync(cpp, source);
+  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
+    stdio: "inherit"
+  });
+  runCompiled(exe);
+}
+
+function testBaseTemplateVarModes() {
+  const template = fs.readFileSync(
+    path.join(repoRoot, "lib", "templates", "base_template.cpp.tmpl"),
+    "utf8"
+  );
+  const withSolveBody = (statement) => template.replace(
+    "inline void solve() {\n\tinit();",
+    `inline void solve() {\n\tinit();\n\t${statement}`
+  );
+  const withIsolatedMain = (preamble, body) => [
+    preamble,
+    "#define main edulcni_base_template_main",
+    body,
+    "#undef main",
+    "int main() { solve(); return 0; }"
+  ].join("\n");
+
+  compileStandaloneSource(
+    "base_template_var_edulcni",
+    withIsolatedMain(
+      [
+        "#define EDULCNI_ENABLED 1",
+        "#define EDULCNI_VAR(...) ((void)(__VA_ARGS__))"
+      ].join("\n"),
+      withSolveBody("auto value = [] {}; var(value);")
+    )
+  );
+  compileStandaloneSource(
+    "base_template_var_debug",
+    withIsolatedMain("#define DEBUG 1", withSolveBody("var(n);"))
+  );
+  compileStandaloneSource(
+    "base_template_var_release",
+    withIsolatedMain("", withSolveBody("var(symbol_that_must_not_be_parsed);"))
+  );
 }
 
 function escapeRegExp(value) {
@@ -895,7 +1009,7 @@ const char* label = "make_twosat in a string should not be renamed";
   ]);
 
   const analysis = core.analyzeCppDocument("int TwoSat; int make_twosat;");
-  const rendered = core.renderSnippetContent(solver, "solver", analysis);
+  const rendered = core.renderSnippetContent(solver, true, analysis);
   assert.deepEqual(rendered.renames, [
     { from: "TwoSat", to: "TwoSat2" },
     { from: "make_twosat", to: "make_twosat2" }
@@ -1057,17 +1171,6 @@ function testRecipeMetadata() {
   assert.match(dsuQueryRecipe.sections.solve[0], /Dsu dsu\(n\);/);
   assert.match(dsuQueryRecipe.sections.solve[0], /--u; --v;/);
 
-  const dsuKruskalRecipe = core.renderDsuRecipe(
-    dsuOptions({
-      usageMode: "kruskal",
-      sizeExpression: "n",
-      edgeCountName: "m",
-      includeUsageComment: false
-    })
-  );
-  assert.match(dsuKruskalRecipe.sections.solve[0], /struct Edge/);
-  assert.match(dsuKruskalRecipe.sections.solve[0], /vector<Edge> edges\(m\);/);
-
   const rollbackDsuRecipe = core.renderRollbackDsuRecipe(
     rollbackDsuOptions({ includeUsageComment: false })
   );
@@ -1148,9 +1251,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(bfsUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(bfsUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(bfsUsageRecipe.sections.solve[0], /for \(int i = 0; i < m; \+\+i\)/);
-  assert.match(bfsUsageRecipe.sections.solve[0], /--u; --v;/);
+  assert.doesNotMatch(bfsUsageRecipe.sections.solve[0], /cin >> u >> v/);
   assert.match(bfsUsageRecipe.sections.solve[0], /auto path = bfs_restore_path\(source, target, result\);/);
 
   const dijkstraRecipe = core.renderDijkstraRecipe(
@@ -1180,9 +1281,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(dijkstraUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /std::vector<std::vector<DijkstraEdge<long long>>> graph\(n\);/);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /int u, v; long long w;/);
-  assert.match(dijkstraUsageRecipe.sections.solve[0], /dijkstra_add_edge\(graph, u, v, w, true\);/);
+  assert.doesNotMatch(dijkstraUsageRecipe.sections.solve[0], /cin >> u >> v >> w/);
   assert.match(dijkstraUsageRecipe.sections.solve[0], /auto path = dijkstra_restore_path\(source, target, result\);/);
 
   const toposortRecipe = core.renderToposortRecipe(
@@ -1206,9 +1305,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(toposortUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(toposortUsageRecipe.sections.solve[0], /--before; --after;/);
-  assert.match(toposortUsageRecipe.sections.solve[0], /toposort_add_edge\(graph, before, after\);/);
+  assert.doesNotMatch(toposortUsageRecipe.sections.solve[0], /cin >> before >> after/);
   assert.match(toposortUsageRecipe.sections.solve[0], /std::vector<int> order = topological_sort\(graph, &dag\);/);
 
   const kosarajuRecipe = core.renderKosarajuRecipe(
@@ -1232,9 +1329,7 @@ function testRecipeMetadata() {
     })
   );
   assert.deepEqual(Object.keys(kosarajuUsageRecipe.sections), ["helpers", "solve"]);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /std::vector<std::vector<int>> graph\(n\);/);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /--from; --to;/);
-  assert.match(kosarajuUsageRecipe.sections.solve[0], /kosaraju_add_edge\(graph, from, to\);/);
+  assert.doesNotMatch(kosarajuUsageRecipe.sections.solve[0], /cin >> from >> to/);
   assert.match(kosarajuUsageRecipe.sections.solve[0], /KosarajuResult scc = kosaraju_scc\(graph\);/);
   assert.match(kosarajuUsageRecipe.sections.solve[0], /scc\.component_of\[a\] == scc\.component_of\[b\]/);
 
@@ -1518,7 +1613,7 @@ function testRecipeMetadata() {
   const modIntRecipe = core.renderModIntRecipe(
     modIntOptions({ includeUsageComment: false })
   );
-  assert.deepEqual(modIntRecipe.exports, ["StaticModInt", "DynamicModInt"]);
+  assert.deepEqual(modIntRecipe.exports, ["StaticModInt"]);
   assert.deepEqual(Object.keys(modIntRecipe.sections), ["helpers"]);
 
   const staticModIntRecipe = core.renderModIntRecipe(
@@ -1709,9 +1804,9 @@ function testRecipeMetadata() {
   assert.equal(fftNttRecipe.exports.includes("fft_next_power_of_two"), true);
   assert.equal(fftNttRecipe.exports.includes("fft_transform"), true);
   assert.equal(fftNttRecipe.exports.includes("convolution_fft_round"), true);
-  assert.equal(fftNttRecipe.exports.includes("ntt_pow"), true);
-  assert.equal(fftNttRecipe.exports.includes("ntt_transform"), true);
-  assert.equal(fftNttRecipe.exports.includes("convolution_ntt_int"), true);
+  assert.equal(fftNttRecipe.exports.includes("ntt_pow"), false);
+  assert.equal(fftNttRecipe.exports.includes("ntt_transform"), false);
+  assert.equal(fftNttRecipe.exports.includes("convolution_ntt_int"), false);
   assert.deepEqual(Object.keys(fftNttRecipe.sections), ["helpers"]);
 
   const polyHashRecipe = core.renderPolyHashRecipe(
@@ -1735,10 +1830,33 @@ function testBundledCatalogGuardrails() {
   const catalogPath = path.join(extensionRoot, "library", "catalog", "snippets.json");
   const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
   const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+  const sourceCatalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
+  assert.deepEqual(parsed, sourceCatalog, "bundled catalog is not synchronized");
   const validSections = new Set(core.SOLUTION_SECTION_ORDER);
+  const visualizationStatuses = new Set([
+    "automatic",
+    "snapshot",
+    "diagnostic",
+    "manual",
+    "none"
+  ]);
+  const visualizationLayouts = new Set([
+    "single",
+    "main_with_sidebar",
+    "graph_with_sidebar",
+    "tree_with_array",
+    "table_with_dependencies",
+    "plane_with_sidebar",
+    "split_horizontal",
+    "split_vertical",
+    "tabs"
+  ]);
+  const granularities = new Set(["summary", "operations", "verbose"]);
   const seenPaths = new Set();
 
-  assert.ok(entries.length > 0);
+  assert.equal(entries.length, 85);
   for (const entry of entries) {
     assert.match(entry.path, /^\/(?:bricks|solvers)\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
@@ -1759,6 +1877,51 @@ function testBundledCatalogGuardrails() {
     }
     for (const section of entry.sections ?? []) {
       assert.equal(validSections.has(section), true);
+    }
+
+    const visualization = entry.visualization;
+    assert.equal(
+      visualization !== null && typeof visualization === "object",
+      true,
+      `${entry.path} has no visualization classification`
+    );
+    assert.equal(
+      visualizationStatuses.has(visualization.status),
+      true,
+      `${entry.path} has invalid visualization status`
+    );
+    assert.equal(Array.isArray(visualization.models), true);
+    assert.equal(new Set(visualization.models).size, visualization.models.length);
+    if (["automatic", "snapshot", "diagnostic"].includes(visualization.status)) {
+      assert.equal(
+        visualization.models.length > 0,
+        true,
+        `${entry.path} needs at least one visualization model`
+      );
+    }
+    if (["manual", "none"].includes(visualization.status)) {
+      assert.equal(
+        typeof visualization.reason === "string" && visualization.reason.length > 0,
+        true,
+        `${entry.path} must explain ${visualization.status} status`
+      );
+    }
+    if (visualization.layout !== undefined) {
+      assert.equal(
+        visualizationLayouts.has(visualization.layout),
+        true,
+        `${entry.path} has invalid visualization layout`
+      );
+    }
+    if (visualization.defaultGranularity !== undefined) {
+      assert.equal(
+        granularities.has(visualization.defaultGranularity),
+        true,
+        `${entry.path} has invalid visualization granularity`
+      );
+    }
+    for (const limitation of visualization.limitations ?? []) {
+      assert.equal(typeof limitation === "string" && limitation.length > 0, true);
     }
   }
 
@@ -1830,6 +1993,56 @@ function testFinalLibraryShapeGuardrails() {
   }
 }
 
+function testVisualizationSourceCoverage() {
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
+  const templateRoot = path.join(repoRoot, "lib", "templates");
+  const generatorOverrides = new Map([
+    ["segtree", path.join(templateRoot, "solvers", "segment_tree")],
+    ["segtree_beats", path.join(templateRoot, "solvers", "segment_tree_beats")],
+    ["compress_unique", path.join(templateRoot, "bricks", "compress_unique.cpp.tmpl")],
+    ["factorial_precalc", path.join(templateRoot, "bricks", "factorial_precalc.cpp.tmpl")],
+    ["powers_precalc", path.join(templateRoot, "bricks", "powers_precalc.cpp.tmpl")],
+    ["read_vector", path.join(templateRoot, "bricks", "read_vector.cpp.tmpl")],
+    ["read_matrix", path.join(templateRoot, "bricks", "read_matrix.cpp.tmpl")]
+  ]);
+
+  for (const templateFile of collectFiles(templateRoot, new Set([".tmpl"]))) {
+    if (templateFile.endsWith(path.join("bricks", "base_template.cpp.tmpl"))) {
+      continue;
+    }
+    assert.doesNotMatch(
+      fs.readFileSync(templateFile, "utf8"),
+      /^\s*#\s*include\b/m,
+      `${templateFile} must remain a paste snippet without includes`
+    );
+  }
+
+  for (const entry of catalog) {
+    if (["manual", "none"].includes(entry.visualization.status)) {
+      continue;
+    }
+    let candidates;
+    if (entry.template) {
+      candidates = [path.join(templateRoot, entry.template)];
+    } else {
+      const generatorPath = generatorOverrides.get(entry.generator) ??
+        path.join(templateRoot, "solvers", entry.generator);
+      candidates = fs.statSync(generatorPath).isDirectory()
+        ? collectFiles(generatorPath, new Set([".tmpl"]))
+        : [generatorPath];
+    }
+    assert.equal(candidates.length > 0, true, `${entry.path} has no template sources`);
+    const source = candidates.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    assert.match(
+      source,
+      /EDULCNI_(?:VIS|STEP)/,
+      `${entry.path} is classified as ${entry.visualization.status} but has no hooks`
+    );
+  }
+}
+
 function testManifestCommands() {
   const manifestPath = path.join(__dirname, "..", "package.json");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -1864,7 +2077,7 @@ int demo() { return 7; }
 
 #endif  // EDULCNI_SOLVERS_DEMO_HPP
 `;
-  assert.equal(core.renderHeaderContent(content, "solver").trim(), "int demo() { return 7; }");
+  assert.equal(core.renderHeaderContent(content, true).trim(), "int demo() { return 7; }");
 }
 
 function testGlobalInsertionOffset() {
@@ -2034,7 +2247,11 @@ function testGeneratedSegmentTrees() {
 function testGeneratedSegmentTreeBeatsCompiles() {
   {
     const generated = core.renderSegmentTreeBeats(
-      segtreeBeatsOptions({ includeUsageComment: false })
+      segtreeBeatsOptions({
+        updates: ["chmin", "chmax", "add"],
+        queries: ["sum", "min", "max"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -2098,15 +2315,16 @@ function testGeneratedSegmentTreeBeatsCompiles() {
 }
 
 function testInteractiveBrickRenderers() {
-  assert.equal(
-    core.renderReadVector({
-      name: "a",
-      sizeExpression: "n",
-      valueType: "int",
-      containerType: "vi"
-    }),
-    "vi a(n);\nfor (auto& x : a) cin >> x;\n"
-  );
+  const terseReadVector = core.renderReadVector({
+    name: "a",
+    sizeExpression: "n",
+    valueType: "int",
+    containerType: "vi"
+  });
+  assert.match(terseReadVector, /vi a\(n\);/);
+  assert.match(terseReadVector, /for \(auto& x : a\) cin >> x;/);
+  assert.match(terseReadVector, /EDULCNI_VIS\(edulcni::live::array/);
+  assert.match(terseReadVector, /EDULCNI_STEP\("Vector read"\)/);
 
   const compressed = core.renderCompressUnique({
     sourceName: "a",
@@ -2205,7 +2423,8 @@ function testSparseTableRenderer() {
     })
   );
   assert.match(gcdBitwise, /void build_sparse_gcd/);
-  assert.match(gcdBitwise, /return gcd\(lhs, rhs\);/);
+  assert.match(gcdBitwise, /const int result = gcd\(lhs, rhs\);/);
+  assert.match(gcdBitwise, /return result;/);
   assert.match(gcdBitwise, /void build_sparse_bit_and/);
   assert.match(gcdBitwise, /void build_sparse_bit_or/);
 
@@ -2250,15 +2469,6 @@ function testDsuRenderer() {
   assert.match(usageContent, /\/\*\nExample:/);
   assert.match(usageContent, /Dsu dsu\(n\);/);
 
-  const kruskalRecipe = core.renderDsuRecipe(
-    dsuOptions({
-      usageMode: "kruskal",
-      edgeCountName: "m",
-      includeUsageComment: false
-    })
-  );
-  assert.match(kruskalRecipe.sections.solve[0], /sort\(edges\.begin\(\), edges\.end\(\)/);
-  assert.match(kruskalRecipe.sections.solve[0], /mst_weight \+= e\.w;/);
 
   const collisionOptions = dsuOptions({
     existingText: "class Dsu {}; int dsu;"
@@ -2403,7 +2613,7 @@ function testBfsRenderer() {
     })
   );
   assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
-  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.doesNotMatch(multiSourceRecipe.sections.solve[0], /--v/);
   assert.match(multiSourceRecipe.sections.solve[0], /auto result = bfs_multi_source\(graph, sources\);/);
 
   const collisionOptions = bfsOptions({
@@ -2455,7 +2665,7 @@ function testDijkstraRenderer() {
     })
   );
   assert.match(multiSourceRecipe.sections.solve[0], /std::vector<int> sources\(k\);/);
-  assert.match(multiSourceRecipe.sections.solve[0], /for \(int& v : sources\) --v;/);
+  assert.doesNotMatch(multiSourceRecipe.sections.solve[0], /--v/);
   assert.match(multiSourceRecipe.sections.solve[0], /auto result = dijkstra_multi_source\(graph, sources/);
 
   const collisionOptions = dijkstraOptions({
@@ -2501,7 +2711,7 @@ function testToposortRenderer() {
     })
   );
   assert.match(validateRecipe.sections.solve[0], /std::vector<int> order\(n\);/);
-  assert.match(validateRecipe.sections.solve[0], /for \(int& v : order\) --v;/);
+  assert.doesNotMatch(validateRecipe.sections.solve[0], /--v/);
   assert.match(validateRecipe.sections.solve[0], /bool valid = is_topological_order\(graph, order\);/);
 
   const collisionOptions = toposortOptions({
@@ -2860,16 +3070,15 @@ function testModIntRenderer() {
     modIntOptions({ includeUsageComment: false })
   );
   assert.match(defaultContent, /template <int MOD>\nclass StaticModInt/);
-  assert.match(defaultContent, /class DynamicModInt/);
-  assert.match(defaultContent, /static int value = 1000000007;/);
+  assert.doesNotMatch(defaultContent, /class DynamicModInt/);
   assert.match(defaultContent, /StaticModInt pow\(long long exponent\) const/);
-  assert.match(defaultContent, /DynamicModInt pow\(long long exponent\) const/);
+  assert.doesNotMatch(defaultContent, /DynamicModInt pow\(long long exponent\) const/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderModInt(modIntOptions());
   assert.match(usageContent, /\/\*\nExample:/);
-  assert.match(usageContent, /using Mint = StaticModInt<1000000007>;/);
-  assert.match(usageContent, /DynamicModInt::set_mod\(998244353\);/);
+  assert.match(usageContent, /using Mint = StaticModInt<998244353>;/);
+  assert.doesNotMatch(usageContent, /DynamicModInt::set_mod/);
 
   const staticContent = core.renderModInt(
     modIntOptions({
@@ -2898,7 +3107,7 @@ function testModIntRenderer() {
   assert.equal(collisionOptions.names.dynamicClassName, "DynamicModInt2");
   const collisionContent = core.renderModInt(collisionOptions);
   assert.match(collisionContent, /class StaticModInt2/);
-  assert.match(collisionContent, /class DynamicModInt2/);
+  assert.doesNotMatch(collisionContent, /class DynamicModInt2/);
 }
 
 function testTwoSatRenderer() {
@@ -2982,9 +3191,9 @@ function testMaxflowDinicRenderer() {
   assert.match(defaultContent, /struct Edge/);
   assert.match(defaultContent, /int add_edge\(int from, int to, Cap cap/);
   assert.match(defaultContent, /Cap max_flow\(int source, int sink\)/);
-  assert.match(defaultContent, /bool left_of_min_cut\(int vertex\) const/);
-  assert.match(defaultContent, /const std::vector<std::vector<Edge>>& graph\(\) const/);
-  assert.match(defaultContent, /void reset_flows\(\)/);
+  assert.doesNotMatch(defaultContent, /left_of_min_cut/);
+  assert.doesNotMatch(defaultContent, /graph\(\) const/);
+  assert.doesNotMatch(defaultContent, /reset_flows/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderMaxflowDinic(maxflowDinicOptions());
@@ -3040,9 +3249,9 @@ function testMinCostMaxFlowRenderer() {
   assert.match(defaultContent, /int add_edge\(int from, int to, Cap cap, Cost cost\)/);
   assert.match(defaultContent, /std::pair<Cap, Cost> min_cost_flow/);
   assert.match(defaultContent, /std::pair<Cap, Cost> min_cost_max_flow/);
-  assert.match(defaultContent, /const std::vector<std::vector<Edge>>& graph\(\) const/);
-  assert.match(defaultContent, /const std::vector<Cost>& potential\(\) const/);
-  assert.match(defaultContent, /set_potential_with_bellman_ford/);
+  assert.doesNotMatch(defaultContent, /graph\(\) const/);
+  assert.doesNotMatch(defaultContent, /potential\(\) const/);
+  assert.doesNotMatch(defaultContent, /set_potential_with_bellman_ford/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderMinCostMaxFlow(minCostMaxFlowOptions());
@@ -3362,10 +3571,10 @@ function testSuffixArrayRenderer() {
   );
   assert.match(defaultContent, /struct SuffixArrayResult/);
   assert.match(defaultContent, /std::vector<int> sa;/);
-  assert.match(defaultContent, /std::vector<int> lcp;/);
-  assert.match(defaultContent, /std::vector<int> rank;/);
+  assert.doesNotMatch(defaultContent, /std::vector<int> lcp;/);
+  assert.doesNotMatch(defaultContent, /std::vector<int> rank;/);
   assert.match(defaultContent, /suffix_array_build\(const std::string& s\)/);
-  assert.match(defaultContent, /suffix_array_remove_empty_suffix/);
+  assert.doesNotMatch(defaultContent, /suffix_array_remove_empty_suffix/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const saOnly = core.renderSuffixArray(
@@ -3473,9 +3682,9 @@ function testFftNttRenderer() {
   assert.match(defaultContent, /int fft_next_power_of_two/);
   assert.match(defaultContent, /bool fft_transform/);
   assert.match(defaultContent, /vector<long long> convolution_fft_round/);
-  assert.match(defaultContent, /int ntt_pow/);
-  assert.match(defaultContent, /bool ntt_transform/);
-  assert.match(defaultContent, /vector<int> convolution_ntt_int/);
+  assert.doesNotMatch(defaultContent, /int ntt_pow/);
+  assert.doesNotMatch(defaultContent, /bool ntt_transform/);
+  assert.doesNotMatch(defaultContent, /vector<int> convolution_ntt_int/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const fftOnly = core.renderFftNtt(
@@ -3512,8 +3721,8 @@ function testFftNttRenderer() {
   assert.equal(collisionOptions.names.bitReverseName, "fft_bit_reverse2");
   const collisionContent = core.renderFftNtt(collisionOptions);
   assert.match(collisionContent, /bool fft_transform2/);
-  assert.match(collisionContent, /bool ntt_transform2/);
-  assert.match(collisionContent, /int ntt_pow2/);
+  assert.doesNotMatch(collisionContent, /bool ntt_transform2/);
+  assert.doesNotMatch(collisionContent, /int ntt_pow2/);
 }
 
 function testFastAllocatorRenderer() {
@@ -3633,11 +3842,11 @@ function testSegmentTreeBeatsRenderer() {
   assert.match(defaultContent, /class SegmentTreeBeats/);
   assert.match(defaultContent, /struct Node/);
   assert.match(defaultContent, /void chmin\(int left, int right, const T& x\)/);
-  assert.match(defaultContent, /void chmax\(int left, int right, const T& x\)/);
-  assert.match(defaultContent, /void add\(int left, int right, const T& x\)/);
+  assert.doesNotMatch(defaultContent, /void chmax\(int left, int right/);
+  assert.doesNotMatch(defaultContent, /void add\(int left, int right/);
   assert.match(defaultContent, /T query_sum\(int left, int right\)/);
-  assert.match(defaultContent, /T query_min\(int left, int right\)/);
-  assert.match(defaultContent, /T query_max\(int left, int right\)/);
+  assert.doesNotMatch(defaultContent, /T query_min\(int left, int right\)/);
+  assert.doesNotMatch(defaultContent, /T query_max\(int left, int right\)/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderSegmentTreeBeats(segtreeBeatsOptions());
@@ -3688,7 +3897,7 @@ function testSegmentTreeBeatsRenderer() {
   assert.match(collisionContent, /class SegmentTreeBeats2/);
   assert.match(collisionContent, /struct BeatsNode/);
   assert.match(collisionContent, /void beats_chmin/);
-  assert.match(collisionContent, /void beats_add/);
+  assert.doesNotMatch(collisionContent, /void beats_add/);
   assert.match(collisionContent, /T beats_query_sum/);
 }
 
@@ -4367,7 +4576,7 @@ function testGeneratedFenwickCompiles() {
 
 function testGeneratedModIntCompiles() {
   const generated = core.renderModInt(
-    modIntOptions({ includeUsageComment: false })
+    modIntOptions({ mode: "both", includeUsageComment: false })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4484,7 +4693,10 @@ function testGeneratedTwoSatCompiles() {
 function testGeneratedMaxflowDinicCompiles() {
   {
     const generated = core.renderMaxflowDinic(
-      maxflowDinicOptions({ includeUsageComment: false })
+      maxflowDinicOptions({
+        features: ["min_cut", "graph_access", "reset_flows"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -4546,7 +4758,10 @@ function testGeneratedMaxflowDinicCompiles() {
 function testGeneratedMinCostMaxFlowCompiles() {
   {
     const generated = core.renderMinCostMaxFlow(
-      minCostMaxFlowOptions({ includeUsageComment: false })
+      minCostMaxFlowOptions({
+        features: ["graph_access", "potential_access"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -4880,7 +5095,10 @@ function testGeneratedMergeSortTreeCompiles() {
 function testGeneratedSuffixArrayCompiles() {
   {
     const generated = core.renderSuffixArray(
-      suffixArrayOptions({ includeUsageComment: false })
+      suffixArrayOptions({
+        features: ["rank", "lcp", "stripped_sa"],
+        includeUsageComment: false
+      })
     );
     const source = [
       "#include <bits/stdc++.h>",
@@ -5191,9 +5409,12 @@ testRecipeMetadata();
 testBundledCatalogGuardrails();
 testCompletedMigrationGuardrails();
 testFinalLibraryShapeGuardrails();
+testVisualizationSourceCoverage();
 testManifestCommands();
 testNamespaceUnwrap();
 testGlobalInsertionOffset();
+testVisualizationHookContract();
+testBaseTemplateVarModes();
 function runTemplateScenario(snippetPath, parameters, test) {
   process.stdout.write(
     `[template:e2e] ${snippetPath} parameters=${JSON.stringify(parameters)}\n`
@@ -5207,7 +5428,7 @@ function testStaticBrickTemplatesRender() {
   const renderedByPath = new Map();
   for (const entry of entries.filter((candidate) => candidate.template)) {
     runTemplateScenario(entry.path, { template: entry.template }, () => {
-      const rendered = core.renderStaticTemplate(entry.template, entry.kind);
+      const rendered = core.renderStaticTemplate(entry.template);
       assert.notEqual(rendered.content.trim(), "");
       assert.doesNotMatch(rendered.content, /{{[#/]?/);
       renderedByPath.set(entry.path, rendered.content);

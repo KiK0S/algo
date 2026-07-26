@@ -9,25 +9,25 @@
 
 | Pattern | Files | Candidate | Kind | Notes |
 | --- | ---: | --- | --- | --- |
-| `personal_template` | 1828 | `/bricks/base_template` | brick | Your active template family dominates recent files. |
-| `solve_loop_while_cin` | 1846 | `/bricks/base_template` | brick | Most files use `while (cin >> ...) solve()`. |
-| `randomized` | 1287 | `/bricks/base_template` | brick | Mostly `mt19937 rng(time(0))` from the template. |
-| `multi_test_t` | 1064 | `/bricks/base_template` | brick | Usually present as commented alternative. |
-| `decrement_indices` | 342 | `/bricks/decrement_indices` | brick | Common after reading graph/tree edges. |
-| `stress_harness` | 222 | `/bricks/stress_harness` | brick | Includes `assert`, brute/stress files, and random tests. |
-| `dfs_recursive` | 221 | `/bricks/dfs_tree` | brick | Usually short problem-specific tree/graph DFS. |
-| `bitmask_dp` | 138 | `/bricks/bitmask_loop` | brick | Common enough to warrant loop skeletons, not a solver. |
-| `binary_search_l_false` | 107 | `/bricks/lower_bound_l_false_r_true` | brick | The `while (l + 1 < r)` idiom repeats across tasks. |
-| `grid_dirs` | 59 | `/bricks/grid4` | brick | Direction arrays and bounds checks repeat. |
-| `bfs_queue` | 56 | `/bricks/bfs_dist` | brick | Mostly lightweight BFS, often easier as a brick. |
-| `prefix_sum` | 50 | `/bricks/static_rsq` | brick | Static range sum appears as tiny arrays/functions. |
-| `fenwick_inline` | 50 | `/bricks/fenwick_sum` | brick | Inline Fenwick is more common than inserting the generic header. |
-| `dsu_inline` | 44 | `/bricks/dsu_short` | brick | Short DSU is common; rollback DSU should be a solver. |
-| `coordinate_compress` | 40 | `/bricks/compress_unique` | brick | Mostly `sort`, `unique`, `lower_bound`. |
-| `segtree_inline` | 32 | `/solvers/segtree_point_update` | solver | Enough variation that specialized solvers are better than one huge file. |
-| `ordered_set_pbds` | 22 | `/solvers/ordered_set` | solver | Existing `ordered_set` can remain isolated. |
-| `modpow` | 14 | `/bricks/modpow` | brick | Short enough to retype/correct. |
-| `dijkstra_pq` | 12 | `/solvers/dijkstra` | solver | Not in the first requested catalog, but worth adding later. |
+| `personal_template` | 1828 | `/templates/base_template` | template | Your active template family dominates recent files. |
+| `solve_loop_while_cin` | 1846 | `/templates/base_template` | template | Most files use `while (cin >> ...) solve()`. |
+| `randomized` | 1287 | `/templates/base_template` | template | Mostly `mt19937 rng(time(0))` from the template. |
+| `multi_test_t` | 1064 | `/templates/base_template` | template | Usually present as commented alternative. |
+| `decrement_indices` | 342 | `/templates/decrement_indices` | template | Common after reading graph/tree edges. |
+| `stress_harness` | 222 | `/templates/stress_harness` | template | Includes `assert`, brute/stress files, and random tests. |
+| `dfs_recursive` | 221 | `/templates/dfs_tree` | template | Usually short problem-specific tree/graph DFS. |
+| `bitmask_dp` | 138 | `/templates/bitmask_loop` | template | Common enough to warrant loop skeletons, not a solver. |
+| `binary_search_l_false` | 107 | `/templates/lower_bound_l_false_r_true` | template | The `while (l + 1 < r)` idiom repeats across tasks. |
+| `grid_dirs` | 59 | `/templates/grid4` | template | Direction arrays and bounds checks repeat. |
+| `bfs_queue` | 56 | `/templates/bfs_dist` | template | Mostly lightweight BFS, often easier as a brick. |
+| `prefix_sum` | 50 | `/templates/static_rsq` | template | Static range sum appears as tiny arrays/functions. |
+| `fenwick_inline` | 50 | `/templates/fenwick_sum` | template | Inline Fenwick is more common than inserting the generic header. |
+| `dsu_inline` | 44 | `/templates/dsu_short` | template | Short DSU is common; rollback DSU should be a solver. |
+| `coordinate_compress` | 40 | `/templates/compress_unique` | template | Mostly `sort`, `unique`, `lower_bound`. |
+| `segtree_inline` | 32 | `/templates/segtree_point_update` | template | Enough variation that specialized solvers are better than one huge file. |
+| `ordered_set_pbds` | 22 | `/templates/ordered_set` | template | Existing `ordered_set` can remain isolated. |
+| `modpow` | 14 | `/templates/modpow` | template | Short enough to retype/correct. |
+| `dijkstra_pq` | 12 | `/templates/dijkstra` | template | Not in the first requested catalog, but worth adding later. |
 
 ## Initial Catalog Decision
 

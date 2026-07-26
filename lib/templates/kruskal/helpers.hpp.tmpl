@@ -1,0 +1,86 @@
+/*
+Example:
+std::vector<KruskalEdge> edges;
+for (int id = 0; id < m; ++id) {
+  int u, v;
+  long long weight;
+  std::cin >> u >> v >> weight;
+  edges.push_back({u, v, weight, id});
+}
+auto mst = kruskal(n, edges);
+*/
+struct KruskalEdge {
+  int u, v;
+  long long weight;
+  int id;
+
+  friend std::ostream& operator<<(std::ostream& out, const KruskalEdge& edge) {
+    return out << edge.u << ' ' << edge.v << ' ' << edge.weight << ' ' << edge.id;
+  }
+};
+
+struct KruskalResult {
+  long long weight;
+  std::vector<KruskalEdge> edges;
+  bool connected;
+};
+
+KruskalResult kruskal(int n, std::vector<KruskalEdge> edges) {
+  std::sort(edges.begin(), edges.end(), [](const KruskalEdge& a, const KruskalEdge& b) {
+    if (a.weight != b.weight) return a.weight < b.weight;
+    return a.id < b.id;
+  });
+
+  std::vector<int> parent(n), size(n, 1);
+  std::iota(parent.begin(), parent.end(), 0);
+  EDULCNI_VIS(([&] {
+    std::vector<std::pair<int, int>> graph_edges;
+    for (const auto& edge : edges) graph_edges.push_back({edge.u, edge.v});
+    edulcni::live::edges("kruskal.graph", n, graph_edges);
+  }()));
+  EDULCNI_STEP("Kruskal initialized");
+
+  auto find = [&](auto&& self, int v) -> int {
+    return parent[v] == v ? v : parent[v] = self(self, parent[v]);
+  };
+
+  KruskalResult result{0, {}, n <= 1};
+  result.edges.reserve(n > 0 ? n - 1 : 0);
+
+  for (const auto& edge : edges) {
+    int u = find(find, edge.u);
+    int v = find(find, edge.v);
+    if (u == v) continue;
+
+    if (size[u] < size[v]) std::swap(u, v);
+    parent[v] = u;
+    size[u] += size[v];
+    result.weight += edge.weight;
+    result.edges.push_back(edge);
+    EDULCNI_VIS(edulcni::live::forest("kruskal.forest", parent));
+    EDULCNI_VIS(edulcni::live::graph_focus(
+        "kruskal.graph", std::vector<int>{edge.u, edge.v},
+        std::vector<std::pair<int, int>>{
+            std::make_pair(edge.u, edge.v)},
+        edulcni::live::FocusRole::accepted,
+        "edge joins two components"));
+    EDULCNI_STEP("Kruskal accepts an edge");
+  }
+
+  result.connected = n <= 1 || static_cast<int>(result.edges.size()) == n - 1;
+  EDULCNI_VIS(([&] {
+    std::vector<int> vertices;
+    std::vector<std::pair<int, int>> selected;
+    for (const auto& edge : result.edges) {
+      vertices.push_back(edge.u);
+      vertices.push_back(edge.v);
+      selected.push_back({edge.u, edge.v});
+    }
+    edulcni::live::graph_focus(
+        "kruskal.graph", vertices, selected,
+        edulcni::live::FocusRole::result,
+        result.connected ? "minimum spanning tree" : "minimum spanning forest");
+  }()));
+  EDULCNI_STEP("Kruskal completed");
+  return result;
+}

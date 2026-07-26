@@ -1,0 +1,134 @@
+template <typename T>
+struct SegmentSumOp {
+  static T neutral() { return T(0); }
+  static T combine(const T& a, const T& b) { return a + b; }
+};
+
+template <typename T>
+struct SegmentMinOp {
+  static T neutral() { return std::numeric_limits<T>::max(); }
+  static T combine(const T& a, const T& b) { return a < b ? a : b; }
+};
+
+template <typename T>
+struct SegmentMaxOp {
+  static T neutral() { return std::numeric_limits<T>::lowest(); }
+  static T combine(const T& a, const T& b) { return a < b ? b : a; }
+};
+
+template <typename T, typename Op>
+class SegmentTree {
+ public:
+  explicit SegmentTree(int n = 0) { reset(n); }
+
+  explicit SegmentTree(const std::vector<T>& values) {
+    build(values);
+  }
+
+  void reset(int n) {
+    n_ = n < 0 ? 0 : n;
+    tree_.assign(2 * std::max(1, n_), Op::neutral());
+    trace("Iterative segment tree reset");
+  }
+
+  void build(const std::vector<T>& values) {
+    n_ = static_cast<int>(values.size());
+    tree_.assign(2 * std::max(1, n_), Op::neutral());
+    for (int i = 0; i < n_; ++i) {
+      tree_[n_ + i] = values[i];
+    }
+    for (int i = n_ - 1; i > 0; --i) {
+      tree_[i] = Op::combine(tree_[i << 1], tree_[i << 1 | 1]);
+    }
+    trace("Iterative segment tree built");
+  }
+
+  int size() const { return n_; }
+
+  void point_set(int pos, const T& value) {
+    if (pos < 0 || pos >= n_) {
+      return;
+    }
+    const int changed_pos = pos;
+    int node = pos + n_;
+    tree_[node] = value;
+    for (node >>= 1; node > 0; node >>= 1) {
+      tree_[node] = Op::combine(tree_[node << 1], tree_[node << 1 | 1]);
+    }
+    trace_update("Iterative segment tree updated a point", changed_pos);
+  }
+
+{{#if pointAdd}}
+  void point_add(int pos, const T& delta) {
+    if (pos < 0 || pos >= n_) {
+      return;
+    }
+    const int changed_pos = pos;
+    int node = pos + n_;
+    tree_[node] += delta;
+    for (node >>= 1; node > 0; node >>= 1) {
+      tree_[node] = Op::combine(tree_[node << 1], tree_[node << 1 | 1]);
+    }
+    trace_update("Iterative segment tree added at a point", changed_pos);
+  }
+{{/if}}
+
+  T query(int left, int right) const {
+    if (left < 0) {
+      left = 0;
+    }
+    if (right > n_) {
+      right = n_;
+    }
+    if (left >= right || n_ == 0) {
+      return Op::neutral();
+    }
+
+    T lhs = Op::neutral();
+    T rhs = Op::neutral();
+    for (left += n_, right += n_; left < right; left >>= 1, right >>= 1) {
+      if (left & 1) {
+        lhs = Op::combine(lhs, tree_[left++]);
+      }
+      if (right & 1) {
+        rhs = Op::combine(tree_[--right], rhs);
+      }
+    }
+    return Op::combine(lhs, rhs);
+  }
+
+ private:
+  int n_;
+  std::vector<T> tree_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_update(const char* label, int pos) const {
+    EDULCNI_VIS(([&] {
+      edulcni::live::segment_tree(
+          "segtree.tree", static_cast<std::size_t>(n_), tree_);
+      std::vector<int> changed_nodes;
+      for (int node = pos + n_; node > 0; node >>= 1) {
+        changed_nodes.push_back(node);
+      }
+      edulcni::live::segment_tree_focus(
+          "segtree.tree", static_cast<std::size_t>(n_), changed_nodes,
+          edulcni::live::FocusRole::changed,
+          "updated leaf and recomputed ancestors");
+    }()));
+    EDULCNI_STEP(label);
+  }
+};
+
+template <typename T>
+using SegmentSumTree = SegmentTree<T, SegmentSumOp<T>>;
+
+template <typename T>
+using SegmentMinTree = SegmentTree<T, SegmentMinOp<T>>;
+
+template <typename T>
+using SegmentMaxTree = SegmentTree<T, SegmentMaxOp<T>>;
