@@ -9,7 +9,7 @@ const toolsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(toolsDirectory, "..");
 const catalogPath = path.join(repositoryRoot, "lib", "catalog", "snippets.json");
 const compiledCorePath = path.join(repositoryRoot, "extension", "out", "core.js");
-const outputRoot = path.join(repositoryRoot, "examples", "solvers");
+const outputRoot = path.join(repositoryRoot, "examples", "templates");
 const readmePath = path.join(repositoryRoot, "examples", "README.md");
 const checkOnly = process.argv.includes("--check");
 const require = createRequire(import.meta.url);
@@ -61,20 +61,20 @@ function renderReadme(specs, entriesByPath) {
     .map((spec) => {
       const entry = entriesByPath.get(spec.path);
       const requirement = spec.requirements?.join(", ") ?? "portable C++17";
-      return `| [${spec.name}](solvers/${spec.name}/main.cpp) | ${entry.visualization.status} | ${requirement} | ${spec.description} |`;
+      return `| [${spec.name}](templates/${spec.name}/main.cpp) | ${entry.visualization.status} | ${requirement} | ${spec.description} |`;
     })
     .join("\n");
 
-  return `# Runnable solver examples
+  return `# Runnable template examples
 
-This directory is generated from the canonical solver templates and the small
+This directory is generated from the canonical algorithm templates and the small
 drivers in \`tools/solver-examples\`. Each driver executes real algorithm
 operations so \`xeppelin edulcni\` receives visualization frames.
 
 Run an example from its directory:
 
 \`\`\`sh
-cd examples/solvers/bfs
+cd examples/templates/bfs
 xeppelin edulcni main
 \`\`\`
 
@@ -122,9 +122,8 @@ async function synchronize(file, expected, mismatches) {
 async function main() {
   const core = require(compiledCorePath);
   const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-  const solverEntries = catalog.filter((entry) => entry.kind === "solver");
-  const entriesByPath = new Map(solverEntries.map((entry) => [entry.path, entry]));
   const specs = createSolverExampleSpecs(core).sort((a, b) => a.path.localeCompare(b.path));
+  const entriesByPath = new Map(catalog.map((entry) => [entry.path, entry]));
   const specsByPath = new Map();
 
   for (const spec of specs) {
@@ -132,16 +131,9 @@ async function main() {
       throw new Error(`duplicate example spec: ${spec.path}`);
     }
     if (!entriesByPath.has(spec.path)) {
-      throw new Error(`example spec has no solver catalog entry: ${spec.path}`);
+      throw new Error(`example spec has no template catalog entry: ${spec.path}`);
     }
     specsByPath.set(spec.path, spec);
-  }
-
-  const missing = solverEntries
-    .map((entry) => entry.path)
-    .filter((solverPath) => !specsByPath.has(solverPath));
-  if (missing.length > 0) {
-    throw new Error(`missing solver example specs: ${missing.join(", ")}`);
   }
 
   const mismatches = [];
@@ -161,9 +153,9 @@ async function main() {
   }
 
   if (mismatches.length > 0) {
-    throw new Error(`generated solver examples are stale:\n${mismatches.join("\n")}`);
+    throw new Error(`generated template examples are stale:\n${mismatches.join("\n")}`);
   }
-  console.log(`${checkOnly ? "checked" : "generated"} ${specs.length} solver examples`);
+  console.log(`${checkOnly ? "checked" : "generated"} ${specs.length} template examples`);
 }
 
 main().catch((error) => {

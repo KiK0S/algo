@@ -1,0 +1,8 @@
+for (int left = mask; ; left = (left - 1) & mask) {
+  int right = mask ^ left;
+  EDULCNI_VIS(edulcni::live::bits("subset_partition.left", left, bits));
+  EDULCNI_VIS(edulcni::live::bits("subset_partition.right", right, bits));
+  EDULCNI_STEP("Subset partition iteration");
+  // combine left and right
+  if (left == 0) break;
+}

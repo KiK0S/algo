@@ -8,8 +8,7 @@ extension.
 lib/templates is the only source of insertable C++ content. There are no
 standalone snippet headers to include or copy directly.
 
-- lib/templates/solvers: templates used by interactive solver generators
-- lib/templates/bricks: static and interactive cursor-local templates
+- lib/templates: all static and interactive templates
 - lib/catalog/snippets.json: the complete public archive, metadata, form
   fields, exports, features, and insertion behavior
 - extension/library: generated extension bundle containing only templates
@@ -19,21 +18,21 @@ Browse and insert templates from the extension with commands such as
 edulcni:segtree, or use the compatibility browse command to select a slash
 path.
 
-Segment-tree presets are consolidated under /solvers/segtree. Segment Tree
-Beats remains /solvers/segtree_beats because it has a distinct invariant and
+Segment-tree presets are consolidated under /templates/segtree. Segment Tree
+Beats remains /templates/segtree_beats because it has a distinct invariant and
 prompt surface.
 
 ## Runnable examples
 
-Every solver catalog entry has a generated, executable showcase under
-`examples/solvers`. The examples are rendered from the same templates used by
+Every algorithm template with a runnable showcase has a generated, executable showcase under
+`examples/templates`. The examples are rendered from the same templates used by
 the extension, then combined with small deterministic drivers that exercise the
 algorithm and its visualization hooks.
 
 For example:
 
 ~~~bash
-cd examples/solvers/bfs
+cd examples/templates/bfs
 xeppelin edulcni main
 ~~~
 

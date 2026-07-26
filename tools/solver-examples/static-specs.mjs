@@ -1,13 +1,13 @@
 function renderStaticSolver(core, name) {
   return () =>
-    core.renderStaticTemplate(`solvers/${name}/helpers.hpp.tmpl`, "solver").content;
+    core.renderStaticTemplate(`${name}/helpers.hpp.tmpl`).content;
 }
 
 export function createStaticSpecs(core) {
   return [
     {
       name: "test_generators",
-      path: "/solvers/test_generators",
+      path: "/templates/test_generators",
       description: "Generate deterministic arrays, permutations, masks, trees, and graphs.",
       render: renderStaticSolver(core, "test_generators"),
       mainBody: String.raw`
@@ -31,7 +31,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "tree_hash",
-      path: "/solvers/tree_hash",
+      path: "/templates/tree_hash",
       description: "Compare canonical hashes of two isomorphic unrooted trees.",
       render: renderStaticSolver(core, "tree_hash"),
       mainBody: String.raw`
@@ -58,7 +58,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "kruskal",
-      path: "/solvers/kruskal",
+      path: "/templates/kruskal",
       description: "Build a minimum spanning tree and recover its selected edges.",
       render: renderStaticSolver(core, "kruskal"),
       mainBody: String.raw`
@@ -75,7 +75,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "fwt_convolution",
-      path: "/solvers/fwt_convolution",
+      path: "/templates/fwt_convolution",
       description: "Compute an XOR convolution with the Walsh-Hadamard transform.",
       render: renderStaticSolver(core, "fwt_convolution"),
       mainBody: String.raw`
@@ -88,7 +88,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "offline_dynamic_connectivity",
-      path: "/solvers/offline_dynamic_connectivity",
+      path: "/templates/offline_dynamic_connectivity",
       description: "Answer connectivity queries across edge additions and removals.",
       render: renderStaticSolver(core, "offline_dynamic_connectivity"),
       mainBody: String.raw`
@@ -108,7 +108,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "dp_knapsack",
-      path: "/solvers/dp_knapsack",
+      path: "/templates/dp_knapsack",
       description: "Compare zero-one and unbounded one-dimensional knapsack.",
       render: renderStaticSolver(core, "dp_knapsack"),
       mainBody: String.raw`
@@ -120,7 +120,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "lis",
-      path: "/solvers/lis",
+      path: "/templates/lis",
       description: "Reconstruct strict and nondecreasing longest subsequences.",
       render: renderStaticSolver(core, "lis"),
       mainBody: String.raw`
@@ -133,7 +133,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "digit_dp",
-      path: "/solvers/digit_dp",
+      path: "/templates/digit_dp",
       description: "Count values whose decimal digit sum is divisible by three.",
       render: renderStaticSolver(core, "digit_dp"),
       mainBody: String.raw`
@@ -146,7 +146,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "sos_dp",
-      path: "/solvers/sos_dp",
+      path: "/templates/sos_dp",
       description: "Apply subset zeta, Mobius, and superset zeta transforms.",
       render: renderStaticSolver(core, "sos_dp"),
       mainBody: String.raw`
@@ -160,7 +160,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "turtle_dp",
-      path: "/solvers/turtle_dp",
+      path: "/templates/turtle_dp",
       description: "Count right-down grid paths and reconstruct minimum and maximum paths.",
       render: renderStaticSolver(core, "turtle_dp"),
       mainBody: String.raw`
@@ -182,7 +182,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "substring_dp",
-      path: "/solvers/substring_dp",
+      path: "/templates/substring_dp",
       description: "Partition a string into palindromes and solve palindromic subsequence DP.",
       render: renderStaticSolver(core, "substring_dp"),
       mainBody: String.raw`
@@ -201,7 +201,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "divide_conquer_dp",
-      path: "/solvers/divide_conquer_dp",
+      path: "/templates/divide_conquer_dp",
       description: "Optimize a partition DP with monotone split points.",
       render: renderStaticSolver(core, "divide_conquer_dp"),
       mainBody: String.raw`
@@ -215,7 +215,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "knuth_dp",
-      path: "/solvers/knuth_dp",
+      path: "/templates/knuth_dp",
       description: "Optimize adjacent interval merging with Knuth's bounds.",
       render: renderStaticSolver(core, "knuth_dp"),
       mainBody: String.raw`
@@ -231,7 +231,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "convex_hull_trick",
-      path: "/solvers/convex_hull_trick",
+      path: "/templates/convex_hull_trick",
       description: "Query minima from decreasing-slope lines at increasing x coordinates.",
       render: renderStaticSolver(core, "convex_hull_trick"),
       mainBody: String.raw`
@@ -246,7 +246,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "li_chao_tree",
-      path: "/solvers/li_chao_tree",
+      path: "/templates/li_chao_tree",
       description: "Insert arbitrary lines and query their minimum on an integer domain.",
       render: renderStaticSolver(core, "li_chao_tree"),
       mainBody: String.raw`
@@ -261,7 +261,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "monotone_queue_dp",
-      path: "/solvers/monotone_queue_dp",
+      path: "/templates/monotone_queue_dp",
       description: "Optimize a sliding-window minimum transition with a deque.",
       render: renderStaticSolver(core, "monotone_queue_dp"),
       mainBody: String.raw`
@@ -272,7 +272,7 @@ export function createStaticSpecs(core) {
     },
     {
       name: "aliens_trick",
-      path: "/solvers/aliens_trick",
+      path: "/templates/aliens_trick",
       description: "Recover the optimum for an exact count through lambda search.",
       render: renderStaticSolver(core, "aliens_trick"),
       mainBody: String.raw`

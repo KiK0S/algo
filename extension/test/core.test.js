@@ -189,6 +189,55 @@ function testVisualizationHookContract() {
   ].join("\n"));
 }
 
+function compileStandaloneSource(name, source) {
+  const dir = path.join(os.tmpdir(), "edulcni-extension-core-tests");
+  fs.mkdirSync(dir, { recursive: true });
+  const cpp = path.join(dir, `${name}.cpp`);
+  const exe = path.join(dir, name);
+  fs.writeFileSync(cpp, source);
+  subprocess.execFileSync("g++", ["-std=c++17", cpp, "-o", exe], {
+    stdio: "inherit"
+  });
+  runCompiled(exe);
+}
+
+function testBaseTemplateVarModes() {
+  const template = fs.readFileSync(
+    path.join(repoRoot, "lib", "templates", "base_template.cpp.tmpl"),
+    "utf8"
+  );
+  const withSolveBody = (statement) => template.replace(
+    "inline void solve() {\n\tinit();",
+    `inline void solve() {\n\tinit();\n\t${statement}`
+  );
+  const withIsolatedMain = (preamble, body) => [
+    preamble,
+    "#define main edulcni_base_template_main",
+    body,
+    "#undef main",
+    "int main() { solve(); return 0; }"
+  ].join("\n");
+
+  compileStandaloneSource(
+    "base_template_var_edulcni",
+    withIsolatedMain(
+      [
+        "#define EDULCNI_ENABLED 1",
+        "#define EDULCNI_VAR(...) ((void)(__VA_ARGS__))"
+      ].join("\n"),
+      withSolveBody("auto value = [] {}; var(value);")
+    )
+  );
+  compileStandaloneSource(
+    "base_template_var_debug",
+    withIsolatedMain("#define DEBUG 1", withSolveBody("var(n);"))
+  );
+  compileStandaloneSource(
+    "base_template_var_release",
+    withIsolatedMain("", withSolveBody("var(symbol_that_must_not_be_parsed);"))
+  );
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -960,7 +1009,7 @@ const char* label = "make_twosat in a string should not be renamed";
   ]);
 
   const analysis = core.analyzeCppDocument("int TwoSat; int make_twosat;");
-  const rendered = core.renderSnippetContent(solver, "solver", analysis);
+  const rendered = core.renderSnippetContent(solver, true, analysis);
   assert.deepEqual(rendered.renames, [
     { from: "TwoSat", to: "TwoSat2" },
     { from: "make_twosat", to: "make_twosat2" }
@@ -2028,7 +2077,7 @@ int demo() { return 7; }
 
 #endif  // EDULCNI_SOLVERS_DEMO_HPP
 `;
-  assert.equal(core.renderHeaderContent(content, "solver").trim(), "int demo() { return 7; }");
+  assert.equal(core.renderHeaderContent(content, true).trim(), "int demo() { return 7; }");
 }
 
 function testGlobalInsertionOffset() {
@@ -5365,6 +5414,7 @@ testManifestCommands();
 testNamespaceUnwrap();
 testGlobalInsertionOffset();
 testVisualizationHookContract();
+testBaseTemplateVarModes();
 function runTemplateScenario(snippetPath, parameters, test) {
   process.stdout.write(
     `[template:e2e] ${snippetPath} parameters=${JSON.stringify(parameters)}\n`
@@ -5378,7 +5428,7 @@ function testStaticBrickTemplatesRender() {
   const renderedByPath = new Map();
   for (const entry of entries.filter((candidate) => candidate.template)) {
     runTemplateScenario(entry.path, { template: entry.template }, () => {
-      const rendered = core.renderStaticTemplate(entry.template, entry.kind);
+      const rendered = core.renderStaticTemplate(entry.template);
       assert.notEqual(rendered.content.trim(), "");
       assert.doesNotMatch(rendered.content, /{{[#/]?/);
       renderedByPath.set(entry.path, rendered.content);

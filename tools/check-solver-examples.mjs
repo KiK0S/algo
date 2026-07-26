@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const toolsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(toolsDirectory, "..");
 const catalogPath = path.join(repositoryRoot, "lib", "catalog", "snippets.json");
-const examplesRoot = path.join(repositoryRoot, "examples", "solvers");
+const examplesRoot = path.join(repositoryRoot, "examples", "templates");
 const active = process.env.EDULCNI_ACTIVE_EXAMPLES === "1";
 const edulcniRoot = path.resolve(
   process.env.EDULCNI_ROOT ?? path.join(repositoryRoot, "..", "edulcni")
@@ -31,7 +31,14 @@ function run(command, args, options = {}) {
 
 async function main() {
   const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-  const solvers = catalog.filter((entry) => entry.kind === "solver");
+  const templateNames = await readdir(examplesRoot);
+  const templates = templateNames.map((name) => {
+    const entry = catalog.find((candidate) => candidate.path === `/templates/${name}`);
+    if (!entry) {
+      throw new Error(`example has no template catalog entry: ${name}`);
+    }
+    return entry;
+  });
   const compiler = process.env.CXX ?? "g++";
   const hasPbds = compilerSupportsPbds(compiler);
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "algo-solver-examples-"));
@@ -39,8 +46,8 @@ async function main() {
   let skipped = 0;
 
   try {
-    for (const entry of solvers) {
-      const name = entry.path.slice("/solvers/".length);
+    for (const entry of templates) {
+      const name = entry.path.slice("/templates/".length);
       const requiresPbds = JSON.stringify(entry.constraints ?? {}).includes("pb_ds");
       if (requiresPbds && !hasPbds) {
         console.log(`skip ${name}: ${compiler} has no GNU PBDS`);
@@ -78,7 +85,7 @@ async function main() {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
 
-  console.log(`compiled and ran ${checked} solver examples${skipped ? `; skipped ${skipped}` : ""}`);
+  console.log(`compiled and ran ${checked} template examples${skipped ? `; skipped ${skipped}` : ""}`);
 }
 
 main().catch((error) => {

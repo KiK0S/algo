@@ -23,7 +23,6 @@ import {
   CppAnalysis,
   customValueTypeCandidates,
   defaultBerlekampMasseyFeatures,
-  defaultInsertModeForKind,
   defaultMaxflowDinicCapType,
   defaultMaxflowDinicFeatures,
   defaultMinCostMaxFlowCapType,
@@ -254,7 +253,6 @@ import {
   defaultImplicitTreapFeatures,
   suggestIdentifier,
   vectorContainerTypeForValueType,
-  SnippetKind,
   SolutionSection,
   SparseTableOptions,
   SparseTableApplication,
@@ -284,7 +282,6 @@ type SnippetPickItem = vscode.QuickPickItem & {
   snippetPath: string;
   uri?: vscode.Uri;
   entry?: CatalogEntry;
-  snippetKind: SnippetKind;
   insertMode: InsertMode;
   previewContent?: string;
 };
@@ -736,16 +733,16 @@ interface GeneratorRegistration {
 }
 
 const DIRECT_COMMANDS = [
-  { command: "edulcni.segtree", snippetPath: "/solvers/segtree" },
-  { command: "edulcni.compressUnique", snippetPath: "/bricks/compress_unique" },
-  { command: "edulcni.readVector", snippetPath: "/bricks/read_vector" },
-  { command: "edulcni.readMatrix", snippetPath: "/bricks/read_matrix" },
-  { command: "edulcni.berlekampMassey", snippetPath: "/solvers/berlekamp_massey" },
-  { command: "edulcni.sparseTable", snippetPath: "/solvers/sparse_table" }
+  { command: "edulcni.segtree", snippetPath: "/templates/segtree" },
+  { command: "edulcni.compressUnique", snippetPath: "/templates/compress_unique" },
+  { command: "edulcni.readVector", snippetPath: "/templates/read_vector" },
+  { command: "edulcni.readMatrix", snippetPath: "/templates/read_matrix" },
+  { command: "edulcni.berlekampMassey", snippetPath: "/templates/berlekamp_massey" },
+  { command: "edulcni.sparseTable", snippetPath: "/templates/sparse_table" }
 ] as const;
 
 function isCatalogSnippetPath(displayPath: string): boolean {
-  return displayPath.startsWith("/bricks/") || displayPath.startsWith("/solvers/");
+  return displayPath.startsWith("/templates/") || displayPath.startsWith("/templates/");
 }
 
 async function resolveBundledLibraryRoot(
@@ -855,7 +852,7 @@ async function snippetPickPreview(
       const generated = generatorRegistry.get(entry.generator)?.defaultSnippet(analysis, []);
       const preview = generated ? compactCodePreview(generated.content, generated.exports) : "";
       return {
-        detail: withVisualization(preview || entry.detail || entry.kind),
+        detail: withVisualization(preview || entry.detail || "template"),
         content: generated?.content
       };
     }
@@ -865,14 +862,14 @@ async function snippetPickPreview(
       );
       const preview = compactCodePreview(source, entry.exports);
       return {
-        detail: withVisualization(preview || entry.detail || entry.kind),
+        detail: withVisualization(preview || entry.detail || "template"),
         content: source
       };
     }
   } catch {
     // Keep the picker usable when a preview cannot be produced.
   }
-  return { detail: withVisualization(entry.detail || entry.kind) };
+  return { detail: withVisualization(entry.detail || "template") };
 }
 
 async function buildPickItems(
@@ -896,8 +893,7 @@ async function buildPickItems(
       previewContent: preview.content,
       snippetPath: entry.path,
       entry,
-      snippetKind: entry.kind,
-      insertMode: entry.insertMode ?? defaultInsertModeForKind(entry.kind)
+      insertMode: entry.insertMode
     });
   }
 
@@ -938,7 +934,7 @@ async function renderSnippetPath(
     if (!entry?.template) {
       throw new Error(`catalog entry has no generator or template: ${currentPath}`);
     }
-    const rendered = renderStaticTemplate(entry.template, entry.kind);
+    const rendered = renderStaticTemplate(entry.template);
     chunks.push(rendered.content.trim());
     exportedNames.push(...(entry.exports ?? rendered.exports));
   }
@@ -976,12 +972,33 @@ function cursorIndentation(editor: vscode.TextEditor, position: vscode.Position)
   return /^\s*$/.test(prefix) ? prefix : prefix.match(/^\s*/)?.[0] ?? "";
 }
 
+const VISUALIZATION_FALLBACK = `#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+`;
+
+function needsVisualizationFallback(documentText: string, content: string): boolean {
+  return (
+    /\bEDULCNI_(?:VIS|STEP)\s*\(/.test(content) &&
+    (
+      !/^\s*#\s*define\s+EDULCNI_VIS\b/m.test(documentText) ||
+      !/^\s*#\s*define\s+EDULCNI_STEP\b/m.test(documentText)
+    )
+  );
+}
+
 async function insertContent(
   editor: vscode.TextEditor,
   insertMode: InsertMode,
   content: string
 ): Promise<boolean> {
   const documentText = editor.document.getText();
+  const fallback = needsVisualizationFallback(documentText, content)
+    ? VISUALIZATION_FALLBACK
+    : "";
   const offset =
     insertMode === "global"
       ? findGlobalInsertionOffset(documentText)
@@ -995,6 +1012,21 @@ async function insertContent(
         );
   const position = positionAtOffset(editor, offset);
   return editor.edit((editBuilder) => {
+    if (fallback === "") {
+      editBuilder.insert(position, text);
+      return;
+    }
+    const fallbackOffset = findGlobalInsertionOffset(documentText);
+    const fallbackText = normalizeInsertionText(
+      documentText,
+      fallbackOffset,
+      fallback
+    );
+    if (fallbackOffset === offset) {
+      editBuilder.insert(position, `${fallbackText}${text}`);
+      return;
+    }
+    editBuilder.insert(positionAtOffset(editor, fallbackOffset), fallbackText);
     editBuilder.insert(position, text);
   });
 }
@@ -1036,8 +1068,16 @@ async function insertRenderedSnippet(
 
   const documentText = editor.document.getText();
   const analysis = analyzeCppDocument(documentText);
-  const helperContent = composeRecipeSections(recipe, recipeSectionsExceptSolve());
+  let helperContent = composeRecipeSections(recipe, recipeSectionsExceptSolve());
   const usageContent = `${solveChunks.map((chunk) => chunk.trim()).filter(Boolean).join("\n\n")}\n`;
+  if (
+    needsVisualizationFallback(
+      documentText,
+      `${helperContent}\n${usageContent}`
+    )
+  ) {
+    helperContent = `${VISUALIZATION_FALLBACK}\n${helperContent}`;
+  }
   const globalOffset = findGlobalInsertionOffset(documentText);
   const solveOffset = solveBodyInsertionOffset(documentText, analysis);
 
@@ -5107,13 +5147,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "segtree",
     {
       catalogEntry: {
-        path: "/solvers/segtree",
-        kind: "solver",
+        path: "/templates/segtree",
         insertMode: "global",
         generator: "segtree",
-        label: "/solvers/segtree",
+        label: "/templates/segtree",
         description: "interactive inline segment tree generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         return promptSegmentTreeOptions(editor);
@@ -5143,13 +5182,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "segtree_beats",
     {
       catalogEntry: {
-        path: "/solvers/segtree_beats",
-        kind: "solver",
+        path: "/templates/segtree_beats",
         insertMode: "global",
         generator: "segtree_beats",
-        label: "/solvers/segtree_beats",
+        label: "/templates/segtree_beats",
         description: "dynamic segment tree beats helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSegmentTreeBeatsOptions(editor);
@@ -5173,13 +5211,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "compress_unique",
     {
       catalogEntry: {
-        path: "/bricks/compress_unique",
-        kind: "brick",
+        path: "/templates/compress_unique",
         insertMode: "cursor",
         generator: "compress_unique",
-        label: "/bricks/compress_unique",
+        label: "/templates/compress_unique",
         description: "interactive coordinate compression snippet",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptCompressUniqueOptions(editor);
@@ -5210,13 +5247,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "read_vector",
     {
       catalogEntry: {
-        path: "/bricks/read_vector",
-        kind: "brick",
+        path: "/templates/read_vector",
         insertMode: "cursor",
         generator: "read_vector",
-        label: "/bricks/read_vector",
+        label: "/templates/read_vector",
         description: "interactive vector declaration and input snippet",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptReadVectorOptions(editor);
@@ -5243,13 +5279,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "read_matrix",
     {
       catalogEntry: {
-        path: "/bricks/read_matrix",
-        kind: "brick",
+        path: "/templates/read_matrix",
         insertMode: "cursor",
         generator: "read_matrix",
-        label: "/bricks/read_matrix",
+        label: "/templates/read_matrix",
         description: "interactive matrix or character-grid input snippet",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptReadMatrixOptions(editor);
@@ -5277,13 +5312,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "dsu",
     {
       catalogEntry: {
-        path: "/solvers/dsu",
-        kind: "solver",
+        path: "/templates/dsu",
         insertMode: "global",
         generator: "dsu",
-        label: "/solvers/dsu",
+        label: "/templates/dsu",
         description: "dynamic disjoint set union helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptDsuOptions(editor);
@@ -5303,13 +5337,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "rollback_dsu",
     {
       catalogEntry: {
-        path: "/solvers/rollback_dsu",
-        kind: "solver",
+        path: "/templates/rollback_dsu",
         insertMode: "global",
         generator: "rollback_dsu",
-        label: "/solvers/rollback_dsu",
+        label: "/templates/rollback_dsu",
         description: "dynamic rollback disjoint set union helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptRollbackDsuOptions(editor);
@@ -5331,13 +5364,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "lca",
     {
       catalogEntry: {
-        path: "/solvers/lca",
-        kind: "solver",
+        path: "/templates/lca",
         insertMode: "global",
         generator: "lca",
-        label: "/solvers/lca",
+        label: "/templates/lca",
         description: "dynamic binary lifting LCA helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptLcaOptions(editor);
@@ -5357,13 +5389,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "hld",
     {
       catalogEntry: {
-        path: "/solvers/hld",
-        kind: "solver",
+        path: "/templates/hld",
         insertMode: "global",
         generator: "hld",
-        label: "/solvers/hld",
+        label: "/templates/hld",
         description: "dynamic heavy-light decomposition helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHldOptions(editor);
@@ -5383,13 +5414,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "bfs",
     {
       catalogEntry: {
-        path: "/solvers/bfs",
-        kind: "solver",
+        path: "/templates/bfs",
         insertMode: "global",
         generator: "bfs",
-        label: "/solvers/bfs",
+        label: "/templates/bfs",
         description: "dynamic BFS graph traversal helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptBfsOptions(editor);
@@ -5409,13 +5439,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "dijkstra",
     {
       catalogEntry: {
-        path: "/solvers/dijkstra",
-        kind: "solver",
+        path: "/templates/dijkstra",
         insertMode: "global",
         generator: "dijkstra",
-        label: "/solvers/dijkstra",
+        label: "/templates/dijkstra",
         description: "dynamic Dijkstra shortest path helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptDijkstraOptions(editor);
@@ -5435,13 +5464,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "toposort",
     {
       catalogEntry: {
-        path: "/solvers/toposort",
-        kind: "solver",
+        path: "/templates/toposort",
         insertMode: "global",
         generator: "toposort",
-        label: "/solvers/toposort",
+        label: "/templates/toposort",
         description: "dynamic topological sorting helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptToposortOptions(editor);
@@ -5461,13 +5489,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "kosaraju",
     {
       catalogEntry: {
-        path: "/solvers/kosaraju",
-        kind: "solver",
+        path: "/templates/kosaraju",
         insertMode: "global",
         generator: "kosaraju",
-        label: "/solvers/kosaraju",
+        label: "/templates/kosaraju",
         description: "dynamic Kosaraju SCC helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptKosarajuOptions(editor);
@@ -5487,13 +5514,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "mo",
     {
       catalogEntry: {
-        path: "/solvers/mo",
-        kind: "solver",
+        path: "/templates/mo",
         insertMode: "global",
         generator: "mo",
-        label: "/solvers/mo",
+        label: "/templates/mo",
         description: "dynamic Mo offline range query helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMoOptions(editor);
@@ -5513,13 +5539,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "monotonic_stack",
     {
       catalogEntry: {
-        path: "/solvers/monotonic_stack",
-        kind: "solver",
+        path: "/templates/monotonic_stack",
         insertMode: "global",
         generator: "monotonic_stack",
-        label: "/solvers/monotonic_stack",
+        label: "/templates/monotonic_stack",
         description: "dynamic monotonic stack nearest-index helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMonotonicStackOptions(editor);
@@ -5541,13 +5566,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "gp_hash_table",
     {
       catalogEntry: {
-        path: "/solvers/gp_hash_table",
-        kind: "solver",
+        path: "/templates/gp_hash_table",
         insertMode: "global",
         generator: "gp_hash_table",
-        label: "/solvers/gp_hash_table",
+        label: "/templates/gp_hash_table",
         description: "dynamic PBDS hash table helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptGpHashTableOptions(editor);
@@ -5567,13 +5591,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "ordered_set",
     {
       catalogEntry: {
-        path: "/solvers/ordered_set",
-        kind: "solver",
+        path: "/templates/ordered_set",
         insertMode: "global",
         generator: "ordered_set",
-        label: "/solvers/ordered_set",
+        label: "/templates/ordered_set",
         description: "dynamic PBDS ordered set helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptOrderedSetOptions(editor);
@@ -5593,13 +5616,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "set_utils",
     {
       catalogEntry: {
-        path: "/solvers/set_utils",
-        kind: "solver",
+        path: "/templates/set_utils",
         insertMode: "global",
         generator: "set_utils",
-        label: "/solvers/set_utils",
+        label: "/templates/set_utils",
         description: "dynamic ordered-container neighbor helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSetUtilsOptions(editor);
@@ -5619,13 +5641,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fast_allocator",
     {
       catalogEntry: {
-        path: "/solvers/fast_allocator",
-        kind: "solver",
+        path: "/templates/fast_allocator",
         insertMode: "global",
         generator: "fast_allocator",
-        label: "/solvers/fast_allocator",
+        label: "/templates/fast_allocator",
         description: "dynamic arena-backed allocator helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFastAllocatorOptions(editor);
@@ -5645,13 +5666,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "geometry",
     {
       catalogEntry: {
-        path: "/solvers/geometry",
-        kind: "solver",
+        path: "/templates/geometry",
         insertMode: "global",
         generator: "geometry",
-        label: "/solvers/geometry",
+        label: "/templates/geometry",
         description: "dynamic 2D geometry helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptGeometryOptions(editor);
@@ -5666,13 +5686,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "halfplane_intersection",
     {
       catalogEntry: {
-        path: "/solvers/halfplane_intersection",
-        kind: "solver",
+        path: "/templates/halfplane_intersection",
         insertMode: "global",
         generator: "halfplane_intersection",
-        label: "/solvers/halfplane_intersection",
+        label: "/templates/halfplane_intersection",
         description: "dynamic half-plane intersection helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHalfplaneIntersectionOptions(editor);
@@ -5691,13 +5710,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "linear_sieve",
     {
       catalogEntry: {
-        path: "/solvers/linear_sieve",
-        kind: "solver",
+        path: "/templates/linear_sieve",
         insertMode: "global",
         generator: "linear_sieve",
-        label: "/solvers/linear_sieve",
+        label: "/templates/linear_sieve",
         description: "dynamic linear sieve helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const analysis = analyzeCppDocument(editor.document.getText());
@@ -5721,13 +5739,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fenwick",
     {
       catalogEntry: {
-        path: "/solvers/fenwick",
-        kind: "solver",
+        path: "/templates/fenwick",
         insertMode: "global",
         generator: "fenwick",
-        label: "/solvers/fenwick",
+        label: "/templates/fenwick",
         description: "dynamic Fenwick tree helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFenwickOptions(editor);
@@ -5747,13 +5764,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "factorial_precalc",
     {
       catalogEntry: {
-        path: "/bricks/factorial_precalc",
-        kind: "brick",
+        path: "/templates/factorial_precalc",
         insertMode: "cursor",
         generator: "factorial_precalc",
-        label: "/bricks/factorial_precalc",
+        label: "/templates/factorial_precalc",
         description: "factorials and inverse factorials for a selected value type",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptModularPrecalcOptions(
@@ -5785,13 +5801,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "powers_precalc",
     {
       catalogEntry: {
-        path: "/bricks/powers_precalc",
-        kind: "brick",
+        path: "/templates/powers_precalc",
         insertMode: "cursor",
         generator: "powers_precalc",
-        label: "/bricks/powers_precalc",
+        label: "/templates/powers_precalc",
         description: "powers and inverse powers for a selected value type",
-        detail: "interactive / brick"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptModularPrecalcOptions(
@@ -5824,13 +5839,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "modint",
     {
       catalogEntry: {
-        path: "/solvers/modint",
-        kind: "solver",
+        path: "/templates/modint",
         insertMode: "global",
         generator: "modint",
-        label: "/solvers/modint",
+        label: "/templates/modint",
         description: "dynamic modular integer helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptModIntOptions(editor);
@@ -5850,13 +5864,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "twosat",
     {
       catalogEntry: {
-        path: "/solvers/twosat",
-        kind: "solver",
+        path: "/templates/twosat",
         insertMode: "global",
         generator: "twosat",
-        label: "/solvers/twosat",
+        label: "/templates/twosat",
         description: "dynamic 2-SAT helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptTwoSatOptions(editor);
@@ -5876,13 +5889,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "maxflow_dinic",
     {
       catalogEntry: {
-        path: "/solvers/maxflow_dinic",
-        kind: "solver",
+        path: "/templates/maxflow_dinic",
         insertMode: "global",
         generator: "maxflow_dinic",
-        label: "/solvers/maxflow_dinic",
+        label: "/templates/maxflow_dinic",
         description: "dynamic Dinic maxflow helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMaxflowDinicOptions(editor);
@@ -5917,13 +5929,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "mincost_maxflow",
     {
       catalogEntry: {
-        path: "/solvers/mincost_maxflow",
-        kind: "solver",
+        path: "/templates/mincost_maxflow",
         insertMode: "global",
         generator: "mincost_maxflow",
-        label: "/solvers/mincost_maxflow",
+        label: "/templates/mincost_maxflow",
         description: "dynamic min-cost max-flow helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMinCostMaxFlowOptions(editor);
@@ -5947,13 +5958,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "hungarian",
     {
       catalogEntry: {
-        path: "/solvers/hungarian",
-        kind: "solver",
+        path: "/templates/hungarian",
         insertMode: "global",
         generator: "hungarian",
-        label: "/solvers/hungarian",
+        label: "/templates/hungarian",
         description: "dynamic Hungarian assignment helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptHungarianOptions(editor);
@@ -5973,13 +5983,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "kuhn",
     {
       catalogEntry: {
-        path: "/solvers/kuhn",
-        kind: "solver",
+        path: "/templates/kuhn",
         insertMode: "global",
         generator: "kuhn",
-        label: "/solvers/kuhn",
+        label: "/templates/kuhn",
         description: "dynamic Kuhn bipartite matching helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptKuhnOptions(editor);
@@ -5999,13 +6008,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "implicit_treap",
     {
       catalogEntry: {
-        path: "/solvers/implicit_treap",
-        kind: "solver",
+        path: "/templates/implicit_treap",
         insertMode: "global",
         generator: "implicit_treap",
-        label: "/solvers/implicit_treap",
+        label: "/templates/implicit_treap",
         description: "dynamic implicit treap helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptImplicitTreapOptions(editor);
@@ -6029,13 +6037,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "merge_sort_tree",
     {
       catalogEntry: {
-        path: "/solvers/merge_sort_tree",
-        kind: "solver",
+        path: "/templates/merge_sort_tree",
         insertMode: "global",
         generator: "merge_sort_tree",
-        label: "/solvers/merge_sort_tree",
+        label: "/templates/merge_sort_tree",
         description: "dynamic merge-sort tree helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptMergeSortTreeOptions(editor);
@@ -6059,13 +6066,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "sparse_table",
     {
       catalogEntry: {
-        path: "/solvers/sparse_table",
-        kind: "solver",
+        path: "/templates/sparse_table",
         insertMode: "global",
         generator: "sparse_table",
-        label: "/solvers/sparse_table",
+        label: "/templates/sparse_table",
         description: "interactive sparse table generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSparseTableOptions(editor);
@@ -6090,13 +6096,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "suffix_array",
     {
       catalogEntry: {
-        path: "/solvers/suffix_array",
-        kind: "solver",
+        path: "/templates/suffix_array",
         insertMode: "global",
         generator: "suffix_array",
-        label: "/solvers/suffix_array",
+        label: "/templates/suffix_array",
         description: "dynamic suffix-array helper generator",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptSuffixArrayOptions(editor);
@@ -6116,13 +6121,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "poly_hash",
     {
       catalogEntry: {
-        path: "/solvers/poly_hash",
-        kind: "solver",
+        path: "/templates/poly_hash",
         insertMode: "global",
         generator: "poly_hash",
-        label: "/solvers/poly_hash",
+        label: "/templates/poly_hash",
         description: "dynamic polynomial rolling hash helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptPolyHashOptions(editor);
@@ -6142,13 +6146,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "fft_ntt",
     {
       catalogEntry: {
-        path: "/solvers/fft_ntt",
-        kind: "solver",
+        path: "/templates/fft_ntt",
         insertMode: "global",
         generator: "fft_ntt",
-        label: "/solvers/fft_ntt",
+        label: "/templates/fft_ntt",
         description: "dynamic FFT/NTT convolution helper",
-        detail: "dynamic / solver"
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptFftNttOptions(editor);
@@ -6168,13 +6171,12 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     "berlekamp_massey",
     {
       catalogEntry: {
-        path: "/solvers/berlekamp_massey",
-        kind: "solver",
+        path: "/templates/berlekamp_massey",
         insertMode: "global",
         generator: "berlekamp_massey",
-        label: "/solvers/berlekamp_massey",
+        label: "/templates/berlekamp_massey",
         description: "interactive linear recurrence helper generator",
-        detail: "interactive / solver"
+        detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
         const options = await promptBerlekampMasseyOptions(editor);
@@ -6254,24 +6256,22 @@ async function insertSnippet(
       picked = {
         ...picked,
         entry: { ...(picked.entry ?? {}), ...directEntry },
-        snippetKind: directEntry.kind,
-        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+        insertMode: directEntry.insertMode
       };
     } else if (!picked && directEntry) {
       picked = {
         label: directEntry.label ?? directEntry.path,
         description: directEntry.description ?? "",
-        detail: directEntry.detail ?? directEntry.kind,
+        detail: directEntry.detail ?? "template",
         snippetPath: directEntry.path,
         entry: directEntry,
-        snippetKind: directEntry.kind,
-        insertMode: directEntry.insertMode ?? defaultInsertModeForKind(directEntry.kind)
+        insertMode: directEntry.insertMode
       };
     }
   } else {
     picked = await showExplainedQuickPick(items, {
       title: "edulcni:browse",
-      placeHolder: "Type a slash path, for example /solvers/segtree",
+      placeHolder: "Type a slash path, for example /templates/segtree",
       matchOnDescription: true,
       matchOnDetail: true,
       ignoreFocusOut: true

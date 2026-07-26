@@ -4,7 +4,7 @@ export function createDynamicSpecsB(core) {
   return [
     {
       name: "poly_hash",
-      path: "/solvers/poly_hash",
+      path: "/templates/poly_hash",
       description: "Compare substrings and compose polynomial hashes.",
       render: () => core.renderPolyHash({
         inputKind: "string",
@@ -29,7 +29,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "suffix_array",
-      path: "/solvers/suffix_array",
+      path: "/templates/suffix_array",
       description: "Build the suffix array and LCP array for a short string.",
       render: () => core.renderSuffixArray({
         inputKind: "string",
@@ -49,7 +49,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "segtree_beats",
-      path: "/solvers/segtree_beats",
+      path: "/templates/segtree_beats",
       description: "Apply range chmin, chmax, and add updates with aggregate queries.",
       render: () => core.renderSegmentTreeBeats({
         valueType: "long long",
@@ -72,7 +72,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "fft_ntt",
-      path: "/solvers/fft_ntt",
+      path: "/templates/fft_ntt",
       description: "Multiply two integer polynomials with the NTT.",
       render: () => core.renderFftNtt({
         transforms: ["ntt"],
@@ -91,7 +91,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "fast_allocator",
-      path: "/solvers/fast_allocator",
+      path: "/templates/fast_allocator",
       description: "Allocate standard containers from a resettable arena.",
       render: () => core.renderFastAllocator({
         names: core.planFastAllocatorNames(analyze()),
@@ -109,7 +109,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "monotonic_stack",
-      path: "/solvers/monotonic_stack",
+      path: "/templates/monotonic_stack",
       description: "Find the nearest smaller and greater elements on both sides.",
       render: () => core.renderMonotonicStack({
         names: core.planMonotonicStackNames(analyze()),
@@ -124,7 +124,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "toposort",
-      path: "/solvers/toposort",
+      path: "/templates/toposort",
       description: "Topologically order a directed acyclic graph.",
       render: () => core.renderToposort({
         names: core.planToposortNames(analyze()),
@@ -145,7 +145,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "kosaraju",
-      path: "/solvers/kosaraju",
+      path: "/templates/kosaraju",
       description: "Find strongly connected components and their condensation graph.",
       render: () => core.renderKosaraju({
         names: core.planKosarajuNames(analyze()),
@@ -169,7 +169,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "dijkstra",
-      path: "/solvers/dijkstra",
+      path: "/templates/dijkstra",
       description: "Trace shortest paths in a small weighted graph.",
       render: () => core.renderDijkstra({
         names: core.planDijkstraNames(analyze()),
@@ -191,7 +191,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "gp_hash_table",
-      path: "/solvers/gp_hash_table",
+      path: "/templates/gp_hash_table",
       description: "Use hardened hashes with GNU PBDS hash tables.",
       requirements: ["pbds"],
       preamble: "#include <ext/pb_ds/assoc_container.hpp>",
@@ -210,7 +210,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "ordered_set",
-      path: "/solvers/ordered_set",
+      path: "/templates/ordered_set",
       description: "Query ranks and k-th elements with a GNU PBDS ordered set.",
       requirements: ["pbds"],
       preamble: `#include <ext/pb_ds/assoc_container.hpp>
@@ -232,7 +232,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "set_utils",
-      path: "/solvers/set_utils",
+      path: "/templates/set_utils",
       description: "Safely inspect neighboring values in ordered containers.",
       render: () => core.renderSetUtils({
         names: core.planSetUtilsNames(analyze()),
@@ -248,7 +248,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "hld",
-      path: "/solvers/hld",
+      path: "/templates/hld",
       description: "Decompose tree paths into contiguous heavy-light segments.",
       render: () => core.renderHld({
         names: core.planHldNames(analyze()),
@@ -273,7 +273,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "mo",
-      path: "/solvers/mo",
+      path: "/templates/mo",
       description: "Answer offline range-distinct queries with Mo's ordering.",
       render: () => core.renderMo({
         names: core.planMoNames(analyze()),
@@ -294,7 +294,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "geometry",
-      path: "/solvers/geometry",
+      path: "/templates/geometry",
       description: "Intersect segments and construct a convex hull.",
       render: () => core.renderGeometry({ includeUsageComment: false }),
       mainBody: String.raw`
@@ -311,7 +311,7 @@ export function createDynamicSpecsB(core) {
     },
     {
       name: "halfplane_intersection",
-      path: "/solvers/halfplane_intersection",
+      path: "/templates/halfplane_intersection",
       description: "Intersect four half-planes into a bounded polygon.",
       render: () => core.renderHalfplaneIntersection({ includeUsageComment: false }),
       mainBody: String.raw`

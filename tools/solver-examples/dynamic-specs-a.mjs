@@ -6,7 +6,7 @@ export function createDynamicSpecsA(core) {
   return [
     {
       name: "segtree",
-      path: "/solvers/segtree",
+      path: "/templates/segtree",
       description: "Point updates and range sums in an iterative segment tree.",
       render: () =>
         core.renderSegmentTree({
@@ -28,7 +28,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "berlekamp_massey",
-      path: "/solvers/berlekamp_massey",
+      path: "/templates/berlekamp_massey",
       description: "Recover the Fibonacci recurrence and evaluate a later term.",
       render: () =>
         core.renderBerlekampMassey({
@@ -52,7 +52,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "sparse_table",
-      path: "/solvers/sparse_table",
+      path: "/templates/sparse_table",
       description: "Build a sparse table and answer immutable range minima.",
       render: () =>
         core.renderSparseTable({
@@ -71,7 +71,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "bfs",
-      path: "/solvers/bfs",
+      path: "/templates/bfs",
       description: "Explore an unweighted graph and restore a shortest path.",
       render: () =>
         core.renderBfs({
@@ -93,7 +93,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "linear_sieve",
-      path: "/solvers/linear_sieve",
+      path: "/templates/linear_sieve",
       description: "Generate primes and factor an integer with a linear sieve.",
       render: () =>
         core.renderLinearSieve({
@@ -111,7 +111,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "fenwick",
-      path: "/solvers/fenwick",
+      path: "/templates/fenwick",
       description: "Accumulate point additions and query prefix and range sums.",
       render: () =>
         core.renderFenwick({
@@ -130,7 +130,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "modint",
-      path: "/solvers/modint",
+      path: "/templates/modint",
       description: "Perform modular arithmetic, exponentiation, and inversion.",
       render: () =>
         core.renderModInt({
@@ -148,7 +148,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "dsu",
-      path: "/solvers/dsu",
+      path: "/templates/dsu",
       description: "Merge components and inspect the resulting parent forest.",
       render: () =>
         core.renderDsu({
@@ -167,7 +167,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "rollback_dsu",
-      path: "/solvers/rollback_dsu",
+      path: "/templates/rollback_dsu",
       description: "Merge components, then restore a previous DSU snapshot.",
       render: () =>
         core.renderRollbackDsu({
@@ -187,7 +187,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "lca",
-      path: "/solvers/lca",
+      path: "/templates/lca",
       description: "Build binary lifting tables and answer ancestor queries.",
       render: () =>
         core.renderLca({
@@ -210,7 +210,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "twosat",
-      path: "/solvers/twosat",
+      path: "/templates/twosat",
       description: "Solve a small implication system and inspect its assignment.",
       render: () =>
         core.renderTwoSat({
@@ -230,7 +230,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "maxflow_dinic",
-      path: "/solvers/maxflow_dinic",
+      path: "/templates/maxflow_dinic",
       description: "Find the maximum flow through a small capacitated network.",
       render: () =>
         core.renderMaxflowDinic({
@@ -250,7 +250,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "mincost_maxflow",
-      path: "/solvers/mincost_maxflow",
+      path: "/templates/mincost_maxflow",
       description: "Send maximum flow while minimizing its total edge cost.",
       render: () =>
         core.renderMinCostMaxFlow({
@@ -271,7 +271,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "hungarian",
-      path: "/solvers/hungarian",
+      path: "/templates/hungarian",
       description: "Compute a minimum-cost assignment in a square matrix.",
       render: () =>
         core.renderHungarian({
@@ -291,7 +291,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "kuhn",
-      path: "/solvers/kuhn",
+      path: "/templates/kuhn",
       description: "Find a maximum matching in a bipartite graph.",
       render: () =>
         core.renderKuhn({
@@ -312,7 +312,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "implicit_treap",
-      path: "/solvers/implicit_treap",
+      path: "/templates/implicit_treap",
       description: "Edit and aggregate a sequence represented by an implicit treap.",
       render: () =>
         core.renderImplicitTreap({
@@ -335,7 +335,7 @@ export function createDynamicSpecsA(core) {
     },
     {
       name: "merge_sort_tree",
-      path: "/solvers/merge_sort_tree",
+      path: "/templates/merge_sort_tree",
       description: "Count values in subarray ranges with a merge-sort tree.",
       render: () =>
         core.renderMergeSortTree({

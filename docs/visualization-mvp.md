@@ -70,10 +70,46 @@ the resulting frame immediately. Pair and tuple values are formatted recursively
 unknown non-streamable values retain their structural position and display as
 `<value>`.
 
+`live::visualize(id, value)` is the common entry point used by `EDULCNI_VAR` and
+the base template's lowercase `var(value)` helper in active builds. It dispatches
+recognized containers and ranges to their existing semantic adapters and falls
+back to a scalar value. A custom type can participate by exposing a no-argument
+`const edulcni_view()` method whose result is a supported scalar, range, or nested
+range snapshot. The method is observational: it must not mutate the object,
+perform lazy propagation, or otherwise change algorithm behavior.
+
 Top-level widgets are titled from the final segment of their stable ID, with
 underscores rendered as spaces. For example, `dijkstra.distance` is displayed as
 `distance`. The viewer associates each title with its latest publishing location,
 while the frame label is associated with its step location.
+
+## Live scene lifecycle
+
+Live mode retires a widget after it remains untouched across three distinct
+`EDULCNI_STEP` source locations. Repeated iterations at one loop call site do not
+age unrelated widgets, and touching a retired widget makes it visible again.
+Static and exported traces retain the existing persistent scene behavior.
+
+Use `live::pin(id)` and `live::unpin(id)` when a widget must outlive or rejoin the
+automatic policy. `live::remove(id)` immediately removes the widget and its
+associated focus, marker, source, and retention state. Historical frames remain
+unchanged and can still be inspected.
+
+## Tracked cursors
+
+`EDULCNI_PTR(name, object, initial)` declares a named cursor over an addressable
+visualization. In an active build it creates a tracked integer-like proxy:
+construction and supported assignments or arithmetic updates republish `object`,
+move the named arrow, and capture a step. In an ordinary build it is a normal
+value initialized from `initial`, so the algorithm does not acquire a runtime
+dependency on Edulcni. Pair-valued cursors can address matrix and grid cells.
+
+Useful applications include binary-search and sliding-window bounds, merge and
+partition cursors, LIS insertion positions, monotonic-stack scans, Fenwick
+traversal, segment-tree nodes, BFS/DFS/Dijkstra vertices, FFT butterfly
+endpoints, DP interval boundaries, suffix comparisons, and bitmask positions.
+Several cursors may point at the same element; invalid non-boundary addresses
+hide their arrows until they become valid again.
 
 ## Catalog classifications
 
@@ -87,7 +123,7 @@ while the frame label is associated with its step location.
 - `none`: visualization is intentionally inapplicable and the catalog records why.
 
 Every entry records semantic models, a preferred layout, default granularity, and
-known limitations where applicable. `/solvers/gp_hash_table` is manual because it
+known limitations where applicable. `/templates/gp_hash_table` is manual because it
 is a raw PBDS alias. The full contest-file and stress-harness templates are the two
 intentional `none` entries.
 

@@ -1,0 +1,6 @@
+for (int super = mask; super < (1 << bits); super = (super + 1) | mask) {
+  EDULCNI_VIS(edulcni::live::bits("supermasks.mask", mask, bits));
+  EDULCNI_VIS(edulcni::live::bits("supermasks.supermask", super, bits));
+  EDULCNI_STEP("Supermask iteration");
+  // use super
+}
