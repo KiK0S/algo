@@ -30,6 +30,13 @@ inline std::vector<int> nearest_left_by(const std::vector<T>& values,
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.values", values));
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.indices", st));
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.answer", result));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.values", i, edulcni::live::FocusRole::active,
+        "current element"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.answer", i,
+        edulcni::live::FocusRole::changed,
+        result[i] == -1 ? "no qualifying element" : "nearest index derived"));
     EDULCNI_STEP("Monotonic stack processed an element from the left");
   }
   return result;
@@ -60,6 +67,13 @@ inline std::vector<int> nearest_right_by(const std::vector<T>& values,
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.values", values));
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.indices", st));
     EDULCNI_VIS(edulcni::live::array("monotonic_stack.answer", result));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.values", i, edulcni::live::FocusRole::active,
+        "current element"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.answer", i,
+        edulcni::live::FocusRole::changed,
+        result[i] == -1 ? "no qualifying element" : "nearest index derived"));
     EDULCNI_STEP("Monotonic stack processed an element from the right");
   }
   return result;

@@ -18,6 +18,14 @@ struct DijkstraEdge {
 
   DijkstraEdge(int to_ = 0, const Weight& weight_ = Weight())
       : to(to_), weight(weight_) {}
+
+  friend std::istream& operator>>(std::istream& in, DijkstraEdge& edge) {
+    return in >> edge.to >> edge.weight;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const DijkstraEdge& edge) {
+    return out << edge.to << ' ' << edge.weight;
+  }
 };
 
 template <typename Weight>
@@ -88,6 +96,17 @@ DijkstraResult<Weight> dijkstra_multi_source(
         EDULCNI_VIS(edulcni::live::array("dijkstra.distance", result.distance));
         EDULCNI_VIS(edulcni::live::array("dijkstra.parent", result.parent));
         EDULCNI_VIS(edulcni::live::priority_queue("dijkstra.frontier", pq));
+        EDULCNI_VIS(edulcni::live::graph_focus(
+            "dijkstra.graph", std::vector<int>{v, edge.to},
+            std::vector<std::pair<int, int>>{std::make_pair(v, edge.to)},
+            edulcni::live::FocusRole::accepted,
+            "edge improves the shortest known distance"));
+        EDULCNI_VIS(edulcni::live::array_focus(
+            "dijkstra.distance", edge.to,
+            edulcni::live::FocusRole::changed, "distance decreased"));
+        EDULCNI_VIS(edulcni::live::array_focus(
+            "dijkstra.parent", edge.to,
+            edulcni::live::FocusRole::changed, "predecessor changed"));
         EDULCNI_STEP("Dijkstra relaxed an edge");
       }
     }
@@ -127,6 +146,9 @@ std::vector<int> dijkstra_restore_path(int source, int target,
   }
   std::reverse(path.begin(), path.end());
   EDULCNI_VIS(edulcni::live::array("dijkstra.path", path));
+  EDULCNI_VIS(edulcni::live::graph_path_focus(
+      "dijkstra.graph", path, edulcni::live::FocusRole::result,
+      "restored shortest path"));
   EDULCNI_STEP("Dijkstra restored a path");
   return path;
 }

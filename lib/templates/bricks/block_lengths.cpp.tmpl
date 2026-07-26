@@ -3,20 +3,49 @@ Example:
 auto positive_blocks =
 		block_lengths(values, [](const auto& value) { return value > 0; });
 */
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 template <class Range, class Predicate>
 vector<int> block_lengths(const Range& values, Predicate predicate) {
 	vector<int> lengths;
 	int current_length = 0;
+	int index = 0;
+	EDULCNI_VIS(edulcni::live::array("block_lengths.values", values));
 
 	for (const auto& value : values) {
 		if (predicate(value)) {
 			++current_length;
+			EDULCNI_VIS(edulcni::live::array_focus(
+					"block_lengths.values", index,
+					edulcni::live::FocusRole::accepted,
+					"predicate holds; current block grows"));
+			EDULCNI_STEP("Block lengths extends the current block");
 		} else if (current_length > 0) {
 			lengths.push_back(current_length);
 			current_length = 0;
+			EDULCNI_VIS(edulcni::live::array("block_lengths.result", lengths));
+			EDULCNI_VIS(edulcni::live::array_focus(
+					"block_lengths.result", static_cast<int>(lengths.size()) - 1,
+					edulcni::live::FocusRole::changed,
+					"completed block length"));
+			EDULCNI_STEP("Block lengths records a completed block");
 		}
+		++index;
 	}
 
-	if (current_length > 0) lengths.push_back(current_length);
+	if (current_length > 0) {
+		lengths.push_back(current_length);
+		EDULCNI_VIS(edulcni::live::array("block_lengths.result", lengths));
+		EDULCNI_VIS(edulcni::live::array_focus(
+				"block_lengths.result", static_cast<int>(lengths.size()) - 1,
+				edulcni::live::FocusRole::result,
+				"final completed block length"));
+		EDULCNI_STEP("Block lengths records the final block");
+	}
 	return lengths;
 }

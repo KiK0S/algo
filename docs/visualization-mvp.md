@@ -1,7 +1,7 @@
 # Edulcni visualization contract
 
 Every catalog artifact has an explicit visualization classification. The current
-78 entries comprise 63 automatic visualizations, 10 summary snapshots, 2
+85 entries comprise 67 automatic visualizations, 13 summary snapshots, 2
 diagnostic visualizations, 1 manual integration, and 2 entries with no
 visualization. This metadata is shown by the extension picker and the archive
 site and is checked against the source templates by the extension test suite.

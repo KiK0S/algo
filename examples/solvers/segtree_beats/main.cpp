@@ -39,7 +39,8 @@ class SegmentTreeBeats {
   void chmin(int left, int right, const T& x) {
     if (norm(left, right)) {
       chmin_rec(1, 0, n_ - 1, left, right, x);
-      trace("Segment-tree beats applied chmin");
+      trace_range("Segment-tree beats applied chmin", left, right,
+                  "range capped from above");
     }
   }
 
@@ -48,7 +49,8 @@ class SegmentTreeBeats {
   void chmax(int left, int right, const T& x) {
     if (norm(left, right)) {
       chmax_rec(1, 0, n_ - 1, left, right, x);
-      trace("Segment-tree beats applied chmax");
+      trace_range("Segment-tree beats applied chmax", left, right,
+                  "range raised from below");
     }
   }
 
@@ -57,7 +59,8 @@ class SegmentTreeBeats {
   void add(int left, int right, const T& x) {
     if (norm(left, right)) {
       add_rec(1, 0, n_ - 1, left, right, x);
-      trace("Segment-tree beats added over a range");
+      trace_range("Segment-tree beats added over a range", left, right,
+                  "range values increased");
     }
   }
 
@@ -108,6 +111,16 @@ class SegmentTreeBeats {
     EDULCNI_VIS(edulcni::live::segment_tree(
         "segment_tree_beats.tree", static_cast<std::size_t>(n_), tree_));
     EDULCNI_STEP(label);
+  }
+
+  void trace_range(const char* step_label, int left, int right,
+                   const char* focus_text) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segment_tree_beats.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segment_tree_beats.tree", static_cast<std::size_t>(n_), left, right,
+        edulcni::live::FocusRole::changed, focus_text));
+    EDULCNI_STEP(step_label);
   }
 
   static T pos_inf() { return std::numeric_limits<T>::max() / T(4); }

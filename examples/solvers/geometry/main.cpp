@@ -60,6 +60,14 @@ struct Point2 {
   T cross(const Point2& a, const Point2& b) const { return (a - *this).cross(b - *this); }
 
   T norm2() const { return x * x + y * y; }
+
+  friend std::istream& operator>>(std::istream& in, Point2& point) {
+    return in >> point.x >> point.y;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const Point2& point) {
+    return out << point.x << ' ' << point.y;
+  }
 };
 
 template <typename T>
@@ -273,6 +281,10 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
     }
     lower.push_back(p);
     EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+    EDULCNI_VIS(edulcni::live::points_focus(
+        "convex_hull.points", std::vector<Point2<T>>{p},
+        edulcni::live::FocusRole::accepted,
+        "accepted on the lower hull"));
     EDULCNI_STEP("Convex hull extends the lower chain");
   }
 
@@ -285,6 +297,10 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
     }
     upper.push_back(p);
     EDULCNI_VIS(edulcni::live::points("convex_hull.chain", upper));
+    EDULCNI_VIS(edulcni::live::points_focus(
+        "convex_hull.points", std::vector<Point2<T>>{p},
+        edulcni::live::FocusRole::accepted,
+        "accepted on the upper hull"));
     EDULCNI_STEP("Convex hull extends the upper chain");
   }
 
@@ -292,6 +308,9 @@ inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
   upper.pop_back();
   lower.insert(lower.end(), upper.begin(), upper.end());
   EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+  EDULCNI_VIS(edulcni::live::points_focus(
+      "convex_hull.points", lower, edulcni::live::FocusRole::result,
+      "points on the convex hull"));
   EDULCNI_STEP("Convex hull completed");
   return lower;
 }

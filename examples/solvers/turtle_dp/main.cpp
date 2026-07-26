@@ -32,6 +32,10 @@ inline long long turtle_count_paths(const std::vector<std::string>& grid,
       else if (col > 0) dp[col] = (dp[col] + dp[col - 1]) % mod;
     }
     EDULCNI_VIS(edulcni::live::array("turtle_dp.count", dp));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "turtle_dp.count", 0, cols - 1,
+        edulcni::live::FocusRole::changed,
+        "row path counts derived"));
     EDULCNI_STEP("Grid path counting completes a row");
   }
   return dp.back();
@@ -66,6 +70,13 @@ inline TurtleDpResult turtle_best_path(
       if (dp[row][col] != unreachable) dp[row][col] += value[row][col];
     }
     EDULCNI_VIS(edulcni::live::matrix("turtle_dp.best", dp));
+    EDULCNI_VIS(([&] {
+      std::vector<std::pair<int, int>> changed;
+      for (int col = 0; col < cols; ++col) changed.push_back({row, col});
+      edulcni::live::matrix_focus(
+          "turtle_dp.best", changed, edulcni::live::FocusRole::changed,
+          "best values derived for this row");
+    }()));
     EDULCNI_STEP("Grid path optimization completes a row");
   }
   if (dp.back().back() == unreachable) return {unreachable, {}};

@@ -152,6 +152,17 @@ class StaticModInt {
     return lhs.value_ != rhs.value_;
   }
 
+  friend std::istream& operator>>(std::istream& in, StaticModInt& value) {
+    long long raw_value;
+    in >> raw_value;
+    value.set(raw_value);
+    return in;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const StaticModInt& value) {
+    return out << value.value_;
+  }
+
  private:
   int value_;
 

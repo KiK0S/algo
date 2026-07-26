@@ -54,6 +54,15 @@ class {{className}} {
     EDULCNI_VIS(edulcni::live::forest("dsu.forest", parent_));
     EDULCNI_VIS(edulcni::live::array("dsu.size", size_));
     EDULCNI_VIS(edulcni::label_widget("dsu.components", components_));
+    EDULCNI_VIS(edulcni::live::graph_focus(
+        "dsu.forest", std::vector<int>{root_a, root_b},
+        std::vector<std::pair<int, int>>{
+            std::make_pair(root_a, root_b)},
+        edulcni::live::FocusRole::changed,
+        "smaller component attached to larger root"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "dsu.size", root_b, edulcni::live::FocusRole::changed,
+        "component size increased"));
     EDULCNI_STEP("DSU merges two components");
     return true;
   }

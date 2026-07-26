@@ -57,6 +57,23 @@ export function createStaticSpecs(core) {
 `
     },
     {
+      name: "kruskal",
+      path: "/solvers/kruskal",
+      description: "Build a minimum spanning tree and recover its selected edges.",
+      render: renderStaticSolver(core, "kruskal"),
+      mainBody: String.raw`
+  const std::vector<KruskalEdge> edges = {
+      {0, 1, 1, 0},
+      {1, 2, 2, 1},
+      {0, 2, 4, 2},
+  };
+  const auto result = kruskal(3, edges);
+  assert(result.connected);
+  assert(result.weight == 3);
+  assert(result.edges.size() == 2);
+`
+    },
+    {
       name: "fwt_convolution",
       path: "/solvers/fwt_convolution",
       description: "Compute an XOR convolution with the Walsh-Hadamard transform.",

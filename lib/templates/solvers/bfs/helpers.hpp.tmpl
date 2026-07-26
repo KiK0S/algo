@@ -50,8 +50,10 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
   while (!q.empty()) {
     const int v = q.front();
     q.pop();
-    EDULCNI_VIS(edulcni::clear_graph_highlights("bfs.graph"));
-    EDULCNI_VIS(edulcni::highlight_vertex("bfs.graph", v));
+    EDULCNI_VIS(edulcni::live::graph_focus(
+        "bfs.graph", std::vector<int>{v},
+        std::vector<std::pair<int, int>>{},
+        edulcni::live::FocusRole::active, "vertex removed from frontier"));
     EDULCNI_VIS(edulcni::live::queue("bfs.frontier", q));
     EDULCNI_STEP("BFS visits a vertex");
 
@@ -63,11 +65,20 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
       result.parent[to] = v;
       result.order.push_back(to);
       q.push(to);
-      EDULCNI_VIS(edulcni::highlight_edge("bfs.graph", v, to));
-      EDULCNI_VIS(edulcni::highlight_vertex("bfs.graph", to));
       EDULCNI_VIS(edulcni::live::array("bfs.distance", result.distance));
       EDULCNI_VIS(edulcni::live::array("bfs.parent", result.parent));
       EDULCNI_VIS(edulcni::live::queue("bfs.frontier", q));
+      EDULCNI_VIS(edulcni::live::graph_focus(
+          "bfs.graph", std::vector<int>{v, to},
+          std::vector<std::pair<int, int>>{std::make_pair(v, to)},
+          edulcni::live::FocusRole::accepted,
+          "edge discovers an unvisited vertex"));
+      EDULCNI_VIS(edulcni::live::array_focus(
+          "bfs.distance", to, edulcni::live::FocusRole::changed,
+          "distance assigned"));
+      EDULCNI_VIS(edulcni::live::array_focus(
+          "bfs.parent", to, edulcni::live::FocusRole::changed,
+          "parent assigned"));
       EDULCNI_STEP("BFS discovers a vertex");
     }
   }
@@ -99,6 +110,10 @@ inline std::vector<int> bfs_restore_path(int source, int target,
     return {};
   }
   std::reverse(path.begin(), path.end());
+  EDULCNI_VIS(edulcni::live::graph_path_focus(
+      "bfs.graph", path, edulcni::live::FocusRole::result,
+      "restored shortest unweighted path"));
+  EDULCNI_STEP("BFS restored a path");
   return path;
 }
 

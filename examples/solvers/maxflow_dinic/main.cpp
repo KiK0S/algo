@@ -66,6 +66,7 @@ class Dinic {
       EDULCNI_STEP("Dinic built a level graph");
       std::fill(ptr_.begin(), ptr_.end(), 0);
       while (true) {
+        EDULCNI_VIS(last_augmenting_path_.clear());
         const Cap pushed =
             push_flow(source, sink, std::numeric_limits<Cap>::max());
         if (pushed == Cap(0)) {
@@ -75,6 +76,17 @@ class Dinic {
         EDULCNI_VIS(edulcni::live::weighted_graph("dinic.residual", graph_));
         EDULCNI_VIS(edulcni::live::array(
             "dinic.total_flow", std::vector<Cap>{total_flow}));
+        EDULCNI_VIS(([&] {
+          std::vector<int> vertices;
+          for (const auto& edge : last_augmenting_path_) {
+            vertices.push_back(edge.first);
+            vertices.push_back(edge.second);
+          }
+          edulcni::live::graph_focus(
+              "dinic.residual", vertices, last_augmenting_path_,
+              edulcni::live::FocusRole::accepted,
+              "augmenting path pushed flow");
+        }()));
         EDULCNI_STEP("Dinic augmented flow");
       }
     }
@@ -93,6 +105,7 @@ class Dinic {
   std::vector<std::vector<Edge>> graph_;
   std::vector<int> level_;
   std::vector<int> ptr_;
+  std::vector<std::pair<int, int>> last_augmenting_path_;
 
   void trace(const char* label) const {
     EDULCNI_VIS(edulcni::live::weighted_graph("dinic.residual", graph_));
@@ -142,6 +155,7 @@ class Dinic {
 
       edge.cap -= pushed;
       graph_[edge.to][edge.rev].cap += pushed;
+      EDULCNI_VIS(last_augmenting_path_.push_back({v, edge.to}));
       return pushed;
     }
     return Cap(0);

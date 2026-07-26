@@ -26,7 +26,15 @@ inline std::vector<int> longest_increasing_subsequence_indices(
     }
     EDULCNI_VIS(edulcni::live::array("lis.tails", tails));
     EDULCNI_VIS(edulcni::live::array("lis.parent", parent));
-    EDULCNI_VIS(edulcni::live::value("lis.index", i));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.values", i, edulcni::live::FocusRole::active,
+        "current value"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.tails", pos, edulcni::live::FocusRole::changed,
+        "best tail for this length"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "lis.parent", i, edulcni::live::FocusRole::changed,
+        pos > 0 ? "predecessor selected" : "starts a subsequence"));
     EDULCNI_STEP("Longest increasing subsequence processes a value");
   }
   std::vector<int> result;
@@ -34,6 +42,9 @@ inline std::vector<int> longest_increasing_subsequence_indices(
     result.push_back(at);
   std::reverse(result.begin(), result.end());
   EDULCNI_VIS(edulcni::live::array("lis.result_indices", result));
+  EDULCNI_VIS(edulcni::live::array_focus(
+      "lis.values", result, edulcni::live::FocusRole::result,
+      "longest increasing subsequence"));
   EDULCNI_STEP("Longest increasing subsequence reconstructed");
   return result;
 }

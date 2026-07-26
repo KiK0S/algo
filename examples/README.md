@@ -52,6 +52,7 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [implicit_treap](solvers/implicit_treap/main.cpp) | automatic | portable C++17 | Edit and aggregate a sequence represented by an implicit treap. |
 | [knuth_dp](solvers/knuth_dp/main.cpp) | automatic | portable C++17 | Optimize adjacent interval merging with Knuth's bounds. |
 | [kosaraju](solvers/kosaraju/main.cpp) | automatic | portable C++17 | Find strongly connected components and their condensation graph. |
+| [kruskal](solvers/kruskal/main.cpp) | automatic | portable C++17 | Build a minimum spanning tree and recover its selected edges. |
 | [kuhn](solvers/kuhn/main.cpp) | automatic | portable C++17 | Find a maximum matching in a bipartite graph. |
 | [lca](solvers/lca/main.cpp) | automatic | portable C++17 | Build binary lifting tables and answer ancestor queries. |
 | [li_chao_tree](solvers/li_chao_tree/main.cpp) | automatic | portable C++17 | Insert arbitrary lines and query their minimum on an integer domain. |

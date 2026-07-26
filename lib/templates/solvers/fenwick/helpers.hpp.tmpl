@@ -118,6 +118,13 @@ class Fenwick {
     }
     EDULCNI_VIS(edulcni::live::array("fenwick.tree", bit_));
     EDULCNI_VIS(([&] {
+      std::vector<int> changed;
+      for (int i = idx + 1; i < maxn_; i += i & -i) {
+        changed.push_back(i);
+      }
+      edulcni::live::array_focus(
+          "fenwick.tree", changed, edulcni::live::FocusRole::changed,
+          "updated Fenwick ancestors");
       int width = 1;
       for (int value = n_; value > 1; value >>= 1) {
         ++width;
@@ -139,6 +146,15 @@ class Fenwick {
     for (int i = idx + 1; i > 0; i -= i & -i) {
       result = Op::combine(result, bit_[i]);
     }
+    EDULCNI_VIS(([&] {
+      std::vector<int> visited;
+      for (int i = idx + 1; i > 0; i -= i & -i) visited.push_back(i);
+      edulcni::live::array("fenwick.tree", bit_);
+      edulcni::live::array_focus(
+          "fenwick.tree", visited, edulcni::live::FocusRole::result,
+          "nodes combined for the prefix");
+    }()));
+    EDULCNI_STEP("Fenwick tree answered a prefix query");
     return result;
   }
 

@@ -62,12 +62,13 @@ class SegmentTree {
     if (pos < 0 || pos >= n_) {
       return;
     }
-    pos += n_;
-    tree_[pos] = value;
-    for (pos >>= 1; pos > 0; pos >>= 1) {
-      tree_[pos] = Op::combine(tree_[pos << 1], tree_[pos << 1 | 1]);
+    const int changed_pos = pos;
+    int node = pos + n_;
+    tree_[node] = value;
+    for (node >>= 1; node > 0; node >>= 1) {
+      tree_[node] = Op::combine(tree_[node << 1], tree_[node << 1 | 1]);
     }
-    trace("Iterative segment tree updated a point");
+    trace_update("Iterative segment tree updated a point", changed_pos);
   }
 
 
@@ -103,6 +104,22 @@ class SegmentTree {
   void trace(const char* label) const {
     EDULCNI_VIS(edulcni::live::segment_tree(
         "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_update(const char* label, int pos) const {
+    EDULCNI_VIS(([&] {
+      edulcni::live::segment_tree(
+          "segtree.tree", static_cast<std::size_t>(n_), tree_);
+      std::vector<int> changed_nodes;
+      for (int node = pos + n_; node > 0; node >>= 1) {
+        changed_nodes.push_back(node);
+      }
+      edulcni::live::segment_tree_focus(
+          "segtree.tree", static_cast<std::size_t>(n_), changed_nodes,
+          edulcni::live::FocusRole::changed,
+          "updated leaf and recomputed ancestors");
+    }()));
     EDULCNI_STEP(label);
   }
 };

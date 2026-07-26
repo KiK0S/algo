@@ -26,7 +26,14 @@ inline std::pair<Cost, std::vector<std::pair<int, int>>> substring_partition_dp(
     }
     EDULCNI_VIS(edulcni::live::array("substring_partition.dp", dp));
     EDULCNI_VIS(edulcni::live::array("substring_partition.parent", parent));
-    EDULCNI_VIS(edulcni::live::value("substring_partition.right", right));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "substring_partition.dp", right,
+        edulcni::live::FocusRole::changed,
+        "best partition ending here"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "substring_partition.parent", right,
+        edulcni::live::FocusRole::accepted,
+        "chosen previous boundary"));
     EDULCNI_STEP("Substring partition DP completes an endpoint");
   }
   std::vector<std::pair<int, int>> parts;
@@ -34,6 +41,12 @@ inline std::pair<Cost, std::vector<std::pair<int, int>>> substring_partition_dp(
     parts.push_back({parent[right], right});
   std::reverse(parts.begin(), parts.end());
   EDULCNI_VIS(edulcni::live::array("substring_partition.dp", dp));
+  EDULCNI_VIS(edulcni::live::array(
+      "substring_partition.parts", parts));
+  EDULCNI_VIS(edulcni::live::array_focus(
+      "substring_partition.parts", 0,
+      static_cast<int>(parts.size()) - 1,
+      edulcni::live::FocusRole::result, "reconstructed partition"));
   EDULCNI_STEP("Substring partition reconstructed");
   return {dp[n], parts};
 }
@@ -51,7 +64,10 @@ inline int longest_palindromic_subsequence(const std::string& text) {
           ? 2 + (right - left == 1 ? 0 : dp[left + 1][right - 1])
           : std::max(dp[left + 1][right], dp[left][right - 1]);
     EDULCNI_VIS(edulcni::live::matrix("palindrome.dp", dp));
-    EDULCNI_VIS(edulcni::live::value("palindrome.left", left));
+    EDULCNI_VIS(edulcni::live::matrix_focus(
+        "palindrome.dp", left, left,
+        edulcni::live::FocusRole::changed,
+        "row derived for this left endpoint"));
     EDULCNI_STEP("Palindromic subsequence DP completes a row");
   }
   return dp[0][n - 1];

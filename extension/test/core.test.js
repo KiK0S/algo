@@ -1807,7 +1807,7 @@ function testBundledCatalogGuardrails() {
   const granularities = new Set(["summary", "operations", "verbose"]);
   const seenPaths = new Set();
 
-  assert.equal(entries.length, 78);
+  assert.equal(entries.length, 85);
   for (const entry of entries) {
     assert.match(entry.path, /^\/(?:bricks|solvers)\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
@@ -1953,6 +1953,8 @@ function testVisualizationSourceCoverage() {
     ["segtree", path.join(templateRoot, "solvers", "segment_tree")],
     ["segtree_beats", path.join(templateRoot, "solvers", "segment_tree_beats")],
     ["compress_unique", path.join(templateRoot, "bricks", "compress_unique.cpp.tmpl")],
+    ["factorial_precalc", path.join(templateRoot, "bricks", "factorial_precalc.cpp.tmpl")],
+    ["powers_precalc", path.join(templateRoot, "bricks", "powers_precalc.cpp.tmpl")],
     ["read_vector", path.join(templateRoot, "bricks", "read_vector.cpp.tmpl")],
     ["read_matrix", path.join(templateRoot, "bricks", "read_matrix.cpp.tmpl")]
   ]);
@@ -3026,7 +3028,7 @@ function testModIntRenderer() {
 
   const usageContent = core.renderModInt(modIntOptions());
   assert.match(usageContent, /\/\*\nExample:/);
-  assert.match(usageContent, /using Mint = StaticModInt<1000000007>;/);
+  assert.match(usageContent, /using Mint = StaticModInt<998244353>;/);
   assert.doesNotMatch(usageContent, /DynamicModInt::set_mod/);
 
   const staticContent = core.renderModInt(
