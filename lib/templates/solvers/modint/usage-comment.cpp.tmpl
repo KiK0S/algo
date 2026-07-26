@@ -2,11 +2,13 @@
 Example:
 {{#if includeStatic}}
 using Mint = {{staticClassName}}<998244353>;
+using Mint = {{staticClassName}}<1000000007>;
 Mint a = 2;
 auto b = a.pow(10);
 {{/if}}
 {{#if includeDynamic}}
 {{dynamicClassName}}::set_mod(998244353);
+{{dynamicClassName}}::set_mod(1000000007);
 {{dynamicClassName}} x = 5;
 auto inv = x.inv();
 {{/if}}
