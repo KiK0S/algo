@@ -74,7 +74,7 @@ unknown non-streamable values retain their structural position and display as
 the base template's lowercase `var(value)` helper in active builds. It dispatches
 recognized containers and ranges to their existing semantic adapters and falls
 back to a scalar value. A custom type can participate by exposing a no-argument
-`const edulcni_view()` method whose result is a supported scalar, range, or nested
+`edulcni_view() const` method whose result is a supported scalar, range, or nested
 range snapshot. The method is observational: it must not mutate the object,
 perform lazy propagation, or otherwise change algorithm behavior.
 
