@@ -11,7 +11,6 @@ using namespace std;
 #define EDULCNI_STEP(...) ((void)0)
 #endif
 
-
 template <typename T>
 struct FenwickSumOp {
   static constexpr bool kHasInverse = true;

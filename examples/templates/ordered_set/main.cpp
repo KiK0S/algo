@@ -4,15 +4,15 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#include <ext/pb_ds/assoc_container.hpp>
-#include <ext/pb_ds/tree_policy.hpp>
-
 #ifndef EDULCNI_VIS
 #define EDULCNI_VIS(...) ((void)0)
 #endif
 #ifndef EDULCNI_STEP
 #define EDULCNI_STEP(...) ((void)0)
 #endif
+
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
 
 template <typename Key, typename Compare = std::less<Key>>
 using OrderedSetTree =

@@ -131,6 +131,8 @@ function compileGenerated(name, options, mainBody) {
   const source = [
     "#include <bits/stdc++.h>",
     "using namespace std;",
+    "#define EDULCNI_VIS(...) ((void)0)",
+    "#define EDULCNI_STEP(...) ((void)0)",
     "typedef long long ll;",
     "",
     core.renderSegmentTree(options),
@@ -149,7 +151,15 @@ function compileSource(name, source) {
   fs.mkdirSync(dir, { recursive: true });
   const cpp = path.join(dir, `${name}.cpp`);
   const exe = path.join(dir, name);
-  fs.writeFileSync(cpp, source);
+  const visualizationFallbacks = [
+    "#ifndef EDULCNI_VIS",
+    "#define EDULCNI_VIS(...) ((void)0)",
+    "#endif",
+    "#ifndef EDULCNI_STEP",
+    "#define EDULCNI_STEP(...) ((void)0)",
+    "#endif"
+  ].join("\n");
+  fs.writeFileSync(cpp, `${visualizationFallbacks}\n${source}`);
   compileCpp(cpp, exe);
   runCompiled(exe);
 }
@@ -1877,7 +1887,7 @@ function testBundledCatalogGuardrails() {
 
   assert.equal(entries.length, 85);
   for (const entry of entries) {
-    assert.match(entry.path, /^\/(?:bricks|solvers)\//);
+    assert.match(entry.path, /^\/templates\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
     seenPaths.add(entry.path);
     assert.equal(entry.source, undefined, `${entry.path} still exposes a source header`);
@@ -1887,7 +1897,7 @@ function testBundledCatalogGuardrails() {
       `${entry.path} has no generator or template`
     );
     if (entry.template) {
-      assert.match(entry.template, /^(?:bricks|solvers)\/.+\.tmpl$/);
+      assert.match(entry.template, /^(?:[^/]+\/)*[^/]+\.tmpl$/);
       assert.equal(
         fs.existsSync(path.join(extensionRoot, "library", "templates", entry.template)),
         true,
@@ -1952,8 +1962,8 @@ function testBundledCatalogGuardrails() {
   ]) {
     assert.equal(seenPaths.has(removedPreset), false);
   }
-  assert.equal(seenPaths.has("/solvers/segtree"), true);
-  assert.equal(seenPaths.has("/solvers/segtree_beats"), true);
+  assert.equal(seenPaths.has("/templates/segtree"), true);
+  assert.equal(seenPaths.has("/templates/segtree_beats"), true);
 }
 
 
@@ -2000,10 +2010,10 @@ function testFinalLibraryShapeGuardrails() {
   );
 
   for (const entry of entries) {
-    assert.match(entry.path, /^\/(?:solvers|bricks)\//);
+    assert.match(entry.path, /^\/templates\//);
     assert.equal(entry.source, undefined);
     for (const dependency of entry.dependsOn ?? []) {
-      assert.match(dependency, /^\/(?:solvers|bricks)\//);
+      assert.match(dependency, /^\/templates\//);
     }
   }
 
@@ -2018,17 +2028,17 @@ function testVisualizationSourceCoverage() {
   );
   const templateRoot = path.join(repoRoot, "lib", "templates");
   const generatorOverrides = new Map([
-    ["segtree", path.join(templateRoot, "solvers", "segment_tree")],
-    ["segtree_beats", path.join(templateRoot, "solvers", "segment_tree_beats")],
-    ["compress_unique", path.join(templateRoot, "bricks", "compress_unique.cpp.tmpl")],
-    ["factorial_precalc", path.join(templateRoot, "bricks", "factorial_precalc.cpp.tmpl")],
-    ["powers_precalc", path.join(templateRoot, "bricks", "powers_precalc.cpp.tmpl")],
-    ["read_vector", path.join(templateRoot, "bricks", "read_vector.cpp.tmpl")],
-    ["read_matrix", path.join(templateRoot, "bricks", "read_matrix.cpp.tmpl")]
+    ["segtree", path.join(templateRoot, "segment_tree")],
+    ["segtree_beats", path.join(templateRoot, "segment_tree_beats")],
+    ["compress_unique", path.join(templateRoot, "compress_unique.cpp.tmpl")],
+    ["factorial_precalc", path.join(templateRoot, "factorial_precalc.cpp.tmpl")],
+    ["powers_precalc", path.join(templateRoot, "powers_precalc.cpp.tmpl")],
+    ["read_vector", path.join(templateRoot, "read_vector.cpp.tmpl")],
+    ["read_matrix", path.join(templateRoot, "read_matrix.cpp.tmpl")]
   ]);
 
   for (const templateFile of collectFiles(templateRoot, new Set([".tmpl"]))) {
-    if (templateFile.endsWith(path.join("bricks", "base_template.cpp.tmpl"))) {
+    if (path.basename(templateFile) === "base_template.cpp.tmpl") {
       continue;
     }
     assert.doesNotMatch(
@@ -2047,7 +2057,7 @@ function testVisualizationSourceCoverage() {
       candidates = [path.join(templateRoot, entry.template)];
     } else {
       const generatorPath = generatorOverrides.get(entry.generator) ??
-        path.join(templateRoot, "solvers", entry.generator);
+        path.join(templateRoot, entry.generator);
       candidates = fs.statSync(generatorPath).isDirectory()
         ? collectFiles(generatorPath, new Set([".tmpl"]))
         : [generatorPath];
@@ -5454,7 +5464,7 @@ function testStaticBrickTemplatesRender() {
     });
   }
 
-  compileSource("brick_base_template_generated", renderedByPath.get("/bricks/base_template"));
+  compileSource("brick_base_template_generated", renderedByPath.get("/templates/base_template"));
 
   const base = [
     "#include <bits/stdc++.h>",
@@ -5519,7 +5529,7 @@ function testStaticBrickTemplatesRender() {
       base,
       "int main() {",
       before,
-      renderedByPath.get(`/bricks/${name}`),
+      renderedByPath.get(`/templates/${name}`),
       after,
       "return 0;",
       "}"
@@ -5533,7 +5543,7 @@ function testStaticBrickTemplatesRender() {
   for (const [name, body] of Object.entries(topCases)) {
     compileSource(`brick_${name}_generated`, [
       base,
-      renderedByPath.get(`/bricks/${name}`),
+      renderedByPath.get(`/templates/${name}`),
       "int main() {",
       body,
       "return 0;",
@@ -5543,20 +5553,20 @@ function testStaticBrickTemplatesRender() {
 }
 
 testStaticBrickTemplatesRender();
-runTemplateScenario("/bricks/compress_unique", {
+runTemplateScenario("/templates/compress_unique", {
   sourceName: "a",
   valuesName: "vals",
   rewriteSource: true
 }, () => {});
-runTemplateScenario("/bricks/read_vector", {
+runTemplateScenario("/templates/read_vector", {
   name: "a",
   sizeExpression: "n",
   valueType: "int"
 }, testInteractiveBrickRenderers);
-runTemplateScenario("/solvers/segtree", {
+runTemplateScenario("/templates/segtree", {
   presets: ["point_sum", "lazy_min", "max_subarray"]
 }, testGeneratedSegmentTrees);
-runTemplateScenario("/solvers/segtree_beats", {
+runTemplateScenario("/templates/segtree_beats", {
   updates: ["chmin", "chmax", "add"],
   queries: ["sum", "min", "max"]
 }, testGeneratedSegmentTreeBeatsCompiles);
@@ -5592,117 +5602,117 @@ testFastAllocatorRenderer();
 testGeometryRenderer();
 testHalfplaneIntersectionRenderer();
 testSegmentTreeBeatsRenderer();
-runTemplateScenario("/solvers/berlekamp_massey", {
+runTemplateScenario("/templates/berlekamp_massey", {
   features: ["minimal_recurrence", "kth_term"]
 }, testGeneratedBerlekampMasseyCompiles);
-runTemplateScenario("/solvers/sparse_table", {
+runTemplateScenario("/templates/sparse_table", {
   variants: ["min", "max", "gcd", "bit_and", "bit_or"]
 }, testGeneratedSparseTableCompiles);
-runTemplateScenario("/solvers/dsu", {
+runTemplateScenario("/templates/dsu", {
   application: "connectivity",
   usageMode: "query_loop"
 }, testGeneratedDsuCompiles);
-runTemplateScenario("/solvers/rollback_dsu", {
+runTemplateScenario("/templates/rollback_dsu", {
   features: ["snapshot", "rollback", "component_size"]
 }, testGeneratedRollbackDsuCompiles);
-runTemplateScenario("/solvers/lca", {
+runTemplateScenario("/templates/lca", {
   application: "tree_query_loop",
   features: ["lca", "dist", "kth_ancestor"]
 }, testGeneratedLcaCompiles);
-runTemplateScenario("/solvers/hld", {
+runTemplateScenario("/templates/hld", {
   valueMode: "vertex_values",
   applications: ["path", "subtree"]
 }, testGeneratedHldCompiles);
-runTemplateScenario("/solvers/bfs", {
+runTemplateScenario("/templates/bfs", {
   graphMode: "undirected",
   sources: ["single", "multi"],
   restorePath: true
 }, testGeneratedBfsCompiles);
-runTemplateScenario("/solvers/dijkstra", {
+runTemplateScenario("/templates/dijkstra", {
   graphMode: "directed",
   sources: ["single", "multi"],
   restorePath: true
 }, testGeneratedDijkstraCompiles);
-runTemplateScenario("/solvers/toposort", {
+runTemplateScenario("/templates/toposort", {
   features: ["sort", "cycle_detection", "order_validation"]
 }, testGeneratedToposortCompiles);
-runTemplateScenario("/solvers/kosaraju", {
+runTemplateScenario("/templates/kosaraju", {
   features: ["components", "condensation_dag"]
 }, testGeneratedKosarajuCompiles);
-runTemplateScenario("/solvers/mo", {
+runTemplateScenario("/templates/mo", {
   indexing: "zero_based_half_open",
   usageMode: "query_loop"
 }, testGeneratedMoCompiles);
-runTemplateScenario("/solvers/monotonic_stack", {
+runTemplateScenario("/templates/monotonic_stack", {
   direction: "both",
   relation: "all",
   strictness: "strict"
 }, testGeneratedMonotonicStackCompiles);
-runTemplateScenario("/solvers/gp_hash_table", {
+runTemplateScenario("/templates/gp_hash_table", {
   containers: ["map", "set"],
   hash: "splitmix64"
 }, testGeneratedGpHashTableCompiles);
-runTemplateScenario("/solvers/ordered_set", {
+runTemplateScenario("/templates/ordered_set", {
   duplicates: true,
   features: ["rank", "kth"]
 }, testGeneratedOrderedSetCompiles);
-runTemplateScenario("/solvers/set_utils", {
+runTemplateScenario("/templates/set_utils", {
   containers: ["set", "map"],
   lookup: ["next", "prev"]
 }, testGeneratedSetUtilsCompiles);
-runTemplateScenario("/solvers/linear_sieve", {
+runTemplateScenario("/templates/linear_sieve", {
   features: ["lowest_prime", "primes", "factorization"]
 }, testGeneratedLinearSieveCompiles);
-runTemplateScenario("/solvers/fenwick", {
+runTemplateScenario("/templates/fenwick", {
   operations: ["sum", "xor", "min", "max", "custom"],
   applications: ["point_prefix", "range_point", "range_sum"]
 }, testGeneratedFenwickCompiles);
-runTemplateScenario("/solvers/modint", {
+runTemplateScenario("/templates/modint", {
   modes: ["static", "dynamic"]
 }, testGeneratedModIntCompiles);
-runTemplateScenario("/solvers/twosat", {
+runTemplateScenario("/templates/twosat", {
   features: ["xor", "equal", "force", "at_most_one"]
 }, testGeneratedTwoSatCompiles);
-runTemplateScenario("/solvers/maxflow_dinic", {
+runTemplateScenario("/templates/maxflow_dinic", {
   capacityType: "long long",
   features: ["min_cut", "edge_access", "reset_flow"]
 }, testGeneratedMaxflowDinicCompiles);
-runTemplateScenario("/solvers/mincost_maxflow", {
+runTemplateScenario("/templates/mincost_maxflow", {
   mode: "max_flow",
   negativeCosts: true
 }, testGeneratedMinCostMaxFlowCompiles);
-runTemplateScenario("/solvers/hungarian", {
+runTemplateScenario("/templates/hungarian", {
   modes: ["minimize", "maximize"],
   rectangular: true
 }, testGeneratedHungarianCompiles);
-runTemplateScenario("/solvers/kuhn", {
+runTemplateScenario("/templates/kuhn", {
   features: ["maximum_matching", "vertex_cover"]
 }, testGeneratedKuhnCompiles);
-runTemplateScenario("/solvers/implicit_treap", {
+runTemplateScenario("/templates/implicit_treap", {
   aggregate: "sum",
   features: ["reverse", "range_add"]
 }, testGeneratedImplicitTreapCompiles);
-runTemplateScenario("/solvers/merge_sort_tree", {
+runTemplateScenario("/templates/merge_sort_tree", {
   queries: ["count_less", "count_equal", "exists"]
 }, testGeneratedMergeSortTreeCompiles);
-runTemplateScenario("/solvers/suffix_array", {
+runTemplateScenario("/templates/suffix_array", {
   inputs: ["string", "ints"],
   features: ["rank", "lcp", "stripped_sa", "lcp_rmq"]
 }, testGeneratedSuffixArrayCompiles);
-runTemplateScenario("/solvers/poly_hash", {
+runTemplateScenario("/templates/poly_hash", {
   features: ["substring_equal", "reverse", "lcp", "concat"]
 }, testGeneratedPolyHashCompiles);
-runTemplateScenario("/solvers/fft_ntt", {
+runTemplateScenario("/templates/fft_ntt", {
   transforms: ["fft", "ntt"],
   convolution: true
 }, testGeneratedFftNttCompiles);
-runTemplateScenario("/solvers/fast_allocator", {
+runTemplateScenario("/templates/fast_allocator", {
   applications: ["arena", "allocator", "vector"],
   overflowPolicy: "assert"
 }, testGeneratedFastAllocatorCompiles);
-runTemplateScenario("/solvers/geometry", {
+runTemplateScenario("/templates/geometry", {
   applications: ["orientation", "segments", "convex_hull"]
 }, testGeneratedGeometryCompiles);
-runTemplateScenario("/solvers/halfplane_intersection", {
+runTemplateScenario("/templates/halfplane_intersection", {
   applications: ["convex_polygon", "linear_constraints"]
 }, testGeneratedHalfplaneIntersectionCompiles);

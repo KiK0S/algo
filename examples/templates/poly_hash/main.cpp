@@ -4,16 +4,16 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-constexpr int POLY_HASH_MOD1 = 1000000007;
-constexpr int POLY_HASH_MOD2 = 1000000009;
-constexpr int POLY_HASH_BASE = 911382323;
-
 #ifndef EDULCNI_VIS
 #define EDULCNI_VIS(...) ((void)0)
 #endif
 #ifndef EDULCNI_STEP
 #define EDULCNI_STEP(...) ((void)0)
 #endif
+
+constexpr int POLY_HASH_MOD1 = 1000000007;
+constexpr int POLY_HASH_MOD2 = 1000000009;
+constexpr int POLY_HASH_BASE = 911382323;
 
 struct PolyHashValue {
   int first;

@@ -11,7 +11,6 @@ using namespace std;
 #define EDULCNI_STEP(...) ((void)0)
 #endif
 
-
 template <int MOD>
 class StaticModInt {
  public:

@@ -11,7 +11,6 @@ using namespace std;
 #define EDULCNI_STEP(...) ((void)0)
 #endif
 
-
 inline int fft_next_power_of_two(int n) {
   int p = 1;
   while (p < n) {
