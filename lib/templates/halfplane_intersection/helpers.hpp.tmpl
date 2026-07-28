@@ -153,6 +153,8 @@ inline std::vector<Point2<long double>> halfplane_intersection(
 
   std::deque<HalfPlane> deque_planes;
   std::deque<Point2<long double>> deque_intersections;
+  EDULCNI_VIS(edulcni::live::halfplanes(
+      "halfplane.constraints", halfplanes));
   EDULCNI_VIS(edulcni::live::scalar(
       "halfplane.count", static_cast<std::uint64_t>(halfplanes.size())));
   EDULCNI_STEP("Half-plane intersection initialized");
@@ -182,8 +184,10 @@ inline std::vector<Point2<long double>> halfplane_intersection(
       deque_intersections.push_back(intersection);
     }
     deque_planes.push_back(plane);
-    EDULCNI_VIS(edulcni::live::points(
-        "halfplane.intersections", deque_intersections));
+    EDULCNI_VIS(edulcni::live::halfplanes(
+        "halfplane.constraints", deque_planes));
+    EDULCNI_VIS(edulcni::live::points_overlay(
+        "halfplane.constraints", deque_intersections));
     EDULCNI_STEP("Half-plane intersection accepted a boundary");
   }
 
@@ -210,7 +214,10 @@ inline std::vector<Point2<long double>> halfplane_intersection(
   deque_intersections.push_back(closing_intersection);
   std::vector<Point2<long double>> result(deque_intersections.begin(),
                                           deque_intersections.end());
-  EDULCNI_VIS(edulcni::live::polygon("halfplane.result", result));
+  EDULCNI_VIS(edulcni::live::halfplanes(
+      "halfplane.constraints", deque_planes));
+  EDULCNI_VIS(edulcni::live::polygon_overlay(
+      "halfplane.constraints", result));
   EDULCNI_STEP("Half-plane intersection completed");
   return result;
 }
