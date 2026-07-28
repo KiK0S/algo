@@ -206,9 +206,11 @@ function testBaseTemplateVarModes() {
     path.join(repoRoot, "lib", "templates", "base_template.cpp.tmpl"),
     "utf8"
   );
+  const solveMarker = "inline void solve() {\n\tinit();";
+  assert.match(template, new RegExp(escapeRegExp(solveMarker)));
   const withSolveBody = (statement) => template.replace(
-    "inline void solve() {\n\tinit();",
-    `inline void solve() {\n\tinit();\n\t${statement}`
+    solveMarker,
+    `${solveMarker}\n\t${statement}`
   );
   const withIsolatedMain = (preamble, body) => [
     preamble,
@@ -223,18 +225,35 @@ function testBaseTemplateVarModes() {
     withIsolatedMain(
       [
         "#define EDULCNI_ENABLED 1",
-        "#define EDULCNI_VAR(...) ((void)(__VA_ARGS__))"
+        "#define EDULCNI_VAR(...) ((void)(__VA_ARGS__))",
+        "#define EDULCNI_PTR(name, object, initial) auto name = (initial) + 1"
       ].join("\n"),
-      withSolveBody("auto value = [] {}; var(value);")
+      withSolveBody(
+        "auto value = [] {}; var(value); "
+          + "EDULCNI_PTR(cursor, value, 0); assert(cursor == 1);"
+      )
     )
   );
   compileStandaloneSource(
     "base_template_var_debug",
-    withIsolatedMain("#define DEBUG 1", withSolveBody("var(n);"))
+    withIsolatedMain(
+      "#define DEBUG 1",
+      withSolveBody(
+        "var(n); EDULCNI_PTR(cursor, object_that_must_not_be_parsed, 2); "
+          + "assert(cursor == 2);"
+      )
+    )
   );
   compileStandaloneSource(
     "base_template_var_release",
-    withIsolatedMain("", withSolveBody("var(symbol_that_must_not_be_parsed);"))
+    withIsolatedMain(
+      "",
+      withSolveBody(
+        "var(symbol_that_must_not_be_parsed); "
+          + "EDULCNI_PTR(cursor, object_that_must_not_be_parsed, 3); "
+          + "++cursor; assert(cursor == 4);"
+      )
+    )
   );
 }
 

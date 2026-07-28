@@ -27,6 +27,9 @@ using namespace std;
 #ifndef EDULCNI_STEP
 #define EDULCNI_STEP(...) ((void)0)
 #endif
+#ifndef EDULCNI_PTR
+#define EDULCNI_PTR(name, object, initial) auto name = (initial)
+#endif
 
 typedef long long ll;
 typedef unsigned long long ull;
