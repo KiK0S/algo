@@ -4,6 +4,13 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 #include <ext/pb_ds/assoc_container.hpp>
 
 struct SplitMix64Hash {

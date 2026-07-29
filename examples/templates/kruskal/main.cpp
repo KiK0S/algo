@@ -4,6 +4,13 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
+
 /*
 Example:
 std::vector<KruskalEdge> edges;
@@ -15,13 +22,6 @@ for (int id = 0; id < m; ++id) {
 }
 auto mst = kruskal(n, edges);
 */
-#ifndef EDULCNI_VIS
-#define EDULCNI_VIS(...) ((void)0)
-#endif
-#ifndef EDULCNI_STEP
-#define EDULCNI_STEP(...) ((void)0)
-#endif
-
 struct KruskalEdge {
   int u, v;
   long long weight;

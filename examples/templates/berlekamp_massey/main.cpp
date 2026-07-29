@@ -11,7 +11,6 @@ using namespace std;
 #define EDULCNI_STEP(...) ((void)0)
 #endif
 
-
 template <typename T>
 inline std::vector<T> berlekamp_massey(const std::vector<T>& sequence) {
   const T zero = T(0);

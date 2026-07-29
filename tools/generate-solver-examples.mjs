@@ -34,6 +34,13 @@ function renderMain(spec) {
 
 #include <bits/stdc++.h>
 using namespace std;
+
+#ifndef EDULCNI_VIS
+#define EDULCNI_VIS(...) ((void)0)
+#endif
+#ifndef EDULCNI_STEP
+#define EDULCNI_STEP(...) ((void)0)
+#endif
 ${preamble ? `\n${preamble}\n` : ""}
 ${snippet}
 
