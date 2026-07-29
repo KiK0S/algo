@@ -64,6 +64,11 @@ function renderDetails(entry) {
     <p class="eyebrow">template</p>
     <h2 class="entry-path">${text(entry.path)}</h2>
     <p class="description">${text(entry.description ?? "No description yet.")}</p>
+    ${entry.example ? `
+      <a class="demo-link" href="${text(entry.example.demo)}">
+        Open C++ visualization
+      </a>
+    ` : ""}
     <div class="badges">
       <span class="badge primary">${entry.generator ? "interactive generator" : "static template"}</span>
       <span class="badge">${text(entry.insertMode)} insertion</span>

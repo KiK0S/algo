@@ -11,6 +11,7 @@ const catalogPath = path.join(repositoryRoot, "lib", "catalog", "snippets.json")
 const compiledCorePath = path.join(repositoryRoot, "extension", "out", "core.js");
 const outputRoot = path.join(repositoryRoot, "examples", "templates");
 const readmePath = path.join(repositoryRoot, "examples", "README.md");
+const manifestPath = path.join(repositoryRoot, "examples", "manifest.json");
 const checkOnly = process.argv.includes("--check");
 const require = createRequire(import.meta.url);
 
@@ -68,7 +69,7 @@ function renderReadme(specs, entriesByPath) {
     .map((spec) => {
       const entry = entriesByPath.get(spec.path);
       const requirement = spec.requirements?.join(", ") ?? "portable C++17";
-      return `| [${spec.name}](templates/${spec.name}/main.cpp) | ${entry.visualization.status} | ${requirement} | ${spec.description} |`;
+      return `| [${spec.name}](templates/${spec.name}/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/${spec.name}/) | ${entry.visualization.status} | ${requirement} | ${spec.description} |`;
     })
     .join("\n");
 
@@ -103,10 +104,28 @@ npm run test:examples:visualization
 PBDS examples require GNU GCC. On macOS, pass a Homebrew compiler explicitly,
 for example \`xeppelin edulcni main --compiler g++-15\`.
 
-| Solver | Visualization | Requirement | Scenario |
-| --- | --- | --- | --- |
+| Solver | Demo | Visualization | Requirement | Scenario |
+| --- | --- | --- | --- | --- |
 ${rows}
 `;
+}
+
+function renderManifest(specs, entriesByPath) {
+  return `${JSON.stringify({
+    version: 1,
+    examples: specs.map((spec) => {
+      const entry = entriesByPath.get(spec.path);
+      return {
+        name: spec.name,
+        path: spec.path,
+        description: spec.description,
+        visualization: entry.visualization.status,
+        requirements: spec.requirements ?? ["portable C++17"],
+        source: `templates/${spec.name}/main.cpp`,
+        demo: `https://kik0s.github.io/edulcni/examples/${spec.name}/`
+      };
+    })
+  }, null, 2)}\n`;
 }
 
 async function currentText(file) {
@@ -145,6 +164,11 @@ async function main() {
 
   const mismatches = [];
   await synchronize(readmePath, renderReadme(specs, entriesByPath), mismatches);
+  await synchronize(
+    manifestPath,
+    renderManifest(specs, entriesByPath),
+    mismatches
+  );
   for (const spec of specs) {
     const directory = path.join(outputRoot, spec.name);
     await synchronize(path.join(directory, "main.cpp"), renderMain(spec), mismatches);
