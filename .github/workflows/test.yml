@@ -25,3 +25,12 @@ jobs:
       - name: Render and compile template scenarios
         run: npm test
         working-directory: extension
+      - name: Export canonical library and runnable examples
+        uses: actions/upload-artifact@v6
+        with:
+          name: algo-library-${{ github.sha }}
+          path: |
+            lib/catalog/snippets.json
+            lib/templates
+            examples/manifest.json
+            examples/templates

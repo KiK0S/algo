@@ -7,6 +7,7 @@ const toolsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(toolsDirectory, "..");
 const templateRoot = path.join(repositoryRoot, "lib", "templates");
 const catalogPath = path.join(repositoryRoot, "lib", "catalog", "snippets.json");
+const exampleManifestPath = path.join(repositoryRoot, "examples", "manifest.json");
 const outputDirectory = path.join(repositoryRoot, "site");
 const outputPath = path.join(outputDirectory, "archive.json");
 const browserCorePath = path.join(outputDirectory, "core-browser.js");
@@ -122,10 +123,17 @@ async function buildBrowserCore() {
 }
 
 const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+const exampleManifest = JSON.parse(
+  await readFile(exampleManifestPath, "utf8")
+);
+const examplesByPath = new Map(
+  exampleManifest.examples.map((example) => [example.path, example])
+);
 const entries = [];
 for (const entry of catalog) {
   entries.push({
     ...entry,
+    example: examplesByPath.get(entry.path),
     applicationSpec: entry.generator ? applicationSpecs[entry.generator] : undefined,
     preview: await buildPreview(entry)
   });

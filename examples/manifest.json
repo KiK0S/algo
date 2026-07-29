@@ -1,0 +1,555 @@
+{
+  "version": 1,
+  "examples": [
+    {
+      "name": "aliens_trick",
+      "path": "/templates/aliens_trick",
+      "description": "Recover the optimum for an exact count through lambda search.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/aliens_trick/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/aliens_trick/"
+    },
+    {
+      "name": "berlekamp_massey",
+      "path": "/templates/berlekamp_massey",
+      "description": "Recover the Fibonacci recurrence and evaluate a later term.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/berlekamp_massey/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/berlekamp_massey/"
+    },
+    {
+      "name": "bfs",
+      "path": "/templates/bfs",
+      "description": "Explore an unweighted graph and restore a shortest path.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/bfs/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/bfs/"
+    },
+    {
+      "name": "convex_hull_trick",
+      "path": "/templates/convex_hull_trick",
+      "description": "Query minima from decreasing-slope lines at increasing x coordinates.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/convex_hull_trick/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/convex_hull_trick/"
+    },
+    {
+      "name": "digit_dp",
+      "path": "/templates/digit_dp",
+      "description": "Count values whose decimal digit sum is divisible by three.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/digit_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/digit_dp/"
+    },
+    {
+      "name": "dijkstra",
+      "path": "/templates/dijkstra",
+      "description": "Trace shortest paths in a small weighted graph.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/dijkstra/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/dijkstra/"
+    },
+    {
+      "name": "divide_conquer_dp",
+      "path": "/templates/divide_conquer_dp",
+      "description": "Optimize a partition DP with monotone split points.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/divide_conquer_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/divide_conquer_dp/"
+    },
+    {
+      "name": "dp_knapsack",
+      "path": "/templates/dp_knapsack",
+      "description": "Compare zero-one and unbounded one-dimensional knapsack.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/dp_knapsack/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/dp_knapsack/"
+    },
+    {
+      "name": "dsu",
+      "path": "/templates/dsu",
+      "description": "Merge components and inspect the resulting parent forest.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/dsu/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/dsu/"
+    },
+    {
+      "name": "fast_allocator",
+      "path": "/templates/fast_allocator",
+      "description": "Allocate standard containers from a resettable arena.",
+      "visualization": "diagnostic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/fast_allocator/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/fast_allocator/"
+    },
+    {
+      "name": "fenwick",
+      "path": "/templates/fenwick",
+      "description": "Accumulate point additions and query prefix and range sums.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/fenwick/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/fenwick/"
+    },
+    {
+      "name": "fft_ntt",
+      "path": "/templates/fft_ntt",
+      "description": "Multiply two integer polynomials with the NTT.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/fft_ntt/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/fft_ntt/"
+    },
+    {
+      "name": "fwt_convolution",
+      "path": "/templates/fwt_convolution",
+      "description": "Compute an XOR convolution with the Walsh-Hadamard transform.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/fwt_convolution/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/fwt_convolution/"
+    },
+    {
+      "name": "geometry",
+      "path": "/templates/geometry",
+      "description": "Intersect segments and construct a convex hull.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/geometry/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/geometry/"
+    },
+    {
+      "name": "gp_hash_table",
+      "path": "/templates/gp_hash_table",
+      "description": "Use hardened hashes with GNU PBDS hash tables.",
+      "visualization": "manual",
+      "requirements": [
+        "pbds"
+      ],
+      "source": "templates/gp_hash_table/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/gp_hash_table/"
+    },
+    {
+      "name": "halfplane_intersection",
+      "path": "/templates/halfplane_intersection",
+      "description": "Intersect four half-planes into a bounded polygon.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/halfplane_intersection/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/halfplane_intersection/"
+    },
+    {
+      "name": "hld",
+      "path": "/templates/hld",
+      "description": "Decompose tree paths into contiguous heavy-light segments.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/hld/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/hld/"
+    },
+    {
+      "name": "hungarian",
+      "path": "/templates/hungarian",
+      "description": "Compute a minimum-cost assignment in a square matrix.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/hungarian/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/hungarian/"
+    },
+    {
+      "name": "implicit_treap",
+      "path": "/templates/implicit_treap",
+      "description": "Edit and aggregate a sequence represented by an implicit treap.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/implicit_treap/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/implicit_treap/"
+    },
+    {
+      "name": "knuth_dp",
+      "path": "/templates/knuth_dp",
+      "description": "Optimize adjacent interval merging with Knuth's bounds.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/knuth_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/knuth_dp/"
+    },
+    {
+      "name": "kosaraju",
+      "path": "/templates/kosaraju",
+      "description": "Find strongly connected components and their condensation graph.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/kosaraju/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/kosaraju/"
+    },
+    {
+      "name": "kruskal",
+      "path": "/templates/kruskal",
+      "description": "Build a minimum spanning tree and recover its selected edges.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/kruskal/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/kruskal/"
+    },
+    {
+      "name": "kuhn",
+      "path": "/templates/kuhn",
+      "description": "Find a maximum matching in a bipartite graph.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/kuhn/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/kuhn/"
+    },
+    {
+      "name": "lca",
+      "path": "/templates/lca",
+      "description": "Build binary lifting tables and answer ancestor queries.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/lca/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/lca/"
+    },
+    {
+      "name": "li_chao_tree",
+      "path": "/templates/li_chao_tree",
+      "description": "Insert arbitrary lines and query their minimum on an integer domain.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/li_chao_tree/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/li_chao_tree/"
+    },
+    {
+      "name": "linear_sieve",
+      "path": "/templates/linear_sieve",
+      "description": "Generate primes and factor an integer with a linear sieve.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/linear_sieve/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/linear_sieve/"
+    },
+    {
+      "name": "lis",
+      "path": "/templates/lis",
+      "description": "Reconstruct strict and nondecreasing longest subsequences.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/lis/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/lis/"
+    },
+    {
+      "name": "maxflow_dinic",
+      "path": "/templates/maxflow_dinic",
+      "description": "Find the maximum flow through a small capacitated network.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/maxflow_dinic/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/maxflow_dinic/"
+    },
+    {
+      "name": "merge_sort_tree",
+      "path": "/templates/merge_sort_tree",
+      "description": "Count values in subarray ranges with a merge-sort tree.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/merge_sort_tree/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/merge_sort_tree/"
+    },
+    {
+      "name": "mincost_maxflow",
+      "path": "/templates/mincost_maxflow",
+      "description": "Send maximum flow while minimizing its total edge cost.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/mincost_maxflow/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/mincost_maxflow/"
+    },
+    {
+      "name": "mo",
+      "path": "/templates/mo",
+      "description": "Answer offline range-distinct queries with Mo's ordering.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/mo/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/mo/"
+    },
+    {
+      "name": "modint",
+      "path": "/templates/modint",
+      "description": "Perform modular arithmetic, exponentiation, and inversion.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/modint/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/modint/"
+    },
+    {
+      "name": "monotone_queue_dp",
+      "path": "/templates/monotone_queue_dp",
+      "description": "Optimize a sliding-window minimum transition with a deque.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/monotone_queue_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/monotone_queue_dp/"
+    },
+    {
+      "name": "monotonic_stack",
+      "path": "/templates/monotonic_stack",
+      "description": "Find the nearest smaller and greater elements on both sides.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/monotonic_stack/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/monotonic_stack/"
+    },
+    {
+      "name": "offline_dynamic_connectivity",
+      "path": "/templates/offline_dynamic_connectivity",
+      "description": "Answer connectivity queries across edge additions and removals.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/offline_dynamic_connectivity/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/offline_dynamic_connectivity/"
+    },
+    {
+      "name": "ordered_set",
+      "path": "/templates/ordered_set",
+      "description": "Query ranks and k-th elements with a GNU PBDS ordered set.",
+      "visualization": "automatic",
+      "requirements": [
+        "pbds"
+      ],
+      "source": "templates/ordered_set/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/ordered_set/"
+    },
+    {
+      "name": "poly_hash",
+      "path": "/templates/poly_hash",
+      "description": "Compare substrings and compose polynomial hashes.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/poly_hash/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/poly_hash/"
+    },
+    {
+      "name": "rollback_dsu",
+      "path": "/templates/rollback_dsu",
+      "description": "Merge components, then restore a previous DSU snapshot.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/rollback_dsu/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/rollback_dsu/"
+    },
+    {
+      "name": "segtree",
+      "path": "/templates/segtree",
+      "description": "Point updates and range sums in an iterative segment tree.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/segtree/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/segtree/"
+    },
+    {
+      "name": "segtree_beats",
+      "path": "/templates/segtree_beats",
+      "description": "Apply range chmin, chmax, and add updates with aggregate queries.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/segtree_beats/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/segtree_beats/"
+    },
+    {
+      "name": "set_utils",
+      "path": "/templates/set_utils",
+      "description": "Safely inspect neighboring values in ordered containers.",
+      "visualization": "snapshot",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/set_utils/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/set_utils/"
+    },
+    {
+      "name": "sos_dp",
+      "path": "/templates/sos_dp",
+      "description": "Apply subset zeta, Mobius, and superset zeta transforms.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/sos_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/sos_dp/"
+    },
+    {
+      "name": "sparse_table",
+      "path": "/templates/sparse_table",
+      "description": "Build a sparse table and answer immutable range minima.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/sparse_table/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/sparse_table/"
+    },
+    {
+      "name": "substring_dp",
+      "path": "/templates/substring_dp",
+      "description": "Partition a string into palindromes and solve palindromic subsequence DP.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/substring_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/substring_dp/"
+    },
+    {
+      "name": "suffix_array",
+      "path": "/templates/suffix_array",
+      "description": "Build the suffix array and LCP array for a short string.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/suffix_array/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/suffix_array/"
+    },
+    {
+      "name": "test_generators",
+      "path": "/templates/test_generators",
+      "description": "Generate deterministic arrays, permutations, masks, trees, and graphs.",
+      "visualization": "snapshot",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/test_generators/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/test_generators/"
+    },
+    {
+      "name": "toposort",
+      "path": "/templates/toposort",
+      "description": "Topologically order a directed acyclic graph.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/toposort/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/toposort/"
+    },
+    {
+      "name": "tree_hash",
+      "path": "/templates/tree_hash",
+      "description": "Compare canonical hashes of two isomorphic unrooted trees.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/tree_hash/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/tree_hash/"
+    },
+    {
+      "name": "turtle_dp",
+      "path": "/templates/turtle_dp",
+      "description": "Count right-down grid paths and reconstruct minimum and maximum paths.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/turtle_dp/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/turtle_dp/"
+    },
+    {
+      "name": "twosat",
+      "path": "/templates/twosat",
+      "description": "Solve a small implication system and inspect its assignment.",
+      "visualization": "automatic",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/twosat/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/twosat/"
+    }
+  ]
+}

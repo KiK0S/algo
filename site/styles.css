@@ -83,6 +83,22 @@ h2 {
   border-right: 1px solid var(--border);
 }
 
+.demo-link {
+  display: inline-flex;
+  margin: 0.25rem 0 1rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 0.6rem;
+  color: #7dd3fc;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.demo-link:hover {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: #38bdf8;
+}
+
 .sidebar {
   padding: 18px 14px;
   background: var(--surface);
