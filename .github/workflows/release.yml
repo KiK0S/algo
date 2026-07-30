@@ -1,0 +1,43 @@
+name: Release VS Code extension
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: extension
+      - name: Package extension
+        working-directory: extension
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${RELEASE_VERSION#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          test "$VERSION" = "$PACKAGE_VERSION"
+          npx --yes @vscode/vsce@3.9.2 package \
+            --out "../edulcni-${RELEASE_VERSION}.vsix"
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          "edulcni-${{ github.ref_name }}.vsix"
+          --verify-tag
+          --generate-notes
