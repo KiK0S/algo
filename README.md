@@ -3,6 +3,18 @@
 Competitive-programming templates exposed through the edulcni VS Code
 extension.
 
+## Install the VS Code extension
+
+Download the `.vsix` file from the
+[latest GitHub Release](https://github.com/KiK0S/algo/releases/latest), then run:
+
+```sh
+code --install-extension edulcni-v*.vsix
+```
+
+Release tags must match the version in `extension/package.json`. Pushing a
+`v*` tag packages that exact extension and attaches it to a GitHub Release.
+
 ## Source model
 
 lib/templates is the only source of insertable C++ content. There are no
