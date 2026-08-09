@@ -1,0 +1,27 @@
+struct ZeroOneBfsEdge {
+	int to;
+	int weight;
+};
+
+inline std::vector<int> zero_one_bfs(
+		const std::vector<std::vector<ZeroOneBfsEdge>>& graph, int source) {
+	const int inf = std::numeric_limits<int>::max();
+	std::vector<int> distance(graph.size(), inf);
+	if (source < 0 || source >= static_cast<int>(graph.size())) return distance;
+	std::deque<int> queue;
+	distance[source] = 0;
+	queue.push_front(source);
+	while (!queue.empty()) {
+		int vertex = queue.front();
+		queue.pop_front();
+		for (auto edge : graph[vertex]) {
+			if (edge.to < 0 || edge.to >= static_cast<int>(graph.size()) ||
+				(edge.weight != 0 && edge.weight != 1)) continue;
+			if (distance[vertex] + edge.weight >= distance[edge.to]) continue;
+			distance[edge.to] = distance[vertex] + edge.weight;
+			if (edge.weight == 0) queue.push_front(edge.to);
+			else queue.push_back(edge.to);
+		}
+	}
+	return distance;
+}

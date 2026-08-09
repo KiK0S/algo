@@ -1,0 +1,27 @@
+// Adapted from xeppelin-kactl GoldenSectionSearch.h (Ulf Lundstrom), CC0.
+template <typename Function>
+long double golden_section_minimum(
+		long double left, long double right, Function function,
+		long double epsilon = 1e-9L) {
+	const long double ratio = (std::sqrt(5.0L) - 1) / 2;
+	long double first = right - ratio * (right - left);
+	long double second = left + ratio * (right - left);
+	auto first_value = function(first);
+	auto second_value = function(second);
+	while (right - left > epsilon) {
+		if (first_value < second_value) {
+			right = second;
+			second = first;
+			second_value = first_value;
+			first = right - ratio * (right - left);
+			first_value = function(first);
+		} else {
+			left = first;
+			first = second;
+			first_value = second_value;
+			second = left + ratio * (right - left);
+			second_value = function(second);
+		}
+	}
+	return (left + right) / 2;
+}

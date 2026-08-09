@@ -1,0 +1,6 @@
+std::vector<std::tuple<{{fieldTypes}}>> {{name}}({{sizeExpression}});
+for (auto& [{{fieldNames}}] : {{name}}) {
+	read({{fieldNames}});
+{{normalization}}
+}
+EDULCNI_STEP("Tuple records read");

@@ -1,0 +1,39 @@
+struct EulerSubtrees {
+	std::vector<int> parent;
+	std::vector<int> depth;
+	std::vector<int> order;
+	std::vector<int> tin;
+	std::vector<int> tout;
+};
+
+inline EulerSubtrees flatten_subtrees(
+		const std::vector<std::vector<int>>& tree, int root = 0) {
+	const int n = static_cast<int>(tree.size());
+	EulerSubtrees result;
+	result.parent.assign(n, -1);
+	result.depth.assign(n, 0);
+	result.tin.assign(n, -1);
+	result.tout.assign(n, -1);
+	if (root < 0 || root >= n) return result;
+	std::vector<std::pair<int, int>> stack;
+	stack.push_back({root, 0});
+	while (!stack.empty()) {
+		int vertex = stack.back().first;
+		int& edge_index = stack.back().second;
+		if (edge_index == 0) {
+			result.tin[vertex] = static_cast<int>(result.order.size());
+			result.order.push_back(vertex);
+		}
+		if (edge_index == static_cast<int>(tree[vertex].size())) {
+			result.tout[vertex] = static_cast<int>(result.order.size());
+			stack.pop_back();
+			continue;
+		}
+		int to = tree[vertex][edge_index++];
+		if (to < 0 || to >= n || to == result.parent[vertex] || result.tin[to] != -1) continue;
+		result.parent[to] = vertex;
+		result.depth[to] = result.depth[vertex] + 1;
+		stack.push_back({to, 0});
+	}
+	return result;
+}

@@ -1,0 +1,39 @@
+// Adapted from xeppelin-kactl MillerRabin.h and ModMulLL.h, CC0.
+inline unsigned long long modular_multiply_64(
+		unsigned long long first, unsigned long long second,
+		unsigned long long modulus) {
+	return static_cast<unsigned long long>(
+		static_cast<unsigned __int128>(first) * second % modulus);
+}
+
+inline unsigned long long modular_power_64(
+		unsigned long long base, unsigned long long exponent,
+		unsigned long long modulus) {
+	unsigned long long result = 1 % modulus;
+	while (exponent > 0) {
+		if (exponent & 1ULL) result = modular_multiply_64(result, base, modulus);
+		base = modular_multiply_64(base, base, modulus);
+		exponent >>= 1;
+	}
+	return result;
+}
+
+inline bool is_prime_64(unsigned long long value) {
+	if (value < 2 || value % 6 % 4 != 1) return (value | 1ULL) == 3;
+	static constexpr unsigned long long witnesses[] = {
+		2, 325, 9375, 28178, 450775, 9780504, 1795265022
+	};
+	int shifts = __builtin_ctzll(value - 1);
+	unsigned long long odd_part = (value - 1) >> shifts;
+	for (unsigned long long witness : witnesses) {
+		if (witness % value == 0) continue;
+		unsigned long long current = modular_power_64(witness % value, odd_part, value);
+		int round = 0;
+		while (round < shifts && current != 1 && current != value - 1) {
+			current = modular_multiply_64(current, current, value);
+			++round;
+		}
+		if (current != value - 1 && round != 0) return false;
+	}
+	return true;
+}

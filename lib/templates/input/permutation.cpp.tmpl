@@ -1,0 +1,26 @@
+std::vector<int> {{name}}({{sizeExpression}});
+for (auto& value : {{name}}) {
+	read(value);
+{{#if oneBased}}
+	--value;
+{{/if}}
+}
+{{#if inverseMetadata}}
+std::vector<int> {{inverseName}}({{sizeExpression}});
+for (int i = 0; i < {{sizeExpression}}; ++i)
+	{{inverseName}}[{{name}}[i]] = i;
+{{/if}}
+{{#if cycleMetadata}}
+std::vector<int> {{cycleIdName}}({{sizeExpression}}, -1);
+std::vector<std::vector<int>> {{cyclesName}};
+for (int start = 0; start < {{sizeExpression}}; ++start) {
+	if ({{cycleIdName}}[start] != -1) continue;
+	{{cyclesName}}.push_back({});
+	for (int vertex = start; {{cycleIdName}}[vertex] == -1; vertex = {{name}}[vertex]) {
+		{{cycleIdName}}[vertex] = static_cast<int>({{cyclesName}}.size()) - 1;
+		{{cyclesName}}.back().push_back(vertex);
+	}
+}
+{{/if}}
+EDULCNI_VIS(edulcni::live::array("input.permutation", {{name}}));
+EDULCNI_STEP("Permutation read");

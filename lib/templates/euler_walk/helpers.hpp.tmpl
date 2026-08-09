@@ -1,0 +1,26 @@
+// Adapted from xeppelin-kactl EulerWalk.h (Simon Lindholm), CC0.
+inline std::vector<int> euler_walk(
+		const std::vector<std::vector<std::pair<int, int>>>& graph,
+		int edge_count, int source = 0) {
+	const int n = static_cast<int>(graph.size());
+	if (source < 0 || source >= n || edge_count < 0) return {};
+	std::vector<int> edge_index(n), used(edge_count), stack = {source}, walk;
+	while (!stack.empty()) {
+		int vertex = stack.back();
+		while (edge_index[vertex] < static_cast<int>(graph[vertex].size()) &&
+			(graph[vertex][edge_index[vertex]].second < 0 ||
+			 graph[vertex][edge_index[vertex]].second >= edge_count ||
+			 used[graph[vertex][edge_index[vertex]].second])) ++edge_index[vertex];
+		if (edge_index[vertex] == static_cast<int>(graph[vertex].size())) {
+			walk.push_back(vertex);
+			stack.pop_back();
+			continue;
+		}
+		auto [to, edge_id] = graph[vertex][edge_index[vertex]++];
+		used[edge_id] = 1;
+		stack.push_back(to);
+	}
+	if (static_cast<int>(walk.size()) != edge_count + 1) return {};
+	std::reverse(walk.begin(), walk.end());
+	return walk;
+}

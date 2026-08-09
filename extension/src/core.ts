@@ -451,19 +451,87 @@ export interface CompressUniqueOptions {
   rewriteSource: boolean;
 }
 
-export interface ReadVectorOptions {
+export type InputShape =
+  | "values"
+  | "vector"
+  | "matrix"
+  | "string_grid"
+  | "parallel_arrays"
+  | "tuple_records"
+  | "graph"
+  | "tree"
+  | "permutation"
+  | "functional_graph";
+export type InputIndexing = "zero_based" | "one_based";
+
+export interface InputField {
   name: string;
-  sizeExpression: string;
   valueType: string;
-  containerType: string;
+  isIndex?: boolean;
 }
 
-export interface ReadMatrixOptions {
-  name: string;
-  rowExpression: string;
-  columnExpression: string;
-  valueType: string;
-  stringGrid: boolean;
+export interface InputOptions {
+  shape: InputShape;
+  includeReadHelper: boolean;
+  existing?: boolean;
+  name?: string;
+  sizeExpression?: string;
+  rowExpression?: string;
+  columnExpression?: string;
+  valueType?: string;
+  fields?: InputField[];
+  indexing?: InputIndexing;
+  directed?: boolean;
+  weighted?: boolean;
+  weightType?: string;
+  edgeCountExpression?: string;
+  keepEdges?: boolean;
+  edgesName?: string;
+  degreeMetadata?: boolean;
+  indegreeName?: string;
+  outdegreeName?: string;
+  rootExpression?: string;
+  parentMetadata?: boolean;
+  depthMetadata?: boolean;
+  subtreeMetadata?: boolean;
+  eulerMetadata?: boolean;
+  parentName?: string;
+  depthName?: string;
+  orderName?: string;
+  subtreeName?: string;
+  tinName?: string;
+  toutName?: string;
+  inverseMetadata?: boolean;
+  cycleMetadata?: boolean;
+  inverseName?: string;
+  cycleIdName?: string;
+  cyclesName?: string;
+  cycleEntryName?: string;
+  distanceName?: string;
+  reverseMetadata?: boolean;
+  reverseName?: string;
+}
+
+export type ConnectedComponentsKind = "undirected" | "weak" | "strong";
+export type ConnectedComponentsSourceMode = "existing_graph" | "read_graph";
+
+export interface ConnectedComponentsNames {
+  resultStructName: string;
+  functionName: string;
+}
+
+export interface ConnectedComponentsOptions {
+  kind: ConnectedComponentsKind;
+  sourceMode: ConnectedComponentsSourceMode;
+  indexing: InputIndexing;
+  groups: boolean;
+  sizes: boolean;
+  graphName: string;
+  sizeExpression: string;
+  edgeCountExpression: string;
+  resultName: string;
+  includeReadHelper: boolean;
+  names: ConnectedComponentsNames;
 }
 
 export interface DsuNames {
@@ -2779,23 +2847,217 @@ export function renderCompressUnique(options: CompressUniqueOptions): string {
   });
 }
 
-export function renderReadVector(options: ReadVectorOptions): string {
-  return renderCodeTemplate("read_vector.cpp.tmpl", {
-    containerType: options.containerType,
-    name: options.name,
-    sizeExpression: options.sizeExpression
-  });
+function normalizedInputFields(options: InputOptions): InputField[] {
+  const fields = options.fields && options.fields.length > 0
+    ? options.fields
+    : [{ name: "value", valueType: options.valueType?.trim() || "int" }];
+  return fields.map((field, index) => ({
+    name: sanitizeIdentifier(field.name, `value${index + 1}`),
+    valueType: field.valueType.trim() || "int",
+    isIndex: Boolean(field.isIndex)
+  }));
 }
 
-export function renderReadMatrix(options: ReadMatrixOptions): string {
-  return renderCodeTemplate("read_matrix.cpp.tmpl", {
-    name: options.name,
-    rowExpression: options.rowExpression,
-    columnExpression: options.columnExpression,
-    valueType: options.valueType,
-    stringGrid: options.stringGrid,
-    valueMatrix: !options.stringGrid
+function inputNormalization(
+  fields: InputField[],
+  indexing: InputIndexing | undefined,
+  expression: (field: InputField, index: number) => string,
+  indentation = ""
+): string {
+  if (indexing !== "one_based") return "";
+  return fields
+    .map((field, index) => field.isIndex ? `${indentation}--${expression(field, index)};` : "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function renderInputRecipe(options: InputOptions): RenderedRecipe {
+  const shape = options.shape;
+  const name = sanitizeIdentifier(options.name ?? "a", "a");
+  const sizeExpression = options.sizeExpression?.trim() || "n";
+  const valueType = options.valueType?.trim() || "int";
+  const fields = normalizedInputFields(options);
+  let solve = "";
+
+  if (shape === "values") {
+    solve = renderCodeTemplate("input/values.cpp.tmpl", {
+      names: fields.map((field) => field.name).join(", "),
+      normalization: inputNormalization(fields, options.indexing, (field) => field.name)
+    });
+  } else if (shape === "vector") {
+    solve = renderCodeTemplate("input/vector.cpp.tmpl", {
+      existing: Boolean(options.existing), valueType, name, sizeExpression,
+      normalizeValues: options.indexing === "one_based" && Boolean(fields[0]?.isIndex)
+    });
+  } else if (shape === "matrix" || shape === "string_grid") {
+    solve = renderCodeTemplate("input/matrix.cpp.tmpl", {
+      existing: Boolean(options.existing),
+      stringGrid: shape === "string_grid",
+      valueType,
+      name,
+      rowExpression: options.rowExpression?.trim() || "n",
+      columnExpression: options.columnExpression?.trim() || "m",
+      normalizeValues:
+        shape === "matrix" && options.indexing === "one_based" && Boolean(fields[0]?.isIndex)
+    });
+  } else if (shape === "parallel_arrays") {
+    const declarations = options.existing
+      ? ""
+      : fields.map((field) =>
+          `std::vector<${field.valueType}> ${field.name}(${sizeExpression});`
+        ).join("\n");
+    solve = renderCodeTemplate("input/parallel_arrays.cpp.tmpl", {
+      declarations,
+      sizeExpression,
+      readExpressions: fields.map((field) => `${field.name}[i]`).join(", "),
+      normalization: inputNormalization(
+        fields, options.indexing, (field) => `${field.name}[i]`, "\t"
+      ),
+      visualization: fields.map((field) =>
+        `EDULCNI_VIS(edulcni::live::array("input.${field.name}", ${field.name}));`
+      ).join("\n")
+    });
+  } else if (shape === "tuple_records") {
+    solve = renderCodeTemplate("input/tuple_records.cpp.tmpl", {
+      name,
+      sizeExpression,
+      fieldTypes: fields.map((field) => field.valueType).join(", "),
+      fieldNames: fields.map((field) => field.name).join(", "),
+      normalization: inputNormalization(fields, options.indexing, (field) => field.name, "\t")
+    });
+  } else if (shape === "graph") {
+    const weighted = Boolean(options.weighted);
+    const weightType = options.weightType?.trim() || "long long";
+    const edgesName = sanitizeIdentifier(options.edgesName ?? "edges", "edges");
+    solve = renderCodeTemplate("input/graph.cpp.tmpl", {
+      name,
+      sizeExpression,
+      edgeCountExpression: options.edgeCountExpression?.trim() || "m",
+      directed: Boolean(options.directed),
+      weighted,
+      weightType,
+      oneBased: options.indexing === "one_based",
+      keepEdges: Boolean(options.keepEdges),
+      edgeVectorDeclaration: weighted
+        ? `std::vector<std::tuple<int, int, ${weightType}>> ${edgesName};\n${edgesName}.reserve(${options.edgeCountExpression?.trim() || "m"});`
+        : `std::vector<std::pair<int, int>> ${edgesName};\n${edgesName}.reserve(${options.edgeCountExpression?.trim() || "m"});`,
+      edgePush: weighted
+        ? `${edgesName}.emplace_back(from, to, weight);`
+        : `${edgesName}.emplace_back(from, to);`,
+      degreeMetadata: Boolean(options.degreeMetadata),
+      indegreeName: sanitizeIdentifier(options.indegreeName ?? "indegree", "indegree"),
+      outdegreeName: sanitizeIdentifier(options.outdegreeName ?? "outdegree", "outdegree")
+    });
+  } else if (shape === "tree") {
+    const eulerMetadata = Boolean(options.eulerMetadata);
+    const subtreeMetadata = Boolean(options.subtreeMetadata);
+    solve = renderCodeTemplate("input/tree.cpp.tmpl", {
+      name,
+      sizeExpression,
+      oneBased: options.indexing === "one_based",
+      rootedMetadata: Boolean(
+        options.parentMetadata || options.depthMetadata || subtreeMetadata || eulerMetadata
+      ),
+      depthMetadata: Boolean(options.depthMetadata),
+      subtreeMetadata,
+      needsSubtree: subtreeMetadata || eulerMetadata,
+      eulerMetadata,
+      rootExpression: options.rootExpression?.trim() || "0",
+      parentName: sanitizeIdentifier(options.parentName ?? "parent", "parent"),
+      depthName: sanitizeIdentifier(options.depthName ?? "depth", "depth"),
+      orderName: sanitizeIdentifier(options.orderName ?? "order", "order"),
+      subtreeName: sanitizeIdentifier(options.subtreeName ?? "subtree_size", "subtree_size"),
+      tinName: sanitizeIdentifier(options.tinName ?? "tin", "tin"),
+      toutName: sanitizeIdentifier(options.toutName ?? "tout", "tout")
+    });
+  } else if (shape === "permutation") {
+    solve = renderCodeTemplate("input/permutation.cpp.tmpl", {
+      name,
+      sizeExpression,
+      oneBased: options.indexing === "one_based",
+      inverseMetadata: Boolean(options.inverseMetadata),
+      cycleMetadata: Boolean(options.cycleMetadata),
+      inverseName: sanitizeIdentifier(options.inverseName ?? "inverse", "inverse"),
+      cycleIdName: sanitizeIdentifier(options.cycleIdName ?? "cycle_id", "cycle_id"),
+      cyclesName: sanitizeIdentifier(options.cyclesName ?? "cycles", "cycles")
+    });
+  } else {
+    const cycleMetadata = Boolean(options.cycleMetadata);
+    const indegreeName = sanitizeIdentifier(options.indegreeName ?? "indegree", "indegree");
+    solve = renderCodeTemplate("input/functional_graph.cpp.tmpl", {
+      name,
+      sizeExpression,
+      oneBased: options.indexing === "one_based",
+      reverseMetadata: Boolean(options.reverseMetadata),
+      reverseName: sanitizeIdentifier(options.reverseName ?? "reverse_graph", "reverse_graph"),
+      indegreeMetadata: Boolean(options.degreeMetadata),
+      indegreeName,
+      cycleMetadata,
+      cycleIndegreeName: "functional_indegree",
+      cycleIdName: sanitizeIdentifier(options.cycleIdName ?? "cycle_id", "cycle_id"),
+      cyclesName: sanitizeIdentifier(options.cyclesName ?? "cycles", "cycles"),
+      cycleEntryName: sanitizeIdentifier(options.cycleEntryName ?? "cycle_entry", "cycle_entry"),
+      distanceName: sanitizeIdentifier(options.distanceName ?? "distance_to_cycle", "distance_to_cycle")
+    });
+  }
+
+  const helpers = options.includeReadHelper
+    ? [renderCodeTemplate("input/read.hpp.tmpl", {})]
+    : [];
+  return createRenderedRecipe(
+    helpers.length === 0 ? { solve: [solve] } : { helpers, solve: [solve] },
+    options.includeReadHelper ? ["read"] : []
+  );
+}
+
+export function renderInput(options: InputOptions): string {
+  return composeRecipeSections(renderInputRecipe(options));
+}
+
+export function planConnectedComponentsNames(
+  analysis: CppAnalysis,
+  extraReserved: string[] = []
+): ConnectedComponentsNames {
+  const planner = createNamePlanner(analysis, extraReserved);
+  return {
+    resultStructName: planner.reserve("ConnectedComponentsResult", "ComponentsResult"),
+    functionName: planner.reserve("connected_components", "build_components")
+  };
+}
+
+export function renderConnectedComponentsRecipe(
+  options: ConnectedComponentsOptions
+): RenderedRecipe {
+  let helpers = renderCodeTemplate(
+    options.kind === "strong"
+      ? "connected_components/strong.hpp.tmpl"
+      : "connected_components/helpers.hpp.tmpl",
+    { groups: options.groups, sizes: options.sizes, weak: options.kind === "weak" }
+  );
+  helpers = applyIdentifierRenames(helpers, [
+    { from: "ConnectedComponentsResult", to: options.names.resultStructName },
+    { from: "connected_components", to: options.names.functionName }
+  ]);
+  const solve = renderCodeTemplate("connected_components/solve.cpp.tmpl", {
+    readGraph: options.sourceMode === "read_graph",
+    directed: options.kind !== "undirected",
+    oneBased: options.indexing === "one_based",
+    graphName: sanitizeIdentifier(options.graphName, "graph"),
+    sizeExpression: options.sizeExpression.trim() || "n",
+    edgeCountExpression: options.edgeCountExpression.trim() || "m",
+    resultName: sanitizeIdentifier(options.resultName, "components"),
+    functionName: options.names.functionName
   });
+  const helperChunks = options.includeReadHelper && options.sourceMode === "read_graph"
+    ? [renderCodeTemplate("input/read.hpp.tmpl", {}), helpers]
+    : [helpers];
+  const exports = [options.names.resultStructName, options.names.functionName];
+  if (options.includeReadHelper && options.sourceMode === "read_graph") exports.unshift("read");
+  return createRenderedRecipe({ helpers: helperChunks, solve: [solve] }, exports);
+}
+
+export function renderConnectedComponents(options: ConnectedComponentsOptions): string {
+  return composeRecipeSections(renderConnectedComponentsRecipe(options));
 }
 
 export function planDsuNames(
@@ -2936,7 +3198,17 @@ function renderLcaUsageSnippet(options: LcaOptions): string {
 
 export function renderLcaRecipe(options: LcaOptions): RenderedRecipe {
   const className = options.names.className;
-  let helpers = renderSolverTemplate("lca", [
+  const includeDist = options.application === "lca_dist" ||
+    options.application === "tree_query_loop" || options.usageMode === "query_loop";
+  const includeLca = includeDist || options.application !== "kth_ancestor";
+  const includeKth = includeLca || options.application === "kth_ancestor";
+  let helpers = renderCodeTemplate("lca/helpers.hpp.tmpl", {
+    includeKth,
+    includeLca,
+    includeDist
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "LcaBinaryLifting", to: className }
   ]);
   if (options.includeUsageComment) {
@@ -2990,7 +3262,14 @@ function renderHldUsageSnippet(options: HldOptions): string {
 
 export function renderHldRecipe(options: HldOptions): RenderedRecipe {
   const className = options.names.className;
-  let helpers = renderSolverTemplate("hld", [
+  const queryLoop = options.usageMode === "query_loop";
+  let helpers = renderCodeTemplate("hld/helpers.hpp.tmpl", {
+    includePath: queryLoop || options.application === "path_query",
+    includeSubtree: queryLoop || options.application === "subtree_query",
+    includeLca: queryLoop || options.application === "lca_distance"
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "HeavyLightDecomposition", to: className }
   ]);
   if (options.includeUsageComment) {
@@ -3064,7 +3343,19 @@ function renderBfsUsageSnippet(options: BfsOptions): string {
 
 export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("bfs", [
+  const usageMode = options.usageMode ?? "helper_only";
+  const includeAddEdge = false;
+  const includeSingle = options.application !== "multi_source" && usageMode !== "multi_source";
+  const includeRestorePath = options.application === "path_restore" || usageMode === "path_query";
+  const includeRestoreRoot = options.application === "multi_source" || usageMode === "multi_source";
+  let helpers = renderCodeTemplate("bfs/helpers.hpp.tmpl", {
+    includeAddEdge,
+    includeSingle,
+    includeRestorePath,
+    includeRestoreRoot
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "BfsResult", to: names.resultStructName },
     { from: "bfs_add_edge", to: names.addEdgeName },
     { from: "bfs_multi_source", to: names.multiSourceName },
@@ -3078,11 +3369,10 @@ export function renderBfsRecipe(options: BfsOptions): RenderedRecipe {
   const usage = renderBfsUsageSnippet(options);
   const exports = [
     names.resultStructName,
-    names.addEdgeName,
     names.multiSourceName,
-    names.singleSourceName,
-    names.restorePathName,
-    names.restorePathToRootName
+    ...(includeSingle ? [names.singleSourceName] : []),
+    ...(includeRestorePath ? [names.restorePathName] : []),
+    ...(includeRestoreRoot ? [names.restorePathToRootName] : [])
   ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
@@ -3156,7 +3446,17 @@ function renderDijkstraUsageSnippet(options: DijkstraOptions): string {
 
 export function renderDijkstraRecipe(options: DijkstraOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("dijkstra", [
+  const usageMode = options.usageMode ?? "helper_only";
+  const includeAddEdge = false;
+  const includeSingle = options.application !== "multi_source" && usageMode !== "multi_source";
+  const includeRestorePath = options.application === "path_restore" || usageMode === "path_query";
+  let helpers = renderCodeTemplate("dijkstra/helpers.hpp.tmpl", {
+    includeAddEdge,
+    includeSingle,
+    includeRestorePath
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "DijkstraEdge", to: names.edgeStructName },
     { from: "DijkstraResult", to: names.resultStructName },
     { from: "dijkstra_add_edge", to: names.addEdgeName },
@@ -3171,10 +3471,9 @@ export function renderDijkstraRecipe(options: DijkstraOptions): RenderedRecipe {
   const exports = [
     names.edgeStructName,
     names.resultStructName,
-    names.addEdgeName,
     names.multiSourceName,
-    names.singleSourceName,
-    names.restorePathName
+    ...(includeSingle ? [names.singleSourceName] : []),
+    ...(includeRestorePath ? [names.restorePathName] : [])
   ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
@@ -3230,7 +3529,17 @@ function renderToposortUsageSnippet(options: ToposortOptions): string {
 
 export function renderToposortRecipe(options: ToposortOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("toposort", [
+  const usageMode = options.usageMode ?? "helper_only";
+  const includeAddEdge = options.sourceMode === "read_edges" || usageMode === "read_graph";
+  const includeValidate = options.application === "order_validation" || usageMode === "validate_order";
+  const includeSort = usageMode !== "validate_order" && options.application !== "order_validation";
+  let helpers = renderCodeTemplate("toposort/helpers.hpp.tmpl", {
+    includeAddEdge,
+    includeSort,
+    includeValidate
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "toposort_add_edge", to: names.addEdgeName },
     { from: "topological_sort", to: names.sortName },
     { from: "is_topological_order", to: names.validateName }
@@ -3239,7 +3548,11 @@ export function renderToposortRecipe(options: ToposortOptions): RenderedRecipe {
     helpers = `${helpers.trim()}\n\n${renderToposortUsage(options)}\n`;
   }
   const usage = renderToposortUsageSnippet(options);
-  const exports = [names.addEdgeName, names.sortName, names.validateName];
+  const exports = [
+    ...(includeAddEdge ? [names.addEdgeName] : []),
+    ...(includeSort ? [names.sortName] : []),
+    ...(includeValidate ? [names.validateName] : [])
+  ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     exports
@@ -3293,7 +3606,14 @@ function renderKosarajuUsageSnippet(options: KosarajuOptions): string {
 
 export function renderKosarajuRecipe(options: KosarajuOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("kosaraju", [
+  const includeAddEdge = options.sourceMode === "read_edges" || options.usageMode === "read_graph";
+  const includeCondensation = options.application === "condensation_dag";
+  let helpers = renderCodeTemplate("kosaraju/helpers.hpp.tmpl", {
+    includeAddEdge,
+    includeCondensation
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "KosarajuResult", to: names.resultStructName },
     { from: "kosaraju_add_edge", to: names.addEdgeName },
     { from: "kosaraju_scc", to: names.sccName }
@@ -3302,7 +3622,11 @@ export function renderKosarajuRecipe(options: KosarajuOptions): RenderedRecipe {
     helpers = `${helpers.trim()}\n\n${renderKosarajuUsage(options)}\n`;
   }
   const usage = renderKosarajuUsageSnippet(options);
-  const exports = [names.resultStructName, names.addEdgeName, names.sccName];
+  const exports = [
+    names.resultStructName,
+    ...(includeAddEdge ? [names.addEdgeName] : []),
+    names.sccName
+  ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     exports
@@ -3454,7 +3778,29 @@ export function renderMonotonicStackRecipe(
   options: MonotonicStackOptions
 ): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("monotonic_stack", [
+  const includeAll = options.application === "all_nearest" ||
+    options.relation === "all" || options.direction === "both";
+  const includeLeftCore = includeAll || options.direction !== "right";
+  const includeRightCore = includeAll || options.direction === "right";
+  const includeSmallerLeft = includeAll ||
+    (options.relation !== "greater" && options.direction !== "right");
+  const includeSmallerRight = includeAll ||
+    (options.relation !== "greater" && options.direction === "right");
+  const includeGreaterLeft = includeAll ||
+    (options.relation === "greater" && options.direction !== "right");
+  const includeGreaterRight = includeAll ||
+    (options.relation === "greater" && options.direction === "right");
+  let helpers = renderCodeTemplate("monotonic_stack/helpers.hpp.tmpl", {
+    includeAll,
+    includeLeftCore,
+    includeRightCore,
+    includeSmallerLeft,
+    includeSmallerRight,
+    includeGreaterLeft,
+    includeGreaterRight
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "nearest_left_by", to: names.nearestLeftByName },
     { from: "nearest_right_by", to: names.nearestRightByName },
     { from: "nearest_smaller_left", to: names.nearestSmallerLeftName },
@@ -3469,14 +3815,13 @@ export function renderMonotonicStackRecipe(
   }
   const usage = renderMonotonicStackUsageSnippet(options);
   const exports = [
-    names.nearestLeftByName,
-    names.nearestRightByName,
-    names.nearestSmallerLeftName,
-    names.nearestSmallerRightName,
-    names.nearestGreaterLeftName,
-    names.nearestGreaterRightName,
-    names.nearestStructName,
-    names.nearestAllName
+    ...(includeLeftCore ? [names.nearestLeftByName] : []),
+    ...(includeRightCore ? [names.nearestRightByName] : []),
+    ...(includeSmallerLeft ? [names.nearestSmallerLeftName] : []),
+    ...(includeSmallerRight ? [names.nearestSmallerRightName] : []),
+    ...(includeGreaterLeft ? [names.nearestGreaterLeftName] : []),
+    ...(includeGreaterRight ? [names.nearestGreaterRightName] : []),
+    ...(includeAll ? [names.nearestStructName, names.nearestAllName] : [])
   ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
@@ -3656,7 +4001,16 @@ function renderSetUtilsUsageSnippet(options: SetUtilsOptions): string {
 
 export function renderSetUtilsRecipe(options: SetUtilsOptions): RenderedRecipe {
   const names = options.names;
-  let helpers = renderSolverTemplate("set_utils", [
+  const target = options.target ?? "value";
+  const lookup = options.lookup ?? "next";
+  let helpers = renderCodeTemplate("set_utils/helpers.hpp.tmpl", {
+    includeNextIterator: target === "iterator" && lookup === "next",
+    includePrevIterator: target === "iterator" && lookup === "prev",
+    includeNextValue: target === "value" && lookup === "next",
+    includePrevValue: target === "value" && lookup === "prev"
+  });
+  helpers = renderHeaderContent(helpers, true);
+  helpers = applyIdentifierRenames(helpers, [
     { from: "next_iterator", to: names.nextIteratorName },
     { from: "prev_iterator", to: names.prevIteratorName },
     { from: "next_value", to: names.nextValueName },
@@ -3666,12 +4020,7 @@ export function renderSetUtilsRecipe(options: SetUtilsOptions): RenderedRecipe {
     helpers = `${helpers.trim()}\n\n${renderSetUtilsUsage(options)}\n`;
   }
   const usage = renderSetUtilsUsageSnippet(options);
-  const exports = [
-    names.nextIteratorName,
-    names.prevIteratorName,
-    names.nextValueName,
-    names.prevValueName
-  ];
+  const exports = [setUtilsCallName(options)];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
     exports
@@ -3743,25 +4092,6 @@ export function renderFastAllocator(options: FastAllocatorOptions): string {
   return composeRecipeSections(renderFastAllocatorRecipe(options));
 }
 
-const GEOMETRY_EXPORTS = [
-  "geometry_sign",
-  "geometry_sign_eps",
-  "Point2",
-  "to_point_long_double",
-  "cross_ld",
-  "orientation",
-  "on_segment",
-  "segments_intersect",
-  "line_intersection",
-  "point_equal_eps",
-  "segment_intersection",
-  "vector_halfplane",
-  "angle_less",
-  "sort_vectors_by_angle",
-  "sort_points_by_angle",
-  "convex_hull"
-];
-
 function renderGeometryUsage(options: GeometryOptions): string {
   const usageMode = options.usageMode ?? "helper_only";
   if (usageMode === "helper_only") return "";
@@ -3778,14 +4108,40 @@ function renderGeometryUsage(options: GeometryOptions): string {
 }
 
 export function renderGeometryRecipe(options: GeometryOptions): RenderedRecipe {
-  let helpers = renderSolverTemplate("geometry");
+  const application = options.application ?? "orientation";
+  const segmentFeature = application === "segment_intersection" ||
+    options.usageMode === "segment_intersection";
+  const angleFeature = application === "angle_sort" || options.usageMode === "sort_points";
+  const hullFeature = application === "convex_hull" || options.usageMode === "build_hull";
+  const orientationFeature = application === "orientation" ||
+    options.usageMode === "orientation_check" || segmentFeature;
+  let helpers = renderCodeTemplate("geometry/helpers.hpp.tmpl", {
+    angleFeature,
+    hullFeature,
+    orientationFeature,
+    segmentFeature
+  });
+  helpers = renderHeaderContent(helpers, true);
   if (options.includeUsageComment) {
     helpers = `${helpers.trim()}\n\n${renderCodeTemplate("geometry/usage-comment.cpp.tmpl", {})}`;
   }
   const usage = renderGeometryUsage(options);
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
-    GEOMETRY_EXPORTS
+    [
+      "geometry_sign_eps",
+      "Point2",
+      "cross_ld",
+      ...(orientationFeature ? ["geometry_sign", "orientation"] : []),
+      ...(segmentFeature ? [
+        "to_point_long_double", "on_segment", "segments_intersect",
+        "line_intersection", "point_equal_eps", "segment_intersection"
+      ] : []),
+      ...(angleFeature ? [
+        "vector_halfplane", "angle_less", "sort_vectors_by_angle", "sort_points_by_angle"
+      ] : []),
+      ...(hullFeature ? ["convex_hull"] : [])
+    ]
   );
 }
 
@@ -3907,6 +4263,105 @@ export function renderLinearSieve(options: LinearSieveOptions): string {
 export function defaultFenwickOperations(): FenwickOperation[] {
   return ["sum", "xor", "max", "min"];
 }
+
+export const INPUT_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/templates/input",
+  title: "Structured input",
+  scenarios: [
+    { id: "values", label: "values", description: "Read one or more scalar values." },
+    { id: "vector", label: "vector", description: "Read a flat sequence." },
+    { id: "matrix", label: "matrix", description: "Read a rectangular matrix." },
+    { id: "string_grid", label: "string grid", description: "Read one string per grid row." },
+    { id: "parallel_arrays", label: "parallel arrays", description: "Read record fields into separate arrays." },
+    { id: "tuple_records", label: "tuple records", description: "Read records into a vector of tuples." },
+    { id: "graph", label: "graph", description: "Read an edge list into adjacency lists." },
+    { id: "tree", label: "tree", description: "Read tree edges and optional rooted metadata." },
+    { id: "permutation", label: "permutation", description: "Read a permutation and optional metadata." },
+    { id: "functional_graph", label: "functional graph", description: "Read one successor per vertex." }
+  ],
+  decisions: [
+    {
+      id: "shape",
+      label: "Input shape",
+      choices: [
+        { id: "values", label: "values" },
+        { id: "vector", label: "vector" },
+        { id: "matrix", label: "matrix" },
+        { id: "string_grid", label: "string grid" },
+        { id: "parallel_arrays", label: "parallel arrays" },
+        { id: "tuple_records", label: "tuple records" },
+        { id: "graph", label: "graph" },
+        { id: "tree", label: "tree" },
+        { id: "permutation", label: "permutation" },
+        { id: "functional_graph", label: "functional graph" }
+      ]
+    },
+    {
+      id: "indexing",
+      label: "Index values in input",
+      choices: [
+        { id: "zero_based", label: "already 0-based" },
+        { id: "one_based", label: "1-based; normalize to 0-based" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "name", label: "Result name", kind: "answer", required: false },
+    { id: "sizeExpression", label: "Size expression", kind: "size", required: false },
+    { id: "valueType", label: "Value type", kind: "value", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "read() helper", section: "helpers" },
+    { id: "solve", label: "Input declarations and reads", section: "solve" }
+  ]
+};
+
+export const CONNECTED_COMPONENTS_APPLICATION_SPEC: SolverApplicationSpec = {
+  path: "/templates/connected_components",
+  title: "Connected components",
+  scenarios: [
+    { id: "undirected", label: "undirected components", description: "Components of an undirected graph." },
+    { id: "weak", label: "weak components", description: "Components after ignoring directed edge orientation." },
+    { id: "strong", label: "strong components", description: "Strongly connected components of a directed graph." }
+  ],
+  decisions: [
+    {
+      id: "kind",
+      label: "Component relation",
+      choices: [
+        { id: "undirected", label: "undirected" },
+        { id: "weak", label: "weakly connected" },
+        { id: "strong", label: "strongly connected" }
+      ]
+    },
+    {
+      id: "sourceMode",
+      label: "Graph source",
+      choices: [
+        { id: "existing_graph", label: "existing adjacency list" },
+        { id: "read_graph", label: "generate edge input" }
+      ]
+    },
+    {
+      id: "indexing",
+      label: "Edge endpoints in input",
+      choices: [
+        { id: "zero_based", label: "already 0-based" },
+        { id: "one_based", label: "1-based; normalize to 0-based" }
+      ]
+    }
+  ],
+  bindings: [
+    { id: "graphName", label: "Graph name", kind: "source_vector", required: true },
+    { id: "sizeExpression", label: "Vertex count", kind: "size", required: true },
+    { id: "edgeCountExpression", label: "Edge count", kind: "query_count", required: false },
+    { id: "resultName", label: "Result name", kind: "answer", required: false }
+  ],
+  usageSections: [
+    { id: "helpers", label: "Component traversal", section: "helpers" },
+    { id: "solve", label: "Graph input and call", section: "solve" }
+  ]
+};
 
 export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
   path: "/templates/segtree",

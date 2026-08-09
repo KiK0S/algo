@@ -19,6 +19,8 @@
 #include <complex>
 #include <random>
 #include <functional>
+#include <iterator>
+#include <type_traits>
 using namespace std;
 
 #ifndef EDULCNI_VIS
@@ -33,6 +35,59 @@ using namespace std;
 
 typedef long long ll;
 typedef unsigned long long ull;
+
+template<class... Ts>
+istream& read(Ts&... values) {
+	return (cin >> ... >> values);
+}
+
+template <typename T>
+struct is_text_output
+	: bool_constant<
+		is_same_v<decay_t<T>, string> ||
+		is_same_v<decay_t<T>, char*> ||
+		is_same_v<decay_t<T>, const char*>> {};
+
+template <typename T, typename = void>
+struct is_output_range : false_type {};
+
+template <typename T>
+struct is_output_range<T, void_t<
+	decltype(begin(declval<const T&>())),
+	decltype(end(declval<const T&>()))>>
+	: bool_constant<!is_text_output<T>::value> {};
+
+template <typename T, typename = void>
+struct is_output_iterator : false_type {};
+
+template <typename T>
+struct is_output_iterator<T, void_t<
+	typename iterator_traits<T>::iterator_category>> : true_type {};
+
+template <typename T>
+void write_value(ostream& output, bool& first, const T& value) {
+	if constexpr (is_output_range<T>::value) {
+		for (const auto& element : value) write_value(output, first, element);
+	} else {
+		output << (first ? "" : " ") << value;
+		first = false;
+	}
+}
+
+template <typename... Values>
+ostream& write(const Values&... values) {
+	bool first = true;
+	(write_value(cout, first, values), ...);
+	return cout << '\n';
+}
+
+template <typename Iterator,
+		enable_if_t<is_output_iterator<Iterator>::value, int> = 0>
+ostream& write(Iterator first, Iterator last) {
+	bool first_value = true;
+	for (; first != last; ++first) write_value(cout, first_value, *first);
+	return cout << '\n';
+}
 
 const int E2 = 100; // edulcni:const
 const int E3 = 1000; // edulcni:const
@@ -110,7 +165,7 @@ signed main() {
 	cin.tie(0);
 	cout.tie(0);
 	// int _t; cin >> _t;
-	while (cin >> n)
+	while (read(n))
 		solve();
 	return 0;
 }

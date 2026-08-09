@@ -1,0 +1,11 @@
+{{#unless existing}}
+std::vector<{{valueType}}> {{name}}({{sizeExpression}});
+{{/unless}}
+for (auto& value : {{name}}) {
+	read(value);
+{{#if normalizeValues}}
+	--value;
+{{/if}}
+}
+EDULCNI_VIS(edulcni::live::array("input.vector", {{name}}));
+EDULCNI_STEP("Vector read");

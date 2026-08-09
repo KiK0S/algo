@@ -1,0 +1,18 @@
+// Adapted from xeppelin-kactl ConstantIntervals.h (Simon Lindholm), CC0.
+template <typename Function, typename Callback>
+void constant_intervals(int first, int last, Function function, Callback callback) {
+	if (last <= first) return;
+	int interval_start = first;
+	auto value = function(first);
+	while (interval_start < last) {
+		int low = interval_start + 1, high = last;
+		while (low < high) {
+			int middle = low + (high - low) / 2;
+			if (function(middle) == value) low = middle + 1;
+			else high = middle;
+		}
+		callback(interval_start, low, value);
+		interval_start = low;
+		if (interval_start < last) value = function(interval_start);
+	}
+}

@@ -1,0 +1,15 @@
+// Adapted from xeppelin-kactl IntPerm.h (Simon Lindholm), CC0.
+inline unsigned long long small_permutation_rank(const std::vector<int>& permutation) {
+	const int n = static_cast<int>(permutation.size());
+	if (n > 63) return 0;
+	unsigned long long used = 0, rank = 0;
+	for (int index = 0; index < n; ++index) {
+		int value = permutation[index];
+		if (value < 0 || value >= n || ((used >> value) & 1ULL)) return 0;
+		unsigned long long smaller_unused = static_cast<unsigned long long>(value) -
+			__builtin_popcountll(used & ((1ULL << value) - 1));
+		rank = rank * (n - index) + smaller_unused;
+		used |= 1ULL << value;
+	}
+	return rank;
+}

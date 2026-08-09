@@ -1,0 +1,18 @@
+// Adapted from xeppelin-kactl FloydWarshall.h (Simon Lindholm), CC0.
+template <typename T>
+void floyd_warshall(std::vector<std::vector<T>>& distance, T infinity) {
+	const int n = static_cast<int>(distance.size());
+	for (int vertex = 0; vertex < n; ++vertex)
+		distance[vertex][vertex] = std::min(distance[vertex][vertex], T());
+	for (int middle = 0; middle < n; ++middle)
+		for (int from = 0; from < n; ++from)
+			for (int to = 0; to < n; ++to) {
+				if (distance[from][middle] == infinity || distance[middle][to] == infinity) continue;
+				distance[from][to] = std::min(
+					distance[from][to], distance[from][middle] + distance[middle][to]);
+			}
+	for (int middle = 0; middle < n; ++middle) if (distance[middle][middle] < T())
+		for (int from = 0; from < n; ++from) if (distance[from][middle] != infinity)
+			for (int to = 0; to < n; ++to) if (distance[middle][to] != infinity)
+				distance[from][to] = -infinity;
+}

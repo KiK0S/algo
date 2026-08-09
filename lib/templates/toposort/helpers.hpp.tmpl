@@ -1,3 +1,4 @@
+{{#if includeAddEdge}}
 inline void toposort_add_edge(std::vector<std::vector<int>>& graph, int from, int to) {
   const int n = static_cast<int>(graph.size());
   if (from < 0 || from >= n || to < 0 || to >= n) {
@@ -7,7 +8,9 @@ inline void toposort_add_edge(std::vector<std::vector<int>>& graph, int from, in
   EDULCNI_VIS(edulcni::live::graph("toposort.graph", graph));
   EDULCNI_STEP("Topological-sort edge added");
 }
+{{/if}}
 
+{{#if includeSort}}
 inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& graph,
                                          bool* is_dag = nullptr) {
   const int n = static_cast<int>(graph.size());
@@ -63,7 +66,9 @@ inline std::vector<int> topological_sort(const std::vector<std::vector<int>>& gr
   EDULCNI_STEP("Topological sort completed");
   return order;
 }
+{{/if}}
 
+{{#if includeValidate}}
 inline bool is_topological_order(const std::vector<std::vector<int>>& graph,
                                  const std::vector<int>& order) {
   const int n = static_cast<int>(graph.size());
@@ -92,3 +97,4 @@ inline bool is_topological_order(const std::vector<std::vector<int>>& graph,
   }
   return true;
 }
+{{/if}}

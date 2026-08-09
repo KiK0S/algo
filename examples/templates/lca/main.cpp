@@ -83,6 +83,7 @@ class LcaBinaryLifting {
 
   int component(int v) const { return ok(v) ? component_[v] : -1; }
 
+
   int kth_ancestor(int v, int k) const {
     if (!ok(v) || k < 0) {
       return -1;
@@ -97,6 +98,8 @@ class LcaBinaryLifting {
     }
     return v;
   }
+
+
 
   int lca(int a, int b) const {
     if (!ok(a) || !ok(b) || component_[a] != component_[b]) {
@@ -118,10 +121,8 @@ class LcaBinaryLifting {
     return parent_[a];
   }
 
-  int dist(int a, int b) const {
-    const int c = lca(a, b);
-    return c == -1 ? -1 : depth_[a] + depth_[b] - 2 * depth_[c];
-  }
+
+
 
  private:
   int n_;

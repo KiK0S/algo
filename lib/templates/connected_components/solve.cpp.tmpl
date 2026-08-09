@@ -1,0 +1,15 @@
+{{#if readGraph}}
+std::vector<std::vector<int>> {{graphName}}({{sizeExpression}});
+for (int edge_index = 0; edge_index < {{edgeCountExpression}}; ++edge_index) {
+	int from, to;
+	read(from, to);
+{{#if oneBased}}
+	--from, --to;
+{{/if}}
+	{{graphName}}[from].push_back(to);
+{{#unless directed}}
+	{{graphName}}[to].push_back(from);
+{{/unless}}
+}
+{{/if}}
+auto {{resultName}} = {{functionName}}({{graphName}});

@@ -1,0 +1,28 @@
+template <typename T>
+class DifferenceArray {
+public:
+	explicit DifferenceArray(int size = 0) : difference_(size + 1, T()) {}
+
+	void add(int left, int right, const T& delta) {
+		left = std::max(left, 0);
+		right = std::min(right, size());
+		if (left >= right) return;
+		difference_[left] += delta;
+		difference_[right] -= delta;
+	}
+
+	int size() const { return static_cast<int>(difference_.size()) - 1; }
+
+	std::vector<T> materialize() const {
+		std::vector<T> values(size());
+		T current{};
+		for (int i = 0; i < size(); ++i) {
+			current += difference_[i];
+			values[i] = current;
+		}
+		return values;
+	}
+
+private:
+	std::vector<T> difference_;
+};

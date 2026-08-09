@@ -171,7 +171,8 @@ function compilerHasHeader(header) {
     {
       input: `#include <${header}>\n`,
       encoding: "utf8",
-      stdio: ["pipe", "ignore", "ignore"]
+      stdio: ["pipe", "ignore", "ignore"],
+      timeout: 5000
     }
   );
   return result.status === 0;
@@ -262,6 +263,19 @@ function testBaseTemplateVarModes() {
         "var(symbol_that_must_not_be_parsed); "
           + "EDULCNI_PTR(cursor, object_that_must_not_be_parsed, 3); "
           + "++cursor; assert(cursor == 4);"
+      )
+    )
+  );
+  compileStandaloneSource(
+    "base_template_write_text",
+    withIsolatedMain(
+      "",
+      withSolveBody(
+        "ostringstream output; auto* previous = cout.rdbuf(output.rdbuf()); "
+          + "string text = \"hello\"; const char* suffix = \"world\"; "
+          + "write(text, suffix, \"literal\", vector<int>{1, 2}); "
+          + "cout.rdbuf(previous); "
+          + "assert(output.str() == \"hello world literal 1 2\\n\");"
       )
     )
   );
@@ -1260,11 +1274,8 @@ function testRecipeMetadata() {
   const bfsRecipe = core.renderBfsRecipe(bfsOptions({ includeUsageComment: false }));
   assert.deepEqual(bfsRecipe.exports, [
     "BfsResult",
-    "bfs_add_edge",
     "bfs_multi_source",
-    "bfs",
-    "bfs_restore_path",
-    "bfs_restore_path_to_root"
+    "bfs"
   ]);
   assert.deepEqual(Object.keys(bfsRecipe.sections), ["helpers"]);
 
@@ -1289,10 +1300,8 @@ function testRecipeMetadata() {
   assert.deepEqual(dijkstraRecipe.exports, [
     "DijkstraEdge",
     "DijkstraResult",
-    "dijkstra_add_edge",
     "dijkstra_multi_source",
-    "dijkstra",
-    "dijkstra_restore_path"
+    "dijkstra"
   ]);
   assert.deepEqual(Object.keys(dijkstraRecipe.sections), ["helpers"]);
 
@@ -1316,11 +1325,7 @@ function testRecipeMetadata() {
   const toposortRecipe = core.renderToposortRecipe(
     toposortOptions({ includeUsageComment: false })
   );
-  assert.deepEqual(toposortRecipe.exports, [
-    "toposort_add_edge",
-    "topological_sort",
-    "is_topological_order"
-  ]);
+  assert.deepEqual(toposortRecipe.exports, ["topological_sort"]);
   assert.deepEqual(Object.keys(toposortRecipe.sections), ["helpers"]);
 
   const toposortUsageRecipe = core.renderToposortRecipe(
@@ -1342,7 +1347,6 @@ function testRecipeMetadata() {
   );
   assert.deepEqual(kosarajuRecipe.exports, [
     "KosarajuResult",
-    "kosaraju_add_edge",
     "kosaraju_scc"
   ]);
   assert.deepEqual(Object.keys(kosarajuRecipe.sections), ["helpers"]);
@@ -1394,13 +1398,7 @@ function testRecipeMetadata() {
   );
   assert.deepEqual(monotonicRecipe.exports, [
     "nearest_left_by",
-    "nearest_right_by",
-    "nearest_smaller_left",
-    "nearest_smaller_right",
-    "nearest_greater_left",
-    "nearest_greater_right",
-    "NearestIndices",
-    "nearest_all"
+    "nearest_smaller_left"
   ]);
   assert.deepEqual(Object.keys(monotonicRecipe.sections), ["helpers"]);
 
@@ -1464,12 +1462,7 @@ function testRecipeMetadata() {
   const setUtilsRecipe = core.renderSetUtilsRecipe(
     setUtilsOptions({ includeUsageComment: false })
   );
-  assert.deepEqual(setUtilsRecipe.exports, [
-    "next_iterator",
-    "prev_iterator",
-    "next_value",
-    "prev_value"
-  ]);
+  assert.deepEqual(setUtilsRecipe.exports, ["next_value"]);
   assert.deepEqual(Object.keys(setUtilsRecipe.sections), ["helpers"]);
 
   const setUtilsUsageRecipe = core.renderSetUtilsRecipe(
@@ -1514,7 +1507,8 @@ function testRecipeMetadata() {
     geometryOptions({ includeUsageComment: false })
   );
   assert.equal(geometryRecipe.exports.includes("Point2"), true);
-  assert.equal(geometryRecipe.exports.includes("convex_hull"), true);
+  assert.equal(geometryRecipe.exports.includes("orientation"), true);
+  assert.equal(geometryRecipe.exports.includes("convex_hull"), false);
   assert.deepEqual(Object.keys(geometryRecipe.sections), ["helpers"]);
 
   const geometryHullRecipe = core.renderGeometryRecipe(
@@ -1885,7 +1879,7 @@ function testBundledCatalogGuardrails() {
   const granularities = new Set(["summary", "operations", "verbose"]);
   const seenPaths = new Set();
 
-  assert.equal(entries.length, 85);
+  assert.equal(entries.length, 112);
   for (const entry of entries) {
     assert.match(entry.path, /^\/templates\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
@@ -2032,9 +2026,7 @@ function testVisualizationSourceCoverage() {
     ["segtree_beats", path.join(templateRoot, "segment_tree_beats")],
     ["compress_unique", path.join(templateRoot, "compress_unique.cpp.tmpl")],
     ["factorial_precalc", path.join(templateRoot, "factorial_precalc.cpp.tmpl")],
-    ["powers_precalc", path.join(templateRoot, "powers_precalc.cpp.tmpl")],
-    ["read_vector", path.join(templateRoot, "read_vector.cpp.tmpl")],
-    ["read_matrix", path.join(templateRoot, "read_matrix.cpp.tmpl")]
+    ["powers_precalc", path.join(templateRoot, "powers_precalc.cpp.tmpl")]
   ]);
 
   for (const templateFile of collectFiles(templateRoot, new Set([".tmpl"]))) {
@@ -2083,7 +2075,8 @@ function testManifestCommands() {
     "edulcni.insertHeader",
     "edulcni.segtree",
     "edulcni.compressUnique",
-    "edulcni.readVector",
+    "edulcni.input",
+    "edulcni.connectedComponents",
     "edulcni.berlekampMassey",
     "edulcni.sparseTable"
   ]) {
@@ -2344,17 +2337,6 @@ function testGeneratedSegmentTreeBeatsCompiles() {
 }
 
 function testInteractiveBrickRenderers() {
-  const terseReadVector = core.renderReadVector({
-    name: "a",
-    sizeExpression: "n",
-    valueType: "int",
-    containerType: "vi"
-  });
-  assert.match(terseReadVector, /vi a\(n\);/);
-  assert.match(terseReadVector, /for \(auto& x : a\) cin >> x;/);
-  assert.match(terseReadVector, /EDULCNI_VIS\(edulcni::live::array/);
-  assert.match(terseReadVector, /EDULCNI_STEP\("Vector read"\)/);
-
   const compressed = core.renderCompressUnique({
     sourceName: "a",
     valuesName: "vals",
@@ -2364,23 +2346,6 @@ function testInteractiveBrickRenderers() {
   assert.match(compressed, /auto vals = a;/);
   assert.match(compressed, /for \(auto& x : a\) x = get_id\(x\);/);
 
-  const readVector = core.renderReadVector({
-    name: "a",
-    sizeExpression: "n",
-    valueType: "int",
-    containerType: "vector<int>"
-  });
-  compileSource("brick_read_vector_generated", [
-    "#include <bits/stdc++.h>",
-    "using namespace std;",
-    "int main() {",
-    "  istringstream input(\"4 8 15 16\");",
-    "  cin.rdbuf(input.rdbuf());",
-    "  int n = 4;",
-    readVector,
-    "  assert((a == vector<int>{4, 8, 15, 16}));",
-    "}"
-  ].join("\n"));
   compileSource("brick_compress_unique_generated", [
     "#include <bits/stdc++.h>",
     "using namespace std;",
@@ -2390,6 +2355,313 @@ function testInteractiveBrickRenderers() {
     compressed,
     "  assert((vals == vector<int>{2, 5, 7}));",
     "  assert((a == vector<int>{2, 0, 2, 1}));",
+    "}"
+  ].join("\n"));
+}
+
+function compileInputRecipe(name, inputText, declarations, options, assertions) {
+  const recipe = core.renderInputRecipe({ includeReadHelper: true, ...options });
+  compileSource(`input_${name}_generated`, [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    ...(recipe.sections.helpers ?? []),
+    "int main() {",
+    `  istringstream input(${JSON.stringify(inputText)});`,
+    "  cin.rdbuf(input.rdbuf());",
+    declarations,
+    ...(recipe.sections.solve ?? []),
+    assertions,
+    "}"
+  ].join("\n"));
+}
+
+function testInputRenderer() {
+  compileInputRecipe(
+    "values",
+    "4 9",
+    "int vertex = 0, value = 0;",
+    {
+      shape: "values",
+      indexing: "one_based",
+      fields: [
+        { name: "vertex", valueType: "int", isIndex: true },
+        { name: "value", valueType: "int", isIndex: false }
+      ]
+    },
+    "assert(vertex == 3 && value == 9);"
+  );
+  compileInputRecipe(
+    "vector",
+    "1 3 2",
+    "int n = 3;",
+    {
+      shape: "vector",
+      name: "vertices",
+      sizeExpression: "n",
+      valueType: "int",
+      indexing: "one_based",
+      fields: [{ name: "value", valueType: "int", isIndex: true }]
+    },
+    "assert((vertices == vector<int>{0, 2, 1}));"
+  );
+  compileInputRecipe(
+    "matrix",
+    "1 2 3 4",
+    "int n = 2, m = 2;",
+    {
+      shape: "matrix",
+      name: "a",
+      rowExpression: "n",
+      columnExpression: "m",
+      valueType: "int"
+    },
+    "assert(a[0][1] == 2 && a[1][0] == 3);"
+  );
+  compileInputRecipe(
+    "string_grid",
+    "ab cd",
+    "int n = 2;",
+    { shape: "string_grid", name: "grid", rowExpression: "n" },
+    "assert((grid == vector<string>{\"ab\", \"cd\"}));"
+  );
+  compileInputRecipe(
+    "parallel_arrays",
+    "1 10 3 20",
+    "int n = 2;",
+    {
+      shape: "parallel_arrays",
+      sizeExpression: "n",
+      indexing: "one_based",
+      fields: [
+        { name: "vertex", valueType: "int", isIndex: true },
+        { name: "cost", valueType: "long long", isIndex: false }
+      ]
+    },
+    "assert((vertex == vector<int>{0, 2}) && (cost == vector<long long>{10, 20}));"
+  );
+  compileInputRecipe(
+    "tuple_records",
+    "1 2 7 2 3 8",
+    "int m = 2;",
+    {
+      shape: "tuple_records",
+      name: "edges",
+      sizeExpression: "m",
+      indexing: "one_based",
+      fields: [
+        { name: "from", valueType: "int", isIndex: true },
+        { name: "to", valueType: "int", isIndex: true },
+        { name: "weight", valueType: "long long", isIndex: false }
+      ]
+    },
+    "assert(edges[0] == make_tuple(0, 1, 7LL) && edges[1] == make_tuple(1, 2, 8LL));"
+  );
+  compileInputRecipe(
+    "graph",
+    "1 2 7 2 3 8",
+    "int n = 3, m = 2;",
+    {
+      shape: "graph",
+      name: "graph",
+      sizeExpression: "n",
+      edgeCountExpression: "m",
+      indexing: "one_based",
+      weighted: true,
+      weightType: "long long",
+      keepEdges: true,
+      degreeMetadata: true
+    },
+    "assert(graph[1].size() == 2 && get<2>(edges[1]) == 8 && indegree[1] == 2);"
+  );
+  compileInputRecipe(
+    "tree",
+    "1 2 1 3 3 4",
+    "int n = 4;",
+    {
+      shape: "tree",
+      name: "tree",
+      sizeExpression: "n",
+      indexing: "one_based",
+      parentMetadata: true,
+      depthMetadata: true,
+      subtreeMetadata: true,
+      eulerMetadata: true,
+      rootExpression: "0"
+    },
+    "assert(parent[3] == 2 && depth[3] == 2 && subtree_size[0] == 4 && tout[2] - tin[2] == 2);"
+  );
+  compileInputRecipe(
+    "permutation",
+    "2 1 4 3",
+    "int n = 4;",
+    {
+      shape: "permutation",
+      name: "permutation",
+      sizeExpression: "n",
+      indexing: "one_based",
+      inverseMetadata: true,
+      cycleMetadata: true
+    },
+    "assert(inverse[0] == 1 && cycles.size() == 2 && cycle_id[0] == cycle_id[1]);"
+  );
+  compileInputRecipe(
+    "functional_graph",
+    "2 3 2 3",
+    "int n = 4;",
+    {
+      shape: "functional_graph",
+      name: "next_vertex",
+      sizeExpression: "n",
+      indexing: "one_based",
+      reverseMetadata: true,
+      degreeMetadata: true,
+      cycleMetadata: true
+    },
+    "assert(cycles.size() == 1 && cycles[0].size() == 2 && distance_to_cycle[0] == 1 && cycle_entry[3] == 2);"
+  );
+}
+
+function compileConnectedComponentsRecipe(name, options, declarations, assertions) {
+  const recipe = core.renderConnectedComponentsRecipe({
+    sourceMode: "existing_graph",
+    indexing: "zero_based",
+    graphName: "graph",
+    sizeExpression: "n",
+    edgeCountExpression: "m",
+    resultName: "components",
+    includeReadHelper: false,
+    names: core.planConnectedComponentsNames(core.analyzeCppDocument("")),
+    ...options
+  });
+  compileSource(`connected_components_${name}_generated`, [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    ...(recipe.sections.helpers ?? []),
+    "int main() {",
+    declarations,
+    ...(recipe.sections.solve ?? []),
+    assertions,
+    "}"
+  ].join("\n"));
+}
+
+function testConnectedComponentsRenderer() {
+  compileConnectedComponentsRecipe(
+    "undirected",
+    { kind: "undirected", groups: true, sizes: true },
+    "vector<vector<int>> graph = {{1}, {0}, {3}, {2}, {}};",
+    "assert(components.count == 3 && components.sizes == vector<int>({2, 2, 1}));"
+  );
+  compileConnectedComponentsRecipe(
+    "weak",
+    { kind: "weak", groups: false, sizes: true },
+    "vector<vector<int>> graph = {{1}, {}, {1}, {}};",
+    "assert(components.count == 2 && components.component_of[0] == components.component_of[2]);"
+  );
+  compileConnectedComponentsRecipe(
+    "strong",
+    { kind: "strong", groups: true, sizes: true },
+    "vector<vector<int>> graph = {{1}, {0, 2}, {3}, {2}};",
+    "assert(components.count == 2 && components.component_of[0] == components.component_of[1] && components.component_of[1] != components.component_of[2]);"
+  );
+}
+
+function testImportedRecipesCompile() {
+  const templates = [
+    "output/helpers.hpp.tmpl",
+    "first_true/helpers.hpp.tmpl",
+    "difference_array/helpers.hpp.tmpl",
+    "sliding_window_max/helpers.hpp.tmpl",
+    "zero_one_bfs/helpers.hpp.tmpl",
+    "bridges/helpers.hpp.tmpl",
+    "tree_diameter/helpers.hpp.tmpl",
+    "euler_subtrees/helpers.hpp.tmpl",
+    "z_function/helpers.hpp.tmpl",
+    "manacher/helpers.hpp.tmpl",
+    "xor_basis/helpers.hpp.tmpl",
+    "bitset_knapsack/helpers.hpp.tmpl",
+    "persistent_segment_tree/helpers.hpp.tmpl",
+    "binary_trie/helpers.hpp.tmpl",
+    "crt/helpers.hpp.tmpl",
+    "primality_64/helpers.hpp.tmpl",
+    "factorization_64/helpers.hpp.tmpl",
+    "minimum_rotation/helpers.hpp.tmpl",
+    "euler_walk/helpers.hpp.tmpl",
+    "floyd_warshall/helpers.hpp.tmpl",
+    "hopcroft_karp/helpers.hpp.tmpl",
+    "global_min_cut/helpers.hpp.tmpl",
+    "geometry_point/helpers.hpp.tmpl",
+    "closest_pair/helpers.hpp.tmpl",
+    "minimum_enclosing_circle/helpers.hpp.tmpl",
+    "circle_intersection/helpers.hpp.tmpl",
+    "polygon_cut/helpers.hpp.tmpl",
+    "hull_diameter/helpers.hpp.tmpl",
+    "solve_linear/helpers.hpp.tmpl",
+    "determinant/helpers.hpp.tmpl",
+    "golden_section/helpers.hpp.tmpl",
+    "interval_set/helpers.hpp.tmpl",
+    "constant_intervals/helpers.hpp.tmpl",
+    "permutation_rank/helpers.hpp.tmpl"
+  ];
+  const helpers = templates.map((template) => core.renderStaticTemplate(template).content);
+  compileSource("focused_imports_generated", [
+    "#include <bits/stdc++.h>",
+    "using namespace std;",
+    ...helpers,
+    "int main() {",
+    "  assert(first_true(0, 20, [](int x) { return x * x >= 30; }) == 6);",
+    "  DifferenceArray<int> differences(5); differences.add(1, 4, 3);",
+    "  assert((differences.materialize() == vector<int>{0, 3, 3, 3, 0}));",
+    "  assert((sliding_window_maximum(vector<int>{1, 3, 2, 5}, 2) == vector<int>{3, 3, 5}));",
+    "  vector<vector<ZeroOneBfsEdge>> binary_graph = {{{1, 1}, {2, 0}}, {{2, 0}}, {}};",
+    "  assert((zero_one_bfs(binary_graph, 0) == vector<int>{0, 1, 0}));",
+    "  vector<vector<pair<int, int>>> bridge_graph(4);",
+    "  auto bridge_edge = [&](int a, int b, int id) { bridge_graph[a].push_back({b, id}); bridge_graph[b].push_back({a, id}); };",
+    "  bridge_edge(0, 1, 0); bridge_edge(1, 2, 1); bridge_edge(2, 0, 2); bridge_edge(2, 3, 3);",
+    "  auto bridge_result = find_bridges_and_articulations(bridge_graph);",
+    "  assert(bridge_result.edge_ids == vector<int>{3} && bridge_result.articulation_vertices == vector<int>{2});",
+    "  vector<vector<int>> tree = {{1}, {0, 2, 3}, {1}, {1}};",
+    "  auto diameter = tree_diameter(tree); assert(diameter.length == 2 && diameter.path.size() == 3);",
+    "  auto flattened = flatten_subtrees(tree, 0); assert(flattened.tout[1] - flattened.tin[1] == 3);",
+    "  assert((z_function(string(\"aaaa\")) == vector<int>{4, 3, 2, 1}));",
+    "  auto radii = manacher(string(\"abba\")); assert(radii.even[2] == 2);",
+    "  XorBasis<> basis; basis.insert(3); basis.insert(5); assert(basis.rank() == 2 && basis.maximize() == 6);",
+    "  auto reachable = bitset_knapsack<12>(vector<int>{3, 5}); assert(reachable[8] && !reachable[7]);",
+    "  PersistentSegmentTree<int> persistent(5); int root0 = persistent.empty_root();",
+    "  int root1 = persistent.add(root0, 2, 1); int root2 = persistent.add(root1, 4, 1);",
+    "  assert(persistent.query(root2, 0, 5) == 2 && persistent.kth_between(root0, root2, 2) == 4);",
+    "  BinaryTrie<8> trie; trie.insert(10); trie.insert(7); assert(trie.minimum_xor(8) == 2); trie.erase(10); assert(trie.size() == 1);",
+    "  auto crt = chinese_remainder(2, 6, 5, 9); assert(crt.compatible && crt.residue == 14 && crt.modulus == 18);",
+    "  assert(!chinese_remainder(0, 2, 1, 4).compatible);",
+    "  assert(is_prime_64(2305843009213693951ULL) && !is_prime_64(221));",
+    "  assert((factorize_64(8051) == vector<unsigned long long>{83, 97}));",
+    "  assert(minimum_rotation(string(\"baca\")) == 3);",
+    "  vector<vector<pair<int, int>>> euler_graph = {{{1, 0}, {2, 2}}, {{0, 0}, {2, 1}}, {{1, 1}, {0, 2}}};",
+    "  assert(euler_walk(euler_graph, 3, 0).size() == 4);",
+    "  const long long infinity = (1LL << 60); vector<vector<long long>> distances = {{0, 3, infinity}, {infinity, 0, 4}, {infinity, infinity, 0}};",
+    "  floyd_warshall(distances, infinity); assert(distances[0][2] == 7);",
+    "  auto matching = hopcroft_karp(vector<vector<int>>{{0, 1}, {0}, {1, 2}}, 3); assert(matching.matching_size == 3);",
+    "  auto cut = global_min_cut(vector<vector<int>>{{0, 1, 1}, {1, 0, 1}, {1, 1, 0}}); assert(cut.first == 2);",
+    "  vector<GeometryPoint<long long>> integer_points = {{0, 0}, {4, 0}, {1, 1}}; assert(closest_pair(integer_points).distance_squared == 2);",
+    "  vector<GeometryPoint<long double>> circle_points = {{0, 0}, {2, 0}, {1, 1}};",
+    "  auto enclosing = minimum_enclosing_circle(circle_points); assert(enclosing.radius > 0.99L && enclosing.radius < 1.01L);",
+    "  assert(circle_intersections({0, 0}, 1, {2, 0}, 1).size() == 1);",
+    "  vector<GeometryPoint<long double>> square = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};",
+    "  assert(cut_polygon_left(square, {0, -2}, {0, 2}).size() == 4);",
+    "  vector<GeometryPoint<long long>> hull = {{0, 0}, {2, 0}, {2, 1}, {0, 1}};",
+    "  auto farthest = convex_hull_diameter(hull); assert((farthest[0] - farthest[1]).norm_squared() == 5);",
+    "  auto linear = solve_linear_system({{1, 1}, {1, -1}}, {4, 2});",
+    "  assert(linear.rank == 2 && fabsl(linear.solution[0] - 3) < 1e-9L && fabsl(linear.solution[1] - 1) < 1e-9L);",
+    "  assert(fabsl(determinant({{1, 2}, {3, 4}}) + 2) < 1e-9L);",
+    "  auto minimum = golden_section_minimum(-5, 5, [](long double x) { return (x - 2) * (x - 2); }); assert(fabsl(minimum - 2) < 1e-6L);",
+    "  IntervalSet<int> intervals; intervals.add(1, 5); intervals.remove(2, 4);",
+    "  assert((intervals.intervals() == set<pair<int, int>>{{1, 2}, {4, 5}}));",
+    "  vector<tuple<int, int, int>> runs; vector<int> monotone = {1, 1, 2, 2, 2, 4};",
+    "  constant_intervals(0, (int)monotone.size(), [&](int i) { return monotone[i]; }, [&](int l, int r, int value) { runs.emplace_back(l, r, value); });",
+    "  assert((runs == vector<tuple<int, int, int>>{{0, 2, 1}, {2, 5, 2}, {5, 6, 4}}));",
+    "  assert(small_permutation_rank({2, 0, 1}) == 4);",
+    "  ostringstream output; auto* old_output = cout.rdbuf(output.rdbuf()); string word = \"alpha\"; const char* text = \"beta\"; write(word, text, \"gamma\", vector<int>{1, 2}); cout.rdbuf(old_output);",
+    "  assert(output.str() == \"alpha beta gamma 1 2\\n\");",
     "}"
   ].join("\n"));
 }
@@ -2545,7 +2817,10 @@ function testRollbackDsuRenderer() {
 }
 
 function testLcaRenderer() {
-  const defaultContent = core.renderLca(lcaOptions({ includeUsageComment: false }));
+  const defaultContent = core.renderLca(lcaOptions({
+    application: "lca_dist",
+    includeUsageComment: false
+  }));
   assert.match(defaultContent, /class LcaBinaryLifting/);
   assert.match(defaultContent, /explicit LcaBinaryLifting\(int n = 0\)/);
   assert.match(defaultContent, /void add_edge\(int a, int b, bool undirected = true\)/);
@@ -2582,13 +2857,16 @@ function testLcaRenderer() {
 }
 
 function testHldRenderer() {
-  const defaultContent = core.renderHld(hldOptions({ includeUsageComment: false }));
+  const defaultContent = core.renderHld(hldOptions({
+    application: "path_query",
+    includeUsageComment: false
+  }));
   assert.match(defaultContent, /class HeavyLightDecomposition/);
   assert.match(defaultContent, /explicit HeavyLightDecomposition\(int n = 0\)/);
   assert.match(defaultContent, /void add_edge\(int u, int v, bool undirected = true\)/);
-  assert.match(defaultContent, /std::pair<int, int> subtree_segment\(int v\) const/);
   assert.match(defaultContent, /std::vector<std::pair<int, int>> path_segments/);
-  assert.match(defaultContent, /int lca\(int a, int b\) const/);
+  assert.doesNotMatch(defaultContent, /subtree_segment\(int v\) const/);
+  assert.doesNotMatch(defaultContent, /int lca\(int a, int b\) const/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderHld(hldOptions());
@@ -2622,10 +2900,10 @@ function testHldRenderer() {
 function testBfsRenderer() {
   const defaultContent = core.renderBfs(bfsOptions({ includeUsageComment: false }));
   assert.match(defaultContent, /struct BfsResult/);
-  assert.match(defaultContent, /inline void bfs_add_edge/);
   assert.match(defaultContent, /inline BfsResult bfs_multi_source/);
   assert.match(defaultContent, /inline BfsResult bfs\(/);
-  assert.match(defaultContent, /inline std::vector<int> bfs_restore_path/);
+  assert.doesNotMatch(defaultContent, /inline void bfs_add_edge/);
+  assert.doesNotMatch(defaultContent, /inline std::vector<int> bfs_restore_path/);
   assert.match(defaultContent, /std::queue<int> q/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
@@ -2647,7 +2925,8 @@ function testBfsRenderer() {
 
   const collisionOptions = bfsOptions({
     existingText:
-      "struct BfsResult {}; int bfs_add_edge; int bfs_multi_source; int bfs; int bfs_restore_path; int bfs_restore_path_to_root;"
+      "struct BfsResult {}; int bfs_add_edge; int bfs_multi_source; int bfs; int bfs_restore_path; int bfs_restore_path_to_root;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.resultStructName, "BfsSearchResult");
   assert.equal(collisionOptions.names.addEdgeName, "bfs_graph_add_edge");
@@ -2660,11 +2939,10 @@ function testBfsRenderer() {
   );
   const collisionContent = core.renderBfs(collisionOptions);
   assert.match(collisionContent, /struct BfsSearchResult/);
-  assert.match(collisionContent, /inline void bfs_graph_add_edge/);
   assert.match(collisionContent, /inline BfsSearchResult bfs_from_sources/);
   assert.match(collisionContent, /inline BfsSearchResult run_bfs/);
-  assert.match(collisionContent, /bfs_get_path/);
-  assert.match(collisionContent, /bfs_get_path_to_root/);
+  assert.doesNotMatch(collisionContent, /bfs_graph_add_edge/);
+  assert.doesNotMatch(collisionContent, /bfs_get_path/);
 }
 
 function testDijkstraRenderer() {
@@ -2674,10 +2952,10 @@ function testDijkstraRenderer() {
   assert.match(defaultContent, /template <typename Weight>/);
   assert.match(defaultContent, /struct DijkstraEdge/);
   assert.match(defaultContent, /struct DijkstraResult/);
-  assert.match(defaultContent, /void dijkstra_add_edge/);
   assert.match(defaultContent, /DijkstraResult<Weight> dijkstra_multi_source/);
   assert.match(defaultContent, /DijkstraResult<Weight> dijkstra\(/);
-  assert.match(defaultContent, /std::vector<int> dijkstra_restore_path/);
+  assert.doesNotMatch(defaultContent, /void dijkstra_add_edge/);
+  assert.doesNotMatch(defaultContent, /std::vector<int> dijkstra_restore_path/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderDijkstra(dijkstraOptions());
@@ -2699,7 +2977,8 @@ function testDijkstraRenderer() {
 
   const collisionOptions = dijkstraOptions({
     existingText:
-      "struct DijkstraEdge {}; struct DijkstraResult {}; int dijkstra_add_edge; int dijkstra_multi_source; int dijkstra; int dijkstra_restore_path;"
+      "struct DijkstraEdge {}; struct DijkstraResult {}; int dijkstra_add_edge; int dijkstra_multi_source; int dijkstra; int dijkstra_restore_path;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.edgeStructName, "ShortestPathEdge");
   assert.equal(collisionOptions.names.resultStructName, "ShortestPathResult");
@@ -2710,19 +2989,19 @@ function testDijkstraRenderer() {
   const collisionContent = core.renderDijkstra(collisionOptions);
   assert.match(collisionContent, /struct ShortestPathEdge/);
   assert.match(collisionContent, /struct ShortestPathResult/);
-  assert.match(collisionContent, /void weighted_graph_add_edge/);
   assert.match(collisionContent, /ShortestPathResult<Weight> dijkstra_from_sources/);
   assert.match(collisionContent, /ShortestPathResult<Weight> run_dijkstra/);
-  assert.match(collisionContent, /dijkstra_get_path/);
+  assert.doesNotMatch(collisionContent, /weighted_graph_add_edge/);
+  assert.doesNotMatch(collisionContent, /dijkstra_get_path/);
 }
 
 function testToposortRenderer() {
   const defaultContent = core.renderToposort(
     toposortOptions({ includeUsageComment: false })
   );
-  assert.match(defaultContent, /inline void toposort_add_edge/);
   assert.match(defaultContent, /inline std::vector<int> topological_sort/);
-  assert.match(defaultContent, /inline bool is_topological_order/);
+  assert.doesNotMatch(defaultContent, /inline void toposort_add_edge/);
+  assert.doesNotMatch(defaultContent, /inline bool is_topological_order/);
   assert.match(defaultContent, /std::queue<int> q/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
@@ -2744,15 +3023,16 @@ function testToposortRenderer() {
   assert.match(validateRecipe.sections.solve[0], /bool valid = is_topological_order\(graph, order\);/);
 
   const collisionOptions = toposortOptions({
-    existingText: "int toposort_add_edge; int topological_sort; int is_topological_order;"
+    existingText: "int toposort_add_edge; int topological_sort; int is_topological_order;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.addEdgeName, "dag_add_edge");
   assert.equal(collisionOptions.names.sortName, "dag_topological_sort");
   assert.equal(collisionOptions.names.validateName, "dag_is_topological_order");
   const collisionContent = core.renderToposort(collisionOptions);
-  assert.match(collisionContent, /inline void dag_add_edge/);
   assert.match(collisionContent, /inline std::vector<int> dag_topological_sort/);
-  assert.match(collisionContent, /inline bool dag_is_topological_order/);
+  assert.doesNotMatch(collisionContent, /inline void dag_add_edge/);
+  assert.doesNotMatch(collisionContent, /inline bool dag_is_topological_order/);
 }
 
 function testKosarajuRenderer() {
@@ -2760,9 +3040,9 @@ function testKosarajuRenderer() {
     kosarajuOptions({ includeUsageComment: false })
   );
   assert.match(defaultContent, /struct KosarajuResult/);
-  assert.match(defaultContent, /inline void kosaraju_add_edge/);
   assert.match(defaultContent, /inline KosarajuResult kosaraju_scc/);
-  assert.match(defaultContent, /condensation_dag/);
+  assert.doesNotMatch(defaultContent, /inline void kosaraju_add_edge/);
+  assert.doesNotMatch(defaultContent, /condensation_dag/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderKosaraju(kosarajuOptions());
@@ -2780,15 +3060,16 @@ function testKosarajuRenderer() {
   assert.match(printRecipe.sections.solve[0], /for \(const auto& component : scc\.components\)/);
 
   const collisionOptions = kosarajuOptions({
-    existingText: "struct KosarajuResult {}; int kosaraju_add_edge; int kosaraju_scc;"
+    existingText: "struct KosarajuResult {}; int kosaraju_add_edge; int kosaraju_scc;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.resultStructName, "SccResult");
   assert.equal(collisionOptions.names.addEdgeName, "scc_add_edge");
   assert.equal(collisionOptions.names.sccName, "build_scc");
   const collisionContent = core.renderKosaraju(collisionOptions);
   assert.match(collisionContent, /struct SccResult/);
-  assert.match(collisionContent, /inline void scc_add_edge/);
   assert.match(collisionContent, /inline SccResult build_scc/);
+  assert.doesNotMatch(collisionContent, /inline void scc_add_edge/);
 }
 
 function testMoRenderer() {
@@ -2838,10 +3119,9 @@ function testMonotonicStackRenderer() {
     monotonicStackOptions({ includeUsageComment: false })
   );
   assert.match(defaultContent, /inline std::vector<int> nearest_left_by/);
-  assert.match(defaultContent, /inline std::vector<int> nearest_right_by/);
   assert.match(defaultContent, /inline std::vector<int> nearest_smaller_left/);
-  assert.match(defaultContent, /struct NearestIndices/);
-  assert.match(defaultContent, /inline NearestIndices<T> nearest_all/);
+  assert.doesNotMatch(defaultContent, /inline std::vector<int> nearest_right_by/);
+  assert.doesNotMatch(defaultContent, /struct NearestIndices/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderMonotonicStack(monotonicStackOptions());
@@ -2862,7 +3142,8 @@ function testMonotonicStackRenderer() {
 
   const collisionOptions = monotonicStackOptions({
     existingText:
-      "int nearest_left_by; int nearest_right_by; int nearest_smaller_left; int nearest_smaller_right; int nearest_greater_left; int nearest_greater_right; struct NearestIndices {}; int nearest_all;"
+      "int nearest_left_by; int nearest_right_by; int nearest_smaller_left; int nearest_smaller_right; int nearest_greater_left; int nearest_greater_right; struct NearestIndices {}; int nearest_all;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.nearestLeftByName, "nearest_left_with");
   assert.equal(collisionOptions.names.nearestRightByName, "nearest_right_with");
@@ -2874,9 +3155,9 @@ function testMonotonicStackRenderer() {
   assert.equal(collisionOptions.names.nearestAllName, "build_nearest_indices");
   const collisionContent = core.renderMonotonicStack(collisionOptions);
   assert.match(collisionContent, /nearest_left_with/);
-  assert.match(collisionContent, /nearest_right_with/);
-  assert.match(collisionContent, /struct AllNearestIndices/);
-  assert.match(collisionContent, /build_nearest_indices/);
+  assert.match(collisionContent, /nearest_less_left/);
+  assert.doesNotMatch(collisionContent, /nearest_right_with/);
+  assert.doesNotMatch(collisionContent, /struct AllNearestIndices/);
 }
 
 function testGpHashTableRenderer() {
@@ -2955,10 +3236,9 @@ function testSetUtilsRenderer() {
   const defaultContent = core.renderSetUtils(
     setUtilsOptions({ includeUsageComment: false })
   );
-  assert.match(defaultContent, /std::optional<typename Container::iterator> next_iterator/);
-  assert.match(defaultContent, /std::optional<typename Container::const_iterator> prev_iterator/);
   assert.match(defaultContent, /std::optional<typename Container::value_type> next_value/);
-  assert.match(defaultContent, /std::optional<typename Container::value_type> prev_value/);
+  assert.doesNotMatch(defaultContent, /next_iterator/);
+  assert.doesNotMatch(defaultContent, /prev_value/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderSetUtils(setUtilsOptions());
@@ -2980,17 +3260,17 @@ function testSetUtilsRenderer() {
   assert.match(iteratorRecipe.sections.solve[0], /if \(before\.has_value\(\)\)/);
 
   const collisionOptions = setUtilsOptions({
-    existingText: "int next_iterator; int prev_iterator; int next_value; int prev_value;"
+    existingText: "int next_iterator; int prev_iterator; int next_value; int prev_value;",
+    includeUsageComment: false
   });
   assert.equal(collisionOptions.names.nextIteratorName, "container_next_iterator");
   assert.equal(collisionOptions.names.prevIteratorName, "container_prev_iterator");
   assert.equal(collisionOptions.names.nextValueName, "container_next_value");
   assert.equal(collisionOptions.names.prevValueName, "container_prev_value");
   const collisionContent = core.renderSetUtils(collisionOptions);
-  assert.match(collisionContent, /container_next_iterator/);
-  assert.match(collisionContent, /container_prev_iterator/);
   assert.match(collisionContent, /container_next_value/);
-  assert.match(collisionContent, /container_prev_value/);
+  assert.doesNotMatch(collisionContent, /container_next_iterator/);
+  assert.doesNotMatch(collisionContent, /container_prev_value/);
 }
 
 function testLinearSieveRenderer() {
@@ -3800,9 +4080,9 @@ function testGeometryRenderer() {
   );
   assert.match(defaultContent, /struct Point2/);
   assert.match(defaultContent, /int orientation/);
-  assert.match(defaultContent, /segment_intersection/);
-  assert.match(defaultContent, /sort_points_by_angle/);
-  assert.match(defaultContent, /convex_hull/);
+  assert.doesNotMatch(defaultContent, /segment_intersection/);
+  assert.doesNotMatch(defaultContent, /sort_points_by_angle/);
+  assert.doesNotMatch(defaultContent, /convex_hull/);
   assert.doesNotMatch(defaultContent, /Example:/);
 
   const usageContent = core.renderGeometry(geometryOptions());
@@ -4103,7 +4383,10 @@ function testGeneratedRollbackDsuCompiles() {
 }
 
 function testGeneratedLcaCompiles() {
-  const generated = core.renderLca(lcaOptions({ includeUsageComment: false }));
+  const generated = core.renderLca(lcaOptions({
+    application: "lca_dist",
+    includeUsageComment: false
+  }));
   const source = [
     "#include <bits/stdc++.h>",
     "",
@@ -4141,7 +4424,10 @@ function testGeneratedLcaCompiles() {
 }
 
 function testGeneratedHldCompiles() {
-  const generated = core.renderHld(hldOptions({ includeUsageComment: false }));
+  const generated = core.renderHld(hldOptions({
+    application: "path_query",
+    includeUsageComment: false
+  }));
   const source = [
     "#include <bits/stdc++.h>",
     "using namespace std;",
@@ -4156,11 +4442,6 @@ function testGeneratedHldCompiles() {
     "  hld.add_edge(2, 5);",
     "  hld.add_edge(2, 6);",
     "  hld.build(0);",
-    "  assert(hld.lca(3, 4) == 1);",
-    "  assert(hld.lca(3, 6) == 0);",
-    "  assert(hld.subtree_size(1) == 3);",
-    "  auto seg = hld.subtree_segment(2);",
-    "  assert(seg.second - seg.first + 1 == 3);",
     "  vector<int> base(7);",
     "  for (int v = 0; v < 7; ++v) base[hld.position(v)] = v + 1;",
     "  int sum = 0;",
@@ -4180,25 +4461,21 @@ function testGeneratedHldCompiles() {
 }
 
 function testGeneratedBfsCompiles() {
-  const generated = core.renderBfs(bfsOptions({ includeUsageComment: false }));
+  const generated = core.renderBfs(bfsOptions({
+    application: "path_restore",
+    includeUsageComment: false
+  }));
   const source = [
     "#include <bits/stdc++.h>",
     "",
     generated,
     "int main() {",
     "  std::vector<std::vector<int>> graph(6);",
-    "  bfs_add_edge(graph, 0, 1, true);",
-    "  bfs_add_edge(graph, 1, 2, true);",
-    "  bfs_add_edge(graph, 2, 3, true);",
-    "  bfs_add_edge(graph, 4, 5, true);",
+    "  graph = {{1}, {0, 2}, {1, 3}, {2}, {5}, {4}};",
     "  const BfsResult single = bfs(graph, 0);",
     "  assert((single.distance == std::vector<int>{0, 1, 2, 3, -1, -1}));",
     "  assert((bfs_restore_path(0, 3, single) == std::vector<int>{0, 1, 2, 3}));",
     "  assert(bfs_restore_path(0, 5, single).empty());",
-    "  const BfsResult multi = bfs_multi_source(graph, {0, 5});",
-    "  assert((multi.distance == std::vector<int>{0, 1, 2, 3, 1, 0}));",
-    "  assert((bfs_restore_path_to_root(4, multi) == std::vector<int>{5, 4}));",
-    "  bfs_add_edge(graph, -1, 0, true);",
     "  return 0;",
     "}"
   ].join("\n");
@@ -4207,7 +4484,7 @@ function testGeneratedBfsCompiles() {
 
 function testGeneratedDijkstraCompiles() {
   const generated = core.renderDijkstra(
-    dijkstraOptions({ includeUsageComment: false })
+    dijkstraOptions({ application: "path_restore", includeUsageComment: false })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4217,25 +4494,14 @@ function testGeneratedDijkstraCompiles() {
     "int main() {",
     "  const long long inf = numeric_limits<long long>::max();",
     "  vector<vector<DijkstraEdge<long long>>> graph(6);",
-    "  dijkstra_add_edge(graph, 0, 1, 10);",
-    "  dijkstra_add_edge(graph, 0, 2, 3);",
-    "  dijkstra_add_edge(graph, 2, 1, 1);",
-    "  dijkstra_add_edge(graph, 1, 3, 2);",
-    "  dijkstra_add_edge(graph, 2, 3, 8);",
-    "  dijkstra_add_edge(graph, 3, 5, 2);",
-    "  dijkstra_add_edge(graph, 1, 5, 10);",
-    "  dijkstra_add_edge(graph, 0, 4, -100);",
+    "  graph[0] = {{1, 10}, {2, 3}, {4, -100}};",
+    "  graph[1] = {{3, 2}, {5, 10}};",
+    "  graph[2] = {{1, 1}, {3, 8}};",
+    "  graph[3] = {{5, 2}};",
     "  const DijkstraResult<long long> single = dijkstra(graph, 0, inf);",
     "  assert(single.distance[5] == 8);",
     "  assert(single.distance[4] == inf);",
     "  assert((dijkstra_restore_path(0, 5, single) == vector<int>{0, 2, 1, 3, 5}));",
-    "  const DijkstraResult<long long> multi = dijkstra_multi_source(graph, vector<int>{0, 4}, inf);",
-    "  assert(multi.distance[4] == 0);",
-    "  assert(multi.distance[5] == 8);",
-    "  vector<vector<DijkstraEdge<long long>>> undirected(3);",
-    "  dijkstra_add_edge(undirected, 0, 1, 7, true);",
-    "  dijkstra_add_edge(undirected, 1, 2, 5, true);",
-    "  assert(dijkstra(undirected, 2, inf).distance[0] == 12);",
     "  return 0;",
     "}"
   ].join("\n");
@@ -4253,25 +4519,15 @@ function testGeneratedToposortCompiles() {
     generated,
     "int main() {",
     "  vector<vector<int>> graph(6);",
-    "  toposort_add_edge(graph, 5, 2);",
-    "  toposort_add_edge(graph, 5, 0);",
-    "  toposort_add_edge(graph, 4, 0);",
-    "  toposort_add_edge(graph, 4, 1);",
-    "  toposort_add_edge(graph, 2, 3);",
-    "  toposort_add_edge(graph, 3, 1);",
+    "  graph[5] = {2, 0}; graph[4] = {0, 1}; graph[2] = {3}; graph[3] = {1};",
     "  bool dag = false;",
     "  vector<int> order = topological_sort(graph, &dag);",
     "  assert(dag);",
-    "  assert(is_topological_order(graph, order));",
     "  vector<vector<int>> cyclic(3);",
-    "  toposort_add_edge(cyclic, 0, 1);",
-    "  toposort_add_edge(cyclic, 1, 2);",
-    "  toposort_add_edge(cyclic, 2, 0);",
+    "  cyclic = {{1}, {2}, {0}};",
     "  order = topological_sort(cyclic, &dag);",
     "  assert(!dag);",
     "  assert(order.empty());",
-    "  assert(!is_topological_order(graph, vector<int>{0, 1, 2}));",
-    "  toposort_add_edge(graph, -1, 0);",
     "  return 0;",
     "}"
   ].join("\n");
@@ -4280,7 +4536,7 @@ function testGeneratedToposortCompiles() {
 
 function testGeneratedKosarajuCompiles() {
   const generated = core.renderKosaraju(
-    kosarajuOptions({ includeUsageComment: false })
+    kosarajuOptions({ application: "condensation_dag", includeUsageComment: false })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4289,16 +4545,7 @@ function testGeneratedKosarajuCompiles() {
     generated,
     "int main() {",
     "  vector<vector<int>> graph(8);",
-    "  kosaraju_add_edge(graph, 0, 1);",
-    "  kosaraju_add_edge(graph, 1, 2);",
-    "  kosaraju_add_edge(graph, 2, 0);",
-    "  kosaraju_add_edge(graph, 2, 3);",
-    "  kosaraju_add_edge(graph, 3, 4);",
-    "  kosaraju_add_edge(graph, 4, 5);",
-    "  kosaraju_add_edge(graph, 5, 3);",
-    "  kosaraju_add_edge(graph, 6, 5);",
-    "  kosaraju_add_edge(graph, 6, 7);",
-    "  kosaraju_add_edge(graph, 7, 6);",
+    "  graph = {{1}, {2}, {0, 3}, {4}, {5}, {3}, {5, 7}, {6}};",
     "  KosarajuResult scc = kosaraju_scc(graph);",
     "  assert(scc.component_count == 3);",
     "  assert(scc.component_of[0] == scc.component_of[1]);",
@@ -4307,7 +4554,6 @@ function testGeneratedKosarajuCompiles() {
     "  assert(scc.component_of[0] != scc.component_of[3]);",
     "  assert((int)scc.components.size() == scc.component_count);",
     "  assert((int)scc.condensation_dag.size() == scc.component_count);",
-    "  kosaraju_add_edge(graph, -1, 0);",
     "  return 0;",
     "}"
   ].join("\n");
@@ -4343,7 +4589,12 @@ function testGeneratedMoCompiles() {
 
 function testGeneratedMonotonicStackCompiles() {
   const generated = core.renderMonotonicStack(
-    monotonicStackOptions({ includeUsageComment: false })
+    monotonicStackOptions({
+      application: "all_nearest",
+      direction: "both",
+      relation: "all",
+      includeUsageComment: false
+    })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4432,7 +4683,11 @@ function testGeneratedOrderedSetCompiles() {
 
 function testGeneratedSetUtilsCompiles() {
   const generated = core.renderSetUtils(
-    setUtilsOptions({ includeUsageComment: false })
+    setUtilsOptions({
+      lookup: "next",
+      target: "value",
+      includeUsageComment: false
+    })
   );
   const source = [
     "#include <bits/stdc++.h>",
@@ -4441,17 +4696,8 @@ function testGeneratedSetUtilsCompiles() {
     generated,
     "int main() {",
     "  set<int> st = {2, 4, 8};",
-    "  auto it = st.find(4);",
-    "  auto nxt = next_iterator(st, it);",
-    "  auto prv = prev_iterator(st, it);",
-    "  assert(nxt.has_value() && *nxt == st.find(8));",
-    "  assert(prv.has_value() && *prv == st.find(2));",
-    "  assert(!next_iterator(st, st.find(8)).has_value());",
-    "  assert(!prev_iterator(st, st.begin()).has_value());",
     "  assert(next_value(st, 4).value() == 8);",
-    "  assert(prev_value(st, 4).value() == 2);",
     "  assert(!next_value(st, 8).has_value());",
-    "  assert(!prev_value(st, 2).has_value());",
     "",
     "  multiset<int> ms = {1, 1, 3};",
     "  assert(next_value(ms, 1).value() == 3);",
@@ -5369,29 +5615,61 @@ function testGeneratedFastAllocatorCompiles() {
 }
 
 function testGeneratedGeometryCompiles() {
-  {
-    const generated = core.renderGeometry(
-      geometryOptions({ includeUsageComment: false })
-    );
-    const source = [
+  const cases = [
+    {
+      name: "orientation",
+      application: "orientation",
+      body: [
+        "  using P = Point2<long long>;",
+        "  assert(orientation(P(0, 0), P(2, 0), P(1, 1)) == 1);"
+      ]
+    },
+    {
+      name: "segment",
+      application: "segment_intersection",
+      body: [
+        "  using P = Point2<long long>;",
+        "  assert(segments_intersect(P(0, 0), P(2, 2), P(0, 2), P(2, 0)));",
+        "  auto inter = segment_intersection(P(0, 0), P(2, 2), P(0, 2), P(2, 0));",
+        "  assert(inter.size() == 1);"
+      ]
+    },
+    {
+      name: "angle",
+      application: "angle_sort",
+      body: [
+        "  using P = Point2<long long>;",
+        "  vector<P> points = {P(0, 1), P(1, 0), P(-1, 0)};",
+        "  sort_points_by_angle(points, P(0, 0));",
+        "  assert(points.front() == P(1, 0));"
+      ]
+    },
+    {
+      name: "hull",
+      application: "convex_hull",
+      body: [
+        "  using P = Point2<long long>;",
+        "  vector<P> points = {P(0, 0), P(2, 0), P(2, 2), P(0, 2), P(1, 1)};",
+        "  vector<P> hull = convex_hull(points);",
+        "  assert((hull == vector<P>{P(0, 0), P(2, 0), P(2, 2), P(0, 2)}));"
+      ]
+    }
+  ];
+  for (const testCase of cases) {
+    const generated = core.renderGeometry(geometryOptions({
+      application: testCase.application,
+      includeUsageComment: false
+    }));
+    compileSource(`geometry_${testCase.name}_generated`, [
       "#include <bits/stdc++.h>",
       "using namespace std;",
       "",
       generated,
       "int main() {",
-      "  using P = Point2<long long>;",
-      "  assert(orientation(P(0, 0), P(2, 0), P(1, 1)) == 1);",
-      "  assert(segments_intersect(P(0, 0), P(2, 2), P(0, 2), P(2, 0)));",
-      "  auto inter = segment_intersection(P(0, 0), P(2, 2), P(0, 2), P(2, 0));",
-      "  assert(inter.size() == 1);",
-      "  vector<P> points = {P(0, 0), P(2, 0), P(2, 2), P(0, 2), P(1, 1)};",
-      "  vector<P> hull = convex_hull(points);",
-      "  assert((hull == vector<P>{P(0, 0), P(2, 0), P(2, 2), P(0, 2)}));",
-      "  sort_points_by_angle(points, P(0, 0));",
+      ...testCase.body,
       "  return 0;",
       "}"
-    ].join("\n");
-    compileSource("geometry_generated", source);
+    ].join("\n"));
   }
 }
 
@@ -5503,22 +5781,6 @@ function testStaticBrickTemplatesRender() {
       "assert(rect_sum(0, 0, 2, 2) == 10 && rect_sum(1, 0, 2, 2) == 7);"
     ],
     print_vector: ["vi v = {1, 2, 3};", "cout << '\\n';"],
-    read_array: [
-      "int n = 3; istringstream input(\"1 2 3\"); cin.rdbuf(input.rdbuf());",
-      "assert(a == vi({1, 2, 3}));"
-    ],
-    read_graph_undirected: [
-      "int n = 3, m = 2; istringstream input(\"1 2 2 3\"); cin.rdbuf(input.rdbuf());",
-      "assert(g[0][0] == 1 && g[1].size() == 2 && g[2][0] == 1);"
-    ],
-    read_tree_edges: [
-      "int n = 3; istringstream input(\"1 2 1 3\"); cin.rdbuf(input.rdbuf());",
-      "assert(g[0].size() == 2 && g[1][0] == 0 && g[2][0] == 0);"
-    ],
-    read_vector_ref: [
-      "vi a(3); istringstream input(\"1 2 3\"); cin.rdbuf(input.rdbuf());",
-      "assert(a == vi({1, 2, 3}));"
-    ],
     static_rsq: [
       "int n = 3; vector<ll> a = {1, 2, 3};",
       "assert(rsq(0, 3) == 6 && rsq(1, 3) == 5);"
@@ -5558,11 +5820,16 @@ runTemplateScenario("/templates/compress_unique", {
   valuesName: "vals",
   rewriteSource: true
 }, () => {});
-runTemplateScenario("/templates/read_vector", {
-  name: "a",
-  sizeExpression: "n",
-  valueType: "int"
-}, testInteractiveBrickRenderers);
+runTemplateScenario("/templates/input", {
+  shape: "vector",
+  indexing: "one_based"
+}, testInputRenderer);
+runTemplateScenario("/templates/connected_components", {
+  kind: "undirected",
+  sourceMode: "existing_graph"
+}, testConnectedComponentsRenderer);
+testInteractiveBrickRenderers();
+testImportedRecipesCompile();
 runTemplateScenario("/templates/segtree", {
   presets: ["point_sum", "lazy_min", "max_subarray"]
 }, testGeneratedSegmentTrees);

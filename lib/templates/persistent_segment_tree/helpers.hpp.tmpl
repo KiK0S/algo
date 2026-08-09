@@ -1,0 +1,75 @@
+template <typename T>
+class PersistentSegmentTree {
+public:
+	struct Node {
+		T sum{};
+		int left = 0;
+		int right = 0;
+	};
+
+	explicit PersistentSegmentTree(int size = 0) : size_(std::max(size, 0)), nodes_(1) {}
+
+	int empty_root() const { return 0; }
+
+	int add(int root, int position, const T& delta) {
+		if (position < 0 || position >= size_) return root;
+		return add(root, 0, size_, position, delta);
+	}
+
+	T query(int root, int left, int right) const {
+		left = std::max(left, 0);
+		right = std::min(right, size_);
+		return left < right ? query(root, 0, size_, left, right) : T();
+	}
+
+	int kth_between(int left_root, int right_root, T order) const {
+		if (order <= T() || value(right_root) - value(left_root) < order) return -1;
+		int left = 0, right = size_;
+		while (right - left > 1) {
+			int middle = left + (right - left) / 2;
+			T left_count = value(nodes_[right_root].left) - value(nodes_[left_root].left);
+			if (order <= left_count) {
+				left_root = nodes_[left_root].left;
+				right_root = nodes_[right_root].left;
+				right = middle;
+			} else {
+				order -= left_count;
+				left_root = nodes_[left_root].right;
+				right_root = nodes_[right_root].right;
+				left = middle;
+			}
+		}
+		return left;
+	}
+
+private:
+	int size_;
+	std::vector<Node> nodes_;
+
+	T value(int node) const { return node == 0 ? T() : nodes_[node].sum; }
+
+	int clone(int node) {
+		nodes_.push_back(node == 0 ? Node{} : nodes_[node]);
+		return static_cast<int>(nodes_.size()) - 1;
+	}
+
+	int add(int node, int left, int right, int position, const T& delta) {
+		int result = clone(node);
+		nodes_[result].sum += delta;
+		if (right - left == 1) return result;
+		int middle = left + (right - left) / 2;
+		if (position < middle)
+			nodes_[result].left = add(nodes_[result].left, left, middle, position, delta);
+		else
+			nodes_[result].right = add(nodes_[result].right, middle, right, position, delta);
+		return result;
+	}
+
+	T query(int node, int left, int right, int query_left, int query_right) const {
+		if (node == 0 || query_right <= left || right <= query_left) return T();
+		if (query_left <= left && right <= query_right) return nodes_[node].sum;
+		int middle = left + (right - left) / 2;
+		return query(nodes_[node].left, left, middle, query_left, query_right) +
+			query(nodes_[node].right, middle, right, query_left, query_right);
+	}
+};

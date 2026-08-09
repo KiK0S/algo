@@ -1,0 +1,37 @@
+// Adapted from xeppelin-kactl GlobalMinCut.h (Simon Lindholm), CC0.
+template <typename T>
+std::pair<T, std::vector<int>> global_min_cut(std::vector<std::vector<T>> weights) {
+	const int n = static_cast<int>(weights.size());
+	if (n == 0) return {T(), {}};
+	std::pair<T, std::vector<int>> best = {std::numeric_limits<T>::max(), {}};
+	std::vector<std::vector<int>> contracted(n);
+	for (int vertex = 0; vertex < n; ++vertex) contracted[vertex] = {vertex};
+	std::vector<int> active(n);
+	std::iota(active.begin(), active.end(), 0);
+	while (active.size() > 1) {
+		std::vector<T> connection(n);
+		std::vector<char> used(n);
+		int previous = -1, selected = -1;
+		for (std::size_t step = 0; step < active.size(); ++step) {
+			selected = -1;
+			for (int vertex : active)
+				if (!used[vertex] && (selected == -1 || connection[vertex] > connection[selected]))
+					selected = vertex;
+			if (step + 1 == active.size()) {
+				best = std::min(best, std::make_pair(connection[selected], contracted[selected]));
+				for (int vertex : active) {
+					weights[previous][vertex] += weights[selected][vertex];
+					weights[vertex][previous] = weights[previous][vertex];
+				}
+				contracted[previous].insert(
+					contracted[previous].end(), contracted[selected].begin(), contracted[selected].end());
+				active.erase(std::find(active.begin(), active.end(), selected));
+				break;
+			}
+			used[selected] = 1;
+			previous = selected;
+			for (int vertex : active) if (!used[vertex]) connection[vertex] += weights[selected][vertex];
+		}
+	}
+	return best;
+}

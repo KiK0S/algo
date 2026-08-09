@@ -1,0 +1,10 @@
+template <typename Integer, typename Predicate>
+Integer first_true(Integer first, Integer last, Predicate predicate) {
+	// Searches [first, last); returns last when the predicate is never true.
+	while (first < last) {
+		Integer middle = first + (last - first) / 2;
+		if (predicate(middle)) last = middle;
+		else first = middle + 1;
+	}
+	return first;
+}

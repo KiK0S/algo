@@ -1,0 +1,23 @@
+template <typename T>
+struct GeometryPoint {
+	T x{};
+	T y{};
+
+	GeometryPoint() = default;
+	GeometryPoint(T x_, T y_) : x(x_), y(y_) {}
+	bool operator==(const GeometryPoint& other) const { return x == other.x && y == other.y; }
+	bool operator<(const GeometryPoint& other) const {
+		return x != other.x ? x < other.x : y < other.y;
+	}
+	GeometryPoint operator+(const GeometryPoint& other) const { return {x + other.x, y + other.y}; }
+	GeometryPoint operator-(const GeometryPoint& other) const { return {x - other.x, y - other.y}; }
+	GeometryPoint operator*(T scale) const { return {x * scale, y * scale}; }
+	GeometryPoint operator/(T scale) const { return {x / scale, y / scale}; }
+	T dot(const GeometryPoint& other) const { return x * other.x + y * other.y; }
+	T cross(const GeometryPoint& other) const { return x * other.y - y * other.x; }
+	T cross(const GeometryPoint& first, const GeometryPoint& second) const {
+		return (first - *this).cross(second - *this);
+	}
+	T norm_squared() const { return dot(*this); }
+	GeometryPoint perpendicular() const { return {-y, x}; }
+};

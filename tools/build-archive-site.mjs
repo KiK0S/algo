@@ -38,6 +38,8 @@ const applicationSpecs = {
   fast_allocator: core.FAST_ALLOCATOR_APPLICATION_SPEC,
   geometry: core.GEOMETRY_APPLICATION_SPEC,
   halfplane_intersection: core.HALFPLANE_INTERSECTION_APPLICATION_SPEC,
+  input: core.INPUT_APPLICATION_SPEC,
+  connected_components: core.CONNECTED_COMPONENTS_APPLICATION_SPEC,
   berlekamp_massey: featureSpec("Berlekamp–Massey", ["minimal_recurrence", "kth_term", "one_shot_kth"]),
   linear_sieve: featureSpec("Linear sieve", ["lowest_prime", "primes", "factorization"]),
   modint: simpleSpec("Modular integer", "mode", "Mode", ["static", "dynamic"]),
@@ -49,8 +51,7 @@ const applicationSpecs = {
   poly_hash: featureSpec("Polynomial hash", ["substring_equal", "reverse", "lcp", "concat"]),
   suffix_array: featureSpec("Suffix array", ["rank", "lcp", "stripped_sa", "lcp_rmq"]),
   fft_ntt: simpleSpec("FFT / NTT", "transforms", "Transforms", ["fft", "ntt"], true),
-  compress_unique: simpleSpec("Coordinate compression", "rewriteSource", "Rewrite source", ["yes", "no"]),
-  read_vector: { title: "Read vector", scenarios: [], decisions: [], bindings: [], usageSections: [] }
+  compress_unique: simpleSpec("Coordinate compression", "rewriteSource", "Rewrite source", ["yes", "no"])
 };
 
 function choices(ids) {
@@ -78,10 +79,7 @@ async function filesBelow(directory) {
   return result.sort();
 }
 
-function generatorTemplateLocation(entry) {
-  if (entry.insertMode === "cursor") {
-    return path.join(templateRoot, `${entry.generator}.cpp.tmpl`);
-  }
+function generatorTemplateDirectory(entry) {
   const directory = {
     segtree: "segment_tree",
     segtree_beats: "segment_tree_beats"
@@ -93,12 +91,12 @@ async function previewFiles(entry) {
   if (entry.template) {
     return [path.join(templateRoot, entry.template)];
   }
-  const location = generatorTemplateLocation(entry);
-  const directoryEntries = await readdir(location, { withFileTypes: true }).catch(() => []);
+  const directory = generatorTemplateDirectory(entry);
+  const directoryEntries = await readdir(directory, { withFileTypes: true }).catch(() => []);
   if (directoryEntries.length === 0) {
-    return [location];
+    return [path.join(templateRoot, `${entry.generator}.cpp.tmpl`)];
   }
-  return filesBelow(location);
+  return filesBelow(directory);
 }
 
 async function buildPreview(entry) {

@@ -1,0 +1,57 @@
+{{#if weighted}}
+std::vector<std::vector<std::pair<int, {{weightType}}>>> {{name}}({{sizeExpression}});
+{{/if}}
+{{#unless weighted}}
+std::vector<std::vector<int>> {{name}}({{sizeExpression}});
+{{/unless}}
+{{#if keepEdges}}
+{{edgeVectorDeclaration}}
+{{/if}}
+{{#if degreeMetadata}}
+std::vector<int> {{indegreeName}}({{sizeExpression}}), {{outdegreeName}}({{sizeExpression}});
+{{/if}}
+for (int edge_index = 0; edge_index < {{edgeCountExpression}}; ++edge_index) {
+	int from, to;
+{{#if weighted}}
+	{{weightType}} weight;
+	read(from, to, weight);
+{{/if}}
+{{#unless weighted}}
+	read(from, to);
+{{/unless}}
+{{#if oneBased}}
+	--from, --to;
+{{/if}}
+{{#if weighted}}
+	{{name}}[from].push_back({to, weight});
+{{/if}}
+{{#unless weighted}}
+	{{name}}[from].push_back(to);
+{{/unless}}
+{{#unless directed}}
+{{#if weighted}}
+	{{name}}[to].push_back({from, weight});
+{{/if}}
+{{#unless weighted}}
+	{{name}}[to].push_back(from);
+{{/unless}}
+{{/unless}}
+{{#if keepEdges}}
+	{{edgePush}}
+{{/if}}
+{{#if degreeMetadata}}
+	++{{outdegreeName}}[from];
+	++{{indegreeName}}[to];
+{{#unless directed}}
+	++{{outdegreeName}}[to];
+	++{{indegreeName}}[from];
+{{/unless}}
+{{/if}}
+}
+{{#if weighted}}
+EDULCNI_VIS(edulcni::live::weighted_graph("input.graph", {{name}}));
+{{/if}}
+{{#unless weighted}}
+EDULCNI_VIS(edulcni::live::graph("input.graph", {{name}}));
+{{/unless}}
+EDULCNI_STEP("Graph read");

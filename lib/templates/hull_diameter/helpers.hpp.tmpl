@@ -1,0 +1,21 @@
+// Adapted from xeppelin-kactl HullDiameter.h, Boost Software License 1.0.
+inline std::array<GeometryPoint<long long>, 2> convex_hull_diameter(
+		const std::vector<GeometryPoint<long long>>& hull) {
+	if (hull.empty()) return {};
+	if (hull.size() == 1) return {hull[0], hull[0]};
+	long long best = -1;
+	std::array<GeometryPoint<long long>, 2> result{hull[0], hull[0]};
+	int opposite = 1;
+	for (int vertex = 0; vertex < static_cast<int>(hull.size()); ++vertex) {
+		int next = (vertex + 1) % hull.size();
+		while (std::llabs((hull[next] - hull[vertex]).cross(
+				hull[(opposite + 1) % hull.size()] - hull[vertex])) >
+			std::llabs((hull[next] - hull[vertex]).cross(hull[opposite] - hull[vertex])))
+			opposite = (opposite + 1) % hull.size();
+		for (int candidate : {opposite, (opposite + 1) % static_cast<int>(hull.size())}) {
+			long long distance = (hull[vertex] - hull[candidate]).norm_squared();
+			if (distance > best) best = distance, result = {hull[vertex], hull[candidate]};
+		}
+	}
+	return result;
+}

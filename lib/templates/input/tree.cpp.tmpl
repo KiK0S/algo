@@ -1,0 +1,46 @@
+std::vector<std::vector<int>> {{name}}({{sizeExpression}});
+for (int edge_index = 0; edge_index + 1 < {{sizeExpression}}; ++edge_index) {
+	int from, to;
+	read(from, to);
+{{#if oneBased}}
+	--from, --to;
+{{/if}}
+	{{name}}[from].push_back(to);
+	{{name}}[to].push_back(from);
+}
+{{#if rootedMetadata}}
+std::vector<int> {{parentName}}({{sizeExpression}}, -1);
+{{#if depthMetadata}}
+std::vector<int> {{depthName}}({{sizeExpression}});
+{{/if}}
+std::vector<int> {{orderName}}, traversal_stack = { {{rootExpression}} };
+while (!traversal_stack.empty()) {
+	int vertex = traversal_stack.back();
+	traversal_stack.pop_back();
+	{{orderName}}.push_back(vertex);
+	for (int to : {{name}}[vertex]) {
+		if (to == {{parentName}}[vertex]) continue;
+		{{parentName}}[to] = vertex;
+{{#if depthMetadata}}
+		{{depthName}}[to] = {{depthName}}[vertex] + 1;
+{{/if}}
+		traversal_stack.push_back(to);
+	}
+}
+{{#if needsSubtree}}
+std::vector<int> {{subtreeName}}({{sizeExpression}}, 1);
+for (int order_index = static_cast<int>({{orderName}}.size()); order_index-- > 1; ) {
+	int vertex = {{orderName}}[order_index];
+	{{subtreeName}}[{{parentName}}[vertex]] += {{subtreeName}}[vertex];
+}
+{{/if}}
+{{#if eulerMetadata}}
+std::vector<int> {{tinName}}({{sizeExpression}}), {{toutName}}({{sizeExpression}});
+for (int i = 0; i < static_cast<int>({{orderName}}.size()); ++i)
+	{{tinName}}[{{orderName}}[i]] = i;
+for (int vertex = 0; vertex < {{sizeExpression}}; ++vertex)
+	{{toutName}}[vertex] = {{tinName}}[vertex] + {{subtreeName}}[vertex];
+{{/if}}
+{{/if}}
+EDULCNI_VIS(edulcni::live::graph("input.tree", {{name}}));
+EDULCNI_STEP("Tree read");

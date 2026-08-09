@@ -1,0 +1,4 @@
+template<class... Ts>
+std::istream& read(Ts&... values) {
+	return (std::cin >> ... >> values);
+}

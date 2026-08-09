@@ -100,6 +100,10 @@ import {
   ImplicitTreapSourceMode,
   ImplicitTreapOptions,
   ImplicitTreapUsageMode,
+  InputField,
+  InputIndexing,
+  InputOptions,
+  InputShape,
   InsertMode,
   KuhnFeature,
   KuhnOptions,
@@ -155,6 +159,7 @@ import {
   SetUtilsUsageMode,
   planBerlekampMasseyNames,
   planBfsNames,
+  planConnectedComponentsNames,
   planDijkstraNames,
   planDsuNames,
   planFastAllocatorNames,
@@ -184,6 +189,7 @@ import {
   planToposortNames,
   renderBerlekampMasseyRecipe,
   renderBfsRecipe,
+  renderConnectedComponentsRecipe,
   renderCompressUnique,
   renderDijkstraRecipe,
   renderDsuRecipe,
@@ -197,6 +203,7 @@ import {
   renderHungarianRecipe,
   renderHldRecipe,
   renderImplicitTreapRecipe,
+  renderInputRecipe,
   renderKosarajuRecipe,
   renderKuhnRecipe,
   renderLcaRecipe,
@@ -210,8 +217,6 @@ import {
   renderOrderedSetRecipe,
   renderPolyHashRecipe,
   renderPowersPrecalc,
-  renderReadVector,
-  renderReadMatrix,
   renderRecipeSnippet,
   renderStaticTemplate,
   renderRollbackDsuRecipe,
@@ -226,8 +231,8 @@ import {
   reserveIdentifier,
   resolveCatalogOrder,
   RenderedSnippet,
-  ReadVectorOptions,
-  ReadMatrixOptions,
+  ConnectedComponentsKind,
+  ConnectedComponentsOptions,
   ROLLBACK_DSU_APPLICATION_SPEC,
   RollbackDsuApplication,
   RollbackDsuIndexing,
@@ -252,7 +257,6 @@ import {
   defaultSparseTableVariants,
   defaultImplicitTreapFeatures,
   suggestIdentifier,
-  vectorContainerTypeForValueType,
   SolutionSection,
   SparseTableOptions,
   SparseTableApplication,
@@ -493,12 +497,8 @@ function explainPickItems<T extends vscode.QuickPickItem>(items: readonly T[]): 
 }
 
 const OBSOLETE_PLUMBING_CHOICES = new Set([
-  "read_edges",
-  "read_graph",
-  "read_tree",
   "read_queries",
-  "tree_query_loop",
-  "weighted_graph_read"
+  "tree_query_loop"
 ]);
 
 function simplifyPickItems<T extends vscode.QuickPickItem>(items: readonly T[]): T[] {
@@ -525,8 +525,7 @@ async function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   const explainedItems = explainPickItems(
     simplifiedItems.length > 0 ? simplifiedItems : originalItems
   );
-  const automaticInputIndexing = options?.placeHolder === "Input indexing";
-  if (explainedItems.length === 1 || automaticInputIndexing) {
+  if (explainedItems.length === 1) {
     const picked = explainedItems.find((item) => item.picked) ?? explainedItems[0];
     return (options?.canPickMany ? [picked] : picked) as T | T[];
   }
@@ -735,8 +734,8 @@ interface GeneratorRegistration {
 const DIRECT_COMMANDS = [
   { command: "edulcni.segtree", snippetPath: "/templates/segtree" },
   { command: "edulcni.compressUnique", snippetPath: "/templates/compress_unique" },
-  { command: "edulcni.readVector", snippetPath: "/templates/read_vector" },
-  { command: "edulcni.readMatrix", snippetPath: "/templates/read_matrix" },
+  { command: "edulcni.input", snippetPath: "/templates/input" },
+  { command: "edulcni.connectedComponents", snippetPath: "/templates/connected_components" },
   { command: "edulcni.berlekampMassey", snippetPath: "/templates/berlekamp_massey" },
   { command: "edulcni.sparseTable", snippetPath: "/templates/sparse_table" }
 ] as const;
@@ -1545,106 +1544,352 @@ async function promptCompressUniqueOptions(
   };
 }
 
-async function promptReadVectorOptions(
-  editor: vscode.TextEditor
-): Promise<ReadVectorOptions | undefined> {
-  const analysis = analyzeCppDocument(editor.document.getText());
-  const nameInput = await showExplainedInputBox({
-    title: "edulcni: read_vector",
-    prompt: "Vector variable name",
-    value: suggestIdentifier(analysis, "a", "values"),
-    validateInput: validateIdentifier,
+async function promptInputIndexing(title: string): Promise<InputIndexing | undefined> {
+  const picked = await showExplainedQuickPick<ValuePickItem<InputIndexing>>(
+    [
+      {
+        label: "0-based values",
+        value: "zero_based",
+        picked: true,
+        description: "Keep index values exactly as read."
+      },
+      {
+        label: "1-based values",
+        value: "one_based",
+        description: "Subtract one from every selected index field."
+      }
+    ],
+    { title, placeHolder: "Input indexing", ignoreFocusOut: true }
+  );
+  return picked?.value;
+}
+
+async function promptInputFields(
+  title: string,
+  defaultNames: string,
+  needTypes: boolean
+): Promise<{ fields: InputField[]; indexing: InputIndexing } | undefined> {
+  const namesInput = await showExplainedInputBox({
+    title,
+    prompt: "Comma-separated field or variable names",
+    value: defaultNames,
     ignoreFocusOut: true
   });
-  if (nameInput === undefined || nameInput.trim() === "") {
-    return undefined;
+  if (namesInput === undefined) return undefined;
+  const names = namesInput.split(",").map((name) => name.trim()).filter(Boolean);
+  if (names.length === 0 || names.some((name) => validateIdentifier(name))) return undefined;
+
+  let types = names.map(() => "int");
+  if (needTypes) {
+    const typeInput = await showExplainedInputBox({
+      title,
+      prompt: "Comma-separated types; one type applies to every field",
+      value: "int",
+      ignoreFocusOut: true
+    });
+    if (typeInput === undefined) return undefined;
+    const parsed = typeInput.split(",").map((value) => value.trim()).filter(Boolean);
+    if (parsed.length === 1) types = names.map(() => parsed[0]);
+    else if (parsed.length === names.length) types = parsed;
+    else return undefined;
   }
 
-  const sizeExpression = await pickStringWithCustom(
-    "edulcni: read_vector",
-    "Size expression",
-    sizeExpressionCandidates(analysis),
-    "Expression for the vector size, for example n"
+  const indexPicks = await showExplainedQuickPick<ValuePickItem<string>>(
+    names.map((name, index) => ({ label: name, value: String(index) })),
+    {
+      title,
+      placeHolder: "Index fields to normalize (select none for ordinary values)",
+      canPickMany: true,
+      ignoreFocusOut: true
+    }
   );
-  if (sizeExpression === undefined || sizeExpression.trim() === "") {
-    return undefined;
-  }
-
-  const valueType = await pickStringWithCustom(
-    "edulcni: read_vector",
-    "Value type",
-    ["int", "ll", "long long"],
-    "C++ value type"
-  );
-  if (valueType === undefined || valueType.trim() === "") {
-    return undefined;
-  }
-
+  if (!indexPicks) return undefined;
+  const indexSet = new Set(indexPicks.map((item) => Number(item.value)));
+  const indexing = indexSet.size === 0
+    ? "zero_based"
+    : await promptInputIndexing(title);
+  if (!indexing) return undefined;
   return {
-    name: nameInput.trim(),
-    sizeExpression: sizeExpression.trim(),
-    valueType: valueType.trim(),
-    containerType: vectorContainerTypeForValueType(analysis, valueType.trim())
+    fields: names.map((name, index) => ({
+      name,
+      valueType: types[index],
+      isIndex: indexSet.has(index)
+    })),
+    indexing
   };
 }
 
-async function promptReadMatrixOptions(
+async function promptInputOptions(
   editor: vscode.TextEditor
-): Promise<ReadMatrixOptions | undefined> {
+): Promise<InputOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const title = "edulcni: read_matrix";
-  const nameInput = await showExplainedInputBox({
+  const title = "edulcni: input";
+  const shapePick = await showExplainedQuickPick<ValuePickItem<InputShape>>(
+    [
+      { label: "values", value: "values", description: "Read existing scalar variables." },
+      { label: "vector", value: "vector", picked: true },
+      { label: "matrix", value: "matrix" },
+      { label: "string grid", value: "string_grid" },
+      { label: "parallel arrays", value: "parallel_arrays" },
+      { label: "tuple records", value: "tuple_records" },
+      { label: "graph", value: "graph" },
+      { label: "tree", value: "tree" },
+      { label: "permutation", value: "permutation" },
+      { label: "functional graph", value: "functional_graph" }
+    ],
+    { title, placeHolder: "Input shape", ignoreFocusOut: true }
+  );
+  if (!shapePick) return undefined;
+  const shape = shapePick.value;
+  const sizes = sizeExpressionCandidates(analysis);
+  const options: InputOptions = {
+    shape,
+    includeReadHelper: !analysis.identifiers.has("read"),
+    indexing: "zero_based"
+  };
+
+  if (shape === "values" || shape === "parallel_arrays" || shape === "tuple_records") {
+    const selected = await promptInputFields(
+      title,
+      shape === "values" ? "a, b" : shape === "parallel_arrays" ? "a, b" : "u, v, weight",
+      shape !== "values"
+    );
+    if (!selected) return undefined;
+    options.fields = selected.fields;
+    options.indexing = selected.indexing;
+  }
+
+  if (shape !== "values") {
+    const semanticDefault = shape === "graph" ? "graph"
+      : shape === "tree" ? "tree"
+      : shape === "permutation" ? "permutation"
+      : shape === "functional_graph" ? "next_vertex"
+      : shape === "tuple_records" ? "records" : "a";
+    if (shape !== "parallel_arrays") {
+      const name = await showExplainedInputBox({
+        title,
+        prompt: "Output variable name",
+        value: suggestIdentifier(analysis, semanticDefault, "values"),
+        validateInput: validateIdentifier,
+        ignoreFocusOut: true
+      });
+      if (!name) return undefined;
+      options.name = name.trim();
+    }
+  }
+
+  if (["vector", "parallel_arrays", "tuple_records", "graph", "tree", "permutation", "functional_graph"].includes(shape)) {
+    const size = await pickStringWithCustom(
+      title,
+      shape === "graph" || shape === "tree" ? "Vertex count expression" : "Size/count expression",
+      sizes,
+      "Existing size expression, for example n"
+    );
+    if (!size) return undefined;
+    options.sizeExpression = size.trim();
+  }
+  if (shape === "matrix" || shape === "string_grid") {
+    const rows = await pickStringWithCustom(title, "Row count", sizes, "Row count expression");
+    if (!rows) return undefined;
+    options.rowExpression = rows.trim();
+    if (shape === "matrix") {
+      const columns = await pickStringWithCustom(title, "Column count", sizes, "Column count expression");
+      if (!columns) return undefined;
+      options.columnExpression = columns.trim();
+    }
+  }
+
+  if (["vector", "matrix"].includes(shape)) {
+    const type = await pickStringWithCustom(title, "Value type", ["int", "ll", "long long", "char"], "C++ value type");
+    if (!type) return undefined;
+    options.valueType = type.trim();
+    const indexChoice = await showExplainedQuickPick<ValuePickItem<"ordinary" | "index">>(
+      [
+        { label: "ordinary values", value: "ordinary", picked: true },
+        { label: "index values", value: "index" }
+      ],
+      { title, placeHolder: "Element semantics", ignoreFocusOut: true }
+    );
+    if (!indexChoice) return undefined;
+    options.fields = [{ name: "value", valueType: options.valueType, isIndex: indexChoice.value === "index" }];
+    if (indexChoice.value === "index") {
+      const indexing = await promptInputIndexing(title);
+      if (!indexing) return undefined;
+      options.indexing = indexing;
+    }
+  }
+
+  if (["vector", "matrix", "string_grid", "parallel_arrays"].includes(shape)) {
+    const declaration = await showExplainedQuickPick<ValuePickItem<"declare" | "existing">>(
+      [
+        { label: "declare objects", value: "declare", picked: true },
+        { label: "fill existing objects", value: "existing" }
+      ],
+      { title, placeHolder: "Declaration mode", ignoreFocusOut: true }
+    );
+    if (!declaration) return undefined;
+    options.existing = declaration.value === "existing";
+  }
+
+  if (shape === "graph") {
+    const direction = await showExplainedQuickPick<ValuePickItem<"undirected" | "directed">>(
+      [
+        { label: "undirected", value: "undirected", picked: true },
+        { label: "directed", value: "directed" }
+      ],
+      { title, placeHolder: "Graph direction", ignoreFocusOut: true }
+    );
+    const weight = await showExplainedQuickPick<ValuePickItem<"unweighted" | "weighted">>(
+      [
+        { label: "unweighted", value: "unweighted", picked: true },
+        { label: "weighted", value: "weighted" }
+      ],
+      { title, placeHolder: "Edge values", ignoreFocusOut: true }
+    );
+    if (!direction || !weight) return undefined;
+    options.directed = direction.value === "directed";
+    options.weighted = weight.value === "weighted";
+    if (weight.value === "weighted") {
+      const weightType = await pickStringWithCustom(title, "Weight type", ["ll", "long long", "int"], "C++ weight type");
+      if (!weightType) return undefined;
+      options.weightType = weightType.trim();
+    }
+    const edgeCount = await pickStringWithCustom(title, "Edge count expression", sizes, "Edge count expression, for example m");
+    if (!edgeCount) return undefined;
+    options.edgeCountExpression = edgeCount.trim();
+    const indexing = await promptInputIndexing(title);
+    if (!indexing) return undefined;
+    options.indexing = indexing;
+    const metadata = await showExplainedQuickPick<ValuePickItem<"edges" | "degrees">>(
+      [
+        { label: "keep edge list", value: "edges" },
+        { label: "compute degrees", value: "degrees" }
+      ],
+      { title, placeHolder: "Additional graph outputs", canPickMany: true, ignoreFocusOut: true }
+    );
+    if (!metadata) return undefined;
+    options.keepEdges = metadata.some((item) => item.value === "edges");
+    options.degreeMetadata = metadata.some((item) => item.value === "degrees");
+  }
+
+  if (["tree", "permutation", "functional_graph"].includes(shape)) {
+    const indexing = await promptInputIndexing(title);
+    if (!indexing) return undefined;
+    options.indexing = indexing;
+  }
+  if (shape === "tree") {
+    const metadata = await showExplainedQuickPick<ValuePickItem<"parent" | "depth" | "subtree" | "euler">>(
+      [
+        { label: "parent + traversal order", value: "parent" },
+        { label: "depth", value: "depth" },
+        { label: "subtree sizes", value: "subtree" },
+        { label: "tin/tout", value: "euler" }
+      ],
+      { title, placeHolder: "Tree metadata", canPickMany: true, ignoreFocusOut: true }
+    );
+    if (!metadata) return undefined;
+    options.parentMetadata = metadata.length > 0;
+    options.depthMetadata = metadata.some((item) => item.value === "depth");
+    options.subtreeMetadata = metadata.some((item) => item.value === "subtree");
+    options.eulerMetadata = metadata.some((item) => item.value === "euler");
+    if (metadata.length > 0) {
+      const root = await pickStringWithCustom(title, "Root expression", ["0"], "Root vertex expression");
+      if (!root) return undefined;
+      options.rootExpression = root.trim();
+    }
+  }
+  if (shape === "permutation") {
+    const metadata = await showExplainedQuickPick<ValuePickItem<"inverse" | "cycles">>(
+      [
+        { label: "inverse permutation", value: "inverse" },
+        { label: "cycle decomposition", value: "cycles" }
+      ],
+      { title, placeHolder: "Permutation metadata", canPickMany: true, ignoreFocusOut: true }
+    );
+    if (!metadata) return undefined;
+    options.inverseMetadata = metadata.some((item) => item.value === "inverse");
+    options.cycleMetadata = metadata.some((item) => item.value === "cycles");
+  }
+  if (shape === "functional_graph") {
+    const metadata = await showExplainedQuickPick<ValuePickItem<"reverse" | "indegree" | "cycles">>(
+      [
+        { label: "reverse graph", value: "reverse" },
+        { label: "indegree", value: "indegree" },
+        { label: "cycles, entry, and distance", value: "cycles" }
+      ],
+      { title, placeHolder: "Functional graph metadata", canPickMany: true, ignoreFocusOut: true }
+    );
+    if (!metadata) return undefined;
+    options.reverseMetadata = metadata.some((item) => item.value === "reverse");
+    options.degreeMetadata = metadata.some((item) => item.value === "indegree");
+    options.cycleMetadata = metadata.some((item) => item.value === "cycles");
+  }
+
+  return options;
+}
+
+async function promptConnectedComponentsOptions(
+  editor: vscode.TextEditor
+): Promise<ConnectedComponentsOptions | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const title = "edulcni: connected_components";
+  const kind = await showExplainedQuickPick<ValuePickItem<ConnectedComponentsKind>>(
+    [
+      { label: "undirected components", value: "undirected", picked: true },
+      { label: "weak directed components", value: "weak" },
+      { label: "strongly connected components", value: "strong" }
+    ],
+    { title, placeHolder: "Component relation", ignoreFocusOut: true }
+  );
+  const source = await showExplainedQuickPick<ValuePickItem<"existing_graph" | "read_graph">>(
+    [
+      { label: "existing adjacency list", value: "existing_graph", picked: true },
+      { label: "generate graph input", value: "read_graph" }
+    ],
+    { title, placeHolder: "Graph source", ignoreFocusOut: true }
+  );
+  if (!kind || !source) return undefined;
+  const graphName = await showExplainedInputBox({
     title,
-    prompt: "Matrix variable name",
-    value: suggestIdentifier(analysis, "a", "grid"),
+    prompt: "Graph variable name",
+    value: suggestIdentifier(analysis, "graph", "g"),
     validateInput: validateIdentifier,
     ignoreFocusOut: true
   });
-  if (nameInput === undefined || nameInput.trim() === "") return undefined;
-
-  const rowExpression = await pickStringWithCustom(
-    title,
-    "Row count",
-    sizeExpressionCandidates(analysis),
-    "Expression for the number of rows, for example n"
-  );
-  if (rowExpression === undefined || rowExpression.trim() === "") return undefined;
-
-  const columnExpression = await pickStringWithCustom(
-    title,
-    "Column count",
-    sizeExpressionCandidates(analysis),
-    "Expression for the number of columns, for example m"
-  );
-  if (columnExpression === undefined || columnExpression.trim() === "") return undefined;
-
-  const kind = await showExplainedQuickPick<ValuePickItem<"values" | "characters">>(
-    [
-      { label: "value matrix", value: "values", picked: true },
-      { label: "character grid", value: "characters" }
-    ],
-    { title, placeHolder: "Matrix input format", ignoreFocusOut: true }
-  );
-  if (!kind) return undefined;
-
-  let valueType = "char";
-  if (kind.value === "values") {
-    const selectedType = await pickStringWithCustom(
-      title,
-      "Value type",
-      ["int", "ll", "long long", "char"],
-      "C++ value type"
-    );
-    if (selectedType === undefined || selectedType.trim() === "") return undefined;
-    valueType = selectedType.trim();
+  if (!graphName) return undefined;
+  const sizes = sizeExpressionCandidates(analysis);
+  let sizeExpression = sizes[0] ?? "n";
+  let edgeCountExpression = sizes[1] ?? "m";
+  let indexing: InputIndexing = "zero_based";
+  if (source.value === "read_graph") {
+    const size = await pickStringWithCustom(title, "Vertex count expression", sizes, "Vertex count expression");
+    const edges = await pickStringWithCustom(title, "Edge count expression", sizes, "Edge count expression");
+    const base = await promptInputIndexing(title);
+    if (!size || !edges || !base) return undefined;
+    sizeExpression = size.trim();
+    edgeCountExpression = edges.trim();
+    indexing = base;
   }
-
+  const outputs = await showExplainedQuickPick<ValuePickItem<"groups" | "sizes">>(
+    [
+      { label: "vertex groups", value: "groups" },
+      { label: "component sizes", value: "sizes" }
+    ],
+    { title, placeHolder: "Additional outputs", canPickMany: true, ignoreFocusOut: true }
+  );
+  if (!outputs) return undefined;
   return {
-    name: nameInput.trim(),
-    rowExpression: rowExpression.trim(),
-    columnExpression: columnExpression.trim(),
-    valueType,
-    stringGrid: kind.value === "characters"
+    kind: kind.value,
+    sourceMode: source.value,
+    indexing,
+    groups: outputs.some((item) => item.value === "groups"),
+    sizes: outputs.some((item) => item.value === "sizes"),
+    graphName: graphName.trim(),
+    sizeExpression,
+    edgeCountExpression,
+    resultName: suggestIdentifier(analysis, "components", "cc"),
+    includeReadHelper: source.value === "read_graph" && !analysis.identifiers.has("read"),
+    names: planConnectedComponentsNames(analysis)
   };
 }
 
@@ -5244,67 +5489,64 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
     }
   ],
   [
-    "read_vector",
+    "input",
     {
       catalogEntry: {
-        path: "/templates/read_vector",
+        path: "/templates/input",
         insertMode: "cursor",
-        generator: "read_vector",
-        label: "/templates/read_vector",
-        description: "interactive vector declaration and input snippet",
+        generator: "input",
+        label: "/templates/input",
+        description: "structured input generator using read()",
         detail: "interactive / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const options = await promptReadVectorOptions(editor);
-        return options
-          ? { content: renderReadVector(options), renames: [], exports: [] }
-          : undefined;
+        const options = await promptInputOptions(editor);
+        return options ? renderRecipeSnippet(renderInputRecipe(options)) : undefined;
       },
       defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
-        const valueType = "int";
-        return {
-          content: renderReadVector({
-            name: suggestIdentifier(analysis, "a", "values"),
-            sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
-            valueType,
-            containerType: vectorContainerTypeForValueType(analysis, valueType)
-          }),
-          renames: [],
-          exports: []
-        };
+        return renderRecipeSnippet(renderInputRecipe({
+          shape: "vector",
+          includeReadHelper: !analysis.identifiers.has("read"),
+          name: suggestIdentifier(analysis, "a", "values"),
+          sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+          valueType: "int",
+          fields: [{ name: "value", valueType: "int" }],
+          indexing: "zero_based"
+        }));
       }
     }
   ],
   [
-    "read_matrix",
+    "connected_components",
     {
       catalogEntry: {
-        path: "/templates/read_matrix",
-        insertMode: "cursor",
-        generator: "read_matrix",
-        label: "/templates/read_matrix",
-        description: "interactive matrix or character-grid input snippet",
-        detail: "interactive / template"
+        path: "/templates/connected_components",
+        insertMode: "global",
+        generator: "connected_components",
+        label: "/templates/connected_components",
+        description: "undirected, weak, or strong graph components",
+        detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const options = await promptReadMatrixOptions(editor);
+        const options = await promptConnectedComponentsOptions(editor);
         return options
-          ? { content: renderReadMatrix(options), renames: [], exports: [] }
+          ? renderRecipeSnippet(renderConnectedComponentsRecipe(options))
           : undefined;
       },
-      defaultSnippet(analysis: CppAnalysis): RenderedSnippet {
-        const sizes = sizeExpressionCandidates(analysis);
-        return {
-          content: renderReadMatrix({
-            name: suggestIdentifier(analysis, "a", "grid"),
-            rowExpression: sizes[0] ?? "n",
-            columnExpression: sizes[1] ?? "m",
-            valueType: "int",
-            stringGrid: false
-          }),
-          renames: [],
-          exports: []
-        };
+      defaultSnippet(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet {
+        return renderRecipeSnippet(renderConnectedComponentsRecipe({
+          kind: "undirected",
+          sourceMode: "existing_graph",
+          indexing: "zero_based",
+          groups: false,
+          sizes: false,
+          graphName: "graph",
+          sizeExpression: sizeExpressionCandidates(analysis)[0] ?? "n",
+          edgeCountExpression: sizeExpressionCandidates(analysis)[1] ?? "m",
+          resultName: "components",
+          includeReadHelper: false,
+          names: planConnectedComponentsNames(analysis, extraReserved)
+        }));
       }
     }
   ],

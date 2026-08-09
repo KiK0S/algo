@@ -76,6 +76,7 @@ class HeavyLightDecomposition {
     return order_[pos];
   }
 
+{{#if includeSubtree}}
   int subtree_size(int v) const { return vertex_ok(v) ? subtree_size_[v] : 0; }
 
   std::pair<int, int> subtree_segment(int v) const {
@@ -84,7 +85,9 @@ class HeavyLightDecomposition {
     }
     return std::make_pair(pos_[v], pos_[v] + subtree_size_[v] - 1);
   }
+{{/if}}
 
+{{#if includeLca}}
   int lca(int a, int b) const {
     if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {
       return -1;
@@ -101,7 +104,9 @@ class HeavyLightDecomposition {
     }
     return (depth_[u] < depth_[v] ? u : v);
   }
+{{/if}}
 
+{{#if includePath}}
   std::vector<std::pair<int, int>> path_segments(int a, int b,
                                                   bool include_lca = true) const {
     if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {
@@ -145,7 +150,6 @@ class HeavyLightDecomposition {
     EDULCNI_STEP("Heavy-light decomposition split a path");
     return segments;
   }
-
   template <typename Func>
   void for_each_path_segment(int a, int b, const Func& fn,
                              bool include_lca = true) const {
@@ -155,6 +159,7 @@ class HeavyLightDecomposition {
       fn(seg.first, seg.second);
     }
   }
+{{/if}}
 
  private:
   int n_;

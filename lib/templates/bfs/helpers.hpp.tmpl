@@ -4,6 +4,7 @@ struct BfsResult {
   std::vector<int> order;
 };
 
+{{#if includeAddEdge}}
 inline void bfs_add_edge(std::vector<std::vector<int>>& graph, int from, int to,
                          bool undirected = false) {
   const int n = static_cast<int>(graph.size());
@@ -15,6 +16,7 @@ inline void bfs_add_edge(std::vector<std::vector<int>>& graph, int from, int to,
     graph[to].push_back(from);
   }
 }
+{{/if}}
 
 inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
                                   const std::vector<int>& sources) {
@@ -79,10 +81,13 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
   return result;
 }
 
+{{#if includeSingle}}
 inline BfsResult bfs(const std::vector<std::vector<int>>& graph, int source) {
   return bfs_multi_source(graph, std::vector<int>(1, source));
 }
+{{/if}}
 
+{{#if includeRestorePath}}
 inline std::vector<int> bfs_restore_path(int source, int target,
                                          const BfsResult& result) {
   const int n = static_cast<int>(result.parent.size());
@@ -109,7 +114,9 @@ inline std::vector<int> bfs_restore_path(int source, int target,
   EDULCNI_STEP("BFS restored a path");
   return path;
 }
+{{/if}}
 
+{{#if includeRestoreRoot}}
 inline std::vector<int> bfs_restore_path_to_root(int target,
                                                  const BfsResult& result) {
   const int n = static_cast<int>(result.parent.size());
@@ -128,3 +135,4 @@ inline std::vector<int> bfs_restore_path_to_root(int target,
   std::reverse(path.begin(), path.end());
   return path;
 }
+{{/if}}

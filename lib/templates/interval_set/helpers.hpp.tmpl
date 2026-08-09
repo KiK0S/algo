@@ -1,0 +1,44 @@
+// Adapted from xeppelin-kactl IntervalContainer.h (Simon Lindholm), CC0.
+template <typename T>
+class IntervalSet {
+public:
+	using Interval = std::pair<T, T>;
+
+	void add(T left, T right) {
+		if (!(left < right)) return;
+		auto iterator = intervals_.lower_bound({left, left});
+		if (iterator != intervals_.begin()) {
+			auto previous = std::prev(iterator);
+			if (!(previous->second < left)) iterator = previous;
+		}
+		while (iterator != intervals_.end() && !(right < iterator->first)) {
+			left = std::min(left, iterator->first);
+			right = std::max(right, iterator->second);
+			iterator = intervals_.erase(iterator);
+		}
+		intervals_.insert(iterator, {left, right});
+	}
+
+	void remove(T left, T right) {
+		if (!(left < right)) return;
+		std::vector<Interval> add_back;
+		auto iterator = intervals_.lower_bound({left, left});
+		if (iterator != intervals_.begin()) --iterator;
+		while (iterator != intervals_.end() && iterator->first < right) {
+			if (iterator->second <= left) {
+				++iterator;
+				continue;
+			}
+			auto [begin, end] = *iterator;
+			iterator = intervals_.erase(iterator);
+			if (begin < left) add_back.push_back({begin, left});
+			if (right < end) add_back.push_back({right, end});
+		}
+		intervals_.insert(add_back.begin(), add_back.end());
+	}
+
+	const std::set<Interval>& intervals() const { return intervals_; }
+
+private:
+	std::set<Interval> intervals_;
+};

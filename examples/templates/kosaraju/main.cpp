@@ -15,18 +15,10 @@ struct KosarajuResult {
   int component_count;
   std::vector<int> component_of;
   std::vector<std::vector<int>> components;
-  std::vector<std::vector<int>> condensation_dag;
+
 };
 
-inline void kosaraju_add_edge(std::vector<std::vector<int>>& graph, int from, int to) {
-  const int n = static_cast<int>(graph.size());
-  if (from < 0 || from >= n || to < 0 || to >= n) {
-    return;
-  }
-  graph[from].push_back(to);
-  EDULCNI_VIS(edulcni::live::graph("kosaraju.graph", graph));
-  EDULCNI_STEP("Kosaraju edge added");
-}
+
 
 inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
   const int n = static_cast<int>(graph.size());
@@ -90,27 +82,7 @@ inline KosarajuResult kosaraju_scc(const std::vector<std::vector<int>>& graph) {
     EDULCNI_STEP("Kosaraju discovered a component");
   }
 
-  result.condensation_dag.assign(result.component_count, std::vector<int>());
-  for (int v = 0; v < n; ++v) {
-    const int from_comp = result.component_of[v];
-    for (int to : graph[v]) {
-      if (to < 0 || to >= n) {
-        continue;
-      }
-      const int to_comp = result.component_of[to];
-      if (from_comp != to_comp) {
-        result.condensation_dag[from_comp].push_back(to_comp);
-      }
-    }
-  }
-  for (int comp = 0; comp < result.component_count; ++comp) {
-    std::vector<int>& edges = result.condensation_dag[comp];
-    std::sort(edges.begin(), edges.end());
-    edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
-  }
 
-  EDULCNI_VIS(edulcni::live::graph("kosaraju.condensation", result.condensation_dag));
-  EDULCNI_STEP("Kosaraju built the condensation graph");
 
   return result;
 }

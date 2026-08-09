@@ -21,6 +21,7 @@ struct DijkstraResult {
   std::vector<int> parent;
 };
 
+{{#if includeAddEdge}}
 template <typename Weight, typename WeightArg>
 void dijkstra_add_edge(std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
                        int from, int to, const WeightArg& weight,
@@ -36,6 +37,7 @@ void dijkstra_add_edge(std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
   EDULCNI_VIS(edulcni::live::weighted_graph("dijkstra.graph", graph));
   EDULCNI_STEP("Dijkstra edge added");
 }
+{{/if}}
 
 template <typename Weight>
 DijkstraResult<Weight> dijkstra_multi_source(
@@ -104,13 +106,16 @@ DijkstraResult<Weight> dijkstra_multi_source(
   return result;
 }
 
+{{#if includeSingle}}
 template <typename Weight>
 DijkstraResult<Weight> dijkstra(
     const std::vector<std::vector<DijkstraEdge<Weight>>>& graph, int source,
     Weight inf = std::numeric_limits<Weight>::max()) {
   return dijkstra_multi_source(graph, std::vector<int>(1, source), inf);
 }
+{{/if}}
 
+{{#if includeRestorePath}}
 template <typename Weight>
 std::vector<int> dijkstra_restore_path(int source, int target,
                                        const DijkstraResult<Weight>& result) {
@@ -139,3 +144,4 @@ std::vector<int> dijkstra_restore_path(int source, int target,
   EDULCNI_STEP("Dijkstra restored a path");
   return path;
 }
+{{/if}}

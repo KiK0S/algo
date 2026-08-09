@@ -1,0 +1,15 @@
+template <typename T>
+std::vector<T> sliding_window_maximum(const std::vector<T>& values, int width) {
+	std::vector<T> answer;
+	if (width <= 0 || width > static_cast<int>(values.size())) return answer;
+	std::deque<int> candidates;
+	for (int right = 0; right < static_cast<int>(values.size()); ++right) {
+		while (!candidates.empty() && candidates.front() <= right - width)
+			candidates.pop_front();
+		while (!candidates.empty() && values[candidates.back()] <= values[right])
+			candidates.pop_back();
+		candidates.push_back(right);
+		if (right + 1 >= width) answer.push_back(values[candidates.front()]);
+	}
+	return answer;
+}

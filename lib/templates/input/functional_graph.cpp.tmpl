@@ -1,0 +1,57 @@
+std::vector<int> {{name}}({{sizeExpression}});
+for (auto& to : {{name}}) {
+	read(to);
+{{#if oneBased}}
+	--to;
+{{/if}}
+}
+{{#if reverseMetadata}}
+std::vector<std::vector<int>> {{reverseName}}({{sizeExpression}});
+for (int vertex = 0; vertex < {{sizeExpression}}; ++vertex)
+	{{reverseName}}[{{name}}[vertex]].push_back(vertex);
+{{/if}}
+{{#if indegreeMetadata}}
+std::vector<int> {{indegreeName}}({{sizeExpression}});
+for (int to : {{name}}) ++{{indegreeName}}[to];
+{{/if}}
+{{#if cycleMetadata}}
+{{#if indegreeMetadata}}
+std::vector<int> {{cycleIndegreeName}} = {{indegreeName}};
+{{/if}}
+{{#unless indegreeMetadata}}
+std::vector<int> {{cycleIndegreeName}}({{sizeExpression}});
+for (int to : {{name}}) ++{{cycleIndegreeName}}[to];
+{{/unless}}
+std::vector<int> removed_order, peel_queue;
+for (int vertex = 0; vertex < {{sizeExpression}}; ++vertex)
+	if ({{cycleIndegreeName}}[vertex] == 0) peel_queue.push_back(vertex);
+for (int at = 0; at < static_cast<int>(peel_queue.size()); ++at) {
+	int vertex = peel_queue[at];
+	removed_order.push_back(vertex);
+	if (--{{cycleIndegreeName}}[{{name}}[vertex]] == 0)
+		peel_queue.push_back({{name}}[vertex]);
+}
+std::vector<int> {{cycleIdName}}({{sizeExpression}}, -1);
+std::vector<int> {{cycleEntryName}}({{sizeExpression}}, -1);
+std::vector<int> {{distanceName}}({{sizeExpression}});
+std::vector<std::vector<int>> {{cyclesName}};
+for (int start = 0; start < {{sizeExpression}}; ++start) {
+	if ({{cycleIndegreeName}}[start] == 0 || {{cycleIdName}}[start] != -1) continue;
+	{{cyclesName}}.push_back({});
+	int cycle = static_cast<int>({{cyclesName}}.size()) - 1;
+	for (int vertex = start; {{cycleIdName}}[vertex] == -1; vertex = {{name}}[vertex]) {
+		{{cycleIdName}}[vertex] = cycle;
+		{{cycleEntryName}}[vertex] = vertex;
+		{{cyclesName}}.back().push_back(vertex);
+	}
+}
+for (int index = static_cast<int>(removed_order.size()); index-- > 0; ) {
+	int vertex = removed_order[index];
+	int to = {{name}}[vertex];
+	{{cycleIdName}}[vertex] = {{cycleIdName}}[to];
+	{{cycleEntryName}}[vertex] = {{cycleEntryName}}[to];
+	{{distanceName}}[vertex] = {{distanceName}}[to] + 1;
+}
+{{/if}}
+EDULCNI_VIS(edulcni::live::array("input.functional_graph", {{name}}));
+EDULCNI_STEP("Functional graph read");

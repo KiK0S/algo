@@ -34,21 +34,7 @@ struct DijkstraResult {
   std::vector<int> parent;
 };
 
-template <typename Weight, typename WeightArg>
-void dijkstra_add_edge(std::vector<std::vector<DijkstraEdge<Weight>>>& graph,
-                       int from, int to, const WeightArg& weight,
-                       bool undirected = false) {
-  const int n = static_cast<int>(graph.size());
-  if (from < 0 || from >= n || to < 0 || to >= n) {
-    return;
-  }
-  graph[from].push_back(DijkstraEdge<Weight>(to, static_cast<Weight>(weight)));
-  if (undirected && from != to) {
-    graph[to].push_back(DijkstraEdge<Weight>(from, static_cast<Weight>(weight)));
-  }
-  EDULCNI_VIS(edulcni::live::weighted_graph("dijkstra.graph", graph));
-  EDULCNI_STEP("Dijkstra edge added");
-}
+
 
 template <typename Weight>
 DijkstraResult<Weight> dijkstra_multi_source(
@@ -117,40 +103,12 @@ DijkstraResult<Weight> dijkstra_multi_source(
   return result;
 }
 
+
 template <typename Weight>
 DijkstraResult<Weight> dijkstra(
     const std::vector<std::vector<DijkstraEdge<Weight>>>& graph, int source,
     Weight inf = std::numeric_limits<Weight>::max()) {
   return dijkstra_multi_source(graph, std::vector<int>(1, source), inf);
-}
-
-template <typename Weight>
-std::vector<int> dijkstra_restore_path(int source, int target,
-                                       const DijkstraResult<Weight>& result) {
-  const int n = static_cast<int>(result.parent.size());
-  if (source < 0 || source >= n || target < 0 || target >= n) {
-    return {};
-  }
-
-  std::vector<int> path;
-  int current = target;
-  int steps = 0;
-  while (current != -1 && steps <= n) {
-    path.push_back(current);
-    current = result.parent[current];
-    ++steps;
-  }
-
-  if (path.empty() || path.back() != source) {
-    return {};
-  }
-  std::reverse(path.begin(), path.end());
-  EDULCNI_VIS(edulcni::live::array("dijkstra.path", path));
-  EDULCNI_VIS(edulcni::live::graph_path_focus(
-      "dijkstra.graph", path, edulcni::live::FocusRole::result,
-      "restored shortest path"));
-  EDULCNI_STEP("Dijkstra restored a path");
-  return path;
 }
 
 int main() {

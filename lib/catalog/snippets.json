@@ -461,39 +461,37 @@
     }
   },
   {
-    "path": "/templates/read_vector",
+    "path": "/templates/input",
     "insertMode": "cursor",
-    "generator": "read_vector",
-    "label": "/templates/read_vector",
-    "description": "interactive vector declaration and input snippet",
-    "detail": "interactive / template",
-    "exports": ["a"],
-    "form": ["name", "sizeExpression", "valueType"],
+    "generator": "input",
+    "label": "/templates/input",
+    "description": "structured read() input for values, containers, records, graphs, trees, permutations, and functional graphs",
+    "detail": "dynamic / template",
+    "exports": ["read"],
+    "features": ["values", "vector", "matrix", "string_grid", "parallel_arrays", "tuple_records", "graph", "tree", "permutation", "functional_graph", "zero_or_one_based"],
+    "sections": ["helpers", "solve"],
     "visualization": {
       "status": "snapshot",
-      "models": [
-        "array"
-      ],
+      "models": ["array", "matrix", "graph", "tree"],
       "layout": "single",
       "defaultGranularity": "summary"
     }
   },
   {
-    "path": "/templates/read_matrix",
-    "insertMode": "cursor",
-    "generator": "read_matrix",
-    "label": "/templates/read_matrix",
-    "description": "interactive matrix or character-grid input snippet",
-    "detail": "interactive / template",
-    "exports": ["a"],
-    "form": ["name", "rowExpression", "columnExpression", "valueType"],
+    "path": "/templates/connected_components",
+    "insertMode": "global",
+    "generator": "connected_components",
+    "label": "/templates/connected_components",
+    "description": "undirected, weak, or strongly connected graph components",
+    "detail": "dynamic / template",
+    "exports": ["ConnectedComponentsResult", "connected_components"],
+    "features": ["component_count", "component_of", "groups", "sizes", "undirected", "weak", "strong"],
+    "sections": ["helpers", "solve"],
     "visualization": {
-      "status": "snapshot",
-      "models": [
-        "matrix"
-      ],
-      "layout": "single",
-      "defaultGranularity": "summary"
+      "status": "automatic",
+      "models": ["graph", "array"],
+      "layout": "split_vertical",
+      "defaultGranularity": "operations"
     }
   },
   {
@@ -1768,105 +1766,6 @@
     }
   },
   {
-    "path": "/templates/read_array",
-    "insertMode": "cursor",
-    "template": "read_array.cpp.tmpl",
-    "description": "declare and read an integer vector",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": [
-        "array"
-      ],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_graph_directed",
-    "insertMode": "cursor",
-    "template": "read_graph_directed.cpp.tmpl",
-    "description": "read a directed graph",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": ["graph"],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_graph_directed_weighted",
-    "insertMode": "cursor",
-    "template": "read_graph_directed_weighted.cpp.tmpl",
-    "description": "read a directed weighted graph",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": ["graph"],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_graph_undirected",
-    "insertMode": "cursor",
-    "template": "read_graph_undirected.cpp.tmpl",
-    "description": "read an undirected graph",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": [
-        "graph"
-      ],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_graph_undirected_weighted",
-    "insertMode": "cursor",
-    "template": "read_graph_undirected_weighted.cpp.tmpl",
-    "description": "read an undirected weighted graph",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": ["graph"],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_tree_edges",
-    "insertMode": "cursor",
-    "template": "read_tree_edges.cpp.tmpl",
-    "description": "read tree edges",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": [
-        "tree"
-      ],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
-    "path": "/templates/read_vector_ref",
-    "insertMode": "cursor",
-    "template": "read_vector_ref.cpp.tmpl",
-    "description": "read an existing vector by reference",
-    "detail": "static / template",
-    "visualization": {
-      "status": "snapshot",
-      "models": [
-        "array"
-      ],
-      "layout": "single",
-      "defaultGranularity": "summary"
-    }
-  },
-  {
     "path": "/templates/static_rsq",
     "insertMode": "cursor",
     "template": "static_rsq.cpp.tmpl",
@@ -2326,5 +2225,316 @@
       "layout": "main_with_sidebar",
       "defaultGranularity": "operations"
     }
+  },
+  {
+    "path": "/templates/output",
+    "insertMode": "global",
+    "template": "output/helpers.hpp.tmpl",
+    "description": "space-separated scalar and nested-range output",
+    "detail": "strings and character pointers remain atomic text values",
+    "exports": ["is_text_output", "is_output_range", "is_output_iterator", "write_value", "write"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/first_true",
+    "insertMode": "global",
+    "template": "first_true/helpers.hpp.tmpl",
+    "description": "first true value of a monotone integer predicate",
+    "detail": "half-open integer binary search / O(log range)",
+    "exports": ["first_true"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/difference_array",
+    "insertMode": "global",
+    "template": "difference_array/helpers.hpp.tmpl",
+    "description": "offline half-open range additions",
+    "detail": "endpoint differences + one materialization pass",
+    "exports": ["DifferenceArray"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/sliding_window_max",
+    "insertMode": "global",
+    "template": "sliding_window_max/helpers.hpp.tmpl",
+    "description": "maximum of every fixed-width window",
+    "detail": "monotone deque / O(n)",
+    "exports": ["sliding_window_maximum"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/zero_one_bfs",
+    "insertMode": "global",
+    "template": "zero_one_bfs/helpers.hpp.tmpl",
+    "description": "shortest paths with zero/one edge weights",
+    "detail": "deque shortest paths / O(V + E)",
+    "exports": ["ZeroOneBfsEdge", "zero_one_bfs"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/bridges",
+    "insertMode": "global",
+    "template": "bridges/helpers.hpp.tmpl",
+    "description": "bridges and articulation vertices in an undirected graph",
+    "detail": "edge-id-aware low-link DFS / O(V + E)",
+    "exports": ["BridgeSearchResult", "find_bridges_and_articulations"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/tree_diameter",
+    "insertMode": "global",
+    "template": "tree_diameter/helpers.hpp.tmpl",
+    "description": "unweighted tree diameter endpoints and path",
+    "detail": "two BFS sweeps / O(n)",
+    "exports": ["TreeDiameterResult", "tree_diameter"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/euler_subtrees",
+    "insertMode": "global",
+    "template": "euler_subtrees/helpers.hpp.tmpl",
+    "description": "iterative Euler preorder with subtree intervals",
+    "detail": "subtree(v) = [tin[v], tout[v]) / O(n)",
+    "exports": ["EulerSubtrees", "flatten_subtrees"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/z_function",
+    "insertMode": "global",
+    "template": "z_function/helpers.hpp.tmpl",
+    "description": "Z-function for strings or arbitrary sequences",
+    "detail": "prefix matches / O(n)",
+    "exports": ["z_function"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/manacher",
+    "insertMode": "global",
+    "template": "manacher/helpers.hpp.tmpl",
+    "description": "odd and even palindrome radii",
+    "detail": "Manacher / O(n)",
+    "exports": ["ManacherRadii", "manacher"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/xor_basis",
+    "insertMode": "global",
+    "template": "xor_basis/helpers.hpp.tmpl",
+    "description": "linear XOR basis with membership and maximum queries",
+    "detail": "O(bit width) per operation",
+    "exports": ["XorBasis"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/bitset_knapsack",
+    "insertMode": "global",
+    "template": "bitset_knapsack/helpers.hpp.tmpl",
+    "description": "compile-time-bounded subset sum",
+    "detail": "bitset shift-or 0/1 knapsack",
+    "exports": ["bitset_knapsack"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/persistent_segment_tree",
+    "insertMode": "global",
+    "template": "persistent_segment_tree/helpers.hpp.tmpl",
+    "description": "path-copy persistent point-add range-sum tree",
+    "detail": "versions, range sums, and kth between versions / O(log n)",
+    "exports": ["PersistentSegmentTree"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/binary_trie",
+    "insertMode": "global",
+    "template": "binary_trie/helpers.hpp.tmpl",
+    "description": "counted binary trie with erase and minimum XOR",
+    "detail": "O(bit width) per operation",
+    "exports": ["BinaryTrie"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/crt",
+    "insertMode": "global",
+    "template": "crt/helpers.hpp.tmpl",
+    "description": "Chinese remainder theorem for non-coprime moduli",
+    "detail": "returns compatibility, residue, and lcm modulus / O(log min(m,n))",
+    "exports": ["CrtResult", "extended_gcd", "chinese_remainder"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/primality_64",
+    "insertMode": "global",
+    "template": "primality_64/helpers.hpp.tmpl",
+    "description": "deterministic primality test for 64-bit integers",
+    "detail": "fixed-witness Miller-Rabin with widened multiplication",
+    "exports": ["modular_multiply_64", "modular_power_64", "is_prime_64"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/factorization_64",
+    "insertMode": "global",
+    "template": "factorization_64/helpers.hpp.tmpl",
+    "description": "randomized 64-bit integer factorization",
+    "detail": "Pollard rho + deterministic Miller-Rabin",
+    "exports": ["factor_mod_multiply", "factor_mod_power", "factor_is_prime", "pollard_rho", "factorize_64"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/minimum_rotation",
+    "insertMode": "global",
+    "template": "minimum_rotation/helpers.hpp.tmpl",
+    "description": "lexicographically minimum cyclic rotation",
+    "detail": "Booth-style two-candidate scan / O(n)",
+    "exports": ["minimum_rotation"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/euler_walk",
+    "insertMode": "global",
+    "template": "euler_walk/helpers.hpp.tmpl",
+    "description": "Euler trail from edge-id adjacency lists",
+    "detail": "iterative Hierholzer / O(V + E)",
+    "exports": ["euler_walk"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/floyd_warshall",
+    "insertMode": "global",
+    "template": "floyd_warshall/helpers.hpp.tmpl",
+    "description": "all-pairs shortest paths with negative-cycle propagation",
+    "detail": "distance matrix / O(n³)",
+    "exports": ["floyd_warshall"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/hopcroft_karp",
+    "insertMode": "global",
+    "template": "hopcroft_karp/helpers.hpp.tmpl",
+    "description": "maximum bipartite matching",
+    "detail": "Hopcroft-Karp / O(E sqrt(V))",
+    "exports": ["HopcroftKarpResult", "hopcroft_karp"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/global_min_cut",
+    "insertMode": "global",
+    "template": "global_min_cut/helpers.hpp.tmpl",
+    "description": "global minimum cut of an undirected weighted graph",
+    "detail": "Stoer-Wagner adjacency-matrix algorithm / O(n³)",
+    "exports": ["global_min_cut"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/geometry_point",
+    "insertMode": "global",
+    "template": "geometry_point/helpers.hpp.tmpl",
+    "description": "small generic 2D point/vector type",
+    "detail": "arithmetic, dot, cross, norm, and perpendicular",
+    "exports": ["GeometryPoint"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/closest_pair",
+    "insertMode": "global",
+    "template": "closest_pair/helpers.hpp.tmpl",
+    "dependsOn": ["/templates/geometry_point"],
+    "description": "closest pair of integer points",
+    "detail": "sweep line / O(n log n)",
+    "exports": ["ClosestPairResult", "closest_pair"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/minimum_enclosing_circle",
+    "insertMode": "global",
+    "template": "minimum_enclosing_circle/helpers.hpp.tmpl",
+    "dependsOn": ["/templates/geometry_point"],
+    "description": "minimum circle enclosing a set of points",
+    "detail": "randomized incremental rebuild / expected O(n)",
+    "exports": ["EnclosingCircle", "circle_from_diameter", "circle_from_three_points", "minimum_enclosing_circle"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/circle_intersection",
+    "insertMode": "global",
+    "template": "circle_intersection/helpers.hpp.tmpl",
+    "dependsOn": ["/templates/geometry_point"],
+    "description": "intersection points of two circles",
+    "detail": "zero, one, or two finite intersections",
+    "exports": ["circle_intersections"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/polygon_cut",
+    "insertMode": "global",
+    "template": "polygon_cut/helpers.hpp.tmpl",
+    "dependsOn": ["/templates/geometry_point"],
+    "description": "clip a polygon to the left of a directed line",
+    "detail": "one Sutherland-Hodgman half-plane step / O(n)",
+    "exports": ["cut_polygon_left"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/hull_diameter",
+    "insertMode": "global",
+    "template": "hull_diameter/helpers.hpp.tmpl",
+    "dependsOn": ["/templates/geometry_point"],
+    "description": "farthest pair on a convex polygon",
+    "detail": "rotating calipers / O(n)",
+    "exports": ["convex_hull_diameter"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/solve_linear",
+    "insertMode": "global",
+    "template": "solve_linear/helpers.hpp.tmpl",
+    "description": "solve a real linear system and report its rank",
+    "detail": "full-pivot-style Gaussian elimination / O(rows² columns)",
+    "exports": ["LinearSystemResult", "solve_linear_system"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/determinant",
+    "insertMode": "global",
+    "template": "determinant/helpers.hpp.tmpl",
+    "description": "floating-point determinant",
+    "detail": "partial-pivot Gaussian elimination / O(n³)",
+    "exports": ["determinant"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/golden_section",
+    "insertMode": "global",
+    "template": "golden_section/helpers.hpp.tmpl",
+    "description": "minimum of a real unimodal function",
+    "detail": "golden-section search to a requested epsilon",
+    "exports": ["golden_section_minimum"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/interval_set",
+    "insertMode": "global",
+    "template": "interval_set/helpers.hpp.tmpl",
+    "description": "set of disjoint half-open intervals",
+    "detail": "merged addition and splitting removal / O(log n + touched)",
+    "exports": ["IntervalSet"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/constant_intervals",
+    "insertMode": "global",
+    "template": "constant_intervals/helpers.hpp.tmpl",
+    "description": "maximal constant ranges of a monotone function",
+    "detail": "callback over half-open intervals / O(k log(n/k))",
+    "exports": ["constant_intervals"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/permutation_rank",
+    "insertMode": "global",
+    "template": "permutation_rank/helpers.hpp.tmpl",
+    "description": "rank a small permutation",
+    "detail": "Lehmer-style integer encoding for n <= 63 / O(n)",
+    "exports": ["small_permutation_rank"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   }
 ]

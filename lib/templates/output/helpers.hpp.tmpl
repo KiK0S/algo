@@ -1,0 +1,47 @@
+template <typename T>
+struct is_text_output
+	: std::bool_constant<
+		std::is_same_v<std::decay_t<T>, std::string> ||
+		std::is_same_v<std::decay_t<T>, char*> ||
+		std::is_same_v<std::decay_t<T>, const char*>> {};
+
+template <typename T, typename = void>
+struct is_output_range : std::false_type {};
+
+template <typename T>
+struct is_output_range<T, std::void_t<
+	decltype(std::begin(std::declval<const T&>())),
+	decltype(std::end(std::declval<const T&>()))>>
+	: std::bool_constant<!is_text_output<T>::value> {};
+
+template <typename T, typename = void>
+struct is_output_iterator : std::false_type {};
+
+template <typename T>
+struct is_output_iterator<T, std::void_t<
+	typename std::iterator_traits<T>::iterator_category>> : std::true_type {};
+
+template <typename T>
+void write_value(std::ostream& output, bool& first, const T& value) {
+	if constexpr (is_output_range<T>::value) {
+		for (const auto& element : value) write_value(output, first, element);
+	} else {
+		output << (first ? "" : " ") << value;
+		first = false;
+	}
+}
+
+template <typename... Values>
+std::ostream& write(const Values&... values) {
+	bool first = true;
+	(write_value(std::cout, first, values), ...);
+	return std::cout << '\n';
+}
+
+template <typename Iterator,
+		std::enable_if_t<is_output_iterator<Iterator>::value, int> = 0>
+std::ostream& write(Iterator first, Iterator last) {
+	bool first_value = true;
+	for (; first != last; ++first) write_value(std::cout, first_value, *first);
+	return std::cout << '\n';
+}

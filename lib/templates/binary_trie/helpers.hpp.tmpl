@@ -1,0 +1,58 @@
+template <int Bits = 31>
+class BinaryTrie {
+public:
+	BinaryTrie() : nodes_(1) {}
+
+	void insert(unsigned value) {
+		int node = 0;
+		++nodes_[node].count;
+		for (int bit = Bits - 1; bit >= 0; --bit) {
+			int direction = (value >> bit) & 1U;
+			if (nodes_[node].child[direction] == -1) {
+				nodes_[node].child[direction] = static_cast<int>(nodes_.size());
+				nodes_.push_back(Node{});
+			}
+			node = nodes_[node].child[direction];
+			++nodes_[node].count;
+		}
+	}
+
+	bool erase(unsigned value) {
+		std::array<int, Bits + 1> path{};
+		int node = 0;
+		path[0] = 0;
+		for (int bit = Bits - 1, depth = 1; bit >= 0; --bit, ++depth) {
+			int direction = (value >> bit) & 1U;
+			node = nodes_[node].child[direction];
+			if (node == -1 || nodes_[node].count == 0) return false;
+			path[depth] = node;
+		}
+		for (int depth = 0; depth <= Bits; ++depth) --nodes_[path[depth]].count;
+		return true;
+	}
+
+	int size() const { return nodes_[0].count; }
+
+	unsigned minimum_xor(unsigned value) const {
+		if (size() == 0) return 0;
+		int node = 0;
+		unsigned answer = 0;
+		for (int bit = Bits - 1; bit >= 0; --bit) {
+			int direction = (value >> bit) & 1U;
+			int preferred = nodes_[node].child[direction];
+			if (preferred != -1 && nodes_[preferred].count > 0) node = preferred;
+			else {
+				node = nodes_[node].child[direction ^ 1];
+				answer |= 1U << bit;
+			}
+		}
+		return answer;
+	}
+
+private:
+	struct Node {
+		int child[2] = {-1, -1};
+		int count = 0;
+	};
+	std::vector<Node> nodes_;
+};

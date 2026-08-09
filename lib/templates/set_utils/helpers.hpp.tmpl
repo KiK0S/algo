@@ -1,3 +1,4 @@
+{{#if includeNextIterator}}
 template <typename Container>
 inline std::optional<typename Container::iterator> next_iterator(
     Container& container, typename Container::iterator it) {
@@ -23,7 +24,9 @@ inline std::optional<typename Container::const_iterator> next_iterator(
   }
   return it;
 }
+{{/if}}
 
+{{#if includePrevIterator}}
 template <typename Container>
 inline std::optional<typename Container::iterator> prev_iterator(
     Container& container, typename Container::iterator it) {
@@ -53,7 +56,9 @@ inline std::optional<typename Container::const_iterator> prev_iterator(
   --it;
   return it;
 }
+{{/if}}
 
+{{#if includeNextValue}}
 template <typename Container, typename Key>
 inline std::optional<typename Container::value_type> next_value(
     const Container& container, const Key& key) {
@@ -65,7 +70,9 @@ inline std::optional<typename Container::value_type> next_value(
   EDULCNI_STEP("Set utility found the next value");
   return *it;
 }
+{{/if}}
 
+{{#if includePrevValue}}
 template <typename Container, typename Key>
 inline std::optional<typename Container::value_type> prev_value(
     const Container& container, const Key& key) {
@@ -78,3 +85,4 @@ inline std::optional<typename Container::value_type> prev_value(
   EDULCNI_STEP("Set utility found the previous value");
   return *it;
 }
+{{/if}}

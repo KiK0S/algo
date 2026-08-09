@@ -1,0 +1,54 @@
+// Adapted from xeppelin-kactl MinimumEnclosingCircle.h (Andrew He, chilli), CC0.
+struct EnclosingCircle {
+	GeometryPoint<long double> center;
+	long double radius = -1;
+};
+
+inline EnclosingCircle circle_from_diameter(
+		GeometryPoint<long double> first, GeometryPoint<long double> second) {
+	auto center = (first + second) / 2.0L;
+	return {center, std::sqrt((center - first).norm_squared())};
+}
+
+inline EnclosingCircle circle_from_three_points(
+		GeometryPoint<long double> first, GeometryPoint<long double> second,
+		GeometryPoint<long double> third) {
+	long double denominator = 2 * (first.x * (second.y - third.y) +
+		second.x * (third.y - first.y) + third.x * (first.y - second.y));
+	if (std::fabs(denominator) < 1e-24L) {
+		auto a = circle_from_diameter(first, second);
+		auto b = circle_from_diameter(first, third);
+		auto c = circle_from_diameter(second, third);
+		return a.radius >= b.radius && a.radius >= c.radius ? a : (b.radius >= c.radius ? b : c);
+	}
+	auto squared = [](auto point) { return point.norm_squared(); };
+	GeometryPoint<long double> center{
+		(squared(first) * (second.y - third.y) + squared(second) * (third.y - first.y) +
+		 squared(third) * (first.y - second.y)) / denominator,
+		(squared(first) * (third.x - second.x) + squared(second) * (first.x - third.x) +
+		 squared(third) * (second.x - first.x)) / denominator
+	};
+	return {center, std::sqrt((center - first).norm_squared())};
+}
+
+inline EnclosingCircle minimum_enclosing_circle(
+		std::vector<GeometryPoint<long double>> points) {
+	if (points.empty()) return {GeometryPoint<long double>(0, 0), 0};
+	static std::mt19937 generator(
+		static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
+	std::shuffle(points.begin(), points.end(), generator);
+	EnclosingCircle circle{points[0], 0};
+	auto outside = [](const EnclosingCircle& current, auto point) {
+		return (point - current.center).norm_squared() >
+			current.radius * current.radius * (1 + 1e-12L) + 1e-18L;
+	};
+	for (int i = 0; i < static_cast<int>(points.size()); ++i) if (outside(circle, points[i])) {
+		circle = {points[i], 0};
+		for (int j = 0; j < i; ++j) if (outside(circle, points[j])) {
+			circle = circle_from_diameter(points[i], points[j]);
+			for (int k = 0; k < j; ++k) if (outside(circle, points[k]))
+				circle = circle_from_three_points(points[i], points[j], points[k]);
+		}
+	}
+	return circle;
+}

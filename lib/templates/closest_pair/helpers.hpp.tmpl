@@ -1,0 +1,32 @@
+// Adapted from xeppelin-kactl ClosestPair.h (Simon Lindholm), CC0.
+struct ClosestPairResult {
+	long long distance_squared = std::numeric_limits<long long>::max();
+	GeometryPoint<long long> first;
+	GeometryPoint<long long> second;
+};
+
+inline ClosestPairResult closest_pair(std::vector<GeometryPoint<long long>> points) {
+	if (points.size() < 2) return {};
+	std::sort(points.begin(), points.end(), [](auto first, auto second) {
+		return first.y != second.y ? first.y < second.y : first.x < second.x;
+	});
+	std::set<GeometryPoint<long long>> candidates;
+	ClosestPairResult result;
+	int left = 0;
+	for (auto point : points) {
+		long long radius = result.distance_squared == std::numeric_limits<long long>::max()
+			? std::numeric_limits<int>::max()
+			: static_cast<long long>(std::sqrt(static_cast<long double>(result.distance_squared))) + 1;
+		while (left < static_cast<int>(points.size()) && points[left].y < point.y - radius)
+			candidates.erase(points[left++]);
+		auto begin = candidates.lower_bound({point.x - radius, std::numeric_limits<long long>::min()});
+		auto end = candidates.upper_bound({point.x + radius, std::numeric_limits<long long>::max()});
+		for (auto iterator = begin; iterator != end; ++iterator) {
+			auto difference = *iterator - point;
+			long long distance = difference.norm_squared();
+			if (distance < result.distance_squared) result = {distance, *iterator, point};
+		}
+		candidates.insert(point);
+	}
+	return result;
+}

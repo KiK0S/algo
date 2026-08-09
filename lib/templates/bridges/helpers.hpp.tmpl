@@ -1,0 +1,36 @@
+struct BridgeSearchResult {
+	std::vector<int> edge_ids;
+	std::vector<int> articulation_vertices;
+};
+
+inline BridgeSearchResult find_bridges_and_articulations(
+		const std::vector<std::vector<std::pair<int, int>>>& graph) {
+	const int n = static_cast<int>(graph.size());
+	std::vector<int> tin(n, -1), low(n), articulation(n);
+	std::vector<int> bridges;
+	int timer = 0;
+	std::function<void(int, int)> dfs = [&](int vertex, int parent_edge) {
+		tin[vertex] = low[vertex] = timer++;
+		int children = 0;
+		for (auto [to, edge_id] : graph[vertex]) {
+			if (edge_id == parent_edge || to < 0 || to >= n) continue;
+			if (tin[to] != -1) {
+				low[vertex] = std::min(low[vertex], tin[to]);
+				continue;
+			}
+			dfs(to, edge_id);
+			low[vertex] = std::min(low[vertex], low[to]);
+			if (low[to] > tin[vertex]) bridges.push_back(edge_id);
+			if (parent_edge != -1 && low[to] >= tin[vertex]) articulation[vertex] = 1;
+			++children;
+		}
+		if (parent_edge == -1 && children > 1) articulation[vertex] = 1;
+	};
+	for (int vertex = 0; vertex < n; ++vertex)
+		if (tin[vertex] == -1) dfs(vertex, -1);
+	std::vector<int> cut_vertices;
+	for (int vertex = 0; vertex < n; ++vertex)
+		if (articulation[vertex]) cut_vertices.push_back(vertex);
+	std::sort(bridges.begin(), bridges.end());
+	return {bridges, cut_vertices};
+}

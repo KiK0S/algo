@@ -14,8 +14,8 @@
     "onCommand:edulcni.insertHeader",
     "onCommand:edulcni.segtree",
     "onCommand:edulcni.compressUnique",
-    "onCommand:edulcni.readVector",
-    "onCommand:edulcni.readMatrix",
+    "onCommand:edulcni.input",
+    "onCommand:edulcni.connectedComponents",
     "onCommand:edulcni.berlekampMassey",
     "onCommand:edulcni.sparseTable"
   ],
@@ -41,12 +41,12 @@
         "title": "edulcni: compress_unique"
       },
       {
-        "command": "edulcni.readVector",
-        "title": "edulcni: read_vector"
+        "command": "edulcni.input",
+        "title": "edulcni: input"
       },
       {
-        "command": "edulcni.readMatrix",
-        "title": "edulcni: read_matrix"
+        "command": "edulcni.connectedComponents",
+        "title": "edulcni: connected_components"
       },
       {
         "command": "edulcni.berlekampMassey",

@@ -1,0 +1,24 @@
+// Adapted from xeppelin-kactl MinRotation.h (Stjepan Glavina), Unlicense.
+template <typename Sequence>
+int minimum_rotation(const Sequence& sequence) {
+	const int n = static_cast<int>(sequence.size());
+	if (n == 0) return 0;
+	Sequence doubled = sequence;
+	doubled.insert(doubled.end(), sequence.begin(), sequence.end());
+	int first = 0, second = 1, offset = 0;
+	while (first < n && second < n && offset < n) {
+		if (doubled[first + offset] == doubled[second + offset]) {
+			++offset;
+			continue;
+		}
+		if (doubled[first + offset] > doubled[second + offset]) {
+			first += offset + 1;
+			if (first <= second) first = second + 1;
+		} else {
+			second += offset + 1;
+			if (second <= first) second = first + 1;
+		}
+		offset = 0;
+	}
+	return std::min(first, second);
+}

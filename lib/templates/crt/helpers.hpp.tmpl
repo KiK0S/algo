@@ -1,0 +1,41 @@
+// Adapted from xeppelin-kactl CRT.h (Simon Lindholm), CC0.
+struct CrtResult {
+	long long residue = 0;
+	long long modulus = 0;
+	bool compatible = false;
+};
+
+inline long long extended_gcd(long long a, long long b, long long& x, long long& y) {
+	if (b == 0) {
+		x = a < 0 ? -1 : 1;
+		y = 0;
+		return std::llabs(a);
+	}
+	long long next_x, next_y;
+	long long gcd = extended_gcd(b, a % b, next_x, next_y);
+	x = next_y;
+	y = next_x - (a / b) * next_y;
+	return gcd;
+}
+
+inline CrtResult chinese_remainder(
+		long long first_residue, long long first_modulus,
+		long long second_residue, long long second_modulus) {
+	if (first_modulus <= 0 || second_modulus <= 0) return {};
+	first_residue %= first_modulus;
+	second_residue %= second_modulus;
+	if (first_residue < 0) first_residue += first_modulus;
+	if (second_residue < 0) second_residue += second_modulus;
+	long long x, y;
+	long long gcd = extended_gcd(first_modulus, second_modulus, x, y);
+	long long difference = second_residue - first_residue;
+	if (difference % gcd != 0) return {};
+	long long reduced_modulus = second_modulus / gcd;
+	long long multiplier = static_cast<long long>(
+		(static_cast<__int128>(difference / gcd) * x % reduced_modulus + reduced_modulus) %
+		reduced_modulus);
+	long long modulus = first_modulus / gcd * second_modulus;
+	long long residue = static_cast<long long>(
+		(static_cast<__int128>(first_modulus) * multiplier + first_residue) % modulus);
+	return {residue, modulus, true};
+}

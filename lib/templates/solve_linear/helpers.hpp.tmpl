@@ -1,0 +1,45 @@
+// Adapted from xeppelin-kactl SolveLinear.h (Per Austrin, Simon Lindholm), CC0.
+struct LinearSystemResult {
+	int rank = -1;
+	std::vector<long double> solution;
+};
+
+inline LinearSystemResult solve_linear_system(
+		std::vector<std::vector<long double>> matrix,
+		std::vector<long double> right_side,
+		long double epsilon = 1e-12L) {
+	const int rows = static_cast<int>(matrix.size());
+	const int columns = rows == 0 ? 0 : static_cast<int>(matrix[0].size());
+	if (static_cast<int>(right_side.size()) != rows) return {};
+	std::vector<int> pivot_column;
+	int rank = 0;
+	for (int column = 0; column < columns && rank < rows; ++column) {
+		int pivot = rank;
+		for (int row = rank; row < rows; ++row)
+			if (std::fabs(matrix[row][column]) > std::fabs(matrix[pivot][column])) pivot = row;
+		if (std::fabs(matrix[pivot][column]) <= epsilon) continue;
+		std::swap(matrix[pivot], matrix[rank]);
+		std::swap(right_side[pivot], right_side[rank]);
+		long double inverse = 1 / matrix[rank][column];
+		for (int value_column = column; value_column < columns; ++value_column)
+			matrix[rank][value_column] *= inverse;
+		right_side[rank] *= inverse;
+		for (int row = 0; row < rows; ++row) if (row != rank) {
+			long double factor = matrix[row][column];
+			if (std::fabs(factor) <= epsilon) continue;
+			for (int value_column = column; value_column < columns; ++value_column)
+				matrix[row][value_column] -= factor * matrix[rank][value_column];
+			right_side[row] -= factor * right_side[rank];
+		}
+		pivot_column.push_back(column);
+		++rank;
+	}
+	for (int row = rank; row < rows; ++row) {
+		bool zero = true;
+		for (auto value : matrix[row]) zero = zero && std::fabs(value) <= epsilon;
+		if (zero && std::fabs(right_side[row]) > epsilon) return {-1, {}};
+	}
+	std::vector<long double> solution(columns);
+	for (int row = 0; row < rank; ++row) solution[pivot_column[row]] = right_side[row];
+	return {rank, solution};
+}

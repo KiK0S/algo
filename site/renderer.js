@@ -58,6 +58,36 @@ const generators = {
     render: core.renderImplicitTreap
   },
   dsu: { defaults: () => namedOptions(core.planDsuNames), render: core.renderDsu },
+  input: {
+    defaults: () => ({
+      shape: "vector",
+      includeReadHelper: true,
+      name: "a",
+      sizeExpression: "n",
+      rowExpression: "n",
+      columnExpression: "m",
+      valueType: "int",
+      fields: [{ name: "value", valueType: "int" }],
+      indexing: "zero_based"
+    }),
+    render: core.renderInput
+  },
+  connected_components: {
+    defaults: () => ({
+      kind: "undirected",
+      sourceMode: "existing_graph",
+      indexing: "zero_based",
+      groups: false,
+      sizes: false,
+      graphName: "graph",
+      sizeExpression: "n",
+      edgeCountExpression: "m",
+      resultName: "components",
+      includeReadHelper: false,
+      names: core.planConnectedComponentsNames(emptyAnalysis)
+    }),
+    render: core.renderConnectedComponents
+  },
   rollback_dsu: { defaults: () => namedOptions(core.planRollbackDsuNames), render: core.renderRollbackDsu },
   lca: { defaults: () => namedOptions(core.planLcaNames), render: core.renderLca },
   hld: { defaults: () => namedOptions(core.planHldNames), render: core.renderHld },
@@ -114,10 +144,6 @@ const generators = {
   compress_unique: {
     defaults: () => ({ sourceName: "a", valuesName: "vals", idFunctionName: "get_id", rewriteSource: true }),
     render: core.renderCompressUnique
-  },
-  read_vector: {
-    defaults: () => ({ name: "a", sizeExpression: "n", valueType: "int", containerType: "vector<int>" }),
-    render: core.renderReadVector
   }
 };
 

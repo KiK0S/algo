@@ -1,0 +1,22 @@
+// Adapted from xeppelin-kactl CircleIntersection.h (Simon Lindholm), CC0.
+inline std::vector<GeometryPoint<long double>> circle_intersections(
+		GeometryPoint<long double> first_center, long double first_radius,
+		GeometryPoint<long double> second_center, long double second_radius) {
+	auto between = second_center - first_center;
+	long double distance_squared = between.norm_squared();
+	if (distance_squared == 0) return {};
+	long double sum = first_radius + second_radius;
+	long double difference = first_radius - second_radius;
+	if (sum * sum + 1e-18L < distance_squared ||
+		difference * difference > distance_squared + 1e-18L) return {};
+	long double projection =
+		(distance_squared + first_radius * first_radius - second_radius * second_radius) /
+		(2 * distance_squared);
+	long double height_squared = first_radius * first_radius -
+		projection * projection * distance_squared;
+	auto middle = first_center + between * projection;
+	auto offset = between.perpendicular() *
+		std::sqrt(std::max(0.0L, height_squared) / distance_squared);
+	if (offset.norm_squared() <= 1e-24L) return {middle};
+	return {middle + offset, middle - offset};
+}

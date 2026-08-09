@@ -1,0 +1,22 @@
+{{#if stringGrid}}
+{{#unless existing}}
+std::vector<std::string> {{name}}({{rowExpression}});
+{{/unless}}
+for (auto& row : {{name}}) read(row);
+{{/if}}
+{{#unless stringGrid}}
+{{#unless existing}}
+std::vector<std::vector<{{valueType}}>> {{name}}(
+	{{rowExpression}}, std::vector<{{valueType}}>({{columnExpression}}));
+{{/unless}}
+for (auto& row : {{name}})
+	for (auto& value : row)
+	{
+		read(value);
+{{#if normalizeValues}}
+		--value;
+{{/if}}
+	}
+{{/unless}}
+EDULCNI_VIS(edulcni::live::matrix("input.matrix", {{name}}));
+EDULCNI_STEP("Matrix read");

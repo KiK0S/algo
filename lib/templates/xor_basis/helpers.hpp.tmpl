@@ -1,0 +1,33 @@
+template <typename Unsigned = unsigned long long, int Bits = std::numeric_limits<Unsigned>::digits>
+class XorBasis {
+public:
+	bool insert(Unsigned value) {
+		for (int bit = Bits - 1; bit >= 0; --bit) if ((value >> bit) & Unsigned(1)) {
+			if (basis_[bit] == 0) {
+				basis_[bit] = value;
+				++rank_;
+				return true;
+			}
+			value ^= basis_[bit];
+		}
+		return false;
+	}
+
+	bool contains(Unsigned value) const {
+		for (int bit = Bits - 1; bit >= 0; --bit)
+			if (((value >> bit) & Unsigned(1)) && basis_[bit] != 0) value ^= basis_[bit];
+		return value == 0;
+	}
+
+	Unsigned maximize(Unsigned seed = 0) const {
+		for (int bit = Bits - 1; bit >= 0; --bit)
+			seed = std::max(seed, static_cast<Unsigned>(seed ^ basis_[bit]));
+		return seed;
+	}
+
+	int rank() const { return rank_; }
+
+private:
+	std::array<Unsigned, Bits> basis_{};
+	int rank_ = 0;
+};

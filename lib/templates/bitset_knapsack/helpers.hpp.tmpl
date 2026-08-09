@@ -1,0 +1,9 @@
+template <std::size_t MaxSum, typename Range>
+std::bitset<MaxSum + 1> bitset_knapsack(const Range& weights) {
+	std::bitset<MaxSum + 1> reachable;
+	reachable[0] = true;
+	for (auto weight : weights)
+		if (weight >= 0 && static_cast<std::size_t>(weight) <= MaxSum)
+			reachable |= reachable << static_cast<std::size_t>(weight);
+	return reachable;
+}

@@ -89,85 +89,11 @@ class HeavyLightDecomposition {
     return order_[pos];
   }
 
-  int subtree_size(int v) const { return vertex_ok(v) ? subtree_size_[v] : 0; }
 
-  std::pair<int, int> subtree_segment(int v) const {
-    if (!vertex_ok(v) || pos_[v] == -1) {
-      return std::make_pair(-1, -2);
-    }
-    return std::make_pair(pos_[v], pos_[v] + subtree_size_[v] - 1);
-  }
 
-  int lca(int a, int b) const {
-    if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {
-      return -1;
-    }
 
-    int u = a;
-    int v = b;
-    while (head_[u] != head_[v]) {
-      if (depth_[head_[u]] > depth_[head_[v]]) {
-        u = parent_[head_[u]];
-      } else {
-        v = parent_[head_[v]];
-      }
-    }
-    return (depth_[u] < depth_[v] ? u : v);
-  }
 
-  std::vector<std::pair<int, int>> path_segments(int a, int b,
-                                                  bool include_lca = true) const {
-    if (!vertex_ok(a) || !vertex_ok(b) || pos_[a] == -1 || pos_[b] == -1) {
-      return {};
-    }
 
-    std::vector<std::pair<int, int>> left_segments;
-    std::vector<std::pair<int, int>> right_segments;
-
-    int u = a;
-    int v = b;
-    while (head_[u] != head_[v]) {
-      if (depth_[head_[u]] >= depth_[head_[v]]) {
-        left_segments.push_back(std::make_pair(pos_[head_[u]], pos_[u]));
-        u = parent_[head_[u]];
-      } else {
-        right_segments.push_back(std::make_pair(pos_[head_[v]], pos_[v]));
-        v = parent_[head_[v]];
-      }
-    }
-
-    if (depth_[u] > depth_[v]) {
-      std::swap(u, v);
-      std::swap(left_segments, right_segments);
-    }
-
-    const int l = pos_[u] + (include_lca ? 0 : 1);
-    if (l <= pos_[v]) {
-      right_segments.push_back(std::make_pair(l, pos_[v]));
-    }
-
-    std::vector<std::pair<int, int>> segments;
-    segments.reserve(left_segments.size() + right_segments.size());
-    for (const std::pair<int, int>& seg : left_segments) {
-      segments.push_back(seg);
-    }
-    for (int i = static_cast<int>(right_segments.size()) - 1; i >= 0; --i) {
-      segments.push_back(right_segments[i]);
-    }
-    EDULCNI_VIS(edulcni::live::array("hld.path_segments", segments));
-    EDULCNI_STEP("Heavy-light decomposition split a path");
-    return segments;
-  }
-
-  template <typename Func>
-  void for_each_path_segment(int a, int b, const Func& fn,
-                             bool include_lca = true) const {
-    const std::vector<std::pair<int, int>> segments =
-        path_segments(a, b, include_lca);
-    for (const std::pair<int, int>& seg : segments) {
-      fn(seg.first, seg.second);
-    }
-  }
 
  private:
   int n_;

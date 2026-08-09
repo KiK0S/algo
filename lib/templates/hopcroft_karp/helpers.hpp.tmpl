@@ -1,0 +1,52 @@
+// Adapted from xeppelin-kactl hopcroftKarp.h (Chen Xing), CC0.
+struct HopcroftKarpResult {
+	int matching_size = 0;
+	std::vector<int> left_to_right;
+	std::vector<int> right_to_left;
+};
+
+inline HopcroftKarpResult hopcroft_karp(
+		const std::vector<std::vector<int>>& graph, int right_size) {
+	const int left_size = static_cast<int>(graph.size());
+	HopcroftKarpResult result;
+	result.left_to_right.assign(left_size, -1);
+	result.right_to_left.assign(std::max(right_size, 0), -1);
+	std::vector<int> distance(left_size);
+	for (;;) {
+		std::queue<int> queue;
+		std::fill(distance.begin(), distance.end(), -1);
+		for (int left = 0; left < left_size; ++left) if (result.left_to_right[left] == -1) {
+			distance[left] = 0;
+			queue.push(left);
+		}
+		while (!queue.empty()) {
+			int left = queue.front();
+			queue.pop();
+			for (int right : graph[left]) if (right >= 0 && right < right_size) {
+				int next = result.right_to_left[right];
+				if (next != -1 && distance[next] == -1) {
+					distance[next] = distance[left] + 1;
+					queue.push(next);
+				}
+			}
+		}
+		std::function<bool(int)> augment = [&](int left) {
+			for (int right : graph[left]) if (right >= 0 && right < right_size) {
+				int next = result.right_to_left[right];
+				if (next == -1 || (distance[next] == distance[left] + 1 && augment(next))) {
+					result.left_to_right[left] = right;
+					result.right_to_left[right] = left;
+					return true;
+				}
+			}
+			distance[left] = -1;
+			return false;
+		};
+		int added = 0;
+		for (int left = 0; left < left_size; ++left)
+			if (result.left_to_right[left] == -1 && augment(left)) ++added;
+		if (added == 0) break;
+		result.matching_size += added;
+	}
+	return result;
+}

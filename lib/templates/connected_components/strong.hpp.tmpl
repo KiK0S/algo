@@ -1,0 +1,78 @@
+struct ConnectedComponentsResult {
+	int count = 0;
+	std::vector<int> component_of;
+{{#if sizes}}
+	std::vector<int> sizes;
+{{/if}}
+{{#if groups}}
+	std::vector<std::vector<int>> groups;
+{{/if}}
+};
+
+inline ConnectedComponentsResult connected_components(
+		const std::vector<std::vector<int>>& graph) {
+	const int n = static_cast<int>(graph.size());
+	std::vector<std::vector<int>> reverse_graph(n);
+	for (int vertex = 0; vertex < n; ++vertex)
+		for (int to : graph[vertex])
+			if (to >= 0 && to < n) reverse_graph[to].push_back(vertex);
+
+	std::vector<char> used(n);
+	std::vector<int> order;
+	order.reserve(n);
+	for (int start = 0; start < n; ++start) {
+		if (used[start]) continue;
+		std::vector<std::pair<int, int>> stack;
+		stack.push_back({start, 0});
+		used[start] = 1;
+		while (!stack.empty()) {
+			int vertex = stack.back().first;
+			int& edge_index = stack.back().second;
+			if (edge_index == static_cast<int>(graph[vertex].size())) {
+				order.push_back(vertex);
+				stack.pop_back();
+				continue;
+			}
+			int to = graph[vertex][edge_index++];
+			if (to >= 0 && to < n && !used[to]) {
+				used[to] = 1;
+				stack.push_back({to, 0});
+			}
+		}
+	}
+
+	ConnectedComponentsResult result;
+	result.component_of.assign(n, -1);
+	std::vector<int> stack;
+	for (int order_index = static_cast<int>(order.size()); order_index-- > 0; ) {
+		int start = order[order_index];
+		if (result.component_of[start] != -1) continue;
+{{#if sizes}}
+		result.sizes.push_back(0);
+{{/if}}
+{{#if groups}}
+		result.groups.push_back({});
+{{/if}}
+		stack.push_back(start);
+		result.component_of[start] = result.count;
+		while (!stack.empty()) {
+			int vertex = stack.back();
+			stack.pop_back();
+{{#if sizes}}
+			++result.sizes.back();
+{{/if}}
+{{#if groups}}
+			result.groups.back().push_back(vertex);
+{{/if}}
+			for (int to : reverse_graph[vertex]) {
+				if (result.component_of[to] != -1) continue;
+				result.component_of[to] = result.count;
+				stack.push_back(to);
+			}
+		}
+		++result.count;
+	}
+	EDULCNI_VIS(edulcni::live::array("components.id", result.component_of));
+	EDULCNI_STEP("Strongly connected components computed");
+	return result;
+}

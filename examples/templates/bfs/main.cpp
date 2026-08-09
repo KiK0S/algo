@@ -17,17 +17,7 @@ struct BfsResult {
   std::vector<int> order;
 };
 
-inline void bfs_add_edge(std::vector<std::vector<int>>& graph, int from, int to,
-                         bool undirected = false) {
-  const int n = static_cast<int>(graph.size());
-  if (from < 0 || from >= n || to < 0 || to >= n) {
-    return;
-  }
-  graph[from].push_back(to);
-  if (undirected && from != to) {
-    graph[to].push_back(from);
-  }
-}
+
 
 inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
                                   const std::vector<int>& sources) {
@@ -92,54 +82,9 @@ inline BfsResult bfs_multi_source(const std::vector<std::vector<int>>& graph,
   return result;
 }
 
+
 inline BfsResult bfs(const std::vector<std::vector<int>>& graph, int source) {
   return bfs_multi_source(graph, std::vector<int>(1, source));
-}
-
-inline std::vector<int> bfs_restore_path(int source, int target,
-                                         const BfsResult& result) {
-  const int n = static_cast<int>(result.parent.size());
-  if (source < 0 || source >= n || target < 0 || target >= n) {
-    return {};
-  }
-
-  std::vector<int> path;
-  int current = target;
-  int steps = 0;
-  while (current != -1 && steps <= n) {
-    path.push_back(current);
-    current = result.parent[current];
-    ++steps;
-  }
-
-  if (path.empty() || path.back() != source) {
-    return {};
-  }
-  std::reverse(path.begin(), path.end());
-  EDULCNI_VIS(edulcni::live::graph_path_focus(
-      "bfs.graph", path, edulcni::live::FocusRole::result,
-      "restored shortest unweighted path"));
-  EDULCNI_STEP("BFS restored a path");
-  return path;
-}
-
-inline std::vector<int> bfs_restore_path_to_root(int target,
-                                                 const BfsResult& result) {
-  const int n = static_cast<int>(result.parent.size());
-  if (target < 0 || target >= n || result.distance[target] == -1) {
-    return {};
-  }
-
-  std::vector<int> path;
-  int current = target;
-  int steps = 0;
-  while (current != -1 && steps <= n) {
-    path.push_back(current);
-    current = result.parent[current];
-    ++steps;
-  }
-  std::reverse(path.begin(), path.end());
-  return path;
 }
 
 int main() {

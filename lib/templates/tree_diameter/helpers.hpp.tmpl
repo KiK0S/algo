@@ -1,0 +1,33 @@
+struct TreeDiameterResult {
+	int first = -1;
+	int second = -1;
+	int length = 0;
+	std::vector<int> path;
+};
+
+inline TreeDiameterResult tree_diameter(const std::vector<std::vector<int>>& tree) {
+	const int n = static_cast<int>(tree.size());
+	if (n == 0) return {};
+	auto search = [&](int source) {
+		std::vector<int> distance(n, -1), parent(n, -1), queue = {source};
+		distance[source] = 0;
+		for (int at = 0; at < static_cast<int>(queue.size()); ++at) {
+			int vertex = queue[at];
+			for (int to : tree[vertex]) if (to >= 0 && to < n && distance[to] == -1) {
+				distance[to] = distance[vertex] + 1;
+				parent[to] = vertex;
+				queue.push_back(to);
+			}
+		}
+		int farthest = source;
+		for (int vertex = 0; vertex < n; ++vertex)
+			if (distance[vertex] > distance[farthest]) farthest = vertex;
+		return std::make_tuple(farthest, distance, parent);
+	};
+	auto [first, ignored_distance, ignored_parent] = search(0);
+	auto [second, distance, parent] = search(first);
+	std::vector<int> path;
+	for (int vertex = second; vertex != -1; vertex = parent[vertex]) path.push_back(vertex);
+	std::reverse(path.begin(), path.end());
+	return {first, second, distance[second], path};
+}

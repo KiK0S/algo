@@ -1,0 +1,22 @@
+// Adapted from xeppelin-kactl Determinant.h (Simon Lindholm), CC0.
+inline long double determinant(
+		std::vector<std::vector<long double>> matrix,
+		long double epsilon = 1e-18L) {
+	const int n = static_cast<int>(matrix.size());
+	for (const auto& row : matrix) if (static_cast<int>(row.size()) != n) return 0;
+	long double result = 1;
+	for (int column = 0; column < n; ++column) {
+		int pivot = column;
+		for (int row = column + 1; row < n; ++row)
+			if (std::fabs(matrix[row][column]) > std::fabs(matrix[pivot][column])) pivot = row;
+		if (std::fabs(matrix[pivot][column]) <= epsilon) return 0;
+		if (pivot != column) std::swap(matrix[pivot], matrix[column]), result = -result;
+		result *= matrix[column][column];
+		for (int row = column + 1; row < n; ++row) {
+			long double factor = matrix[row][column] / matrix[column][column];
+			for (int next = column + 1; next < n; ++next)
+				matrix[row][next] -= factor * matrix[column][next];
+		}
+	}
+	return result;
+}
