@@ -16,10 +16,41 @@ const generators = {
       sizeExpression: "n",
       valueType: "int",
       aggregate: "sum",
-      updates: [],
+      updates: ["point_set"],
+      descends: [],
+      application: "standard",
+      outputMode: "iterative_class",
       names: core.planSegmentTreeNames(emptyAnalysis, "t")
     }),
-    render: core.renderSegmentTree
+    render: (options) => {
+      if (options.application === "merge_sort" || options.aggregate === "merge_sort") {
+        return core.renderMergeSortTree({
+          ...generators.merge_sort_tree.defaults(),
+          application: "range_threshold_count"
+        });
+      }
+      if (options.application === "beats") return core.renderSegmentTreeBeats(generators.segtree_beats.defaults());
+      if (options.application === "persistent") {
+        const names = core.planSegmentTreeNames(emptyAnalysis, "t");
+        return core.renderPersistentSegmentTree({
+          valueType: options.valueType,
+          aggregate: options.aggregate === "custom" ? "custom" : options.aggregate,
+          pointAdd: true,
+          className: names.persistentClassName,
+          nodeName: names.persistentNodeName
+        });
+      }
+      if (options.application === "custom") {
+        return core.renderCustomSegmentTree({
+          valueType: options.valueType,
+          lazy: true,
+          descent: true,
+          names: core.planSegmentTreeNames(emptyAnalysis, "t")
+        });
+      }
+      if (options.application === "maximum_subsegment") options.aggregate = "sum";
+      return core.renderSegmentTree(options);
+    }
   },
   segtree_beats: {
     defaults: () => namedOptions(core.planSegmentTreeBeatsNames, {

@@ -12,140 +12,101 @@ using namespace std;
 #endif
 
 template <typename T>
-struct SegmentSumOp {
-  static T neutral() { return T(0); }
-  static T combine(const T& a, const T& b) { return a + b; }
-};
-
-template <typename T>
-struct SegmentMinOp {
-  static T neutral() { return std::numeric_limits<T>::max(); }
-  static T combine(const T& a, const T& b) { return a < b ? a : b; }
-};
-
-template <typename T>
-struct SegmentMaxOp {
-  static T neutral() { return std::numeric_limits<T>::lowest(); }
-  static T combine(const T& a, const T& b) { return a < b ? b : a; }
-};
-
-template <typename T, typename Op>
 class SegmentTree {
  public:
   explicit SegmentTree(int n = 0) { reset(n); }
-
-  explicit SegmentTree(const std::vector<T>& values) {
-    build(values);
-  }
+  explicit SegmentTree(const std::vector<T>& values) { build(values); }
 
   void reset(int n) {
-    n_ = n < 0 ? 0 : n;
-    tree_.assign(2 * std::max(1, n_), Op::neutral());
-    trace("Iterative segment tree reset");
+    n_ = std::max(0, n);
+    tree_.assign(4 * std::max(1, n_), neutral());
+    trace("Segment tree reset");
   }
-
   void build(const std::vector<T>& values) {
-    n_ = static_cast<int>(values.size());
-    tree_.assign(2 * std::max(1, n_), Op::neutral());
-    for (int i = 0; i < n_; ++i) {
-      tree_[n_ + i] = values[i];
-    }
-    for (int i = n_ - 1; i > 0; --i) {
-      tree_[i] = Op::combine(tree_[i << 1], tree_[i << 1 | 1]);
-    }
-    trace("Iterative segment tree built");
+    reset(static_cast<int>(values.size()));
+    if (n_ > 0) build_rec(1, 0, n_ - 1, values);
+    trace("Segment tree built");
   }
-
   int size() const { return n_; }
 
-  void point_set(int pos, const T& value) {
-    if (pos < 0 || pos >= n_) {
-      return;
-    }
-    const int changed_pos = pos;
-    int node = pos + n_;
-    tree_[node] = value;
-    for (node >>= 1; node > 0; node >>= 1) {
-      tree_[node] = Op::combine(tree_[node << 1], tree_[node << 1 | 1]);
-    }
-    trace_update("Iterative segment tree updated a point", changed_pos);
-  }
-
-
-
   T query(int left, int right) const {
-    if (left < 0) {
-      left = 0;
-    }
-    if (right > n_) {
-      right = n_;
-    }
-    if (left >= right || n_ == 0) {
-      return Op::neutral();
-    }
-
-    T lhs = Op::neutral();
-    T rhs = Op::neutral();
-    for (left += n_, right += n_; left < right; left >>= 1, right >>= 1) {
-      if (left & 1) {
-        lhs = Op::combine(lhs, tree_[left++]);
-      }
-      if (right & 1) {
-        rhs = Op::combine(tree_[--right], rhs);
-      }
-    }
-    return Op::combine(lhs, rhs);
+    if (!normalize(left, right)) return neutral();
+    const T result = query_rec(1, 0, n_ - 1, left, right);
+    trace_range("Segment tree queried a range", left, right, false);
+    return result;
   }
+
+  void point_set(int position, const T& value) {
+    if (position < 0 || position >= n_) return;
+    point_set_rec(1, 0, n_ - 1, position, value);
+    trace_range("Segment tree updated a point", position, position, true);
+  }
+
+
+
+
+
+
 
  private:
-  int n_;
+  int n_ = 0;
   std::vector<T> tree_;
-
-  void trace(const char* label) const {
-    EDULCNI_VIS(edulcni::live::segment_tree(
-        "segtree.tree", static_cast<std::size_t>(n_), tree_));
-    EDULCNI_STEP(label);
+  static T neutral() { return int(0); }
+  static T merge(const T& left, const T& right) { return left + right; }
+  bool normalize(int& left, int& right) const {
+    if (n_ == 0 || left > right || right < 0 || left >= n_) return false;
+    left = std::max(left, 0); right = std::min(right, n_ - 1); return left <= right;
+  }
+  void build_rec(int v, int tl, int tr, const std::vector<T>& values) {
+    if (tl == tr) { tree_[v] = values[tl]; return; }
+    const int tm = (tl + tr) / 2;
+    build_rec(v * 2, tl, tm, values); build_rec(v * 2 + 1, tm + 1, tr, values);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+  T query_rec(int v, int tl, int tr, int l, int r) const {
+    if (tl > r || tr < l) return neutral();
+    if (l <= tl && tr <= r) return tree_[v];
+    const int tm = (tl + tr) / 2;
+    return merge(query_rec(v * 2, tl, tm, l, r), query_rec(v * 2 + 1, tm + 1, tr, l, r));
   }
 
-  void trace_update(const char* label, int pos) const {
-    EDULCNI_VIS(([&] {
-      edulcni::live::segment_tree(
-          "segtree.tree", static_cast<std::size_t>(n_), tree_);
-      std::vector<int> changed_nodes;
-      for (int node = pos + n_; node > 0; node >>= 1) {
-        changed_nodes.push_back(node);
-      }
-      edulcni::live::segment_tree_focus(
-          "segtree.tree", static_cast<std::size_t>(n_), changed_nodes,
-          edulcni::live::FocusRole::changed,
-          "updated leaf and recomputed ancestors");
-    }()));
+  void point_set_rec(int v, int tl, int tr, int p, const T& value) {
+    if (tl == tr) { tree_[v] = value; return; }
+    const int tm = (tl + tr) / 2;
+    if (p <= tm) point_set_rec(v * 2, tl, tm, p, value);
+    else point_set_rec(v * 2 + 1, tm + 1, tr, p, value);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+
+
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
+  void trace_range(const char* label, int left, int right, bool changed) const {
+    EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.tree", static_cast<std::size_t>(n_), left, right,
+        changed ? edulcni::live::FocusRole::changed : edulcni::live::FocusRole::result,
+        "active inclusive range"));
     EDULCNI_STEP(label);
   }
 };
-
-template <typename T>
-using SegmentSumTree = SegmentTree<T, SegmentSumOp<T>>;
-
-template <typename T>
-using SegmentMinTree = SegmentTree<T, SegmentMinOp<T>>;
-
-template <typename T>
-using SegmentMaxTree = SegmentTree<T, SegmentMaxOp<T>>;
 
 int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
-  EDULCNI_VIS(edulcni::live::text("example.scenario", "Point updates and range sums in an iterative segment tree."));
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Point updates and inclusive range sums in the standard segment-tree scenario."));
   EDULCNI_STEP("Example scenario initialized");
   EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
 
   std::vector<int> values = {1, 2, 3, 4};
-    SegmentSumTree<int> tree(values);
-    assert(tree.query(0, 4) == 10);
+    SegmentTree<int> tree(values);
+    assert(tree.query(0, 3) == 10);
     tree.point_set(2, 10);
-    assert(tree.query(1, 4) == 16);
+    assert(tree.query(1, 3) == 16);
 
   EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
   EDULCNI_STEP("Example scenario completed");

@@ -70,7 +70,9 @@ class SegmentTreeBeats {
     if (!norm(left, right)) {
       return T(0);
     }
-    return query_sum_rec(1, 0, n_ - 1, left, right);
+    const T result = query_sum_rec(1, 0, n_ - 1, left, right);
+    trace_query("Segment-tree beats queried a range sum", left, right);
+    return result;
   }
 
 
@@ -79,7 +81,9 @@ class SegmentTreeBeats {
     if (!norm(left, right)) {
       return pos_inf();
     }
-    return query_min_rec(1, 0, n_ - 1, left, right);
+    const T result = query_min_rec(1, 0, n_ - 1, left, right);
+    trace_query("Segment-tree beats queried a range minimum", left, right);
+    return result;
   }
 
 
@@ -88,7 +92,9 @@ class SegmentTreeBeats {
     if (!norm(left, right)) {
       return neg_inf();
     }
-    return query_max_rec(1, 0, n_ - 1, left, right);
+    const T result = query_max_rec(1, 0, n_ - 1, left, right);
+    trace_query("Segment-tree beats queried a range maximum", left, right);
+    return result;
   }
 
 
@@ -102,6 +108,11 @@ class SegmentTreeBeats {
     T smin_v;
     int min_count;
     T add;
+
+    auto edulcni_view() const {
+      return std::make_tuple(sum, min_v, smin_v, min_count,
+                             max_v, smax_v, max_count, add);
+    }
   };
 
   int n_;
@@ -120,6 +131,15 @@ class SegmentTreeBeats {
     EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
         "segment_tree_beats.tree", static_cast<std::size_t>(n_), left, right,
         edulcni::live::FocusRole::changed, focus_text));
+    EDULCNI_STEP(step_label);
+  }
+
+  void trace_query(const char* step_label, int left, int right) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segment_tree_beats.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segment_tree_beats.tree", static_cast<std::size_t>(n_), left, right,
+        edulcni::live::FocusRole::result, "queried inclusive range"));
     EDULCNI_STEP(step_label);
   }
 

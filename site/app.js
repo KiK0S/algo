@@ -116,16 +116,22 @@ function renderDetails(entry) {
   copyButton.disabled = false;
 }
 
-function decisionSteps(spec) {
+function decisionSteps(spec, selections = {}) {
+  const scenario = selections.scenario;
   return [
     ...(spec.scenarios?.length ? [{ id: "scenario", label: "Application", choices: spec.scenarios }] : []),
-    ...spec.decisions
+    ...spec.decisions.filter((decision) =>
+      !decision.scenarios || !scenario || decision.scenarios.includes(scenario)
+    )
   ];
 }
 
 function entryDecisionState(entry) {
   if (!decisionState.has(entry.path)) {
-    decisionState.set(entry.path, { selections: {}, activeStep: 0 });
+    decisionState.set(entry.path, {
+      selections: entry.presetScenario ? { scenario: entry.presetScenario } : {},
+      activeStep: entry.presetScenario ? 1 : 0
+    });
   }
   return decisionState.get(entry.path);
 }
@@ -141,7 +147,7 @@ function updateGeneratedPreview(entry, state) {
 function renderDecisions(entry) {
   const container = document.querySelector("#decisions");
   const state = entryDecisionState(entry);
-  const steps = decisionSteps(entry.applicationSpec);
+  const steps = decisionSteps(entry.applicationSpec, state.selections);
   const clearLaterSelections = (index) => {
     for (const laterStep of steps.slice(index + 1)) {
       delete state.selections[laterStep.id];
@@ -233,6 +239,7 @@ function selectEntry(path) {
 function renderTree(query = "") {
   const normalized = query.trim().toLowerCase();
   const filtered = entries.filter((entry) => {
+    if (entry.visibility === "compatibility") return false;
     const haystack = [
       entry.path,
       entry.description,

@@ -163,6 +163,9 @@ export interface CatalogEntry {
   form?: unknown[];
   render?: Record<string, unknown>;
   visualization?: VisualizationSpec;
+  visibility?: "primary" | "compatibility";
+  canonicalPath?: string;
+  presetScenario?: string;
 }
 
 export interface VisualizationSpec {
@@ -238,6 +241,8 @@ export interface DecisionNode {
   label: string;
   choices: DecisionChoice[];
   multi?: boolean;
+  option?: string;
+  scenarios?: string[];
 }
 
 export interface UsageSection {
@@ -289,6 +294,12 @@ export interface CppAnalysis {
 }
 
 export type SegmentTreeApplication =
+  | "standard"
+  | "lazy"
+  | "merge_sort"
+  | "maximum_subsegment"
+  | "persistent"
+  | "custom"
   | "point_query"
   | "lazy_range"
   | "lazy_minmax"
@@ -297,13 +308,25 @@ export type SegmentTreeApplication =
 export type SegmentTreeSourceMode = "empty" | "existing_vector" | "read_loop";
 export type SegmentTreeIndexing = "zero_based" | "one_based_input";
 export type SegmentTreeUsageMode = "helper_only" | "instance" | "query_loop";
-export type SegmentAggregate = "sum" | "min" | "max" | "custom";
+export type SegmentAggregate =
+  | "sum"
+  | "min"
+  | "max"
+  | "count"
+  | "max_subarray"
+  | "merge_sort"
+  | "custom";
 export type SegmentUpdateOp =
   | "point_set"
   | "point_add"
   | "range_add"
   | "range_assign";
-export type SegmentDescendQuery = "first_leq";
+export type SegmentDescendQuery =
+  | "first_leq"
+  | "first_geq"
+  | "prefix_lower_bound"
+  | "kth"
+  | "custom_first";
 export type SegmentTreeOutputMode = "global_recursive" | "iterative_class";
 
 export interface SegmentTreeNames {
@@ -325,6 +348,9 @@ export interface SegmentTreeNames {
   rangeAddName: string;
   rangeAssignName: string;
   firstLeqName: string;
+  firstGeqName: string;
+  prefixLowerBoundName: string;
+  kthName: string;
   className: string;
   sumOpName: string;
   minOpName: string;
@@ -334,7 +360,58 @@ export interface SegmentTreeNames {
   maxAliasName: string;
   maxSubarrayNodeName: string;
   maxSubarrayClassName: string;
+  lazyClassName: string;
+  customClassName: string;
+  customNodeName: string;
+  customTagName: string;
+  customCriteriaName: string;
+  persistentClassName: string;
+  persistentNodeName: string;
 }
+
+export type SegmentTreeScenario =
+  | "standard"
+  | "lazy"
+  | "merge_sort"
+  | "maximum_subsegment"
+  | "persistent"
+  | "beats"
+  | "custom";
+
+export type PersistentSegmentAggregate = "sum" | "min" | "max" | "custom";
+
+export interface PersistentSegmentTreeOptions {
+  valueType: string;
+  aggregate: PersistentSegmentAggregate;
+  pointAdd: boolean;
+  className: string;
+  nodeName: string;
+  sourceMode?: SegmentTreeSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  usageMode?: SegmentTreeUsageMode;
+  indexing?: SegmentTreeIndexing;
+  instanceName?: string;
+  answerName?: string;
+}
+
+export interface CustomSegmentTreeOptions {
+  valueType: string;
+  lazy: boolean;
+  descent: boolean;
+  names: SegmentTreeNames;
+  sourceMode?: SegmentTreeSourceMode;
+  sourceName?: string;
+  sizeExpression?: string;
+  usageMode?: SegmentTreeUsageMode;
+}
+
+export type SegmentTreeScenarioOptions =
+  | { scenario: "standard" | "lazy" | "maximum_subsegment"; options: SegmentTreeOptions }
+  | { scenario: "merge_sort"; options: MergeSortTreeOptions }
+  | { scenario: "beats"; options: SegmentTreeBeatsOptions }
+  | { scenario: "persistent"; options: PersistentSegmentTreeOptions }
+  | { scenario: "custom"; options: CustomSegmentTreeOptions };
 
 export interface SegmentTreeCustomOptions {
   nodeType: string;
@@ -359,6 +436,7 @@ export interface SegmentTreeOptions {
   names: SegmentTreeNames;
   outputMode?: SegmentTreeOutputMode;
   custom?: SegmentTreeCustomOptions;
+  allowEmptySubsegment?: boolean;
 }
 
 export type SegmentTreeBeatsUpdate = "chmin" | "chmax" | "add";
@@ -2318,6 +2396,9 @@ export function planSegmentTreeNames(
     rangeAddName: planner.reserve("range_add", "seg_range_add"),
     rangeAssignName: planner.reserve("range_assign", "seg_range_assign"),
     firstLeqName: planner.reserve("first_leq", "seg_first_leq"),
+    firstGeqName: planner.reserve("first_geq", "seg_first_geq"),
+    prefixLowerBoundName: planner.reserve("prefix_lower_bound", "seg_prefix_lower_bound"),
+    kthName: planner.reserve("kth", "seg_kth"),
     className: planner.reserve("SegmentTree", "PointSegmentTree"),
     sumOpName: planner.reserve("SegmentSumOp", "PointSegmentSumOp"),
     minOpName: planner.reserve("SegmentMinOp", "PointSegmentMinOp"),
@@ -2326,7 +2407,14 @@ export function planSegmentTreeNames(
     minAliasName: planner.reserve("SegmentMinTree", "PointSegmentMinTree"),
     maxAliasName: planner.reserve("SegmentMaxTree", "PointSegmentMaxTree"),
     maxSubarrayNodeName: planner.reserve("MaxSubarrayNode", "SegmentMaxSubarrayNode"),
-    maxSubarrayClassName: planner.reserve("MaxSubarraySegTree", "SegmentMaxSubarrayTree")
+    maxSubarrayClassName: planner.reserve("MaxSubarraySegTree", "SegmentMaxSubarrayTree"),
+    lazyClassName: planner.reserve("LazySegmentTree", "RangeSegmentTree"),
+    customClassName: planner.reserve("CustomSegmentTree", "ProblemSegmentTree"),
+    customNodeName: planner.reserve("Node", "SegmentNode"),
+    customTagName: planner.reserve("Tag", "SegmentTag"),
+    customCriteriaName: planner.reserve("Criteria", "SegmentCriteria"),
+    persistentClassName: planner.reserve("PersistentSegmentTree", "VersionedSegmentTree"),
+    persistentNodeName: planner.reserve("PersistentNode", "VersionedSegmentNode")
   };
 }
 
@@ -2352,7 +2440,7 @@ function valueStorageType(options: SegmentTreeOptions): string {
 }
 
 function scalarNeutralExpression(options: SegmentTreeOptions): string {
-  if (options.aggregate === "sum") {
+  if (options.aggregate === "sum" || options.aggregate === "count") {
     return `${options.valueType}(0)`;
   }
   if (options.aggregate === "min") {
@@ -2365,7 +2453,7 @@ function scalarNeutralExpression(options: SegmentTreeOptions): string {
 }
 
 function scalarMergeExpression(options: SegmentTreeOptions, lhs: string, rhs: string): string {
-  if (options.aggregate === "sum") {
+  if (options.aggregate === "sum" || options.aggregate === "count") {
     return `${lhs} + ${rhs}`;
   }
   if (options.aggregate === "min") {
@@ -2378,14 +2466,14 @@ function scalarMergeExpression(options: SegmentTreeOptions, lhs: string, rhs: st
 }
 
 function scalarSetExpression(options: SegmentTreeOptions, value: string, len: string): string {
-  if (options.aggregate === "sum") {
+  if (options.aggregate === "sum" || options.aggregate === "count") {
     return `${value} * static_cast<${options.valueType}>(${len})`;
   }
   return value;
 }
 
 function scalarAddExpression(options: SegmentTreeOptions, delta: string, len: string): string {
-  if (options.aggregate === "sum") {
+  if (options.aggregate === "sum" || options.aggregate === "count") {
     return `${delta} * static_cast<${options.valueType}>(${len})`;
   }
   return delta;
@@ -2496,9 +2584,13 @@ export function mergeRenderedRecipes(recipes: RenderedRecipe[]): RenderedRecipe 
 
 function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
   const names = options.names;
-  if (options.application === "max_subarray") {
+  if (options.application === "max_subarray" || options.application === "maximum_subsegment") {
     return [names.maxSubarrayNodeName, names.maxSubarrayClassName];
   }
+  if (options.application === "lazy" || options.application === "lazy_range" || options.application === "lazy_minmax") {
+    return [names.lazyClassName];
+  }
+  if (options.application === "standard") return [names.className];
   if (options.outputMode === "iterative_class") {
     return [
       names.sumOpName,
@@ -2558,7 +2650,7 @@ function segmentTreeExportedNames(options: SegmentTreeOptions): string[] {
 
 export function renderSegmentTreeRecipe(options: SegmentTreeOptions): RenderedRecipe {
   const helpers =
-    options.application === "max_subarray"
+    options.application === "max_subarray" || options.application === "maximum_subsegment"
       ? renderMaxSubarraySegmentTree(options)
       : renderSegmentTree(options);
   const solve = renderSegmentTreeUsage(options);
@@ -2577,12 +2669,18 @@ function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
   if (usageMode === "helper_only") return "";
   const sourceName = options.sourceName?.trim() || "";
   const valueType = options.valueType.trim() || "int";
-  const aggregateAlias = options.aggregate === "min"
+  const aggregateAlias = options.application === "lazy"
+    ? options.names.lazyClassName
+    : options.application === "standard"
+      ? options.names.className
+    : options.aggregate === "min"
     ? options.names.minAliasName
     : options.aggregate === "max" ? options.names.maxAliasName : options.names.sumAliasName;
-  const templateName = options.application === "max_subarray"
+  const templateName = options.application === "max_subarray" || options.application === "maximum_subsegment"
     ? "solve-max-subarray.cpp.tmpl"
-    : options.outputMode === "iterative_class"
+    : options.application === "lazy" || options.application === "lazy_range" || options.application === "lazy_minmax"
+      ? "solve-lazy.cpp.tmpl"
+    : options.application === "standard" || options.outputMode === "iterative_class"
       ? "solve-iterative.cpp.tmpl"
       : "solve-global.cpp.tmpl";
   return renderCodeTemplate(`segment_tree/${templateName}`, {
@@ -2600,13 +2698,16 @@ function renderSegmentTreeUsage(options: SegmentTreeOptions): string {
     oneBased: options.indexing === "one_based_input",
     rangeAdd: hasUpdate(options, "range_add"),
     rangeAssign: hasUpdate(options, "range_assign"),
+    pointSet: hasUpdate(options, "point_set"),
     pointAdd: hasUpdate(options, "point_add")
   });
 }
 
 function renderMaxSubarraySegmentTree(options: SegmentTreeOptions): string {
   return applyIdentifierRenames(
-    renderCodeTemplate("segment_tree/max-subarray.hpp.tmpl", {}),
+    renderCodeTemplate("segment_tree/max-subarray.hpp.tmpl", {
+      allowEmpty: options.allowEmptySubsegment === true
+    }),
     [
       { from: "MaxSubarrayNode", to: options.names.maxSubarrayNodeName },
       { from: "MaxSubarraySegTree", to: options.names.maxSubarrayClassName }
@@ -2618,7 +2719,12 @@ function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
   const names = options.names;
   return applyIdentifierRenames(
     renderCodeTemplate("segment_tree/iterative.hpp.tmpl", {
-      pointAdd: hasUpdate(options, "point_add")
+      pointAdd: hasUpdate(options, "point_add"),
+      firstLeq: false,
+      firstGeq: false,
+      prefixLowerBound: false,
+      kth: false,
+      hasFindFirst: false
     }),
     [
       { from: "SegmentSumOp", to: names.sumOpName },
@@ -2633,7 +2739,13 @@ function renderIterativeSegmentTree(options: SegmentTreeOptions): string {
 }
 
 export function renderSegmentTree(options: SegmentTreeOptions): string {
-  if (options.application === "max_subarray") return renderMaxSubarraySegmentTree(options);
+  if (options.application === "max_subarray" || options.application === "maximum_subsegment") {
+    return renderMaxSubarraySegmentTree(options);
+  }
+  if (options.application === "lazy" || options.application === "lazy_range" || options.application === "lazy_minmax") {
+    return renderLazySegmentTree(options);
+  }
+  if (options.application === "standard") return renderStandardSegmentTree(options);
   if (options.outputMode === "iterative_class") return renderIterativeSegmentTree(options);
   const names = options.names;
   const rangeAdd = hasUpdate(options, "range_add");
@@ -2691,6 +2803,159 @@ export function renderSegmentTree(options: SegmentTreeOptions): string {
     { from: "first_leq", to: names.firstLeqName }
   ]);
   return helpers;
+}
+
+function renderStandardSegmentTree(options: SegmentTreeOptions): string {
+  const firstLeq = hasDescend(options, "first_leq") && options.aggregate === "min";
+  const firstGeq = hasDescend(options, "first_geq") && options.aggregate === "max";
+  const prefixLowerBound = hasDescend(options, "prefix_lower_bound") || hasDescend(options, "kth");
+  return renderCodeTemplate("segment_tree/standard-class.hpp.tmpl", {
+    className: options.names.className,
+    pointSet: hasUpdate(options, "point_set"),
+    pointAdd: hasUpdate(options, "point_add"),
+    firstLeq,
+    firstGeq,
+    prefixLowerBound,
+    kth: hasDescend(options, "kth"),
+    hasFindFirst: firstLeq || firstGeq,
+    neutralExpression: scalarNeutralExpression(options),
+    mergeExpression: options.aggregate === "min"
+      ? "std::min(left, right)"
+      : options.aggregate === "max"
+        ? "std::max(left, right)"
+        : "left + right"
+  });
+}
+
+function renderLazySegmentTree(options: SegmentTreeOptions): string {
+  const sumLike = options.aggregate === "sum" || options.aggregate === "count";
+  const firstLeq = hasDescend(options, "first_leq") && options.aggregate === "min";
+  const firstGeq = hasDescend(options, "first_geq") && options.aggregate === "max";
+  return renderCodeTemplate("segment_tree/lazy-class.hpp.tmpl", {
+    className: options.names.lazyClassName,
+    rangeAdd: hasUpdate(options, "range_add"),
+    rangeAssign: hasUpdate(options, "range_assign"),
+    firstLeq,
+    firstGeq,
+    hasFindFirst: firstLeq || firstGeq,
+    neutralExpression: scalarNeutralExpression(options),
+    mergeExpression: options.aggregate === "min"
+      ? "std::min(left, right)"
+      : options.aggregate === "max"
+        ? "std::max(left, right)"
+        : "left + right",
+    assignExpression: sumLike
+      ? "(*tag.assign) * static_cast<T>(segment_length)"
+      : "*tag.assign",
+    addExpression: sumLike
+      ? "tag.add * static_cast<T>(segment_length)"
+      : "tag.add"
+  });
+}
+
+export function renderCustomSegmentTree(options: CustomSegmentTreeOptions): string {
+  return renderCodeTemplate("segment_tree/custom-class.hpp.tmpl", {
+    valueType: options.valueType,
+    className: options.names.customClassName,
+    nodeName: options.names.customNodeName,
+    tagName: options.names.customTagName,
+    criteriaName: options.names.customCriteriaName,
+    neutralName: options.names.neutralName,
+    makeNodeName: options.names.makeNodeName,
+    mergeName: options.names.mergeName,
+    applyName: options.names.applyAddName,
+    composeName: options.names.pushName,
+    canDescendName: options.names.firstLeqName,
+    hasLazy: options.lazy,
+    descent: options.descent
+  });
+}
+
+export function renderPersistentSegmentTree(options: PersistentSegmentTreeOptions): string {
+  const custom = options.aggregate === "custom";
+  const nodeType = custom ? options.nodeName : options.valueType;
+  const neutralExpression = custom
+    ? "persistent_neutral()"
+    : options.aggregate === "min"
+      ? `std::numeric_limits<${options.valueType}>::max()`
+      : options.aggregate === "max"
+        ? `std::numeric_limits<${options.valueType}>::lowest()`
+        : `${options.valueType}(0)`;
+  const mergeExpression = custom
+    ? "persistent_merge(left, right)"
+    : options.aggregate === "min"
+      ? "std::min(left, right)"
+      : options.aggregate === "max"
+        ? "std::max(left, right)"
+        : "left + right";
+  return renderCodeTemplate("segment_tree/persistent-class.hpp.tmpl", {
+    valueType: options.valueType,
+    className: options.className,
+    nodeName: options.nodeName,
+    nodeType,
+    custom,
+    pointAdd: options.pointAdd,
+    neutralExpression,
+    makeNodeExpression: custom ? "persistent_make_node(value)" : "value",
+    mergeExpression
+  });
+}
+
+export function renderSegmentTreeScenarioRecipe(
+  selection: SegmentTreeScenarioOptions
+): RenderedRecipe {
+  if (selection.scenario === "merge_sort") return renderMergeSortTreeRecipe(selection.options);
+  if (selection.scenario === "beats") return renderSegmentTreeBeatsRecipe(selection.options);
+  if (selection.scenario === "persistent") {
+    const solve = renderPersistentSegmentTreeUsage(selection.options);
+    return createRenderedRecipe(
+      solve === ""
+        ? { helpers: [renderPersistentSegmentTree(selection.options)] }
+        : { helpers: [renderPersistentSegmentTree(selection.options)], solve: [solve] },
+      [selection.options.className]
+    );
+  }
+  if (selection.scenario === "custom") {
+    const solve = renderCustomSegmentTreeUsage(selection.options);
+    return createRenderedRecipe(
+      solve === ""
+        ? { helpers: [renderCustomSegmentTree(selection.options)] }
+        : { helpers: [renderCustomSegmentTree(selection.options)], solve: [solve] },
+      [selection.options.names.customNodeName, selection.options.names.customClassName]
+    );
+  }
+  return renderSegmentTreeRecipe(selection.options);
+}
+
+function renderCustomSegmentTreeUsage(options: CustomSegmentTreeOptions): string {
+  if ((options.usageMode ?? "helper_only") === "helper_only") return "";
+  const sourceName = options.sourceName?.trim() || "";
+  return renderCodeTemplate("segment_tree/solve-custom.cpp.tmpl", {
+    valueType: options.valueType,
+    className: options.names.customClassName,
+    sourceName,
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    hasSource: sourceName !== "",
+    readLoop: options.sourceMode === "read_loop" && sourceName !== ""
+  });
+}
+
+function renderPersistentSegmentTreeUsage(options: PersistentSegmentTreeOptions): string {
+  if ((options.usageMode ?? "helper_only") === "helper_only") return "";
+  const sourceName = options.sourceName?.trim() || "";
+  return renderCodeTemplate("segment_tree/solve-persistent.cpp.tmpl", {
+    valueType: options.valueType,
+    className: options.className,
+    instanceName: sanitizeIdentifier(options.instanceName ?? "seg", "seg"),
+    answerName: sanitizeIdentifier(options.answerName ?? "ans", "ans"),
+    sourceName,
+    sizeExpression: options.sizeExpression?.trim() || "n",
+    hasSource: sourceName !== "",
+    readLoop: options.sourceMode === "read_loop" && sourceName !== "",
+    queryLoop: options.usageMode === "query_loop",
+    oneBased: options.indexing === "one_based_input",
+    pointAdd: options.pointAdd
+  });
 }
 
 export function defaultSegmentTreeBeatsUpdates(): SegmentTreeBeatsUpdate[] {
@@ -4368,30 +4633,25 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
   title: "Segment tree",
   scenarios: [
     {
-      id: "point_query",
-      label: "point updates + range aggregate",
-      description: "Iterative class or recursive helpers for point changes and range queries."
+      id: "standard",
+      label: "Standard",
+      description: "Point updates, inclusive range queries, and optional named descent."
     },
     {
-      id: "lazy_range",
-      label: "lazy range updates",
-      description: "Recursive lazy tree with range add/assign and sum/min/max/custom aggregates."
+      id: "lazy",
+      label: "Lazy / push-down",
+      description: "Range add and assignment with ordered pending-tag composition."
     },
     {
-      id: "lazy_minmax",
-      label: "lazy min/max preset",
-      description: "Compatibility preset for range assign/add min/max classes and threshold descents."
-    },
-    {
-      id: "max_subarray",
-      label: "max subarray preset",
-      description: "Point-set tree that returns max subarray state and best sum."
+      id: "persistent",
+      label: "Persistent",
+      description: "Immutable index-pool roots, point updates, and range queries."
     },
     {
       id: "beats",
-      label: "beats preset",
+      label: "Segment tree beats",
       description: "Range chmin/chmax/add with sum/min/max queries."
-    }
+    },
   ],
   decisions: [
     {
@@ -4401,10 +4661,11 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
         { id: "sum", label: "sum" },
         { id: "min", label: "min" },
         { id: "max", label: "max" },
-        { id: "custom", label: "custom node" },
-        { id: "max_subarray", label: "max subarray node" },
-        { id: "beats", label: "beats node" }
-      ]
+        { id: "max_subarray", label: "maximum subsegment" },
+        { id: "merge_sort", label: "sorted vectors / merge-sort tree" },
+        { id: "custom", label: "custom node" }
+      ],
+      scenarios: ["standard", "lazy", "persistent"]
     },
     {
       id: "updates",
@@ -4416,7 +4677,8 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
         { id: "range_assign", label: "range assign" },
         { id: "chmin", label: "range chmin" },
         { id: "chmax", label: "range chmax" }
-      ]
+      ],
+      scenarios: ["standard", "lazy", "persistent", "beats"]
     },
     {
       id: "source",
@@ -4425,7 +4687,8 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
         { id: "empty", label: "empty size" },
         { id: "existing_vector", label: "existing vector" },
         { id: "read_loop", label: "generated read loop" }
-      ]
+      ],
+      scenarios: ["standard", "lazy", "persistent"]
     },
     {
       id: "usage",
@@ -4434,7 +4697,8 @@ export const SEGMENT_TREE_APPLICATION_SPEC: SolverApplicationSpec = {
         { id: "helper_only", label: "definitions only" },
         { id: "instance", label: "instance/build skeleton" },
         { id: "query_loop", label: "query loop skeleton" }
-      ]
+      ],
+      scenarios: ["standard", "lazy", "persistent", "beats"]
     }
   ],
   bindings: [

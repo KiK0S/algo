@@ -1,0 +1,30 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (auto& value : {{sourceName}}) cin >> value;
+{{/if}}
+{{className}} {{instanceName}}({{sizeExpression}});
+auto root0 = {{#if hasSource}}{{instanceName}}.build({{sourceName}}){{else}}{{instanceName}}.empty_root(){{/if}};
+vector<{{className}}::Root> roots{root0};
+{{#if queryLoop}}
+int q;
+cin >> q;
+while (q--) {
+  int type, version, l, r;
+  {{valueType}} x;
+  cin >> type >> version >> l >> r;
+{{#if oneBased}}
+  --l; --r;
+{{/if}}
+  if (type == 1) {
+    cin >> x;
+{{#if pointAdd}}
+    roots.push_back({{instanceName}}.point_add(roots[version], l, x));
+{{else}}
+    roots.push_back({{instanceName}}.point_set(roots[version], l, x));
+{{/if}}
+  } else {
+    auto {{answerName}} = {{instanceName}}.query(roots[version], l, r);
+    cout << {{answerName}} << '\n';
+  }
+}
+{{/if}}

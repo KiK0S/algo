@@ -45,7 +45,7 @@ PATTERNS = [
     Pattern("ordered_set_pbds", r"__gnu_pbds|tree\s*<\s*[^,]+\s*,\s*null_type|order_of_key|find_by_order", "/templates/ordered_set", "template", 2),
     Pattern("dsu_inline", r"\bfind\s*\(\s*int\s+\w+\s*\).*\bparent|\bunite\s*\(|\bmerge\s*\(\s*int\s+\w+\s*,\s*int\s+\w+\s*\)", "/templates/dsu_short", "template", 3),
     Pattern("fenwick_inline", r"\bi\s*\+=\s*i\s*&\s*-i|\bi\s*-=\s*i\s*&\s*-i|Fenwick|fenwick", "/templates/fenwick_sum", "template", 3),
-    Pattern("segtree_inline", r"\bstruct\s+(?:seg|segtree|Segment|Tree)\b|\bclass\s+(?:seg|segtree|Segment|Tree)\b|\bbuild\s*\(\s*int\s+v\s*,\s*int\s+tl", "/templates/segtree_point_update", "template", 5),
+    Pattern("segtree_inline", r"\bstruct\s+(?:seg|segtree|Segment|Tree)\b|\bclass\s+(?:seg|segtree|Segment|Tree)\b|\bbuild\s*\(\s*int\s+v\s*,\s*int\s+tl", "/templates/segtree", "template", 5),
     Pattern("grid_dirs", r"dx\s*\[[^\]]*\]\s*=|dy\s*\[[^\]]*\]\s*=|for\s*\([^\n]*d\s*=\s*0[^\n]*d\s*<\s*4", "/templates/grid4", "template", 1),
     Pattern("modpow", r"\b(?:binpow|bpow|modpow|powmod|fexp)\s*\(|while\s*\(\s*b\s*\)\s*\{[^{}]{0,300}b\s*>>=\s*1", "/templates/modpow", "template", 2),
     Pattern("bitmask_dp", r"1\s*<<\s*n|\(\s*1\s*<<\s*\w+\s*\)", "/templates/bitmask_loop", "template", 1),

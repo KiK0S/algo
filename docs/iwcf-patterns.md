@@ -24,7 +24,7 @@
 | `fenwick_inline` | 50 | `/templates/fenwick_sum` | template | Inline Fenwick is more common than inserting the generic header. |
 | `dsu_inline` | 44 | `/templates/dsu_short` | template | Short DSU is common; rollback DSU should be a solver. |
 | `coordinate_compress` | 40 | `/templates/compress_unique` | template | Mostly `sort`, `unique`, `lower_bound`. |
-| `segtree_inline` | 32 | `/templates/segtree_point_update` | template | Enough variation that specialized solvers are better than one huge file. |
+| `segtree_inline` | 32 | `/templates/segtree` | template | Use the scenario-first generator backed by focused implementations. |
 | `ordered_set_pbds` | 22 | `/templates/ordered_set` | template | Existing `ordered_set` can remain isolated. |
 | `modpow` | 14 | `/templates/modpow` | template | Short enough to retype/correct. |
 | `dijkstra_pq` | 12 | `/templates/dijkstra` | template | Not in the first requested catalog, but worth adding later. |

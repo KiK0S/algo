@@ -1,11 +1,11 @@
 # Merge Sort Tree
 
-Status: active smart-runtime surface.
+Status: hidden compatibility alias routed to `/templates/segtree` → Merge-sort tree.
 
 ## Goal
 
-- Dynamic path: `/solvers/merge_sort_tree`.
-- Static fallback: `lib/solvers/merge_sort_tree.hpp`.
+- Compatibility path: `/templates/merge_sort_tree`.
+- Canonical path: `/templates/segtree`.
 - User-facing outcome: choose the range value-distribution scenario, reuse or
   read a source vector, and emit the selected class methods plus optional solve
   skeleton.

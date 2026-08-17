@@ -1,0 +1,5 @@
+{{#if readLoop}}
+vector<{{valueType}}> {{sourceName}}({{sizeExpression}});
+for (auto& value : {{sourceName}}) cin >> value;
+{{/if}}
+{{className}} seg({{#if hasSource}}{{sourceName}}{{else}}{{sizeExpression}}{{/if}});

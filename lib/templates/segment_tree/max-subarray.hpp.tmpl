@@ -5,6 +5,10 @@ struct MaxSubarrayNode {
   T suffix;
   T best;
   bool valid;
+
+  auto edulcni_view() const {
+    return std::make_tuple(sum, prefix, suffix, best, valid);
+  }
 };
 
 template <typename T>
@@ -39,7 +43,9 @@ class MaxSubarraySegTree {
 
   Node get(int left, int right) const {
     if (!normalize_range(left, right)) return neutral_node();
-    return get_rec(1, 0, n_ - 1, left, right);
+    const Node result = get_rec(1, 0, n_ - 1, left, right);
+    trace_range("Maximum-subarray segment tree queried a range", left, right);
+    return result;
   }
 
   T max_sum(int left, int right) const { return get(left, right).best; }
@@ -54,10 +60,24 @@ class MaxSubarraySegTree {
     EDULCNI_STEP(label);
   }
 
+  void trace_range(const char* label, int left, int right) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.max_subarray", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.max_subarray", static_cast<std::size_t>(n_), left, right,
+        edulcni::live::FocusRole::result, "queried inclusive range"));
+    EDULCNI_STEP(label);
+  }
+
   static Node neutral_node() { return Node{T(0), T(0), T(0), T(0), false}; }
 
   static Node make_leaf(const T& value) {
+{{#if allowEmpty}}
+    const T best = std::max(T(0), value);
+    return Node{value, best, best, best, true};
+{{else}}
     return Node{value, value, value, value, true};
+{{/if}}
   }
 
   static Node combine(const Node& lhs, const Node& rhs) {

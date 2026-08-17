@@ -1,0 +1,173 @@
+{{#if custom}}
+struct {{nodeName}} {
+  {{valueType}} value{};
+  // TODO: add aggregate fields.
+  auto edulcni_view() const { return value; }
+};
+
+{{nodeName}} persistent_neutral() { return {{nodeName}}{}; }
+{{nodeName}} persistent_make_node(const {{valueType}}& value) {
+  {{nodeName}} node{};
+  node.value = value;
+  // TODO: initialize aggregate fields.
+  return node;
+}
+{{nodeName}} persistent_merge(const {{nodeName}}& left,
+                              const {{nodeName}}& right) {
+  {{nodeName}} result{};
+  result.value = left.value + right.value;
+  // TODO: replace with the problem-specific associative merge.
+  return result;
+}
+{{/if}}
+
+class {{className}} {
+ public:
+  using Value = {{valueType}};
+  using Node = {{nodeType}};
+  using Root = int;
+
+  explicit {{className}}(int domain_size = 0) { reset(domain_size); }
+
+  void reset(int domain_size = 0) {
+    domain_size_ = std::max(0, domain_size);
+    pool_.clear();
+    pool_.push_back(PoolNode{neutral(), 0, 0});
+    trace_root("Persistent segment tree reset", 0);
+  }
+
+  Root empty_root() const { return 0; }
+
+  Root build(const std::vector<Value>& values) {
+    if (values.empty()) return 0;
+    domain_size_ = static_cast<int>(values.size());
+    const Root root = build_rec(0, domain_size_ - 1, values);
+    trace_root("Persistent segment tree built", root);
+    return root;
+  }
+
+  Root point_set(Root root, int position, const Value& value) {
+    if (!valid_root(root) || position < 0 || position >= domain_size_) return root;
+    const Root next = point_set_rec(root, 0, domain_size_ - 1, position, value);
+    trace_root("Persistent segment tree cloned a point-update path", next);
+    return next;
+  }
+
+{{#if pointAdd}}
+  Root point_add(Root root, int position, const Value& delta) {
+    if (!valid_root(root) || position < 0 || position >= domain_size_) return root;
+    const Root next = point_add_rec(root, 0, domain_size_ - 1, position, delta);
+    trace_root("Persistent segment tree cloned an additive path", next);
+    return next;
+  }
+{{/if}}
+
+  Node query(Root root, int left, int right) const {
+    if (!valid_root(root) || !normalize(left, right)) return neutral();
+    const Node result = query_rec(root, 0, domain_size_ - 1, left, right);
+    trace_range("Persistent segment tree queried a version", root, left, right);
+    return result;
+  }
+
+ private:
+  struct PoolNode {
+    Node value;
+    Root left;
+    Root right;
+
+    auto edulcni_view() const { return std::make_tuple(value, left, right); }
+  };
+
+  int domain_size_ = 0;
+  std::vector<PoolNode> pool_;
+
+  static Node neutral() { return {{neutralExpression}}; }
+  static Node make_node(const Value& value) { return {{makeNodeExpression}}; }
+  static Node merge(const Node& left, const Node& right) {
+    return {{mergeExpression}};
+  }
+
+  bool valid_root(Root root) const {
+    return 0 <= root && root < static_cast<Root>(pool_.size());
+  }
+
+  bool normalize(int& left, int& right) const {
+    if (domain_size_ == 0 || left > right || right < 0 || left >= domain_size_) return false;
+    left = std::max(left, 0);
+    right = std::min(right, domain_size_ - 1);
+    return left <= right;
+  }
+
+  Root clone(Root root) {
+    pool_.push_back(pool_[root]);
+    const Root created = static_cast<Root>(pool_.size()) - 1;
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_root("Persistent segment tree cloned a node", created);
+#endif
+    return created;
+  }
+
+  Root build_rec(int tl, int tr, const std::vector<Value>& values) {
+    const Root root = clone(0);
+    if (tl == tr) { pool_[root].value = make_node(values[tl]); return root; }
+    const int tm = (tl + tr) / 2;
+    pool_[root].left = build_rec(tl, tm, values);
+    pool_[root].right = build_rec(tm + 1, tr, values);
+    pull(root);
+    return root;
+  }
+
+  void pull(Root root) {
+    pool_[root].value = merge(pool_[pool_[root].left].value,
+                              pool_[pool_[root].right].value);
+  }
+
+  Root point_set_rec(Root root, int tl, int tr, int position,
+                     const Value& value) {
+    const Root next = clone(root);
+    if (tl == tr) { pool_[next].value = make_node(value); return next; }
+    const int tm = (tl + tr) / 2;
+    if (position <= tm) pool_[next].left = point_set_rec(pool_[root].left, tl, tm, position, value);
+    else pool_[next].right = point_set_rec(pool_[root].right, tm + 1, tr, position, value);
+    pull(next);
+    return next;
+  }
+
+{{#if pointAdd}}
+  Root point_add_rec(Root root, int tl, int tr, int position,
+                     const Value& delta) {
+    const Root next = clone(root);
+    if (tl == tr) { pool_[next].value = pool_[root].value + delta; return next; }
+    const int tm = (tl + tr) / 2;
+    if (position <= tm) pool_[next].left = point_add_rec(pool_[root].left, tl, tm, position, delta);
+    else pool_[next].right = point_add_rec(pool_[root].right, tm + 1, tr, position, delta);
+    pull(next);
+    return next;
+  }
+{{/if}}
+
+  Node query_rec(Root root, int tl, int tr, int l, int r) const {
+    if (root == 0 || tl > r || tr < l) return neutral();
+    if (l <= tl && tr <= r) return pool_[root].value;
+    const int tm = (tl + tr) / 2;
+    return merge(query_rec(pool_[root].left, tl, tm, l, r),
+                 query_rec(pool_[root].right, tm + 1, tr, l, r));
+  }
+
+  void trace_root(const char* label, Root root) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.persistent", static_cast<std::size_t>(domain_size_), pool_));
+    EDULCNI_VIS(edulcni::live::value("segtree.persistent.current_root", root));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_range(const char* label, Root root, int left, int right) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.persistent", static_cast<std::size_t>(domain_size_), pool_));
+    EDULCNI_VIS(edulcni::live::value("segtree.persistent.current_root", root));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.persistent", static_cast<std::size_t>(domain_size_), left,
+        right, edulcni::live::FocusRole::result, "queried version range"));
+    EDULCNI_STEP(label);
+  }
+};

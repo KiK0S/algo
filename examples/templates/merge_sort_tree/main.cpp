@@ -41,7 +41,9 @@ class MergeSortTree {
     if (!norm(left, right)) {
       return 0;
     }
-    return count_less_rec(1, 0, n_ - 1, left, right, x);
+    const int result = count_less_rec(1, 0, n_ - 1, left, right, x);
+    trace_range("Merge-sort tree counted values below a threshold", left, right);
+    return result;
   }
 
 
@@ -55,7 +57,9 @@ class MergeSortTree {
     if (high < low || !norm(left, right)) {
       return 0;
     }
-    return count_in_range_rec(1, 0, n_ - 1, left, right, low, high);
+    const int result = count_in_range_rec(1, 0, n_ - 1, left, right, low, high);
+    trace_range("Merge-sort tree counted a value interval", left, right);
+    return result;
   }
 
 
@@ -67,6 +71,13 @@ class MergeSortTree {
 
   void trace(const char* label) const {
     EDULCNI_VIS(edulcni::live::matrix("merge_sort_tree.levels", tree_));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_range(const char* label, int left, int right) const {
+    EDULCNI_VIS(edulcni::live::matrix("merge_sort_tree.levels", tree_));
+    EDULCNI_VIS(edulcni::live::array(
+        "merge_sort_tree.query_range", std::vector<int>{left, right}));
     EDULCNI_STEP(label);
   }
 

@@ -1,0 +1,136 @@
+template <typename T>
+class {{className}} {
+ public:
+  explicit {{className}}(int n = 0) { reset(n); }
+  explicit {{className}}(const std::vector<T>& values) { build(values); }
+
+  void reset(int n) {
+    n_ = std::max(0, n);
+    tree_.assign(4 * std::max(1, n_), neutral());
+    trace("Segment tree reset");
+  }
+  void build(const std::vector<T>& values) {
+    reset(static_cast<int>(values.size()));
+    if (n_ > 0) build_rec(1, 0, n_ - 1, values);
+    trace("Segment tree built");
+  }
+  int size() const { return n_; }
+
+  T query(int left, int right) const {
+    if (!normalize(left, right)) return neutral();
+    const T result = query_rec(1, 0, n_ - 1, left, right);
+    trace_range("Segment tree queried a range", left, right, false);
+    return result;
+  }
+{{#if pointSet}}
+  void point_set(int position, const T& value) {
+    if (position < 0 || position >= n_) return;
+    point_set_rec(1, 0, n_ - 1, position, value);
+    trace_range("Segment tree updated a point", position, position, true);
+  }
+{{/if}}
+{{#if pointAdd}}
+  void point_add(int position, const T& delta) {
+    if (position < 0 || position >= n_) return;
+    point_add_rec(1, 0, n_ - 1, position, delta);
+    trace_range("Segment tree added at a point", position, position, true);
+  }
+{{/if}}
+{{#if firstLeq}}
+  int first_leq(int left, int right, const T& target) const {
+    if (!normalize(left, right)) return -1;
+    const int result = first_rec(1, 0, n_ - 1, left, right,
+                                 [&](const T& node) { return node <= target; });
+    trace_range("Segment tree completed a first-position descent", left, right, false);
+    return result;
+  }
+{{/if}}
+{{#if firstGeq}}
+  int first_geq(int left, int right, const T& target) const {
+    if (!normalize(left, right)) return -1;
+    const int result = first_rec(1, 0, n_ - 1, left, right,
+                                 [&](const T& node) { return node >= target; });
+    trace_range("Segment tree completed a first-position descent", left, right, false);
+    return result;
+  }
+{{/if}}
+{{#if prefixLowerBound}}
+  int prefix_lower_bound(const T& target) const {
+    if (n_ == 0 || tree_[1] < target) return -1;
+    int v = 1, tl = 0, tr = n_ - 1;
+    T prefix = T(0);
+    while (tl != tr) {
+      const int tm = (tl + tr) / 2;
+      if (prefix + tree_[v * 2] >= target) { v *= 2; tr = tm; }
+      else { prefix += tree_[v * 2]; v = v * 2 + 1; tl = tm + 1; }
+    }
+    trace_range("Segment tree completed a prefix descent", 0, n_ - 1, false);
+    return tl;
+  }
+{{/if}}
+{{#if kth}}
+  int kth(const T& k) const { return prefix_lower_bound(k); }
+{{/if}}
+
+ private:
+  int n_ = 0;
+  std::vector<T> tree_;
+  static T neutral() { return {{neutralExpression}}; }
+  static T merge(const T& left, const T& right) { return {{mergeExpression}}; }
+  bool normalize(int& left, int& right) const {
+    if (n_ == 0 || left > right || right < 0 || left >= n_) return false;
+    left = std::max(left, 0); right = std::min(right, n_ - 1); return left <= right;
+  }
+  void build_rec(int v, int tl, int tr, const std::vector<T>& values) {
+    if (tl == tr) { tree_[v] = values[tl]; return; }
+    const int tm = (tl + tr) / 2;
+    build_rec(v * 2, tl, tm, values); build_rec(v * 2 + 1, tm + 1, tr, values);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+  T query_rec(int v, int tl, int tr, int l, int r) const {
+    if (tl > r || tr < l) return neutral();
+    if (l <= tl && tr <= r) return tree_[v];
+    const int tm = (tl + tr) / 2;
+    return merge(query_rec(v * 2, tl, tm, l, r), query_rec(v * 2 + 1, tm + 1, tr, l, r));
+  }
+{{#if pointSet}}
+  void point_set_rec(int v, int tl, int tr, int p, const T& value) {
+    if (tl == tr) { tree_[v] = value; return; }
+    const int tm = (tl + tr) / 2;
+    if (p <= tm) point_set_rec(v * 2, tl, tm, p, value);
+    else point_set_rec(v * 2 + 1, tm + 1, tr, p, value);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+{{/if}}
+{{#if pointAdd}}
+  void point_add_rec(int v, int tl, int tr, int p, const T& delta) {
+    if (tl == tr) { tree_[v] += delta; return; }
+    const int tm = (tl + tr) / 2;
+    if (p <= tm) point_add_rec(v * 2, tl, tm, p, delta);
+    else point_add_rec(v * 2 + 1, tm + 1, tr, p, delta);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+{{/if}}
+{{#if hasFindFirst}}
+  template <typename Predicate>
+  int first_rec(int v, int tl, int tr, int l, int r, Predicate can_contain) const {
+    if (tl > r || tr < l || !can_contain(tree_[v])) return -1;
+    if (tl == tr) return tl;
+    const int tm = (tl + tr) / 2;
+    const int found = first_rec(v * 2, tl, tm, l, r, can_contain);
+    return found != -1 ? found : first_rec(v * 2 + 1, tm + 1, tr, l, r, can_contain);
+  }
+{{/if}}
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_STEP(label);
+  }
+  void trace_range(const char* label, int left, int right, bool changed) const {
+    EDULCNI_VIS(edulcni::live::segment_tree("segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.tree", static_cast<std::size_t>(n_), left, right,
+        changed ? edulcni::live::FocusRole::changed : edulcni::live::FocusRole::result,
+        "active inclusive range"));
+    EDULCNI_STEP(label);
+  }
+};

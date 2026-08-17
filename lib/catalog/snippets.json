@@ -4,20 +4,16 @@
     "insertMode": "global",
     "generator": "segtree",
     "label": "/templates/segtree",
-    "description": "interactive smart segment tree generator",
+    "description": "canonical scenario-first segment tree generator",
     "detail": "interactive / template",
     "exports": [
-      "t",
-      "init_segtree",
-      "build",
-      "get",
-      "point_set",
-      "point_add",
-      "range_add",
-      "range_assign",
       "SegmentTree",
+      "LazySegmentTree",
+      "CustomSegmentTree",
+      "PersistentSegmentTree",
       "MaxSubarrayNode",
       "MaxSubarraySegTree",
+      "MergeSortTree",
       "SegmentTreeBeats"
     ],
     "features": [
@@ -30,28 +26,34 @@
       "max",
       "custom",
       "first_leq",
+      "first_geq",
+      "prefix_lower_bound",
+      "kth",
       "max_subarray",
+      "persistent",
       "beats"
     ],
     "applications": [
-      "point_query",
-      "lazy_range",
-      "lazy_minmax",
-      "max_subarray",
+      "standard",
+      "lazy",
+      "persistent",
       "beats"
     ],
-    "aggregators": ["sum", "min", "max", "custom", "max_subarray", "beats"],
+    "aggregators": ["sum", "min", "max", "custom", "max_subarray", "merge_sort", "beats"],
     "constraints": [
       "associative_merge",
       "lazy_composition",
       "monotone_for_descend",
+      "inclusive_range_query",
+      "ordered_tag_composition",
+      "immutable_persistent_nodes",
       "beats_invariants"
     ],
     "wrappers": [
       "build_from_vector",
-      "iterative_class",
-      "recursive_globals",
-      "static_fallback_presets"
+      "focused_classes",
+      "scenario_routing",
+      "compatibility_aliases"
     ],
     "bindings": [
       "sizeExpression",
@@ -65,18 +67,17 @@
       "solve"
     ],
     "form": [
-      "storageName",
       "sizeExpression",
       "valueType",
       "aggregate",
       "updates",
-      "customNode",
+      "scenario",
       "application",
       "sourceMode",
       "usageMode"
     ],
     "render": {
-      "style": "inline-global",
+      "style": "focused-class",
       "namespace": "global"
     },
     "visualization": {
@@ -89,7 +90,8 @@
       "layout": "tree_with_array",
       "defaultGranularity": "operations",
       "limitations": [
-        "Custom node values that are not streamable are displayed as <value>."
+        "Custom nodes should expose observational edulcni_view() summaries.",
+        "Persistent lazy propagation is unsupported."
       ]
     }
   },
@@ -790,10 +792,13 @@
   },
   {
     "path": "/templates/merge_sort_tree",
+    "visibility": "compatibility",
+    "canonicalPath": "/templates/segtree",
+    "presetScenario": "merge_sort",
     "insertMode": "global",
     "generator": "merge_sort_tree",
     "label": "/templates/merge_sort_tree",
-    "description": "smart merge-sort tree helper",
+    "description": "compatibility alias for /templates/segtree → Merge-sort tree",
     "detail": "dynamic / template",
     "exports": ["MergeSortTree"],
     "features": [
@@ -901,10 +906,13 @@
   },
   {
     "path": "/templates/segtree_beats",
+    "visibility": "compatibility",
+    "canonicalPath": "/templates/segtree",
+    "presetScenario": "beats",
     "insertMode": "global",
     "generator": "segtree_beats",
     "label": "/templates/segtree_beats",
-    "description": "smart segment tree beats helper",
+    "description": "compatibility alias for /templates/segtree → Segment tree beats",
     "detail": "dynamic / template",
     "exports": ["SegmentTreeBeats"],
     "features": ["chmin", "chmax", "add", "sum", "min", "max"],

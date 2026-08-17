@@ -132,7 +132,9 @@ for (const entry of catalog) {
   entries.push({
     ...entry,
     example: examplesByPath.get(entry.path),
-    applicationSpec: entry.generator ? applicationSpecs[entry.generator] : undefined,
+    applicationSpec: entry.canonicalPath === "/templates/segtree"
+      ? applicationSpecs.segtree
+      : entry.generator ? applicationSpecs[entry.generator] : undefined,
     preview: await buildPreview(entry)
   });
 }

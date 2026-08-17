@@ -77,15 +77,18 @@ class SegmentTree {
     if (left < 0) {
       left = 0;
     }
-    if (right > n_) {
-      right = n_;
+    if (right >= n_) {
+      right = n_ - 1;
     }
-    if (left >= right || n_ == 0) {
+    if (left > right || n_ == 0) {
       return Op::neutral();
     }
+    const int query_left = left;
+    const int query_right = right;
 
     T lhs = Op::neutral();
     T rhs = Op::neutral();
+    ++right;
     for (left += n_, right += n_; left < right; left >>= 1, right >>= 1) {
       if (left & 1) {
         lhs = Op::combine(lhs, tree_[left++]);
@@ -94,12 +97,65 @@ class SegmentTree {
         rhs = Op::combine(tree_[--right], rhs);
       }
     }
-    return Op::combine(lhs, rhs);
+    const T result = Op::combine(lhs, rhs);
+    trace_query(query_left, query_right);
+    return result;
   }
+
+{{#if firstLeq}}
+  int first_leq(int left, int right, const T& target) const {
+    return find_first(left, right, [&](const T& node) { return node <= target; });
+  }
+{{/if}}
+
+{{#if firstGeq}}
+  int first_geq(int left, int right, const T& target) const {
+    return find_first(left, right, [&](const T& node) { return node >= target; });
+  }
+{{/if}}
+
+{{#if prefixLowerBound}}
+  int prefix_lower_bound(const T& target) const {
+    if (n_ == 0 || tree_[1] < target) return -1;
+    int node = 1;
+    T prefix = T(0);
+    while (node < n_) {
+      const int left = node << 1;
+      if (prefix + tree_[left] >= target) node = left;
+      else { prefix += tree_[left]; node = left | 1; }
+    }
+    return node - n_;
+  }
+{{/if}}
+
+{{#if kth}}
+  int kth(const T& k) const { return prefix_lower_bound(k); }
+{{/if}}
 
  private:
   int n_;
   std::vector<T> tree_;
+
+{{#if hasFindFirst}}
+  template <typename Predicate>
+  int find_first(int left, int right, Predicate can_contain) const {
+    if (n_ == 0 || left > right) return -1;
+    left = std::max(left, 0);
+    right = std::min(right, n_ - 1);
+    return find_first_rec(1, 0, n_ - 1, left, right, can_contain);
+  }
+
+  template <typename Predicate>
+  int find_first_rec(int v, int tl, int tr, int l, int r,
+                     Predicate can_contain) const {
+    if (tl > r || tr < l || !can_contain(tree_[v])) return -1;
+    if (tl == tr) return tl;
+    const int tm = (tl + tr) / 2;
+    const int found = find_first_rec(v * 2, tl, tm, l, r, can_contain);
+    return found != -1 ? found
+                       : find_first_rec(v * 2 + 1, tm + 1, tr, l, r, can_contain);
+  }
+{{/if}}
 
   void trace(const char* label) const {
     EDULCNI_VIS(edulcni::live::segment_tree(
@@ -121,6 +177,15 @@ class SegmentTree {
           "updated leaf and recomputed ancestors");
     }()));
     EDULCNI_STEP(label);
+  }
+
+  void trace_query(int left, int right) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.tree", static_cast<std::size_t>(n_), left, right,
+        edulcni::live::FocusRole::result, "queried inclusive range"));
+    EDULCNI_STEP("Segment tree queried a range");
   }
 };
 

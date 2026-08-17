@@ -221,6 +221,7 @@ import {
   renderStaticTemplate,
   renderRollbackDsuRecipe,
   renderSegmentTreeBeatsRecipe,
+  renderSegmentTreeScenarioRecipe,
   renderSegmentTreeRecipe,
   renderSetUtilsRecipe,
   SEGMENT_TREE_APPLICATION_SPEC,
@@ -248,6 +249,8 @@ import {
   SegmentTreeBeatsUpdate,
   SegmentTreeBeatsUsageMode,
   SegmentTreeOptions,
+  SegmentTreeScenario,
+  PersistentSegmentAggregate,
   SegmentTreeOutputMode,
   SegmentTreeSourceMode,
   SegmentTreeUsageMode,
@@ -881,6 +884,7 @@ async function buildPickItems(
     if (!isCatalogSnippetPath(entry.path)) {
       continue;
     }
+    if (entry.visibility === "compatibility") continue;
     const preview = await snippetPickPreview(root, entry, analysis);
     if (!preview.content) {
       throw new Error(`catalog entry ${entry.path} has no concrete preview renderer`);
@@ -1149,6 +1153,326 @@ async function pickStringWithCustom(
 }
 
 async function promptSegmentTreeOptions(
+  editor: vscode.TextEditor,
+  fixedScenario?: SegmentTreeScenario,
+  fixedCustomLazy?: boolean
+): Promise<RenderedSnippet | undefined> {
+  const analysis = analyzeCppDocument(editor.document.getText());
+  const scenarioPick = fixedScenario
+    ? { label: fixedScenario, value: fixedScenario }
+    : await showExplainedQuickPick<ValuePickItem<SegmentTreeScenario>>(
+        SEGMENT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
+          label: scenario.label,
+          description: scenario.description,
+          value: scenario.id as SegmentTreeScenario
+        })),
+        { title: "edulcni: segment tree", placeHolder: "Scenario", ignoreFocusOut: true }
+      );
+  if (!scenarioPick) return undefined;
+
+  if (scenarioPick.value === "beats") {
+    const options = await promptSegmentTreeBeatsOptions(editor);
+    return options
+      ? renderRecipeSnippet(renderSegmentTreeScenarioRecipe({ scenario: "beats", options }))
+      : undefined;
+  }
+  if (scenarioPick.value === "merge_sort") {
+    const options = await promptMergeSortTreeOptions(editor);
+    return options
+      ? renderRecipeSnippet(renderSegmentTreeScenarioRecipe({ scenario: "merge_sort", options }))
+      : undefined;
+  }
+
+  const title = "edulcni: segment tree";
+  const names = planSegmentTreeNames(analysis);
+  if (scenarioPick.value === "custom") {
+    const mode = fixedCustomLazy === undefined
+      ? await showExplainedQuickPick<ValuePickItem<"point" | "lazy">>(
+      [
+        { label: "custom aggregate + point set", value: "point", picked: true },
+        { label: "custom Node + Tag push-down", value: "lazy" }
+      ],
+      { title, placeHolder: "Custom traversal capability", ignoreFocusOut: true }
+    )
+      : { label: fixedCustomLazy ? "custom Node + Tag push-down" : "custom aggregate + point set",
+          value: fixedCustomLazy ? "lazy" as const : "point" as const };
+    if (!mode) return undefined;
+    const valueType = await pickStringWithCustom(
+      title, "Leaf value type", ["int", "ll", "long long"], "C++ leaf value type"
+    );
+    if (!valueType) return undefined;
+    const descent = await showExplainedQuickPick<ValuePickItem<"none" | "first">>(
+      [
+        { label: "no descent helper", value: "none", picked: true },
+        { label: "custom monotone find_first", value: "first" }
+      ],
+      { title, placeHolder: "Optional descent", ignoreFocusOut: true }
+    );
+    if (!descent) return undefined;
+    const source = await showExplainedQuickPick<ValuePickItem<SegmentTreeSourceMode>>(
+      [
+        { label: "empty size", value: "empty", picked: true },
+        { label: "existing vector", value: "existing_vector" },
+        { label: "generated read loop", value: "read_loop" }
+      ],
+      { title, placeHolder: "Build source", ignoreFocusOut: true }
+    );
+    if (!source) return undefined;
+    let sourceName: string | undefined;
+    if (source.value === "existing_vector") {
+      sourceName = await promptVectorName(title, "Source vector", analysis.vectorSymbols, "Vector name");
+    } else if (source.value === "read_loop") sourceName = "a";
+    if (source.value !== "empty" && !sourceName) return undefined;
+    const sizeExpression = source.value === "existing_vector" && sourceName
+      ? `(int)${sourceName}.size()`
+      : await pickStringWithCustom(title, "Size expression", sizeExpressionCandidates(analysis), "Size expression");
+    if (!sizeExpression) return undefined;
+    const usage = await showExplainedQuickPick<ValuePickItem<SegmentTreeUsageMode>>(
+      [
+        { label: "definitions only", value: "helper_only", picked: true },
+        { label: "instance/build skeleton", value: "instance" }
+      ],
+      { title, placeHolder: "Generated output", ignoreFocusOut: true }
+    );
+    if (!usage) return undefined;
+    return renderRecipeSnippet(renderSegmentTreeScenarioRecipe({
+      scenario: "custom",
+      options: {
+        valueType: valueType.trim(),
+        lazy: mode.value === "lazy",
+        descent: descent.value === "first",
+        names,
+        sourceMode: source.value,
+        sourceName,
+        sizeExpression: sizeExpression.trim(),
+        usageMode: usage.value
+      }
+    }));
+  }
+
+  if (scenarioPick.value === "persistent") {
+    const aggregate = await showExplainedQuickPick<ValuePickItem<PersistentSegmentAggregate>>(
+      [
+        { label: "sum", value: "sum", picked: true },
+        { label: "minimum", value: "min" },
+        { label: "maximum", value: "max" },
+        { label: "custom Node", value: "custom" },
+      ],
+      { title, placeHolder: "Persistent aggregate", ignoreFocusOut: true }
+    );
+    if (!aggregate) return undefined;
+    const valueType = await pickStringWithCustom(
+      title, "Value type", ["long long", "int", "ll"], "C++ value type"
+    );
+    if (!valueType) return undefined;
+    const source = await showExplainedQuickPick<ValuePickItem<SegmentTreeSourceMode>>(
+      [
+            { label: "empty identity root", value: "empty", picked: true },
+            { label: "existing vector", value: "existing_vector" },
+            { label: "generated read loop", value: "read_loop" }
+      ],
+      { title, placeHolder: "Persistent build source", ignoreFocusOut: true }
+    );
+    if (!source) return undefined;
+    let sourceName: string | undefined;
+    if (source.value === "existing_vector") {
+      sourceName = await promptVectorName(title, "Source vector", analysis.vectorSymbols, "Vector name");
+    } else if (source.value === "read_loop") {
+      sourceName = "a";
+    }
+    if (source.value !== "empty" && !sourceName) return undefined;
+    const sizeExpression = source.value === "existing_vector" && sourceName
+      ? `(int)${sourceName}.size()`
+      : await pickStringWithCustom(title, "Domain/array size", sizeExpressionCandidates(analysis), "Size expression");
+    if (!sizeExpression) return undefined;
+    let pointAdd = true;
+    {
+      const update = await showExplainedQuickPick<ValuePickItem<"set" | "set_add">>(
+          aggregate.value === "custom"
+            ? [{ label: "point set", value: "set", picked: true }]
+            : [
+                { label: "point set", value: "set", picked: true },
+                { label: "point set + point add", value: "set_add" }
+              ],
+          { title, placeHolder: "Version-producing updates", ignoreFocusOut: true }
+        );
+      if (!update) return undefined;
+      pointAdd = update.value === "set_add";
+    }
+    const usage = await showExplainedQuickPick<ValuePickItem<SegmentTreeUsageMode>>(
+      [
+        { label: "definitions only", value: "helper_only", picked: true },
+        { label: "instance/build skeleton", value: "instance" },
+        { label: "query-loop skeleton", value: "query_loop" }
+      ],
+      { title, placeHolder: "Generated output", ignoreFocusOut: true }
+    );
+    if (!usage) return undefined;
+    return renderRecipeSnippet(renderSegmentTreeScenarioRecipe({
+      scenario: "persistent",
+      options: {
+        valueType: valueType.trim(),
+        aggregate: aggregate.value,
+        pointAdd,
+        className: names.persistentClassName,
+        nodeName: names.persistentNodeName,
+        sourceMode: source.value,
+        sourceName,
+        sizeExpression: sizeExpression.trim(),
+        usageMode: usage.value,
+        indexing: "zero_based",
+        instanceName: "seg",
+        answerName: "ans"
+      }
+    }));
+  }
+
+  const aggregate = await showExplainedQuickPick<ValuePickItem<SegmentAggregate>>(
+    scenarioPick.value === "lazy"
+      ? [
+          { label: "sum", value: "sum", picked: true },
+          { label: "minimum", value: "min" },
+          { label: "maximum", value: "max" },
+          { label: "custom Node + Tag", value: "custom" }
+        ]
+      : [
+          { label: "sum", value: "sum", picked: true },
+          { label: "minimum", value: "min" },
+          { label: "maximum", value: "max" },
+          { label: "maximum subsegment", value: "max_subarray" },
+          { label: "sorted vectors / merge-sort tree", value: "merge_sort" },
+          { label: "custom Node", value: "custom" }
+        ],
+    { title, placeHolder: "Aggregate preset", ignoreFocusOut: true }
+  );
+  if (!aggregate) return undefined;
+  if (aggregate.value === "custom") {
+    return promptSegmentTreeOptions(editor, "custom", scenarioPick.value === "lazy");
+  }
+  if (aggregate.value === "merge_sort") {
+    const options = await promptMergeSortTreeOptions(editor);
+    return options
+      ? renderRecipeSnippet(renderSegmentTreeScenarioRecipe({ scenario: "merge_sort", options }))
+      : undefined;
+  }
+
+  const updateItems: ValuePickItem<SegmentUpdateOp>[] = aggregate.value === "max_subarray"
+    ? [{ label: "point set", value: "point_set", picked: true }]
+    : scenarioPick.value === "lazy"
+    ? [
+        { label: "range add", value: "range_add", picked: true },
+        { label: "range assign", value: "range_assign" }
+      ]
+    : [
+        { label: "point set", value: "point_set", picked: true },
+        { label: "point add", value: "point_add" }
+      ];
+  const pickedUpdates = aggregate.value === "max_subarray"
+    ? updateItems
+    : await showExplainedQuickPick(updateItems, {
+        title, placeHolder: "Operations to generate", canPickMany: true, ignoreFocusOut: true
+      });
+  if (!pickedUpdates) return undefined;
+  const selectedUpdates = pickedUpdates.length > 0
+    ? pickedUpdates.map((item) => item.value)
+    : [updateItems[0].value];
+
+  const descentItems: ValuePickItem<SegmentDescendQuery>[] = aggregate.value === "min"
+    ? [{ label: "first position with minimum <= x", value: "first_leq" }]
+    : aggregate.value === "max"
+      ? [{ label: "first position with maximum >= x", value: "first_geq" }]
+      : [
+          { label: "prefix lower bound (requires monotone prefixes)", value: "prefix_lower_bound" },
+          { label: "k-th by prefix sum (requires non-negative counts)", value: "kth" }
+        ];
+  const pickedDescents = aggregate.value === "max_subarray"
+    ? []
+    : await showExplainedQuickPick(descentItems, {
+        title, placeHolder: "Optional named descent", canPickMany: true, ignoreFocusOut: true
+      });
+  if (!pickedDescents) return undefined;
+
+  const source = await showExplainedQuickPick<ValuePickItem<SegmentTreeSourceMode>>(
+    [
+      { label: "empty size", value: "empty", picked: true },
+      { label: "existing vector", value: "existing_vector" },
+      { label: "generated read loop", value: "read_loop" }
+    ],
+    { title, placeHolder: "Build source", ignoreFocusOut: true }
+  );
+  if (!source) return undefined;
+  let sourceName: string | undefined;
+  if (source.value === "existing_vector") {
+    sourceName = await promptVectorName(title, "Source vector", analysis.vectorSymbols, "Vector name");
+  } else if (source.value === "read_loop") {
+    sourceName = "a";
+  }
+  if (source.value !== "empty" && !sourceName) return undefined;
+  const sourceSymbol = analysis.vectorSymbols.find((symbol) => symbol.name === sourceName);
+  const valueType = await pickStringWithCustom(
+    title,
+    "Value type",
+    uniqueValues([vectorValueType(sourceSymbol?.type) ?? "", "int", "ll", "long long"]),
+    "C++ value type"
+  );
+  if (!valueType) return undefined;
+  const sizeExpression = source.value === "existing_vector" && sourceName
+    ? `(int)${sourceName}.size()`
+    : await pickStringWithCustom(title, "Size expression", sizeExpressionCandidates(analysis), "Size expression");
+  if (!sizeExpression) return undefined;
+  const usage = await showExplainedQuickPick<ValuePickItem<SegmentTreeUsageMode>>(
+    [
+      { label: "definitions only", value: "helper_only", picked: true },
+      { label: "instance/build skeleton", value: "instance" },
+      { label: "query-loop skeleton", value: "query_loop" }
+    ],
+    { title, placeHolder: "Generated output", ignoreFocusOut: true }
+  );
+  if (!usage) return undefined;
+  let indexing: "zero_based" | "one_based_input" = "zero_based";
+  if (usage.value === "query_loop") {
+    const picked = await showExplainedQuickPick<ValuePickItem<"zero_based" | "one_based_input">>(
+      [
+        { label: "0-indexed input", value: "zero_based", picked: true },
+        { label: "1-indexed input", value: "one_based_input" }
+      ],
+      { title, placeHolder: "Query-loop input indexing", ignoreFocusOut: true }
+    );
+    if (!picked) return undefined;
+    indexing = picked.value;
+  }
+  const application = aggregate.value === "max_subarray"
+    ? "maximum_subsegment"
+    : scenarioPick.value;
+  let allowEmptySubsegment = false;
+  if (aggregate.value === "max_subarray") {
+    const convention = await showExplainedQuickPick<ValuePickItem<"non_empty" | "allow_empty">>(
+      [
+        { label: "non-empty subsegment", value: "non_empty", picked: true },
+        { label: "allow empty subsegment", value: "allow_empty" }
+      ],
+      { title, placeHolder: "Maximum-subsegment convention", ignoreFocusOut: true }
+    );
+    if (!convention) return undefined;
+    allowEmptySubsegment = convention.value === "allow_empty";
+  }
+  return renderRecipeSnippet(renderSegmentTreeScenarioRecipe({
+    scenario: aggregate.value === "max_subarray"
+      ? "maximum_subsegment"
+      : scenarioPick.value as "standard" | "lazy",
+    options: {
+      sizeExpression: sizeExpression.trim(), valueType: valueType.trim(),
+      aggregate: aggregate.value === "max_subarray" ? "sum" : aggregate.value,
+      updates: selectedUpdates,
+      descends: pickedDescents.map((item) => item.value), application,
+      sourceMode: source.value, sourceName, indexing, usageMode: usage.value,
+      instanceName: "seg", answerName: "ans", names,
+      outputMode: "iterative_class", allowEmptySubsegment
+    }
+  }));
+}
+
+async function promptLegacySegmentTreeOptions(
   editor: vscode.TextEditor
 ): Promise<RenderedSnippet | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
@@ -1911,10 +2235,13 @@ async function promptConnectedComponentsOptions(
 }
 
 async function promptSegmentTreeBeatsOptions(
-  editor: vscode.TextEditor
+  editor: vscode.TextEditor,
+  fixedApplication?: SegmentTreeBeatsApplication
 ): Promise<SegmentTreeBeatsOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await showExplainedQuickPick<
+  const scenarioPick = fixedApplication
+    ? { label: fixedApplication, value: fixedApplication }
+    : await showExplainedQuickPick<
     ValuePickItem<SegmentTreeBeatsApplication>
   >(
     SEGMENT_TREE_BEATS_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -2284,10 +2611,13 @@ async function promptImplicitTreapOptions(
 }
 
 async function promptMergeSortTreeOptions(
-  editor: vscode.TextEditor
+  editor: vscode.TextEditor,
+  fixedApplication?: MergeSortTreeApplication
 ): Promise<MergeSortTreeOptions | undefined> {
   const analysis = analyzeCppDocument(editor.document.getText());
-  const scenarioPick = await showExplainedQuickPick<
+  const scenarioPick = fixedApplication
+    ? { label: fixedApplication, value: fixedApplication }
+    : await showExplainedQuickPick<
     ValuePickItem<MergeSortTreeApplication>
   >(
     MERGE_SORT_TREE_APPLICATION_SPEC.scenarios.map((scenario) => ({
@@ -2367,6 +2697,7 @@ async function promptMergeSortTreeOptions(
   >(
     [
       { label: "existing vector", value: "existing_vector", picked: true },
+      { label: "generated read loop", value: "read_loop" },
     ],
     {
       title: "edulcni: merge_sort_tree",
@@ -5427,14 +5758,14 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
             aggregate: "sum",
             updates: ["point_set"],
             descends: [],
-            application: "point_query",
+            application: "standard",
             sourceMode: "empty",
             indexing: "zero_based",
             usageMode: "helper_only",
             instanceName: "seg",
             answerName: "ans",
             names: planSegmentTreeNames(analysis),
-            outputMode: "global_recursive"
+            outputMode: "iterative_class"
           })
         );
       }
@@ -5452,10 +5783,7 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const options = await promptSegmentTreeBeatsOptions(editor);
-        return options
-          ? renderRecipeSnippet(renderSegmentTreeBeatsRecipe(options))
-          : undefined;
+        return promptSegmentTreeOptions(editor, "beats");
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -6304,10 +6632,7 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
         detail: "dynamic / template"
       },
       async prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined> {
-        const options = await promptMergeSortTreeOptions(editor);
-        return options
-          ? renderRecipeSnippet(renderMergeSortTreeRecipe(options))
-          : undefined;
+        return promptSegmentTreeOptions(editor, "merge_sort");
       },
       defaultSnippet(
         analysis: CppAnalysis,
@@ -6599,9 +6924,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const browseDisposable = vscode.commands.registerCommand(
     "edulcni.insertHeader",
-    async () => {
+    async (requestedPath?: string) => {
       try {
-        await insertSnippet(context);
+        await insertSnippet(context, requestedPath);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "unknown extension error";

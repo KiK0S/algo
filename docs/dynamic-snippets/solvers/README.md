@@ -54,7 +54,7 @@ shape and the next agent should choose another packet.
 | `lib/solvers/lca_binary_lifting.hpp` | done | [lca_binary_lifting.md](./lca_binary_lifting.md) |
 | `lib/solvers/linear_sieve.hpp` | done | [linear_sieve.md](./linear_sieve.md) |
 | `lib/solvers/maxflow_dinic.hpp` | done | [maxflow_dinic.md](./maxflow_dinic.md) |
-| `lib/solvers/merge_sort_tree.hpp` | done | [merge_sort_tree.md](./merge_sort_tree.md) |
+| `/templates/merge_sort_tree` compatibility alias | done | [merge_sort_tree.md](./merge_sort_tree.md) |
 | `lib/solvers/modint.hpp` | done | [modint.md](./modint.md) |
 | `lib/solvers/monotonic_stack.hpp` | done | [monotonic_stack.md](./monotonic_stack.md) |
 | `lib/solvers/mo.hpp` | done | [mo.md](./mo.md) |
@@ -62,8 +62,8 @@ shape and the next agent should choose another packet.
 | `lib/solvers/ordered_set.hpp` | done | [ordered_set.md](./ordered_set.md) |
 | `lib/solvers/poly_hash.hpp` | done | [poly_hash.md](./poly_hash.md) |
 | `lib/solvers/rollback_dsu.hpp` | done | [rollback_dsu.md](./rollback_dsu.md) |
-| `/solvers/segtree` | active smart pilot | [segtree.md](./segtree.md) |
-| `lib/solvers/segtree_beats.hpp` | done | [segtree_beats.md](./segtree_beats.md) |
+| `/templates/segtree` | canonical scenario pipeline | [segtree.md](./segtree.md) |
+| `/templates/segtree_beats` compatibility alias | done | [segtree_beats.md](./segtree_beats.md) |
 | `lib/solvers/set_utils.hpp` | done | [set_utils.md](./set_utils.md) |
 | `lib/solvers/segtree_lazy_add_min.hpp` | done | [segtree_lazy_add_min.md](./segtree_lazy_add_min.md) |
 | `lib/solvers/segtree_lazy_minmax.hpp` | done | [segtree_lazy_minmax.md](./segtree_lazy_minmax.md) |

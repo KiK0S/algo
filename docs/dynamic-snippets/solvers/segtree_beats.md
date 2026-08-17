@@ -1,11 +1,11 @@
 # Segment Tree Beats
 
-Status: active smart-runtime surface.
+Status: hidden compatibility alias routed to `/templates/segtree` → Segment tree beats.
 
 ## Goal
 
-- Dynamic path: `/solvers/segtree_beats`.
-- Static fallback: `lib/solvers/segtree_beats.hpp`.
+- Compatibility path: `/templates/segtree_beats`.
+- Canonical path: `/templates/segtree`.
 - User-facing outcome: choose the beats workload, update/query subset, build
   source, and usage skeleton while preserving the compact beats class.
 
@@ -40,11 +40,11 @@ beats, and non-numeric value types.
 
 ## Generator Contract
 
-- Keep the separate `/solvers/segtree_beats` path because beats has distinct
-  invariants from ordinary lazy segment trees.
+- Keep the focused beats implementation because its invariants do not fit
+  ordinary lazy composition; route creation through `/templates/segtree`.
 - Keep inclusive `[l, r]` APIs.
 - Generate only selected update/query public methods and their private helpers.
-- Keep `lib/solvers/segtree_beats.hpp` as a pasteable broad fallback.
+- Keep `/templates/segtree_beats` only as a hidden compatibility alias.
 - Query-loop skeleton uses type-coded operations and emits the first selected
   query as the concrete output branch.
 

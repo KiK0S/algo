@@ -1,0 +1,197 @@
+template <typename T>
+class {{className}} {
+ public:
+  struct Tag {
+    std::optional<T> assign;
+    T add = T(0);
+
+    auto edulcni_view() const {
+      return std::make_tuple(assign.has_value(), assign.value_or(T(0)), add);
+    }
+  };
+
+  explicit {{className}}(int n = 0) { reset(n); }
+  explicit {{className}}(const std::vector<T>& values) { build(values); }
+
+  void reset(int n) {
+    n_ = std::max(0, n);
+    tree_.assign(4 * std::max(1, n_), neutral());
+    pending_.assign(4 * std::max(1, n_), std::nullopt);
+    trace("Lazy segment tree reset");
+  }
+
+  void build(const std::vector<T>& values) {
+    reset(static_cast<int>(values.size()));
+    if (n_ > 0) build_rec(1, 0, n_ - 1, values);
+    trace("Lazy segment tree built");
+  }
+
+  int size() const { return n_; }
+
+  T query(int left, int right) {
+    if (!normalize(left, right)) return neutral();
+    const T result = query_rec(1, 0, n_ - 1, left, right);
+    trace_range("Lazy segment tree queried a range", left, right, false);
+    return result;
+  }
+
+{{#if rangeAdd}}
+  void range_add(int left, int right, const T& delta) {
+    if (!normalize(left, right)) return;
+    Tag tag;
+    tag.add = delta;
+    update_rec(1, 0, n_ - 1, left, right, tag);
+    trace_range("Lazy segment tree added over a range", left, right, true);
+  }
+{{/if}}
+
+{{#if rangeAssign}}
+  void range_assign(int left, int right, const T& value) {
+    if (!normalize(left, right)) return;
+    Tag tag;
+    tag.assign = value;
+    update_rec(1, 0, n_ - 1, left, right, tag);
+    trace_range("Lazy segment tree assigned over a range", left, right, true);
+  }
+{{/if}}
+
+{{#if firstLeq}}
+  int first_leq(int left, int right, const T& target) {
+    if (!normalize(left, right)) return -1;
+    const int result = first_rec(1, 0, n_ - 1, left, right,
+                                 [&](const T& node) { return node <= target; });
+    trace_range("Lazy segment tree completed a descent", left, right, false);
+    return result;
+  }
+{{/if}}
+
+{{#if firstGeq}}
+  int first_geq(int left, int right, const T& target) {
+    if (!normalize(left, right)) return -1;
+    const int result = first_rec(1, 0, n_ - 1, left, right,
+                                 [&](const T& node) { return node >= target; });
+    trace_range("Lazy segment tree completed a descent", left, right, false);
+    return result;
+  }
+{{/if}}
+
+ private:
+  int n_ = 0;
+  std::vector<T> tree_;
+  std::vector<std::optional<Tag>> pending_;
+
+  static T neutral() { return {{neutralExpression}}; }
+  static T merge(const T& left, const T& right) { return {{mergeExpression}}; }
+
+  // compose(older, newer) means: apply older, then apply newer.
+  static Tag compose(const Tag& older, const Tag& newer) {
+    if (newer.assign.has_value()) return newer;
+    Tag result = older;
+    result.add += newer.add;
+    return result;
+  }
+
+  static void apply(T& node, const Tag& tag, int segment_length) {
+    if (tag.assign.has_value()) node = {{assignExpression}};
+    node += {{addExpression}};
+  }
+
+  void apply_at(int v, int tl, int tr, const Tag& incoming) {
+    apply(tree_[v], incoming, tr - tl + 1);
+    pending_[v] = pending_[v].has_value()
+        ? std::optional<Tag>(compose(*pending_[v], incoming))
+        : std::optional<Tag>(incoming);
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Lazy segment tree applied/composed a tag", v);
+#endif
+  }
+
+  void push(int v, int tl, int tr) {
+    if (tl == tr || !pending_[v].has_value()) return;
+    const int tm = (tl + tr) / 2;
+    apply_at(v * 2, tl, tm, *pending_[v]);
+    apply_at(v * 2 + 1, tm + 1, tr, *pending_[v]);
+    pending_[v].reset();
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Lazy segment tree pushed to children", v);
+#endif
+  }
+
+  bool normalize(int& left, int& right) const {
+    if (n_ == 0 || left > right || right < 0 || left >= n_) return false;
+    left = std::max(left, 0);
+    right = std::min(right, n_ - 1);
+    return left <= right;
+  }
+
+  void build_rec(int v, int tl, int tr, const std::vector<T>& values) {
+    if (tl == tr) { tree_[v] = values[tl]; return; }
+    const int tm = (tl + tr) / 2;
+    build_rec(v * 2, tl, tm, values);
+    build_rec(v * 2 + 1, tm + 1, tr, values);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+
+  T query_rec(int v, int tl, int tr, int l, int r) {
+    if (tl > r || tr < l) return neutral();
+    if (l <= tl && tr <= r) return tree_[v];
+    push(v, tl, tr);
+    const int tm = (tl + tr) / 2;
+    return merge(query_rec(v * 2, tl, tm, l, r),
+                 query_rec(v * 2 + 1, tm + 1, tr, l, r));
+  }
+
+  void update_rec(int v, int tl, int tr, int l, int r, const Tag& tag) {
+    if (tl > r || tr < l) return;
+    if (l <= tl && tr <= r) { apply_at(v, tl, tr, tag); return; }
+    push(v, tl, tr);
+    const int tm = (tl + tr) / 2;
+    update_rec(v * 2, tl, tm, l, r, tag);
+    update_rec(v * 2 + 1, tm + 1, tr, l, r, tag);
+    tree_[v] = merge(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+
+{{#if hasFindFirst}}
+  template <typename Predicate>
+  int first_rec(int v, int tl, int tr, int l, int r, Predicate can_contain) {
+    if (tl > r || tr < l || !can_contain(tree_[v])) return -1;
+    if (tl == tr) return tl;
+    push(v, tl, tr);
+    const int tm = (tl + tr) / 2;
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Lazy segment tree chose a descent child", v);
+#endif
+    const int found = first_rec(v * 2, tl, tm, l, r, can_contain);
+    return found != -1 ? found
+                       : first_rec(v * 2 + 1, tm + 1, tr, l, r, can_contain);
+  }
+{{/if}}
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::array("segtree.pending_tags", pending_));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_range(const char* label, int left, int right, bool changed) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::array("segtree.pending_tags", pending_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.tree", static_cast<std::size_t>(n_), left, right,
+        changed ? edulcni::live::FocusRole::changed
+                : edulcni::live::FocusRole::result,
+        "active inclusive range"));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_node(const char* label, int v) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.tree", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_focus(
+        "segtree.tree", static_cast<std::size_t>(n_), std::vector<int>{v},
+        edulcni::live::FocusRole::active, "active tree node"));
+    EDULCNI_STEP(label);
+  }
+};

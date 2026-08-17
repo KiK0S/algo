@@ -69,7 +69,7 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [ordered_set](templates/ordered_set/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/ordered_set/) | automatic | pbds | Query ranks and k-th elements with a GNU PBDS ordered set. |
 | [poly_hash](templates/poly_hash/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/poly_hash/) | automatic | portable C++17 | Compare substrings and compose polynomial hashes. |
 | [rollback_dsu](templates/rollback_dsu/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/rollback_dsu/) | automatic | portable C++17 | Merge components, then restore a previous DSU snapshot. |
-| [segtree](templates/segtree/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/segtree/) | automatic | portable C++17 | Point updates and range sums in an iterative segment tree. |
+| [segtree](templates/segtree/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/segtree/) | automatic | portable C++17 | Point updates and inclusive range sums in the standard segment-tree scenario. |
 | [segtree_beats](templates/segtree_beats/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/segtree_beats/) | automatic | portable C++17 | Apply range chmin, chmax, and add updates with aggregate queries. |
 | [set_utils](templates/set_utils/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/set_utils/) | snapshot | portable C++17 | Safely inspect neighboring values in ordered containers. |
 | [sos_dp](templates/sos_dp/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/sos_dp/) | automatic | portable C++17 | Apply subset zeta, Mobius, and superset zeta transforms. |

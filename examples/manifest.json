@@ -422,7 +422,7 @@
     {
       "name": "segtree",
       "path": "/templates/segtree",
-      "description": "Point updates and range sums in an iterative segment tree.",
+      "description": "Point updates and inclusive range sums in the standard segment-tree scenario.",
       "visualization": "automatic",
       "requirements": [
         "portable C++17"

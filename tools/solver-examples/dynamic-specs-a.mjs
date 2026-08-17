@@ -7,23 +7,24 @@ export function createDynamicSpecsA(core) {
     {
       name: "segtree",
       path: "/templates/segtree",
-      description: "Point updates and range sums in an iterative segment tree.",
+      description: "Point updates and inclusive range sums in the standard segment-tree scenario.",
       render: () =>
         core.renderSegmentTree({
           sizeExpression: "n",
           valueType: "int",
           aggregate: "sum",
           updates: ["point_set"],
+          application: "standard",
           outputMode: "iterative_class",
           names: core.planSegmentTreeNames(analysis(core), "t"),
           includeUsageComment: false
         }),
       mainBody: String.raw`
   std::vector<int> values = {1, 2, 3, 4};
-  SegmentSumTree<int> tree(values);
-  assert(tree.query(0, 4) == 10);
+  SegmentTree<int> tree(values);
+  assert(tree.query(0, 3) == 10);
   tree.point_set(2, 10);
-  assert(tree.query(1, 4) == 16);
+  assert(tree.query(1, 3) == 16);
 `
     },
     {

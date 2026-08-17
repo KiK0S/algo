@@ -1,0 +1,231 @@
+struct {{nodeName}} {
+  {{valueType}} value{};
+  // TODO: add aggregate fields.
+  auto edulcni_view() const { return value; }
+};
+
+{{nodeName}} {{neutralName}}() { return {{nodeName}}{}; }
+
+{{nodeName}} {{makeNodeName}}(const {{valueType}}& value) {
+  {{nodeName}} node{};
+  node.value = value;
+  // TODO: initialize every aggregate field.
+  return node;
+}
+
+{{nodeName}} {{mergeName}}(const {{nodeName}}& left, const {{nodeName}}& right) {
+  {{nodeName}} result{};
+  result.value = left.value + right.value;
+  // TODO: replace with the problem-specific associative merge.
+  return result;
+}
+
+{{#if hasLazy}}
+struct {{tagName}} {
+  {{valueType}} value{};
+  // TODO: add action fields. No identity action is required.
+  auto edulcni_view() const { return value; }
+};
+
+void {{applyName}}({{nodeName}}& node, const {{tagName}}& tag, int segment_length) {
+  node.value += tag.value * static_cast<{{valueType}}>(segment_length);
+  // TODO: apply the action to every aggregate field.
+}
+
+// compose(older, newer) means: perform older, then perform newer.
+{{tagName}} {{composeName}}(const {{tagName}}& older, const {{tagName}}& newer) {
+  {{tagName}} result = older;
+  result.value += newer.value;
+  // TODO: enumerate every chronological composition case.
+  return result;
+}
+{{/if}}
+
+{{#if descent}}
+struct {{criteriaName}} {
+  {{valueType}} target{};
+};
+
+bool {{canDescendName}}(const {{nodeName}}& node, const {{criteriaName}}& criteria) {
+  // TODO: return a monotone decision over a complete segment aggregate.
+  return node.value >= criteria.target;
+}
+{{/if}}
+
+class {{className}} {
+ public:
+  explicit {{className}}(int n = 0) { reset(n); }
+  explicit {{className}}(const std::vector<{{valueType}}>& values) { build(values); }
+
+  void reset(int n) {
+    n_ = std::max(0, n);
+    tree_.assign(4 * std::max(1, n_), {{neutralName}}());
+{{#if hasLazy}}
+    pending_.assign(4 * std::max(1, n_), std::nullopt);
+{{/if}}
+    trace("Custom segment tree reset");
+  }
+
+  void build(const std::vector<{{valueType}}>& values) {
+    reset(static_cast<int>(values.size()));
+    if (n_ > 0) build_rec(1, 0, n_ - 1, values);
+    trace("Custom segment tree built");
+  }
+
+  {{nodeName}} query(int left, int right) {
+    if (!normalize(left, right)) return {{neutralName}}();
+    const {{nodeName}} result = query_rec(1, 0, n_ - 1, left, right);
+    trace_range("Custom segment tree queried a range", left, right, false);
+    return result;
+  }
+
+  void point_set(int position, const {{valueType}}& value) {
+    if (position < 0 || position >= n_) return;
+    point_set_rec(1, 0, n_ - 1, position, value);
+    trace_range("Custom segment tree updated a point", position, position, true);
+  }
+
+{{#if hasLazy}}
+  void range_apply(int left, int right, const {{tagName}}& tag) {
+    if (!normalize(left, right)) return;
+    range_apply_rec(1, 0, n_ - 1, left, right, tag);
+    trace_range("Custom segment tree applied an action", left, right, true);
+  }
+{{/if}}
+
+{{#if descent}}
+  int find_first(int left, int right, const {{criteriaName}}& criteria) {
+    if (!normalize(left, right)) return -1;
+    const int result = find_first_rec(1, 0, n_ - 1, left, right, criteria);
+    trace_range("Custom segment tree completed a descent", left, right, false);
+    return result;
+  }
+{{/if}}
+
+ private:
+  int n_ = 0;
+  std::vector<{{nodeName}}> tree_;
+{{#if hasLazy}}
+  std::vector<std::optional<{{tagName}}>> pending_;
+{{/if}}
+
+  bool normalize(int& left, int& right) const {
+    if (n_ == 0 || left > right || right < 0 || left >= n_) return false;
+    left = std::max(left, 0);
+    right = std::min(right, n_ - 1);
+    return left <= right;
+  }
+
+  void build_rec(int v, int tl, int tr,
+                 const std::vector<{{valueType}}>& values) {
+    if (tl == tr) { tree_[v] = {{makeNodeName}}(values[tl]); return; }
+    const int tm = (tl + tr) / 2;
+    build_rec(v * 2, tl, tm, values);
+    build_rec(v * 2 + 1, tm + 1, tr, values);
+    tree_[v] = {{mergeName}}(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+
+{{#if hasLazy}}
+  void apply_at(int v, int tl, int tr, const {{tagName}}& incoming) {
+    {{applyName}}(tree_[v], incoming, tr - tl + 1);
+    pending_[v] = pending_[v].has_value()
+        ? std::optional<{{tagName}}>({{composeName}}(*pending_[v], incoming))
+        : std::optional<{{tagName}}>(incoming);
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Custom segment tree applied/composed an action", v);
+#endif
+  }
+
+  void push(int v, int tl, int tr) {
+    if (tl == tr || !pending_[v].has_value()) return;
+    const int tm = (tl + tr) / 2;
+    apply_at(v * 2, tl, tm, *pending_[v]);
+    apply_at(v * 2 + 1, tm + 1, tr, *pending_[v]);
+    pending_[v].reset();
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Custom segment tree pushed an action", v);
+#endif
+  }
+{{/if}}
+
+  {{nodeName}} query_rec(int v, int tl, int tr, int l, int r) {
+    if (tl > r || tr < l) return {{neutralName}}();
+    if (l <= tl && tr <= r) return tree_[v];
+{{#if hasLazy}}
+    push(v, tl, tr);
+{{/if}}
+    const int tm = (tl + tr) / 2;
+    return {{mergeName}}(query_rec(v * 2, tl, tm, l, r),
+                 query_rec(v * 2 + 1, tm + 1, tr, l, r));
+  }
+
+  void point_set_rec(int v, int tl, int tr, int position,
+                     const {{valueType}}& value) {
+    if (tl == tr) { tree_[v] = {{makeNodeName}}(value); return; }
+{{#if hasLazy}}
+    push(v, tl, tr);
+{{/if}}
+    const int tm = (tl + tr) / 2;
+    if (position <= tm) point_set_rec(v * 2, tl, tm, position, value);
+    else point_set_rec(v * 2 + 1, tm + 1, tr, position, value);
+    tree_[v] = {{mergeName}}(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+
+{{#if hasLazy}}
+  void range_apply_rec(int v, int tl, int tr, int l, int r,
+                       const {{tagName}}& tag) {
+    if (tl > r || tr < l) return;
+    if (l <= tl && tr <= r) { apply_at(v, tl, tr, tag); return; }
+    push(v, tl, tr);
+    const int tm = (tl + tr) / 2;
+    range_apply_rec(v * 2, tl, tm, l, r, tag);
+    range_apply_rec(v * 2 + 1, tm + 1, tr, l, r, tag);
+    tree_[v] = {{mergeName}}(tree_[v * 2], tree_[v * 2 + 1]);
+  }
+{{/if}}
+
+{{#if descent}}
+  int find_first_rec(int v, int tl, int tr, int l, int r,
+                     const {{criteriaName}}& criteria) {
+    if (tl > r || tr < l || !{{canDescendName}}(tree_[v], criteria)) return -1;
+    if (tl == tr) return tl;
+{{#if hasLazy}}
+    push(v, tl, tr);
+{{/if}}
+    const int tm = (tl + tr) / 2;
+#ifdef EDULCNI_DIAGNOSTIC_STEPS
+    trace_node("Custom segment tree chose a descent child", v);
+#endif
+    const int found = find_first_rec(v * 2, tl, tm, l, r, criteria);
+    return found != -1 ? found
+                       : find_first_rec(v * 2 + 1, tm + 1, tr, l, r, criteria);
+  }
+{{/if}}
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.custom", static_cast<std::size_t>(n_), tree_));
+{{#if hasLazy}}
+    EDULCNI_VIS(edulcni::live::array("segtree.pending_tags", pending_));
+{{/if}}
+    EDULCNI_STEP(label);
+  }
+
+  void trace_range(const char* label, int left, int right, bool changed) const {
+    EDULCNI_VIS(edulcni::live::segment_tree(
+        "segtree.custom", static_cast<std::size_t>(n_), tree_));
+    EDULCNI_VIS(edulcni::live::segment_tree_range_focus(
+        "segtree.custom", static_cast<std::size_t>(n_), left, right,
+        changed ? edulcni::live::FocusRole::changed
+                : edulcni::live::FocusRole::result,
+        "active inclusive range"));
+    EDULCNI_STEP(label);
+  }
+
+  void trace_node(const char* label, int v) const {
+    EDULCNI_VIS(edulcni::live::segment_tree_focus(
+        "segtree.custom", static_cast<std::size_t>(n_), std::vector<int>{v},
+        edulcni::live::FocusRole::active, "active tree node"));
+    EDULCNI_STEP(label);
+  }
+};
