@@ -34,27 +34,27 @@
       },
       {
         "command": "edulcni.segtree",
-        "title": "edulcni: segtree"
+        "title": "edulcni: segtree — Global"
       },
       {
         "command": "edulcni.compressUnique",
-        "title": "edulcni: compress_unique"
+        "title": "edulcni: compress_unique — Inline"
       },
       {
         "command": "edulcni.input",
-        "title": "edulcni: input"
+        "title": "edulcni: input — Inline"
       },
       {
         "command": "edulcni.connectedComponents",
-        "title": "edulcni: connected_components"
+        "title": "edulcni: connected_components — Global"
       },
       {
         "command": "edulcni.berlekampMassey",
-        "title": "edulcni: berlekamp_massey"
+        "title": "edulcni: berlekamp_massey — Global"
       },
       {
         "command": "edulcni.sparseTable",
-        "title": "edulcni: sparse_table"
+        "title": "edulcni: sparse_table — Global"
       }
     ]
   },

@@ -885,9 +885,13 @@ async function buildPickItems(
     if (!preview.content) {
       throw new Error(`catalog entry ${entry.path} has no concrete preview renderer`);
     }
+    const insertionDestination = entry.insertMode === "cursor" ? "Inline" : "Global";
+    const description = entry.description
+      ? `${insertionDestination} · ${entry.description}`
+      : insertionDestination;
     items.push({
       label: entry.label ?? entry.path,
-      description: entry.description ?? "",
+      description,
       detail: preview.detail,
       previewContent: preview.content,
       snippetPath: entry.path,
