@@ -1194,16 +1194,6 @@ async function promptSegmentTreeOptions(
     return undefined;
   }
 
-  const valueType = await pickStringWithCustom(
-    "edulcni: segment tree",
-    "Value type",
-    ["int", "ll", "long long"],
-    "C++ value type"
-  );
-  if (valueType === undefined || valueType.trim() === "") {
-    return undefined;
-  }
-
   const fixedOutputMode: SegmentTreeOutputMode | undefined =
     scenarioPick.value === "point_query"
       ? undefined
@@ -1339,6 +1329,29 @@ async function promptSegmentTreeOptions(
     });
   }
   if (sourcePick.value !== "empty" && !sourceName) {
+    return undefined;
+  }
+
+  const sourceSymbol = analysis.vectorSymbols.find(
+    (symbol) => symbol.name === sourceName?.trim()
+  );
+  const valueTypePrompt = aggregatePick.value === "custom"
+    ? "Leaf/update value type"
+    : "Value type";
+  const valueType = await pickStringWithCustom(
+    "edulcni: segment tree",
+    valueTypePrompt,
+    uniqueValues([
+      vectorValueType(sourceSymbol?.type) ?? "",
+      "int",
+      "ll",
+      "long long"
+    ]),
+    aggregatePick.value === "custom"
+      ? "C++ leaf/update value type"
+      : "C++ value type"
+  );
+  if (valueType === undefined || valueType.trim() === "") {
     return undefined;
   }
 
