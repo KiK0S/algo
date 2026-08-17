@@ -1,0 +1,193 @@
+template <typename T, std::size_t N>
+class StaticObjectPool {
+ public:
+  StaticObjectPool() { initialize_free_list(); }
+
+  StaticObjectPool(const StaticObjectPool&) = delete;
+  StaticObjectPool& operator=(const StaticObjectPool&) = delete;
+  StaticObjectPool(StaticObjectPool&&) = delete;
+  StaticObjectPool& operator=(StaticObjectPool&&) = delete;
+
+  ~StaticObjectPool() { clear(); }
+
+  template <typename... Args>
+  T* emplace(Args&&... args) {
+    if (free_head_ == N) {
+      return nullptr;
+    }
+
+    Slot& slot = slots_[free_head_];
+    T* object = ::new (static_cast<void*>(slot.storage))
+        T(std::forward<Args>(args)...);
+    free_head_ = slot.next;
+    slot.used = true;
+    ++size_;
+    return object;
+  }
+
+  bool free(T* object) {
+    const std::size_t index = index_of(object);
+    if (index == N || !slots_[index].used) {
+      return false;
+    }
+
+    object->~T();
+    slots_[index].used = false;
+    slots_[index].next = free_head_;
+    free_head_ = index;
+    --size_;
+    return true;
+  }
+
+  void clear() {
+    for (std::size_t i = 0; i < N; ++i) {
+      if (slots_[i].used) {
+        reinterpret_cast<T*>(slots_[i].storage)->~T();
+      }
+    }
+    initialize_free_list();
+  }
+
+  constexpr std::size_t capacity() const { return N; }
+  std::size_t size() const { return size_; }
+  std::size_t available() const { return N - size_; }
+
+ private:
+  struct Slot {
+    alignas(T) unsigned char storage[sizeof(T)];
+    std::size_t next = N;
+    bool used = false;
+  };
+
+  std::array<Slot, N> slots_{};
+  std::size_t free_head_ = N;
+  std::size_t size_ = 0;
+
+  void initialize_free_list() {
+    for (std::size_t i = 0; i < N; ++i) {
+      slots_[i].next = i + 1;
+      slots_[i].used = false;
+    }
+    free_head_ = N == 0 ? N : 0;
+    size_ = 0;
+  }
+
+  std::size_t index_of(const T* object) const {
+    if (object == nullptr || N == 0) {
+      return N;
+    }
+
+    const std::uintptr_t address = reinterpret_cast<std::uintptr_t>(object);
+    const std::uintptr_t begin =
+        reinterpret_cast<std::uintptr_t>(slots_.data());
+    const std::uintptr_t end = begin + sizeof(Slot) * N;
+    if (address < begin || address >= end) {
+      return N;
+    }
+
+    const std::size_t offset = static_cast<std::size_t>(address - begin);
+    if (offset % sizeof(Slot) != 0) {
+      return N;
+    }
+    return offset / sizeof(Slot);
+  }
+};
+
+template <typename T>
+class DynamicObjectPool {
+ public:
+  explicit DynamicObjectPool(std::size_t capacity)
+      : capacity_(capacity), slots_(capacity == 0 ? nullptr : new Slot[capacity]) {
+    initialize_free_list();
+  }
+
+  DynamicObjectPool(const DynamicObjectPool&) = delete;
+  DynamicObjectPool& operator=(const DynamicObjectPool&) = delete;
+  DynamicObjectPool(DynamicObjectPool&&) = delete;
+  DynamicObjectPool& operator=(DynamicObjectPool&&) = delete;
+
+  ~DynamicObjectPool() { clear(); }
+
+  template <typename... Args>
+  T* emplace(Args&&... args) {
+    if (free_head_ == capacity_) {
+      return nullptr;
+    }
+
+    Slot& slot = slots_[free_head_];
+    T* object = ::new (static_cast<void*>(slot.storage))
+        T(std::forward<Args>(args)...);
+    free_head_ = slot.next;
+    slot.used = true;
+    ++size_;
+    return object;
+  }
+
+  bool free(T* object) {
+    const std::size_t index = index_of(object);
+    if (index == capacity_ || !slots_[index].used) {
+      return false;
+    }
+
+    object->~T();
+    slots_[index].used = false;
+    slots_[index].next = free_head_;
+    free_head_ = index;
+    --size_;
+    return true;
+  }
+
+  void clear() {
+    for (std::size_t i = 0; i < capacity_; ++i) {
+      if (slots_[i].used) {
+        reinterpret_cast<T*>(slots_[i].storage)->~T();
+      }
+    }
+    initialize_free_list();
+  }
+
+  std::size_t capacity() const { return capacity_; }
+  std::size_t size() const { return size_; }
+  std::size_t available() const { return capacity_ - size_; }
+
+ private:
+  struct Slot {
+    alignas(T) unsigned char storage[sizeof(T)];
+    std::size_t next = 0;
+    bool used = false;
+  };
+
+  std::size_t capacity_;
+  std::unique_ptr<Slot[]> slots_;
+  std::size_t free_head_ = 0;
+  std::size_t size_ = 0;
+
+  void initialize_free_list() {
+    for (std::size_t i = 0; i < capacity_; ++i) {
+      slots_[i].next = i + 1;
+      slots_[i].used = false;
+    }
+    free_head_ = capacity_ == 0 ? capacity_ : 0;
+    size_ = 0;
+  }
+
+  std::size_t index_of(const T* object) const {
+    if (object == nullptr || capacity_ == 0) {
+      return capacity_;
+    }
+
+    const std::uintptr_t address = reinterpret_cast<std::uintptr_t>(object);
+    const std::uintptr_t begin =
+        reinterpret_cast<std::uintptr_t>(slots_.get());
+    const std::uintptr_t end = begin + sizeof(Slot) * capacity_;
+    if (address < begin || address >= end) {
+      return capacity_;
+    }
+
+    const std::size_t offset = static_cast<std::size_t>(address - begin);
+    if (offset % sizeof(Slot) != 0) {
+      return capacity_;
+    }
+    return offset / sizeof(Slot);
+  }
+};
