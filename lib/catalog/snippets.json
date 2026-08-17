@@ -1019,6 +1019,22 @@
     }
   },
   {
+    "path": "/templates/object_pool",
+    "insertMode": "global",
+    "template": "object_pool/helpers.hpp.tmpl",
+    "label": "/templates/object_pool",
+    "description": "fixed-capacity reusable object pools",
+    "detail": "static / template",
+    "exports": ["StaticObjectPool", "DynamicObjectPool"],
+    "features": ["arena", "object_pool", "free_list", "stable_pointers"],
+    "applications": ["node_pool", "reusable_objects", "allocation_avoidance"],
+    "visualization": {
+      "status": "none",
+      "models": [],
+      "reason": "The helper manages object lifetime and storage without algorithm-specific state to visualize."
+    }
+  },
+  {
     "path": "/templates/monotonic_stack",
     "insertMode": "global",
     "generator": "monotonic_stack",
