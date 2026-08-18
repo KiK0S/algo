@@ -11,13 +11,119 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:edulcni.insertHeader",
     "onCommand:edulcni.segtree",
-    "onCommand:edulcni.compressUnique",
+    "onCommand:edulcni.berlekamp_massey",
+    "onCommand:edulcni.sparse_table",
+    "onCommand:edulcni.modpow",
+    "onCommand:edulcni.bfs",
+    "onCommand:edulcni.linear_sieve",
+    "onCommand:edulcni.fenwick",
+    "onCommand:edulcni.factorial_precalc",
+    "onCommand:edulcni.powers_precalc",
+    "onCommand:edulcni.modint",
+    "onCommand:edulcni.compress_unique",
     "onCommand:edulcni.input",
-    "onCommand:edulcni.connectedComponents",
-    "onCommand:edulcni.berlekampMassey",
-    "onCommand:edulcni.sparseTable"
+    "onCommand:edulcni.connected_components",
+    "onCommand:edulcni.dsu",
+    "onCommand:edulcni.rollback_dsu",
+    "onCommand:edulcni.lca",
+    "onCommand:edulcni.twosat",
+    "onCommand:edulcni.maxflow_dinic",
+    "onCommand:edulcni.mincost_maxflow",
+    "onCommand:edulcni.hungarian",
+    "onCommand:edulcni.kuhn",
+    "onCommand:edulcni.implicit_treap",
+    "onCommand:edulcni.merge_sort_tree",
+    "onCommand:edulcni.poly_hash",
+    "onCommand:edulcni.suffix_array",
+    "onCommand:edulcni.segtree_beats",
+    "onCommand:edulcni.fft_ntt",
+    "onCommand:edulcni.fast_allocator",
+    "onCommand:edulcni.object_pool",
+    "onCommand:edulcni.monotonic_stack",
+    "onCommand:edulcni.toposort",
+    "onCommand:edulcni.kosaraju",
+    "onCommand:edulcni.dijkstra",
+    "onCommand:edulcni.gp_hash_table",
+    "onCommand:edulcni.ordered_set",
+    "onCommand:edulcni.set_utils",
+    "onCommand:edulcni.hld",
+    "onCommand:edulcni.mo",
+    "onCommand:edulcni.geometry",
+    "onCommand:edulcni.halfplane_intersection",
+    "onCommand:edulcni.base_template",
+    "onCommand:edulcni.bfs_dist",
+    "onCommand:edulcni.bitmask_loop",
+    "onCommand:edulcni.block_lengths",
+    "onCommand:edulcni.decrement_indices",
+    "onCommand:edulcni.dfs_tree",
+    "onCommand:edulcni.dsu_short",
+    "onCommand:edulcni.fenwick_sum",
+    "onCommand:edulcni.grid4",
+    "onCommand:edulcni.lower_bound_l_false_r_true",
+    "onCommand:edulcni.prefix_2d",
+    "onCommand:edulcni.print_vector",
+    "onCommand:edulcni.static_rsq",
+    "onCommand:edulcni.test_generators",
+    "onCommand:edulcni.stress_test",
+    "onCommand:edulcni.interactive_query",
+    "onCommand:edulcni.tree_hash",
+    "onCommand:edulcni.submasks",
+    "onCommand:edulcni.proper_submasks",
+    "onCommand:edulcni.supermasks",
+    "onCommand:edulcni.subset_partitions",
+    "onCommand:edulcni.disjoint_masks",
+    "onCommand:edulcni.subset_zeta",
+    "onCommand:edulcni.subset_mobius",
+    "onCommand:edulcni.kruskal",
+    "onCommand:edulcni.fwt_convolution",
+    "onCommand:edulcni.offline_dynamic_connectivity",
+    "onCommand:edulcni.dp_knapsack",
+    "onCommand:edulcni.lis",
+    "onCommand:edulcni.digit_dp",
+    "onCommand:edulcni.sos_dp",
+    "onCommand:edulcni.turtle_dp",
+    "onCommand:edulcni.substring_dp",
+    "onCommand:edulcni.divide_conquer_dp",
+    "onCommand:edulcni.knuth_dp",
+    "onCommand:edulcni.convex_hull_trick",
+    "onCommand:edulcni.li_chao_tree",
+    "onCommand:edulcni.monotone_queue_dp",
+    "onCommand:edulcni.aliens_trick",
+    "onCommand:edulcni.output",
+    "onCommand:edulcni.first_true",
+    "onCommand:edulcni.difference_array",
+    "onCommand:edulcni.sliding_window_max",
+    "onCommand:edulcni.zero_one_bfs",
+    "onCommand:edulcni.bridges",
+    "onCommand:edulcni.tree_diameter",
+    "onCommand:edulcni.euler_subtrees",
+    "onCommand:edulcni.z_function",
+    "onCommand:edulcni.manacher",
+    "onCommand:edulcni.xor_basis",
+    "onCommand:edulcni.bitset_knapsack",
+    "onCommand:edulcni.persistent_segment_tree",
+    "onCommand:edulcni.binary_trie",
+    "onCommand:edulcni.crt",
+    "onCommand:edulcni.primality_64",
+    "onCommand:edulcni.factorization_64",
+    "onCommand:edulcni.minimum_rotation",
+    "onCommand:edulcni.euler_walk",
+    "onCommand:edulcni.floyd_warshall",
+    "onCommand:edulcni.hopcroft_karp",
+    "onCommand:edulcni.global_min_cut",
+    "onCommand:edulcni.geometry_point",
+    "onCommand:edulcni.closest_pair",
+    "onCommand:edulcni.minimum_enclosing_circle",
+    "onCommand:edulcni.circle_intersection",
+    "onCommand:edulcni.polygon_cut",
+    "onCommand:edulcni.hull_diameter",
+    "onCommand:edulcni.solve_linear",
+    "onCommand:edulcni.determinant",
+    "onCommand:edulcni.golden_section",
+    "onCommand:edulcni.interval_set",
+    "onCommand:edulcni.constant_intervals",
+    "onCommand:edulcni.permutation_rank"
   ],
   "main": "./out/extension.js",
   "files": [
@@ -29,15 +135,47 @@
   "contributes": {
     "commands": [
       {
-        "command": "edulcni.insertHeader",
-        "title": "edulcni"
-      },
-      {
         "command": "edulcni.segtree",
         "title": "edulcni: segtree — Global"
       },
       {
-        "command": "edulcni.compressUnique",
+        "command": "edulcni.berlekamp_massey",
+        "title": "edulcni: berlekamp_massey — Global"
+      },
+      {
+        "command": "edulcni.sparse_table",
+        "title": "edulcni: sparse_table — Global"
+      },
+      {
+        "command": "edulcni.modpow",
+        "title": "edulcni: modpow — Inline"
+      },
+      {
+        "command": "edulcni.bfs",
+        "title": "edulcni: bfs — Global"
+      },
+      {
+        "command": "edulcni.linear_sieve",
+        "title": "edulcni: linear_sieve — Global"
+      },
+      {
+        "command": "edulcni.fenwick",
+        "title": "edulcni: fenwick — Global"
+      },
+      {
+        "command": "edulcni.factorial_precalc",
+        "title": "edulcni: factorial_precalc — Inline"
+      },
+      {
+        "command": "edulcni.powers_precalc",
+        "title": "edulcni: powers_precalc — Inline"
+      },
+      {
+        "command": "edulcni.modint",
+        "title": "edulcni: modint — Global"
+      },
+      {
+        "command": "edulcni.compress_unique",
         "title": "edulcni: compress_unique — Inline"
       },
       {
@@ -45,16 +183,408 @@
         "title": "edulcni: input — Inline"
       },
       {
-        "command": "edulcni.connectedComponents",
+        "command": "edulcni.connected_components",
         "title": "edulcni: connected_components — Global"
       },
       {
-        "command": "edulcni.berlekampMassey",
-        "title": "edulcni: berlekamp_massey — Global"
+        "command": "edulcni.dsu",
+        "title": "edulcni: dsu — Global"
       },
       {
-        "command": "edulcni.sparseTable",
-        "title": "edulcni: sparse_table — Global"
+        "command": "edulcni.rollback_dsu",
+        "title": "edulcni: rollback_dsu — Global"
+      },
+      {
+        "command": "edulcni.lca",
+        "title": "edulcni: lca — Global"
+      },
+      {
+        "command": "edulcni.twosat",
+        "title": "edulcni: twosat — Global"
+      },
+      {
+        "command": "edulcni.maxflow_dinic",
+        "title": "edulcni: maxflow_dinic — Global"
+      },
+      {
+        "command": "edulcni.mincost_maxflow",
+        "title": "edulcni: mincost_maxflow — Global"
+      },
+      {
+        "command": "edulcni.hungarian",
+        "title": "edulcni: hungarian — Global"
+      },
+      {
+        "command": "edulcni.kuhn",
+        "title": "edulcni: kuhn — Global"
+      },
+      {
+        "command": "edulcni.implicit_treap",
+        "title": "edulcni: implicit_treap — Global"
+      },
+      {
+        "command": "edulcni.merge_sort_tree",
+        "title": "edulcni: merge_sort_tree — Global"
+      },
+      {
+        "command": "edulcni.poly_hash",
+        "title": "edulcni: poly_hash — Global"
+      },
+      {
+        "command": "edulcni.suffix_array",
+        "title": "edulcni: suffix_array — Global"
+      },
+      {
+        "command": "edulcni.segtree_beats",
+        "title": "edulcni: segtree_beats — Global"
+      },
+      {
+        "command": "edulcni.fft_ntt",
+        "title": "edulcni: fft_ntt — Global"
+      },
+      {
+        "command": "edulcni.fast_allocator",
+        "title": "edulcni: fast_allocator — Global"
+      },
+      {
+        "command": "edulcni.object_pool",
+        "title": "edulcni: object_pool — Global"
+      },
+      {
+        "command": "edulcni.monotonic_stack",
+        "title": "edulcni: monotonic_stack — Global"
+      },
+      {
+        "command": "edulcni.toposort",
+        "title": "edulcni: toposort — Global"
+      },
+      {
+        "command": "edulcni.kosaraju",
+        "title": "edulcni: kosaraju — Global"
+      },
+      {
+        "command": "edulcni.dijkstra",
+        "title": "edulcni: dijkstra — Global"
+      },
+      {
+        "command": "edulcni.gp_hash_table",
+        "title": "edulcni: gp_hash_table — Global"
+      },
+      {
+        "command": "edulcni.ordered_set",
+        "title": "edulcni: ordered_set — Global"
+      },
+      {
+        "command": "edulcni.set_utils",
+        "title": "edulcni: set_utils — Global"
+      },
+      {
+        "command": "edulcni.hld",
+        "title": "edulcni: hld — Global"
+      },
+      {
+        "command": "edulcni.mo",
+        "title": "edulcni: mo — Global"
+      },
+      {
+        "command": "edulcni.geometry",
+        "title": "edulcni: geometry — Global"
+      },
+      {
+        "command": "edulcni.halfplane_intersection",
+        "title": "edulcni: halfplane_intersection — Global"
+      },
+      {
+        "command": "edulcni.base_template",
+        "title": "edulcni: base_template — Inline"
+      },
+      {
+        "command": "edulcni.bfs_dist",
+        "title": "edulcni: bfs_dist — Inline"
+      },
+      {
+        "command": "edulcni.bitmask_loop",
+        "title": "edulcni: bitmask_loop — Inline"
+      },
+      {
+        "command": "edulcni.block_lengths",
+        "title": "edulcni: block_lengths — Inline"
+      },
+      {
+        "command": "edulcni.decrement_indices",
+        "title": "edulcni: decrement_indices — Inline"
+      },
+      {
+        "command": "edulcni.dfs_tree",
+        "title": "edulcni: dfs_tree — Inline"
+      },
+      {
+        "command": "edulcni.dsu_short",
+        "title": "edulcni: dsu_short — Inline"
+      },
+      {
+        "command": "edulcni.fenwick_sum",
+        "title": "edulcni: fenwick_sum — Inline"
+      },
+      {
+        "command": "edulcni.grid4",
+        "title": "edulcni: grid4 — Inline"
+      },
+      {
+        "command": "edulcni.lower_bound_l_false_r_true",
+        "title": "edulcni: lower_bound_l_false_r_true — Inline"
+      },
+      {
+        "command": "edulcni.prefix_2d",
+        "title": "edulcni: prefix_2d — Inline"
+      },
+      {
+        "command": "edulcni.print_vector",
+        "title": "edulcni: print_vector — Inline"
+      },
+      {
+        "command": "edulcni.static_rsq",
+        "title": "edulcni: static_rsq — Inline"
+      },
+      {
+        "command": "edulcni.test_generators",
+        "title": "edulcni: test_generators — Global"
+      },
+      {
+        "command": "edulcni.stress_test",
+        "title": "edulcni: stress_test — Inline"
+      },
+      {
+        "command": "edulcni.interactive_query",
+        "title": "edulcni: interactive_query — Global"
+      },
+      {
+        "command": "edulcni.tree_hash",
+        "title": "edulcni: tree_hash — Global"
+      },
+      {
+        "command": "edulcni.submasks",
+        "title": "edulcni: submasks — Inline"
+      },
+      {
+        "command": "edulcni.proper_submasks",
+        "title": "edulcni: proper_submasks — Inline"
+      },
+      {
+        "command": "edulcni.supermasks",
+        "title": "edulcni: supermasks — Inline"
+      },
+      {
+        "command": "edulcni.subset_partitions",
+        "title": "edulcni: subset_partitions — Inline"
+      },
+      {
+        "command": "edulcni.disjoint_masks",
+        "title": "edulcni: disjoint_masks — Inline"
+      },
+      {
+        "command": "edulcni.subset_zeta",
+        "title": "edulcni: subset_zeta — Inline"
+      },
+      {
+        "command": "edulcni.subset_mobius",
+        "title": "edulcni: subset_mobius — Inline"
+      },
+      {
+        "command": "edulcni.kruskal",
+        "title": "edulcni: kruskal — Global"
+      },
+      {
+        "command": "edulcni.fwt_convolution",
+        "title": "edulcni: fwt_convolution — Global"
+      },
+      {
+        "command": "edulcni.offline_dynamic_connectivity",
+        "title": "edulcni: offline_dynamic_connectivity — Global"
+      },
+      {
+        "command": "edulcni.dp_knapsack",
+        "title": "edulcni: dp_knapsack — Global"
+      },
+      {
+        "command": "edulcni.lis",
+        "title": "edulcni: lis — Global"
+      },
+      {
+        "command": "edulcni.digit_dp",
+        "title": "edulcni: digit_dp — Global"
+      },
+      {
+        "command": "edulcni.sos_dp",
+        "title": "edulcni: sos_dp — Global"
+      },
+      {
+        "command": "edulcni.turtle_dp",
+        "title": "edulcni: turtle_dp — Global"
+      },
+      {
+        "command": "edulcni.substring_dp",
+        "title": "edulcni: substring_dp — Global"
+      },
+      {
+        "command": "edulcni.divide_conquer_dp",
+        "title": "edulcni: divide_conquer_dp — Global"
+      },
+      {
+        "command": "edulcni.knuth_dp",
+        "title": "edulcni: knuth_dp — Global"
+      },
+      {
+        "command": "edulcni.convex_hull_trick",
+        "title": "edulcni: convex_hull_trick — Global"
+      },
+      {
+        "command": "edulcni.li_chao_tree",
+        "title": "edulcni: li_chao_tree — Global"
+      },
+      {
+        "command": "edulcni.monotone_queue_dp",
+        "title": "edulcni: monotone_queue_dp — Global"
+      },
+      {
+        "command": "edulcni.aliens_trick",
+        "title": "edulcni: aliens_trick — Global"
+      },
+      {
+        "command": "edulcni.output",
+        "title": "edulcni: output — Global"
+      },
+      {
+        "command": "edulcni.first_true",
+        "title": "edulcni: first_true — Global"
+      },
+      {
+        "command": "edulcni.difference_array",
+        "title": "edulcni: difference_array — Global"
+      },
+      {
+        "command": "edulcni.sliding_window_max",
+        "title": "edulcni: sliding_window_max — Global"
+      },
+      {
+        "command": "edulcni.zero_one_bfs",
+        "title": "edulcni: zero_one_bfs — Global"
+      },
+      {
+        "command": "edulcni.bridges",
+        "title": "edulcni: bridges — Global"
+      },
+      {
+        "command": "edulcni.tree_diameter",
+        "title": "edulcni: tree_diameter — Global"
+      },
+      {
+        "command": "edulcni.euler_subtrees",
+        "title": "edulcni: euler_subtrees — Global"
+      },
+      {
+        "command": "edulcni.z_function",
+        "title": "edulcni: z_function — Global"
+      },
+      {
+        "command": "edulcni.manacher",
+        "title": "edulcni: manacher — Global"
+      },
+      {
+        "command": "edulcni.xor_basis",
+        "title": "edulcni: xor_basis — Global"
+      },
+      {
+        "command": "edulcni.bitset_knapsack",
+        "title": "edulcni: bitset_knapsack — Global"
+      },
+      {
+        "command": "edulcni.persistent_segment_tree",
+        "title": "edulcni: persistent_segment_tree — Global"
+      },
+      {
+        "command": "edulcni.binary_trie",
+        "title": "edulcni: binary_trie — Global"
+      },
+      {
+        "command": "edulcni.crt",
+        "title": "edulcni: crt — Global"
+      },
+      {
+        "command": "edulcni.primality_64",
+        "title": "edulcni: primality_64 — Global"
+      },
+      {
+        "command": "edulcni.factorization_64",
+        "title": "edulcni: factorization_64 — Global"
+      },
+      {
+        "command": "edulcni.minimum_rotation",
+        "title": "edulcni: minimum_rotation — Global"
+      },
+      {
+        "command": "edulcni.euler_walk",
+        "title": "edulcni: euler_walk — Global"
+      },
+      {
+        "command": "edulcni.floyd_warshall",
+        "title": "edulcni: floyd_warshall — Global"
+      },
+      {
+        "command": "edulcni.hopcroft_karp",
+        "title": "edulcni: hopcroft_karp — Global"
+      },
+      {
+        "command": "edulcni.global_min_cut",
+        "title": "edulcni: global_min_cut — Global"
+      },
+      {
+        "command": "edulcni.geometry_point",
+        "title": "edulcni: geometry_point — Global"
+      },
+      {
+        "command": "edulcni.closest_pair",
+        "title": "edulcni: closest_pair — Global"
+      },
+      {
+        "command": "edulcni.minimum_enclosing_circle",
+        "title": "edulcni: minimum_enclosing_circle — Global"
+      },
+      {
+        "command": "edulcni.circle_intersection",
+        "title": "edulcni: circle_intersection — Global"
+      },
+      {
+        "command": "edulcni.polygon_cut",
+        "title": "edulcni: polygon_cut — Global"
+      },
+      {
+        "command": "edulcni.hull_diameter",
+        "title": "edulcni: hull_diameter — Global"
+      },
+      {
+        "command": "edulcni.solve_linear",
+        "title": "edulcni: solve_linear — Global"
+      },
+      {
+        "command": "edulcni.determinant",
+        "title": "edulcni: determinant — Global"
+      },
+      {
+        "command": "edulcni.golden_section",
+        "title": "edulcni: golden_section — Global"
+      },
+      {
+        "command": "edulcni.interval_set",
+        "title": "edulcni: interval_set — Global"
+      },
+      {
+        "command": "edulcni.constant_intervals",
+        "title": "edulcni: constant_intervals — Global"
+      },
+      {
+        "command": "edulcni.permutation_rank",
+        "title": "edulcni: permutation_rank — Global"
       }
     ]
   },

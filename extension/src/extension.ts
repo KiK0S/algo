@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { DIRECT_COMMANDS } from "./generatedCommands";
 import {
   createUnifiedDiff,
   defaultWizardSelection,
@@ -733,15 +734,6 @@ interface GeneratorRegistration {
   prompt(editor: vscode.TextEditor): Promise<RenderedSnippet | undefined>;
   defaultSnippet(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet;
 }
-
-const DIRECT_COMMANDS = [
-  { command: "edulcni.segtree", snippetPath: "/templates/segtree" },
-  { command: "edulcni.compressUnique", snippetPath: "/templates/compress_unique" },
-  { command: "edulcni.input", snippetPath: "/templates/input" },
-  { command: "edulcni.connectedComponents", snippetPath: "/templates/connected_components" },
-  { command: "edulcni.berlekampMassey", snippetPath: "/templates/berlekamp_massey" },
-  { command: "edulcni.sparseTable", snippetPath: "/templates/sparse_table" }
-] as const;
 
 function isCatalogSnippetPath(displayPath: string): boolean {
   return displayPath.startsWith("/templates/") || displayPath.startsWith("/templates/");
@@ -6922,20 +6914,6 @@ export function activate(context: vscode.ExtensionContext): void {
     snippetPreviewProvider
   );
 
-  const browseDisposable = vscode.commands.registerCommand(
-    "edulcni.insertHeader",
-    async (requestedPath?: string) => {
-      try {
-        await insertSnippet(context, requestedPath);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "unknown extension error";
-        vscode.window.showErrorMessage(`edulcni: ${message}`);
-      }
-    }
-  );
-
-  context.subscriptions.push(browseDisposable);
   for (const command of DIRECT_COMMANDS) {
     context.subscriptions.push(
       vscode.commands.registerCommand(command.command, async () => {

@@ -1,20 +1,18 @@
 # edulcni extension
 
-`edulcni` adds one command to the Command Palette:
-
-- `edulcni`
+`edulcni` adds a direct Command Palette entry for every catalog template, such as
+`edulcni: segtree` and `edulcni: compress_unique`.
 
 Workflow:
 
 1. Press `Ctrl+Shift+P`.
-2. Run `edulcni`.
-3. Search the catalog tree and pick a solver or brick.
-4. Review the highlighted catalog entry, then compare each generator choice in
+2. Run the desired `edulcni: <template>` command.
+3. Review the highlighted catalog entry, then compare each generator choice in
    a compact single-pane diff. Confirmed answers are retained and later steps
    use their declared defaults, so only the concrete lines changed by the
    highlighted choice are shown.
-5. Choose any interactive parameters.
-6. The rendered template is inserted at the appropriate global section or cursor.
+4. Choose any interactive parameters.
+5. The rendered template is inserted at the appropriate global section or cursor.
 
 Template source:
 

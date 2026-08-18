@@ -2067,19 +2067,19 @@ function testVisualizationSourceCoverage() {
 function testManifestCommands() {
   const manifestPath = path.join(__dirname, "..", "package.json");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
   const contributedCommands = new Set(
     manifest.contributes.commands.map((command) => command.command)
   );
   const activationEvents = new Set(manifest.activationEvents);
-  for (const command of [
-    "edulcni.insertHeader",
-    "edulcni.segtree",
-    "edulcni.compressUnique",
-    "edulcni.input",
-    "edulcni.connectedComponents",
-    "edulcni.berlekampMassey",
-    "edulcni.sparseTable"
-  ]) {
+  const expectedCommands = catalog.map(
+    (entry) => `edulcni.${path.posix.basename(entry.path)}`
+  );
+  assert.deepEqual([...contributedCommands], expectedCommands);
+  assert.equal(contributedCommands.has("edulcni.insertHeader"), false);
+  for (const command of expectedCommands) {
     assert.equal(contributedCommands.has(command), true);
     assert.equal(activationEvents.has(`onCommand:${command}`), true);
   }
