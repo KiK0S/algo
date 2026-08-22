@@ -12,7 +12,8 @@ Status: active smart-runtime surface.
 
 ## Scenario Inventory
 
-- Sequence editing: insert, erase, set, get, and materialize with `to_vector`.
+- Sequence editing: insert, erase, set, get, extract/insert ranges, move,
+  rotate, and materialize with `to_vector`.
 - Range aggregate queries over sequence positions.
 - Range lazy operations: reverse and range add.
 - Custom aggregate skeleton.
@@ -66,4 +67,5 @@ tags, external priority injection, and persistent treaps.
 
 - Add range assign once a stable default tag-composition API is chosen.
 - Add min/max aggregate presets when the lazy-update semantics are clear.
-- Add cut/paste/rotate skeletons as separate scenario presets.
+- Add generated query-loop cases for cut/paste/rotate if a stable input format is
+  adopted.

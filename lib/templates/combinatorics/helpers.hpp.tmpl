@@ -1,0 +1,93 @@
+// Requires fact[limit] to be invertible. For a prime modulus, use limit < mod.
+//
+// C(n, k) = C(n, n-k)
+// C(n, k) = C(n-1, k-1) + C(n-1, k)
+// sum(i=k..n) C(i, k) = C(n+1, k+1)                 (hockey stick)
+// sum(k=0..n) C(n, k) = 2^n
+// sum(k=0..n) k*C(n, k) = n*2^(n-1)
+// sum(k) C(r, k)*C(s, n-k) = C(r+s, n)             (Vandermonde)
+// Multisets of size k chosen from n types: C(n+k-1, k).
+// x1+...+xk=s, xi>=0: C(s+k-1, k-1).                (stars and bars)
+// x1+...+xk=s, xi>=1: C(s-1, k-1).
+template <typename Mint>
+class Combinatorics {
+ public:
+	explicit Combinatorics(int limit)
+			: fact_(limit >= 0 ? limit + 1 : 1, Mint(1)),
+			  inv_fact_(limit >= 0 ? limit + 1 : 1, Mint(1)) {
+		for (int i = 1; i <= limit; ++i) fact_[i] = fact_[i - 1] * Mint(i);
+		if (limit >= 0) {
+			inv_fact_[limit] = Mint(1) / fact_[limit];
+			for (int i = limit; i > 0; --i)
+				inv_fact_[i - 1] = inv_fact_[i] * Mint(i);
+		}
+	}
+
+	int limit() const { return static_cast<int>(fact_.size()) - 1; }
+
+	Mint factorial(long long n) const {
+		return in_range(n) ? fact_[static_cast<int>(n)] : Mint(0);
+	}
+
+	Mint inverse_factorial(long long n) const {
+		return in_range(n) ? inv_fact_[static_cast<int>(n)] : Mint(0);
+	}
+
+	Mint permutations(long long n, long long k) const {
+		if (k < 0 || k > n || !in_range(n)) return Mint(0);
+		return fact_[static_cast<int>(n)] * inv_fact_[static_cast<int>(n - k)];
+	}
+
+	Mint combinations(long long n, long long k) const {
+		if (k < 0 || k > n || !in_range(n)) return Mint(0);
+		return fact_[static_cast<int>(n)] * inv_fact_[static_cast<int>(k)] *
+				inv_fact_[static_cast<int>(n - k)];
+	}
+
+	Mint combinations_with_repetition(long long types, long long count) const {
+		if (types < 0 || count < 0) return Mint(0);
+		if (count == 0) return Mint(1);
+		if (types == 0) return Mint(0);
+		if (count > limit() || types > limit() - count + 1LL) return Mint(0);
+		return combinations(types + count - 1, count);
+	}
+
+	template <class Range>
+	Mint multinomial(const Range& parts) const {
+		long long total = 0;
+		Mint result(1);
+		for (const auto& raw_part : parts) {
+			const long long part = static_cast<long long>(raw_part);
+			if (part < 0 || part > limit() - total) return Mint(0);
+			total += part;
+			result *= inv_fact_[static_cast<int>(part)];
+		}
+		return fact_[static_cast<int>(total)] * result;
+	}
+
+	Mint catalan(long long n) const {
+		if (n < 0 || n > limit() - n) return Mint(0);
+		return combinations(2 * n, n) - combinations(2 * n, n + 1);
+	}
+
+	Mint weak_compositions(long long sum, long long parts) const {
+		if (sum < 0 || parts < 0) return Mint(0);
+		if (parts == 0) return Mint(sum == 0);
+		if (sum > limit() || parts - 1 > limit() - sum) return Mint(0);
+		return combinations(sum + parts - 1, parts - 1);
+	}
+
+	Mint positive_compositions(long long sum, long long parts) const {
+		if (sum < 0 || parts < 0) return Mint(0);
+		if (parts == 0) return Mint(sum == 0);
+		return combinations(sum - 1, parts - 1);
+	}
+
+ private:
+	std::vector<Mint> fact_;
+	std::vector<Mint> inv_fact_;
+
+	bool in_range(long long value) const {
+		return 0 <= value && value <= limit();
+	}
+};

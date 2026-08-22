@@ -33,6 +33,10 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/factorial_precalc"
   },
   {
+    "command": "edulcni.combinatorics",
+    "snippetPath": "/templates/combinatorics"
+  },
+  {
     "command": "edulcni.powers_precalc",
     "snippetPath": "/templates/powers_precalc"
   },
@@ -177,12 +181,20 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/block_lengths"
   },
   {
+    "command": "edulcni.circular_blocks",
+    "snippetPath": "/templates/circular_blocks"
+  },
+  {
     "command": "edulcni.decrement_indices",
     "snippetPath": "/templates/decrement_indices"
   },
   {
     "command": "edulcni.dfs_tree",
     "snippetPath": "/templates/dfs_tree"
+  },
+  {
+    "command": "edulcni.tree_dp",
+    "snippetPath": "/templates/tree_dp"
   },
   {
     "command": "edulcni.dsu_short",
@@ -325,6 +337,10 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/first_true"
   },
   {
+    "command": "edulcni.transpose_matrix",
+    "snippetPath": "/templates/transpose_matrix"
+  },
+  {
     "command": "edulcni.difference_array",
     "snippetPath": "/templates/difference_array"
   },
@@ -345,6 +361,10 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/tree_diameter"
   },
   {
+    "command": "edulcni.k_smallest",
+    "snippetPath": "/templates/k_smallest"
+  },
+  {
     "command": "edulcni.euler_subtrees",
     "snippetPath": "/templates/euler_subtrees"
   },
@@ -353,8 +373,20 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/z_function"
   },
   {
+    "command": "edulcni.prefix_function",
+    "snippetPath": "/templates/prefix_function"
+  },
+  {
+    "command": "edulcni.order_statistics",
+    "snippetPath": "/templates/order_statistics"
+  },
+  {
     "command": "edulcni.manacher",
     "snippetPath": "/templates/manacher"
+  },
+  {
+    "command": "edulcni.parenthesis_stats",
+    "snippetPath": "/templates/parenthesis_stats"
   },
   {
     "command": "edulcni.xor_basis",
@@ -367,6 +399,14 @@ export const DIRECT_COMMANDS = [
   {
     "command": "edulcni.persistent_segment_tree",
     "snippetPath": "/templates/persistent_segment_tree"
+  },
+  {
+    "command": "edulcni.treap",
+    "snippetPath": "/templates/treap"
+  },
+  {
+    "command": "edulcni.arg_extrema",
+    "snippetPath": "/templates/arg_extrema"
   },
   {
     "command": "edulcni.binary_trie",
@@ -405,6 +445,10 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/global_min_cut"
   },
   {
+    "command": "edulcni.algebra_matrix",
+    "snippetPath": "/templates/algebra_matrix"
+  },
+  {
     "command": "edulcni.geometry_point",
     "snippetPath": "/templates/geometry_point"
   },
@@ -433,6 +477,10 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/solve_linear"
   },
   {
+    "command": "edulcni.histogram_sequence",
+    "snippetPath": "/templates/histogram_sequence"
+  },
+  {
     "command": "edulcni.determinant",
     "snippetPath": "/templates/determinant"
   },
@@ -451,5 +499,21 @@ export const DIRECT_COMMANDS = [
   {
     "command": "edulcni.permutation_rank",
     "snippetPath": "/templates/permutation_rank"
+  },
+  {
+    "command": "edulcni.consecutive_set",
+    "snippetPath": "/templates/consecutive_set"
+  },
+  {
+    "command": "edulcni.bounded_matchings",
+    "snippetPath": "/templates/bounded_matchings"
+  },
+  {
+    "command": "edulcni.prefix_suffix_fold",
+    "snippetPath": "/templates/prefix_suffix_fold"
+  },
+  {
+    "command": "edulcni.level_boundary_segtree",
+    "snippetPath": "/templates/level_boundary_segtree"
   }
 ] as const;

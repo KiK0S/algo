@@ -14,5 +14,8 @@ sat.{{addTrueName}}(forced_var);
 {{/if}}
 if (sat.{{solveName}}()) {
   auto assign = sat.{{assignmentName}}();
+{{#if componentsFeature}}
+  int rank = sat.{{literalRankName}}(a, true);
+{{/if}}
 }
 */

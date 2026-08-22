@@ -1,0 +1,46 @@
+template <typename T, std::size_t K, typename Compare = std::less<T>>
+class KSmallest {
+ public:
+  static_assert(K > 0);
+
+  explicit KSmallest(Compare compare = Compare()) : compare_(compare) {}
+
+  void push(const T& value) {
+    if (size_ < K) {
+      values_[size_++] = value;
+      for (std::size_t i = size_ - 1;
+           i > 0 && compare_(values_[i], values_[i - 1]); --i) {
+        std::swap(values_[i], values_[i - 1]);
+      }
+      return;
+    }
+    if (!compare_(value, values_.back())) return;
+    values_.back() = value;
+    for (std::size_t i = K - 1;
+         i > 0 && compare_(values_[i], values_[i - 1]); --i) {
+      std::swap(values_[i], values_[i - 1]);
+    }
+  }
+
+  std::size_t size() const { return size_; }
+  bool full() const { return size_ == K; }
+
+  const std::array<T, K>& values() const {
+    assert(full());
+    return values_;
+  }
+
+ private:
+  std::array<T, K> values_{};
+  std::size_t size_ = 0;
+  Compare compare_;
+};
+
+template <std::size_t K, typename Range, typename Compare = std::less<>>
+auto k_smallest(const Range& range, Compare compare = Compare()) {
+  using T = std::decay_t<decltype(*std::begin(range))>;
+  KSmallest<T, K, Compare> result(compare);
+  for (const auto& value : range) result.push(value);
+  assert(result.full());
+  return result.values();
+}

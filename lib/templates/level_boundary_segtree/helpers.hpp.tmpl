@@ -1,0 +1,130 @@
+// Tracks a predicate between every pair of adjacent segment-tree blocks.
+// Point updates take O(log n); level-wide validity is then available in O(1).
+// Depth 0 is the root and depth height() contains single-element blocks.
+template <typename Node, typename Merge, typename BoundaryBad>
+class LevelBoundarySegTree {
+ public:
+  LevelBoundarySegTree(const std::vector<Node>& values, const Node& identity,
+                       Merge merge, BoundaryBad boundary_bad)
+      : size_(static_cast<int>(values.size())), identity_(identity),
+        merge_(merge), boundary_bad_(boundary_bad) {
+    base_ = 1;
+    height_ = 0;
+    while (base_ < std::max(1, size_)) {
+      base_ *= 2;
+      ++height_;
+    }
+    tree_.assign(2 * base_, identity_);
+    boundary_is_bad_.assign(2 * base_, false);
+    bad_at_depth_.assign(height_ + 1, 0);
+    for (int i = 0; i < size_; ++i) tree_[base_ + i] = values[i];
+    for (int v = base_ - 1; v >= 1; --v) pull(v);
+    for (int depth = 0, first = 1; depth <= height_;
+         ++depth, first *= 2) {
+      for (int v = first + 1; v < 2 * first; ++v) refresh(v, depth);
+    }
+  }
+
+  int size() const { return size_; }
+  int height() const { return height_; }
+
+  void point_set(int position, const Node& value) {
+    if (position < 0 || position >= size_) return;
+    int v = base_ + position;
+    tree_[v] = value;
+    refresh_near(v, height_);
+    for (int depth = height_ - 1; depth >= 0; --depth) {
+      v /= 2;
+      pull(v);
+      refresh_near(v, depth);
+    }
+  }
+
+  int violations_at_depth(int depth) const {
+    if (depth < 0 || depth > height_) return 0;
+    return bad_at_depth_[depth];
+  }
+
+  bool valid_at_depth(int depth) const {
+    return 0 <= depth && depth <= height_ && bad_at_depth_[depth] == 0;
+  }
+
+  int deepest_valid_depth() const {
+    for (int depth = height_; depth >= 0; --depth) {
+      if (valid_at_depth(depth)) return depth;
+    }
+    return 0;
+  }
+
+  int block_size_at_depth(int depth) const {
+    if (depth < 0 || depth > height_) return 0;
+    return base_ >> depth;
+  }
+
+ private:
+  int size_ = 0;
+  int base_ = 1;
+  int height_ = 0;
+  Node identity_;
+  Merge merge_;
+  BoundaryBad boundary_bad_;
+  std::vector<Node> tree_;
+  std::vector<char> boundary_is_bad_;
+  std::vector<int> bad_at_depth_;
+
+  void pull(int v) { tree_[v] = merge_(tree_[2 * v], tree_[2 * v + 1]); }
+
+  void refresh(int right, int depth) {
+    const int first = 1 << depth;
+    if (right <= first || right >= 2 * first) return;
+    const bool now_bad = boundary_bad_(tree_[right - 1], tree_[right]);
+    bad_at_depth_[depth] += static_cast<int>(now_bad) -
+                            static_cast<int>(boundary_is_bad_[right]);
+    boundary_is_bad_[right] = now_bad;
+  }
+
+  void refresh_near(int v, int depth) {
+    refresh(v, depth);
+    refresh(v + 1, depth);
+  }
+};
+
+template <typename T>
+struct OrderedBlockSummary {
+  T maximum;
+  T minimum;
+};
+
+template <typename T>
+struct OrderedBlockMerge {
+  OrderedBlockSummary<T> operator()(const OrderedBlockSummary<T>& left,
+                                    const OrderedBlockSummary<T>& right) const {
+    return {std::max(left.maximum, right.maximum),
+            std::min(left.minimum, right.minimum)};
+  }
+};
+
+template <typename T>
+struct OrderedBlockBoundaryBad {
+  bool operator()(const OrderedBlockSummary<T>& left,
+                  const OrderedBlockSummary<T>& right) const {
+    return left.maximum > right.minimum;
+  }
+};
+
+template <typename T>
+using OrderedBlockBoundaryTree =
+    LevelBoundarySegTree<OrderedBlockSummary<T>, OrderedBlockMerge<T>,
+                         OrderedBlockBoundaryBad<T>>;
+
+template <typename T>
+OrderedBlockBoundaryTree<T> make_ordered_block_boundary_tree(
+    const std::vector<T>& values) {
+  std::vector<OrderedBlockSummary<T>> nodes;
+  nodes.reserve(values.size());
+  for (const T& value : values) nodes.push_back({value, value});
+  const OrderedBlockSummary<T> identity{
+      std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max()};
+  return OrderedBlockBoundaryTree<T>(nodes, identity, OrderedBlockMerge<T>(),
+                                     OrderedBlockBoundaryBad<T>());
+}

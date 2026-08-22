@@ -1,0 +1,22 @@
+template <class Coordinate, class Delta, class State, class Apply, class Visit>
+State sweep_events(
+		std::vector<std::pair<Coordinate, Delta>> events,
+		State state,
+		Apply apply,
+		Visit visit) {
+	std::sort(events.begin(), events.end(),
+		[](const auto& first, const auto& second) {
+			return first.first < second.first;
+		});
+	for (int left = 0; left < static_cast<int>(events.size()); ) {
+		int right = left;
+		while (right < static_cast<int>(events.size()) &&
+				events[right].first == events[left].first) {
+			apply(state, events[right].second);
+			++right;
+		}
+		visit(events[left].first, state);
+		left = right;
+	}
+	return state;
+}

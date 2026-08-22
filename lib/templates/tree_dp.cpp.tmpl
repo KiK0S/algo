@@ -1,0 +1,11 @@
+vector<int> dp(n);
+auto dfs = [&](auto self, int v, int p = -1) -> void {
+	// Initialize dp[v].
+	for (int to : g[v]) {
+		if (to == p) continue;
+		self(self, to, v);
+		// Merge dp[to] into dp[v].
+	}
+	// Finalize dp[v].
+};
+dfs(dfs, 0);

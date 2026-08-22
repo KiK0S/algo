@@ -1,0 +1,47 @@
+enum class ArgExtremaTie { Leftmost, Rightmost };
+
+template <typename Iterator, typename Better>
+Iterator arg_extrema_element(Iterator first, Iterator last, Better better,
+                             ArgExtremaTie tie = ArgExtremaTie::Leftmost) {
+  if (first == last) return last;
+  Iterator answer = first;
+  for (++first; first != last; ++first) {
+    if (better(*first, *answer) ||
+        (tie == ArgExtremaTie::Rightmost && !better(*answer, *first))) {
+      answer = first;
+    }
+  }
+  return answer;
+}
+
+template <typename Iterator, typename Compare = std::less<>>
+Iterator argmin_element(Iterator first, Iterator last,
+                        ArgExtremaTie tie = ArgExtremaTie::Leftmost,
+                        Compare compare = Compare()) {
+  return arg_extrema_element(first, last, compare, tie);
+}
+
+template <typename Iterator, typename Compare = std::less<>>
+Iterator argmax_element(Iterator first, Iterator last,
+                        ArgExtremaTie tie = ArgExtremaTie::Leftmost,
+                        Compare compare = Compare()) {
+  return arg_extrema_element(
+      first, last,
+      [&](const auto& lhs, const auto& rhs) { return compare(rhs, lhs); }, tie);
+}
+
+template <typename Container, typename Compare = std::less<>>
+int argmin(const Container& values,
+           ArgExtremaTie tie = ArgExtremaTie::Leftmost,
+           Compare compare = Compare()) {
+  const auto it = argmin_element(values.begin(), values.end(), tie, compare);
+  return it == values.end() ? -1 : static_cast<int>(it - values.begin());
+}
+
+template <typename Container, typename Compare = std::less<>>
+int argmax(const Container& values,
+           ArgExtremaTie tie = ArgExtremaTie::Leftmost,
+           Compare compare = Compare()) {
+  const auto it = argmax_element(values.begin(), values.end(), tie, compare);
+  return it == values.end() ? -1 : static_cast<int>(it - values.begin());
+}

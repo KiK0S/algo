@@ -1,0 +1,285 @@
+template <typename Key, typename Compare = std::less<Key>>
+class Treap {
+ private:
+  struct Node {
+    Key key;
+    unsigned priority;
+    int count;
+    int size;
+    Node* left;
+    Node* right;
+
+    Node(const Key& key_, unsigned priority_)
+        : key(key_), priority(priority_), count(1), size(1), left(nullptr), right(nullptr) {}
+  };
+
+ public:
+  explicit Treap(unsigned seed = 712367821u, Compare compare = Compare())
+      : root_(nullptr), rng_state_(seed == 0u ? 1u : seed), compare_(compare) {}
+
+  ~Treap() { clear(); }
+  Treap(const Treap&) = delete;
+  Treap& operator=(const Treap&) = delete;
+
+  Treap(Treap&& other) noexcept
+      : root_(other.root_), rng_state_(other.rng_state_), compare_(std::move(other.compare_)) {
+    other.root_ = nullptr;
+  }
+
+  Treap& operator=(Treap&& other) noexcept {
+    if (this == &other) return *this;
+    clear();
+    root_ = other.root_;
+    rng_state_ = other.rng_state_;
+    compare_ = std::move(other.compare_);
+    other.root_ = nullptr;
+    return *this;
+  }
+
+  int size() const { return node_size(root_); }
+  bool empty() const { return root_ == nullptr; }
+
+  void clear() {
+    clear_node(root_);
+    root_ = nullptr;
+  }
+
+  int count(const Key& key) const {
+    Node* node = root_;
+    while (node != nullptr) {
+      if (equal(key, node->key)) return node->count;
+      node = compare_(key, node->key) ? node->left : node->right;
+    }
+    return 0;
+  }
+
+  bool contains(const Key& key) const { return count(key) != 0; }
+
+  void insert(const Key& key) { root_ = insert(root_, key); }
+
+  bool erase(const Key& key) {
+    bool erased = false;
+    root_ = erase(root_, key, false, erased);
+    return erased;
+  }
+
+  int erase_all(const Key& key) {
+    const int erased_count = count(key);
+    if (erased_count == 0) return 0;
+    bool erased = false;
+    root_ = erase(root_, key, true, erased);
+    return erased_count;
+  }
+
+  int order_of_key(const Key& key) const {
+    int result = 0;
+    Node* node = root_;
+    while (node != nullptr) {
+      if (compare_(node->key, key)) {
+        result += node_size(node->left) + node->count;
+        node = node->right;
+      } else {
+        node = node->left;
+      }
+    }
+    return result;
+  }
+
+  std::optional<Key> kth(int index) const {
+    if (index < 0 || index >= size()) return std::nullopt;
+    Node* node = root_;
+    while (node != nullptr) {
+      const int left_size = node_size(node->left);
+      if (index < left_size) {
+        node = node->left;
+      } else if (index < left_size + node->count) {
+        return node->key;
+      } else {
+        index -= left_size + node->count;
+        node = node->right;
+      }
+    }
+    return std::nullopt;
+  }
+
+  std::optional<Key> lower_bound(const Key& key) const {
+    Node* node = root_;
+    Node* answer = nullptr;
+    while (node != nullptr) {
+      if (!compare_(node->key, key)) {
+        answer = node;
+        node = node->left;
+      } else {
+        node = node->right;
+      }
+    }
+    return answer == nullptr ? std::nullopt : std::optional<Key>(answer->key);
+  }
+
+  std::optional<Key> upper_bound(const Key& key) const {
+    Node* node = root_;
+    Node* answer = nullptr;
+    while (node != nullptr) {
+      if (compare_(key, node->key)) {
+        answer = node;
+        node = node->left;
+      } else {
+        node = node->right;
+      }
+    }
+    return answer == nullptr ? std::nullopt : std::optional<Key>(answer->key);
+  }
+
+  Treap split_off(const Key& key) {
+    std::pair<Node*, Node*> parts = split_less(root_, key);
+    root_ = parts.first;
+    Treap right(next_priority(), compare_);
+    right.root_ = parts.second;
+    return right;
+  }
+
+  bool merge_disjoint(Treap&& right) {
+    if (!empty() && !right.empty()) {
+      const Key& left_max = maximum(root_)->key;
+      const Key& right_min = minimum(right.root_)->key;
+      if (!compare_(left_max, right_min)) return false;
+    }
+    root_ = merge(root_, right.root_);
+    right.root_ = nullptr;
+    return true;
+  }
+
+  std::vector<Key> to_vector() const {
+    std::vector<Key> result;
+    result.reserve(size());
+    collect(root_, result);
+    return result;
+  }
+
+ private:
+  Node* root_;
+  unsigned rng_state_;
+  Compare compare_;
+
+  bool equal(const Key& lhs, const Key& rhs) const {
+    return !compare_(lhs, rhs) && !compare_(rhs, lhs);
+  }
+
+  static int node_size(Node* node) { return node == nullptr ? 0 : node->size; }
+
+  static void pull(Node* node) {
+    if (node != nullptr) {
+      node->size = node_size(node->left) + node->count + node_size(node->right);
+    }
+  }
+
+  unsigned next_priority() {
+    rng_state_ ^= rng_state_ << 7;
+    rng_state_ ^= rng_state_ >> 9;
+    rng_state_ ^= rng_state_ << 8;
+    return rng_state_;
+  }
+
+  static Node* merge(Node* left, Node* right) {
+    if (left == nullptr) return right;
+    if (right == nullptr) return left;
+    if (left->priority > right->priority) {
+      left->right = merge(left->right, right);
+      pull(left);
+      return left;
+    }
+    right->left = merge(left, right->left);
+    pull(right);
+    return right;
+  }
+
+  std::pair<Node*, Node*> split_less(Node* node, const Key& key) {
+    if (node == nullptr) return std::make_pair(nullptr, nullptr);
+    if (compare_(node->key, key)) {
+      std::pair<Node*, Node*> parts = split_less(node->right, key);
+      node->right = parts.first;
+      pull(node);
+      return std::make_pair(node, parts.second);
+    }
+    std::pair<Node*, Node*> parts = split_less(node->left, key);
+    node->left = parts.second;
+    pull(node);
+    return std::make_pair(parts.first, node);
+  }
+
+  Node* insert(Node* node, const Key& key) {
+    if (node == nullptr) return new Node(key, next_priority());
+    if (equal(key, node->key)) {
+      ++node->count;
+    } else if (compare_(key, node->key)) {
+      node->left = insert(node->left, key);
+      if (node->left->priority > node->priority) node = rotate_right(node);
+    } else {
+      node->right = insert(node->right, key);
+      if (node->right->priority > node->priority) node = rotate_left(node);
+    }
+    pull(node);
+    return node;
+  }
+
+  Node* erase(Node* node, const Key& key, bool all, bool& erased) {
+    if (node == nullptr) return nullptr;
+    if (equal(key, node->key)) {
+      erased = true;
+      if (!all && node->count > 1) {
+        --node->count;
+        pull(node);
+        return node;
+      }
+      Node* result = merge(node->left, node->right);
+      delete node;
+      return result;
+    }
+    if (compare_(key, node->key)) node->left = erase(node->left, key, all, erased);
+    else node->right = erase(node->right, key, all, erased);
+    pull(node);
+    return node;
+  }
+
+  static Node* rotate_left(Node* node) {
+    Node* top = node->right;
+    node->right = top->left;
+    top->left = node;
+    pull(node);
+    pull(top);
+    return top;
+  }
+
+  static Node* rotate_right(Node* node) {
+    Node* top = node->left;
+    node->left = top->right;
+    top->right = node;
+    pull(node);
+    pull(top);
+    return top;
+  }
+
+  static Node* minimum(Node* node) {
+    while (node->left != nullptr) node = node->left;
+    return node;
+  }
+
+  static Node* maximum(Node* node) {
+    while (node->right != nullptr) node = node->right;
+    return node;
+  }
+
+  static void collect(Node* node, std::vector<Key>& result) {
+    if (node == nullptr) return;
+    collect(node->left, result);
+    for (int i = 0; i < node->count; ++i) result.push_back(node->key);
+    collect(node->right, result);
+  }
+
+  static void clear_node(Node* node) {
+    if (node == nullptr) return;
+    clear_node(node->left);
+    clear_node(node->right);
+    delete node;
+  }
+};

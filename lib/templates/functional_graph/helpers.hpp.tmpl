@@ -1,0 +1,56 @@
+struct FunctionalGraphDecomposition {
+	std::vector<std::vector<int>> cycles;
+	std::vector<int> cycle_id;
+	std::vector<int> cycle_position;
+	std::vector<int> cycle_entry;
+	std::vector<int> distance_to_cycle;
+};
+
+inline FunctionalGraphDecomposition functional_graph_decomposition(
+		const std::vector<int>& successor) {
+	const int n = static_cast<int>(successor.size());
+	FunctionalGraphDecomposition result;
+	result.cycle_id.assign(n, -1);
+	result.cycle_position.assign(n, -1);
+	result.cycle_entry.assign(n, -1);
+	result.distance_to_cycle.assign(n, 0);
+
+	std::vector<int> indegree(n, 0);
+	for (int to : successor) ++indegree[to];
+	std::vector<int> removed_order;
+	std::vector<int> queue;
+	for (int vertex = 0; vertex < n; ++vertex) {
+		if (indegree[vertex] == 0) queue.push_back(vertex);
+	}
+	for (int index = 0; index < static_cast<int>(queue.size()); ++index) {
+		int vertex = queue[index];
+		removed_order.push_back(vertex);
+		if (--indegree[successor[vertex]] == 0) {
+			queue.push_back(successor[vertex]);
+		}
+	}
+
+	for (int start = 0; start < n; ++start) {
+		if (indegree[start] == 0 || result.cycle_id[start] != -1) continue;
+		const int id = static_cast<int>(result.cycles.size());
+		result.cycles.push_back({});
+		int vertex = start;
+		do {
+			result.cycle_id[vertex] = id;
+			result.cycle_position[vertex] =
+				static_cast<int>(result.cycles.back().size());
+			result.cycle_entry[vertex] = vertex;
+			result.cycles.back().push_back(vertex);
+			vertex = successor[vertex];
+		} while (vertex != start);
+	}
+
+	for (int index = static_cast<int>(removed_order.size()); index-- > 0; ) {
+		int vertex = removed_order[index];
+		int to = successor[vertex];
+		result.cycle_id[vertex] = result.cycle_id[to];
+		result.cycle_entry[vertex] = result.cycle_entry[to];
+		result.distance_to_cycle[vertex] = result.distance_to_cycle[to] + 1;
+	}
+	return result;
+}

@@ -3800,7 +3800,7 @@ async function promptMonotonicStackOptions(
   }
 
   const relationPick = await showExplainedQuickPick<ValuePickItem<MonotonicStackRelation>>(
-    scenarioPick.value === "all_nearest"
+    scenarioPick.value === "all_nearest" || scenarioPick.value === "boundary_aggregates"
       ? [{ label: "all", value: "all", picked: true }]
       : scenarioPick.value === "nearest_greater"
         ? [

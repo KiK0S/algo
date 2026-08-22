@@ -1,0 +1,154 @@
+enum class HistogramConvention { starts_at_breakpoint, ends_at_breakpoint };
+
+template <typename X, typename Y,
+          typename Area = std::common_type_t<X, Y>>
+class HistogramSequence {
+ public:
+  using Point = std::pair<X, Y>;
+
+  HistogramSequence() = default;
+  explicit HistogramSequence(
+      std::vector<Point> breakpoints,
+      HistogramConvention convention = HistogramConvention::starts_at_breakpoint) {
+    reset(std::move(breakpoints), convention);
+  }
+
+  void reset(
+      std::vector<Point> breakpoints,
+      HistogramConvention convention = HistogramConvention::starts_at_breakpoint) {
+    for (int i = 1; i < static_cast<int>(breakpoints.size()); ++i) {
+      assert(breakpoints[i - 1].first < breakpoints[i].first);
+    }
+    breakpoints_ = std::move(breakpoints);
+    convention_ = convention;
+    prefix_area_.assign(breakpoints_.size(), Area(0));
+    for (int i = 1; i < size(); ++i) {
+      const int height_index = convention_ == HistogramConvention::starts_at_breakpoint
+          ? i - 1
+          : i;
+      prefix_area_[i] =
+          prefix_area_[i - 1] +
+          static_cast<Area>(breakpoints_[i].first - breakpoints_[i - 1].first) *
+              static_cast<Area>(breakpoints_[height_index].second);
+    }
+  }
+
+  int size() const { return static_cast<int>(breakpoints_.size()); }
+  bool empty() const { return breakpoints_.empty(); }
+  const std::vector<Point>& breakpoints() const { return breakpoints_; }
+
+  int last_x_at_most(const X& x) const {
+    const auto it = std::upper_bound(
+        breakpoints_.begin(), breakpoints_.end(), x,
+        [](const X& value, const Point& point) { return value < point.first; });
+    return static_cast<int>(it - breakpoints_.begin()) - 1;
+  }
+
+  Y value_at(const X& x) const {
+    assert(!empty() && x >= breakpoints_.front().first);
+    if (convention_ == HistogramConvention::starts_at_breakpoint)
+      return breakpoints_[last_x_at_most(x)].second;
+    const auto it = std::lower_bound(
+        breakpoints_.begin(), breakpoints_.end(), x,
+        [](const Point& point, const X& value) { return point.first < value; });
+    return it == breakpoints_.end() ? breakpoints_.back().second : it->second;
+  }
+
+  Area prefix_area(const X& x) const {
+    if (empty() || x <= breakpoints_.front().first) return Area(0);
+    const int index = last_x_at_most(x);
+    if (convention_ == HistogramConvention::ends_at_breakpoint &&
+        index + 1 < size() && breakpoints_[index].first < x) {
+      return prefix_area_[index] +
+             static_cast<Area>(x - breakpoints_[index].first) *
+                 static_cast<Area>(breakpoints_[index + 1].second);
+    }
+    return prefix_area_[index] +
+           static_cast<Area>(x - breakpoints_[index].first) *
+               static_cast<Area>(breakpoints_[index].second);
+  }
+
+  Area area(const X& left, const X& right) const {
+    assert(left <= right);
+    return prefix_area(right) - prefix_area(left);
+  }
+
+ private:
+  std::vector<Point> breakpoints_;
+  std::vector<Area> prefix_area_;
+  HistogramConvention convention_ = HistogramConvention::starts_at_breakpoint;
+};
+
+enum class ParetoDirection { y_increasing, y_decreasing };
+
+template <typename X, typename Y,
+          typename Area = std::common_type_t<X, Y>>
+class ParetoHistogramSequence {
+ public:
+  using Point = std::pair<X, Y>;
+
+  ParetoHistogramSequence(
+      std::vector<Point> breakpoints, ParetoDirection direction,
+      HistogramConvention convention = HistogramConvention::starts_at_breakpoint)
+      : histogram_(std::move(breakpoints), convention), direction_(direction) {
+    const auto& points = histogram_.breakpoints();
+    for (int i = 1; i < histogram_.size(); ++i) {
+      if (direction_ == ParetoDirection::y_increasing)
+        assert(points[i - 1].second <= points[i].second);
+      else
+        assert(points[i - 1].second >= points[i].second);
+    }
+  }
+
+  int size() const { return histogram_.size(); }
+  bool empty() const { return histogram_.empty(); }
+  const std::vector<Point>& breakpoints() const {
+    return histogram_.breakpoints();
+  }
+
+  int last_x_at_most(const X& x) const {
+    return histogram_.last_x_at_most(x);
+  }
+
+  int last_y_at_most(const Y& y) const {
+    assert(direction_ == ParetoDirection::y_increasing);
+    const auto& points = breakpoints();
+    int left = -1, right = size();
+    while (left + 1 < right) {
+      const int middle = (left + right) / 2;
+      if (points[middle].second <= y) left = middle;
+      else right = middle;
+    }
+    return left;
+  }
+
+  int last_y_at_least(const Y& y) const {
+    assert(direction_ == ParetoDirection::y_decreasing);
+    const auto& points = breakpoints();
+    int left = -1, right = size();
+    while (left + 1 < right) {
+      const int middle = (left + right) / 2;
+      if (points[middle].second >= y) left = middle;
+      else right = middle;
+    }
+    return left;
+  }
+
+  int last_index(const X& x_bound, const Y& y_bound) const {
+    const int x_index = last_x_at_most(x_bound);
+    const int y_index = direction_ == ParetoDirection::y_increasing
+        ? last_y_at_most(y_bound)
+        : last_y_at_least(y_bound);
+    return std::min(x_index, y_index);
+  }
+
+  Y value_at(const X& x) const { return histogram_.value_at(x); }
+  Area prefix_area(const X& x) const { return histogram_.prefix_area(x); }
+  Area area(const X& left, const X& right) const {
+    return histogram_.area(left, right);
+  }
+
+ private:
+  HistogramSequence<X, Y, Area> histogram_;
+  ParetoDirection direction_;
+};

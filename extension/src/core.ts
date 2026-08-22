@@ -898,12 +898,17 @@ export interface MonotonicStackNames {
   nearestGreaterRightName: string;
   nearestStructName: string;
   nearestAllName: string;
+  nearestAggregatesStructName: string;
+  nearestAggregatesName: string;
+  subarrayMinimumsName: string;
+  subarrayMaximumsName: string;
 }
 
 export type MonotonicStackApplication =
   | "nearest_smaller"
   | "nearest_greater"
   | "all_nearest"
+  | "boundary_aggregates"
   | "custom_comparator";
 export type MonotonicStackDirection = "left" | "right" | "both";
 export type MonotonicStackRelation = "smaller" | "greater" | "all";
@@ -1183,6 +1188,8 @@ export interface TwoSatNames {
   assignmentName: string;
   implicationGraphName: string;
   componentName: string;
+  componentRankName: string;
+  literalRankName: string;
   okVarName: string;
   nodeName: string;
   addDirectName: string;
@@ -1190,6 +1197,7 @@ export interface TwoSatNames {
   graphFieldName: string;
   assignmentFieldName: string;
   componentFieldName: string;
+  componentRankFieldName: string;
 }
 
 export interface TwoSatOptions {
@@ -3986,12 +3994,19 @@ export function planMonotonicStackNames(
     nearestGreaterLeftName: planner.reserve("nearest_greater_left", "nearest_more_left"),
     nearestGreaterRightName: planner.reserve("nearest_greater_right", "nearest_more_right"),
     nearestStructName: planner.reserve("NearestIndices", "AllNearestIndices"),
-    nearestAllName: planner.reserve("nearest_all", "build_nearest_indices")
+    nearestAllName: planner.reserve("nearest_all", "build_nearest_indices"),
+    nearestAggregatesStructName: planner.reserve("NearestAggregates", "NearestBoundaryAggregates"),
+    nearestAggregatesName: planner.reserve("nearest_aggregates", "build_nearest_aggregates"),
+    subarrayMinimumsName: planner.reserve("sum_of_subarray_minimums", "subarray_minimum_sum"),
+    subarrayMaximumsName: planner.reserve("sum_of_subarray_maximums", "subarray_maximum_sum")
   };
 }
 
 function monotonicStackCallName(options: MonotonicStackOptions): string {
   const names = options.names;
+  if (options.application === "boundary_aggregates") {
+    return names.nearestAggregatesName;
+  }
   const relation = options.relation ?? "smaller";
   const direction = options.direction ?? "left";
   if (relation === "all" || direction === "both") {
@@ -4024,6 +4039,7 @@ function renderMonotonicStackUsageSnippet(options: MonotonicStackOptions): strin
   if (usageMode === "helper_only") return "";
   const callName = ((options: MonotonicStackOptions): string => {
   const names = options.names;
+  if (options.application === "boundary_aggregates") return names.nearestAggregatesName;
   if (options.relation === "all" || options.direction === "both") return names.nearestAllName;
   if (options.relation === "greater" && options.direction === "right") return names.nearestGreaterRightName;
   if (options.relation === "greater") return names.nearestGreaterLeftName;
@@ -4035,7 +4051,8 @@ function renderMonotonicStackUsageSnippet(options: MonotonicStackOptions): strin
     sourceName: options.sourceName?.trim() || "values",
     resultName: sanitizeIdentifier(options.resultName ?? "nearest", "nearest"),
     strict: options.strictness === "non_strict" ? "false" : "true",
-    allResult: usageMode === "compute_all" || options.relation === "all" || options.direction === "both"
+    allResult: options.application === "boundary_aggregates" ||
+      usageMode === "compute_all" || options.relation === "all" || options.direction === "both"
   });
 }
 
@@ -4044,6 +4061,7 @@ export function renderMonotonicStackRecipe(
 ): RenderedRecipe {
   const names = options.names;
   const includeAll = options.application === "all_nearest" ||
+    options.application === "boundary_aggregates" ||
     options.relation === "all" || options.direction === "both";
   const includeLeftCore = includeAll || options.direction !== "right";
   const includeRightCore = includeAll || options.direction === "right";
@@ -4073,7 +4091,11 @@ export function renderMonotonicStackRecipe(
     { from: "nearest_greater_left", to: names.nearestGreaterLeftName },
     { from: "nearest_greater_right", to: names.nearestGreaterRightName },
     { from: "NearestIndices", to: names.nearestStructName },
-    { from: "nearest_all", to: names.nearestAllName }
+    { from: "nearest_all", to: names.nearestAllName },
+    { from: "NearestAggregates", to: names.nearestAggregatesStructName },
+    { from: "nearest_aggregates", to: names.nearestAggregatesName },
+    { from: "sum_of_subarray_minimums", to: names.subarrayMinimumsName },
+    { from: "sum_of_subarray_maximums", to: names.subarrayMaximumsName }
   ]);
   if (options.includeUsageComment) {
     helpers = `${helpers.trim()}\n\n${renderMonotonicStackUsage(options)}\n`;
@@ -4086,7 +4108,14 @@ export function renderMonotonicStackRecipe(
     ...(includeSmallerRight ? [names.nearestSmallerRightName] : []),
     ...(includeGreaterLeft ? [names.nearestGreaterLeftName] : []),
     ...(includeGreaterRight ? [names.nearestGreaterRightName] : []),
-    ...(includeAll ? [names.nearestStructName, names.nearestAllName] : [])
+    ...(includeAll ? [
+      names.nearestStructName,
+      names.nearestAllName,
+      names.nearestAggregatesStructName,
+      names.nearestAggregatesName,
+      names.subarrayMinimumsName,
+      names.subarrayMaximumsName
+    ] : [])
   ];
   return createRenderedRecipe(
     usage === "" ? { helpers: [helpers] } : { helpers: [helpers], solve: [usage] },
@@ -5616,6 +5645,11 @@ export const MONOTONIC_STACK_APPLICATION_SPEC: SolverApplicationSpec = {
       description: "Compute left/right smaller and greater arrays together."
     },
     {
+      id: "boundary_aggregates",
+      label: "boundary spans and sums",
+      description: "Compute all nearest boundaries with spans and sums between them."
+    },
+    {
       id: "custom_comparator",
       label: "custom comparator",
       description: "Use nearest-left/right generic helpers with custom comparison."
@@ -6244,6 +6278,11 @@ export function planTwoSatNames(
       "twosat_implication_graph"
     ),
     componentName: planner.reserve("component", "twosat_component"),
+    componentRankName: planner.reserve(
+      "component_rank",
+      "twosat_component_rank"
+    ),
+    literalRankName: planner.reserve("literal_rank", "twosat_literal_rank"),
     okVarName: planner.reserve("ok_var", "twosat_ok_var"),
     nodeName: planner.reserve("node", "twosat_node"),
     addDirectName: planner.reserve("add_direct", "twosat_add_direct"),
@@ -6256,7 +6295,11 @@ export function planTwoSatNames(
       "assignment_",
       "twosat_assignment_"
     ),
-    componentFieldName: planner.reserve("component_", "twosat_component_")
+    componentFieldName: planner.reserve("component_", "twosat_component_"),
+    componentRankFieldName: planner.reserve(
+      "component_rank_",
+      "twosat_component_rank_"
+    )
   };
 }
 
@@ -6287,7 +6330,8 @@ function renderTwoSatUsage(
     ...options.names,
     xorFeature: features.has("xor"),
     equalFeature: features.has("equal"),
-    forceFeature: features.has("force")
+    forceFeature: features.has("force"),
+    componentsFeature: features.has("components")
   });
 }
 
@@ -6316,13 +6360,16 @@ export function renderTwoSatRecipe(options: TwoSatOptions): RenderedRecipe {
     { from: "assignment", to: names.assignmentName },
     { from: "implication_graph", to: names.implicationGraphName },
     { from: "component", to: names.componentName },
+    { from: "component_rank", to: names.componentRankName },
+    { from: "literal_rank", to: names.literalRankName },
     { from: "ok_var", to: names.okVarName },
     { from: "node", to: names.nodeName },
     { from: "add_direct", to: names.addDirectName },
     { from: "strongly_connected_components", to: names.sccName },
     { from: "graph_", to: names.graphFieldName },
     { from: "assignment_", to: names.assignmentFieldName },
-    { from: "component_", to: names.componentFieldName }
+    { from: "component_", to: names.componentFieldName },
+    { from: "component_rank_", to: names.componentRankFieldName }
   ]);
   if (options.includeUsageComment) {
     helpers += "\n\n" + renderTwoSatUsage(options, features);

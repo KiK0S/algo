@@ -1,0 +1,14 @@
+template <typename Sequence>
+std::vector<int> prefix_function(const Sequence& sequence) {
+	const int n = static_cast<int>(sequence.size());
+	std::vector<int> prefix(n);
+	for (int i = 1; i < n; ++i) {
+		int border = prefix[i - 1];
+		while (border > 0 && sequence[i] != sequence[border]) {
+			border = prefix[border - 1];
+		}
+		if (sequence[i] == sequence[border]) ++border;
+		prefix[i] = border;
+	}
+	return prefix;
+}

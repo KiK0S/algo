@@ -1,0 +1,50 @@
+struct OrderStatistics {
+	std::vector<int> left_less;
+	std::vector<int> left_greater;
+	std::vector<int> right_less;
+	std::vector<int> right_greater;
+};
+
+template <typename T>
+OrderStatistics order_statistics(const std::vector<T>& values) {
+	const int n = static_cast<int>(values.size());
+	std::vector<T> compressed = values;
+	std::sort(compressed.begin(), compressed.end());
+	compressed.erase(std::unique(compressed.begin(), compressed.end()), compressed.end());
+
+	OrderStatistics result{
+		std::vector<int>(n), std::vector<int>(n),
+		std::vector<int>(n), std::vector<int>(n)
+	};
+	std::vector<int> fenwick(compressed.size() + 1);
+	auto add = [&](int index) {
+		for (++index; index < static_cast<int>(fenwick.size()); index += index & -index) {
+			++fenwick[index];
+		}
+	};
+	auto prefix_count = [&](int index) {
+		int count = 0;
+		for (++index; index > 0; index -= index & -index) count += fenwick[index];
+		return count;
+	};
+	auto rank_of = [&](const T& value) {
+		return static_cast<int>(std::lower_bound(compressed.begin(), compressed.end(), value) -
+			compressed.begin());
+	};
+
+	for (int i = 0; i < n; ++i) {
+		const int rank = rank_of(values[i]);
+		result.left_less[i] = prefix_count(rank - 1);
+		result.left_greater[i] = i - prefix_count(rank);
+		add(rank);
+	}
+
+	std::fill(fenwick.begin(), fenwick.end(), 0);
+	for (int i = n - 1; i >= 0; --i) {
+		const int rank = rank_of(values[i]);
+		result.right_less[i] = prefix_count(rank - 1);
+		result.right_greater[i] = n - 1 - i - prefix_count(rank);
+		add(rank);
+	}
+	return result;
+}

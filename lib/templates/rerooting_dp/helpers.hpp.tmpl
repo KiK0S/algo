@@ -1,0 +1,47 @@
+template <class Value, class Merge, class AddVertex, class AddEdge>
+std::vector<Value> rerooting_dp(
+		const std::vector<std::vector<int>>& tree,
+		Value identity,
+		Merge merge,
+		AddVertex add_vertex,
+		AddEdge add_edge,
+		int root = 0) {
+	const int n = static_cast<int>(tree.size());
+	if (n == 0) return {};
+	std::vector<Value> down(n, identity), answer(n, identity);
+
+	auto build = [&](auto self, int vertex, int parent) -> void {
+		Value children = identity;
+		for (int to : tree[vertex]) if (to != parent) {
+			self(self, to, vertex);
+			children = merge(children, add_edge(down[to], to, vertex));
+		}
+		down[vertex] = add_vertex(std::move(children), vertex);
+	};
+	build(build, root, -1);
+
+	auto reroot = [&](auto self, int vertex, int parent, Value from_parent) -> void {
+		const int degree = static_cast<int>(tree[vertex].size());
+		std::vector<Value> contribution(degree, identity);
+		std::vector<Value> prefix(degree + 1, identity), suffix(degree + 1, identity);
+		for (int i = 0; i < degree; ++i) {
+			int to = tree[vertex][i];
+			contribution[i] = to == parent
+				? from_parent
+				: add_edge(down[to], to, vertex);
+			prefix[i + 1] = merge(prefix[i], contribution[i]);
+		}
+		for (int i = degree - 1; i >= 0; --i) {
+			suffix[i] = merge(contribution[i], suffix[i + 1]);
+		}
+		answer[vertex] = add_vertex(std::move(prefix[degree]), vertex);
+		for (int i = 0; i < degree; ++i) if (tree[vertex][i] != parent) {
+			Value without_child = merge(prefix[i], suffix[i + 1]);
+			Value at_vertex = add_vertex(std::move(without_child), vertex);
+			self(self, tree[vertex][i], vertex,
+				add_edge(std::move(at_vertex), vertex, tree[vertex][i]));
+		}
+	};
+	reroot(reroot, root, -1, identity);
+	return answer;
+}

@@ -1,0 +1,49 @@
+template <class Value>
+class FrequencyTracker {
+ public:
+	void add(const Value& value) {
+		const int old_count = count(value);
+		if (old_count > 0) frequencies_.erase({old_count, value});
+		counts_[value] = old_count + 1;
+		frequencies_.insert({old_count + 1, value});
+		++size_;
+	}
+
+	bool remove(const Value& value) {
+		auto iterator = counts_.find(value);
+		if (iterator == counts_.end()) return false;
+		const int old_count = iterator->second;
+		frequencies_.erase({old_count, value});
+		if (old_count == 1) {
+			counts_.erase(iterator);
+		} else {
+			iterator->second = old_count - 1;
+			frequencies_.insert({old_count - 1, value});
+		}
+		--size_;
+		return true;
+	}
+
+	int count(const Value& value) const {
+		auto iterator = counts_.find(value);
+		return iterator == counts_.end() ? 0 : iterator->second;
+	}
+
+	int max_frequency() const {
+		return frequencies_.empty() ? 0 : frequencies_.rbegin()->first;
+	}
+
+	std::optional<Value> mode() const {
+		if (frequencies_.empty()) return std::nullopt;
+		return frequencies_.rbegin()->second;
+	}
+
+	int size() const { return size_; }
+	int distinct_size() const { return static_cast<int>(counts_.size()); }
+	bool empty() const { return size_ == 0; }
+
+ private:
+	std::map<Value, int> counts_;
+	std::set<std::pair<int, Value>> frequencies_;
+	int size_ = 0;
+};

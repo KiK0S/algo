@@ -1,0 +1,16 @@
+template <class Range, class Compare>
+std::vector<int> argsort(const Range& values, Compare compare) {
+	std::vector<int> order(values.size());
+	std::iota(order.begin(), order.end(), 0);
+	std::sort(order.begin(), order.end(), [&](int first, int second) {
+		if (compare(values[first], values[second])) return true;
+		if (compare(values[second], values[first])) return false;
+		return first < second;
+	});
+	return order;
+}
+
+template <class Range>
+std::vector<int> argsort(const Range& values) {
+	return argsort(values, std::less<>{});
+}

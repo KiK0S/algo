@@ -1,0 +1,55 @@
+template <class Value, class Contribution, class PairContribution>
+class DynamicNeighborSet {
+ public:
+	DynamicNeighborSet(Contribution identity, PairContribution pair_contribution)
+		: total_(std::move(identity)), pair_contribution_(std::move(pair_contribution)) {}
+
+	bool insert(const Value& value) {
+		auto right = values_.lower_bound(value);
+		if (right != values_.end() && *right == value) return false;
+		auto left = right;
+		const bool has_left = left != values_.begin();
+		if (has_left) --left;
+		if (has_left && right != values_.end()) {
+			total_ -= pair_contribution_(*left, *right);
+		}
+		if (has_left) total_ += pair_contribution_(*left, value);
+		if (right != values_.end()) total_ += pair_contribution_(value, *right);
+		values_.insert(right, value);
+		return true;
+	}
+
+	bool erase(const Value& value) {
+		auto current = values_.find(value);
+		if (current == values_.end()) return false;
+		auto right = std::next(current);
+		auto left = current;
+		const bool has_left = left != values_.begin();
+		if (has_left) --left;
+		if (has_left) total_ -= pair_contribution_(*left, *current);
+		if (right != values_.end()) total_ -= pair_contribution_(*current, *right);
+		if (has_left && right != values_.end()) {
+			total_ += pair_contribution_(*left, *right);
+		}
+		values_.erase(current);
+		return true;
+	}
+
+	bool contains(const Value& value) const { return values_.count(value) != 0; }
+	int size() const { return static_cast<int>(values_.size()); }
+	bool empty() const { return values_.empty(); }
+	const Contribution& aggregate() const { return total_; }
+	const std::set<Value>& values() const { return values_; }
+
+ private:
+	std::set<Value> values_;
+	Contribution total_;
+	PairContribution pair_contribution_;
+};
+
+template <class Value, class Contribution, class PairContribution>
+auto make_dynamic_neighbor_set(
+		Contribution identity, PairContribution pair_contribution) {
+	return DynamicNeighborSet<Value, Contribution, PairContribution>(
+		std::move(identity), std::move(pair_contribution));
+}

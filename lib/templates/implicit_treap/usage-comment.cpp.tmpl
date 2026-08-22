@@ -3,6 +3,10 @@ Inclusive [l, r] ranges:
 {{className}}{{typeArgs}} treap;
 treap.push_back(x);
 treap.insert(pos, x);
+auto segment = treap.extract(l, r);
+treap.insert(pos, std::move(segment));
+treap.move(l, r, destination); // destination is indexed after removal
+treap.rotate(l, middle, r);    // [middle, r] moves before [l, middle)
 auto total = treap.range_query(l, r);
 {{#if reverseFeature}}
 treap.{{reverseName}}(l, r);

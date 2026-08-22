@@ -1,0 +1,36 @@
+template <class Reset, class Apply, class Predicate>
+std::vector<int> parallel_binary_search(
+		int query_count,
+		int step_count,
+		Reset reset,
+		Apply apply,
+		Predicate predicate) {
+	std::vector<int> lower(query_count, -1);
+	std::vector<int> upper(query_count, step_count);
+	std::vector<std::vector<int>> bucket(step_count);
+
+	while (true) {
+		bool unfinished = false;
+		for (auto& queries : bucket) queries.clear();
+		for (int query = 0; query < query_count; ++query) {
+			if (lower[query] + 1 >= upper[query]) continue;
+			unfinished = true;
+			int middle = lower[query] + (upper[query] - lower[query]) / 2;
+			bucket[middle].push_back(query);
+		}
+		if (!unfinished) break;
+
+		reset();
+		for (int step = 0; step < step_count; ++step) {
+			apply(step);
+			for (int query : bucket[step]) {
+				if (predicate(query)) {
+					upper[query] = step;
+				} else {
+					lower[query] = step;
+				}
+			}
+		}
+	}
+	return upper;
+}

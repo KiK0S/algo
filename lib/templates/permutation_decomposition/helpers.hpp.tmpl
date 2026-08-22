@@ -1,0 +1,35 @@
+struct PermutationDecomposition {
+	std::vector<std::vector<int>> cycles;
+	std::vector<int> cycle_id;
+	std::vector<int> cycle_position;
+	std::vector<int> inverse;
+	int minimum_swaps_to_identity = 0;
+	int sign = 1;
+};
+
+inline PermutationDecomposition permutation_decomposition(
+		const std::vector<int>& permutation) {
+	const int n = static_cast<int>(permutation.size());
+	PermutationDecomposition result;
+	result.cycle_id.assign(n, -1);
+	result.cycle_position.assign(n, -1);
+	result.inverse.resize(n);
+	for (int index = 0; index < n; ++index) {
+		result.inverse[permutation[index]] = index;
+	}
+	for (int start = 0; start < n; ++start) {
+		if (result.cycle_id[start] != -1) continue;
+		const int id = static_cast<int>(result.cycles.size());
+		result.cycles.push_back({});
+		for (int vertex = start; result.cycle_id[vertex] == -1;
+				vertex = permutation[vertex]) {
+			result.cycle_id[vertex] = id;
+			result.cycle_position[vertex] =
+				static_cast<int>(result.cycles.back().size());
+			result.cycles.back().push_back(vertex);
+		}
+	}
+	result.minimum_swaps_to_identity = n - static_cast<int>(result.cycles.size());
+	result.sign = result.minimum_swaps_to_identity % 2 == 0 ? 1 : -1;
+	return result;
+}

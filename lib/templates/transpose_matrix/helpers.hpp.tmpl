@@ -1,0 +1,15 @@
+template <typename T>
+std::vector<std::vector<T>> transpose_matrix(
+    const std::vector<std::vector<T>>& matrix) {
+  if (matrix.empty()) return {};
+
+  const std::size_t rows = matrix.size();
+  const std::size_t columns = matrix.front().size();
+  std::vector<std::vector<T>> transposed(columns, std::vector<T>(rows));
+  for (std::size_t row = 0; row < rows; ++row) {
+    for (std::size_t column = 0; column < columns; ++column) {
+      transposed[column][row] = matrix[row][column];
+    }
+  }
+  return transposed;
+}

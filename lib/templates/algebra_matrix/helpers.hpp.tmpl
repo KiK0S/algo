@@ -1,0 +1,139 @@
+template <typename T>
+struct MatrixAdd {
+  static T identity() { return T(0); }
+  T operator()(const T& left, const T& right) const { return left + right; }
+};
+
+template <typename T>
+struct MatrixMultiply {
+  static T identity() { return T(1); }
+  T operator()(const T& left, const T& right) const { return left * right; }
+};
+
+template <typename T>
+struct MatrixMinPlusExtend {
+  static T identity() { return T(0); }
+  T operator()(const T& left, const T& right) const {
+    if (left == std::numeric_limits<T>::max() ||
+        right == std::numeric_limits<T>::max())
+      return std::numeric_limits<T>::max();
+    return left + right;
+  }
+};
+
+template <typename T>
+struct MatrixMaxPlusExtend {
+  static T identity() { return T(0); }
+  T operator()(const T& left, const T& right) const {
+    if (left == std::numeric_limits<T>::lowest() ||
+        right == std::numeric_limits<T>::lowest())
+      return std::numeric_limits<T>::lowest();
+    return left + right;
+  }
+};
+
+template <typename T>
+struct MatrixMinMultiplyExtend {
+  static T identity() { return T(1); }
+  T operator()(const T& left, const T& right) const {
+    if (left == std::numeric_limits<T>::max() ||
+        right == std::numeric_limits<T>::max())
+      return std::numeric_limits<T>::max();
+    return left * right;
+  }
+};
+
+template <typename T>
+struct MatrixMaxMultiplyExtend {
+  static T identity() { return T(1); }
+  T operator()(const T& left, const T& right) const {
+    if (left == std::numeric_limits<T>::lowest() ||
+        right == std::numeric_limits<T>::lowest())
+      return std::numeric_limits<T>::lowest();
+    return left * right;
+  }
+};
+
+template <typename T>
+struct MatrixMin {
+  static T identity() { return std::numeric_limits<T>::max(); }
+  T operator()(const T& left, const T& right) const {
+    return std::min(left, right);
+  }
+};
+
+template <typename T>
+struct MatrixMax {
+  static T identity() { return std::numeric_limits<T>::lowest(); }
+  T operator()(const T& left, const T& right) const {
+    return std::max(left, right);
+  }
+};
+
+template <typename T, typename Reduce, typename Extend>
+class AlgebraMatrix {
+ public:
+  AlgebraMatrix() = default;
+
+  AlgebraMatrix(int rows, int columns,
+                const T& value = Reduce::identity())
+      : values_(std::max(0, rows),
+                std::vector<T>(std::max(0, columns), value)) {}
+
+  explicit AlgebraMatrix(std::vector<std::vector<T>> values)
+      : values_(std::move(values)) {
+    const int columns = values_.empty() ? 0 : values_[0].size();
+    for (const auto& row : values_) assert(static_cast<int>(row.size()) == columns);
+  }
+
+  static AlgebraMatrix identity(int size) {
+    AlgebraMatrix result(size, size);
+    for (int i = 0; i < size; ++i) result[i][i] = Extend::identity();
+    return result;
+  }
+
+  int rows() const { return static_cast<int>(values_.size()); }
+  int columns() const {
+    return values_.empty() ? 0 : static_cast<int>(values_[0].size());
+  }
+
+  std::vector<T>& operator[](int row) { return values_[row]; }
+  const std::vector<T>& operator[](int row) const { return values_[row]; }
+
+  friend AlgebraMatrix operator*(const AlgebraMatrix& left,
+                                 const AlgebraMatrix& right) {
+    assert(left.columns() == right.rows());
+    AlgebraMatrix result(left.rows(), right.columns());
+    Reduce reduce;
+    Extend extend;
+    for (int i = 0; i < left.rows(); ++i) {
+      for (int k = 0; k < left.columns(); ++k) {
+        for (int j = 0; j < right.columns(); ++j) {
+          result[i][j] = reduce(result[i][j],
+                                extend(left[i][k], right[k][j]));
+        }
+      }
+    }
+    return result;
+  }
+
+ private:
+  std::vector<std::vector<T>> values_;
+};
+
+template <typename T>
+using StandardMatrix = AlgebraMatrix<T, MatrixAdd<T>, MatrixMultiply<T>>;
+
+template <typename T>
+using MinPlusMatrix = AlgebraMatrix<T, MatrixMin<T>, MatrixMinPlusExtend<T>>;
+
+template <typename T>
+using MaxPlusMatrix = AlgebraMatrix<T, MatrixMax<T>, MatrixMaxPlusExtend<T>>;
+
+template <typename T>
+using MinMultiplyMatrix =
+    AlgebraMatrix<T, MatrixMin<T>, MatrixMinMultiplyExtend<T>>;
+
+template <typename T>
+using MaxMultiplyMatrix =
+    AlgebraMatrix<T, MatrixMax<T>, MatrixMaxMultiplyExtend<T>>;

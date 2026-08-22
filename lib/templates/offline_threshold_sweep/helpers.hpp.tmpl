@@ -1,0 +1,41 @@
+template <class Items, class Queries, class ItemKey, class QueryKey,
+		class Activate, class Answer, class Compare = std::less<>>
+void offline_threshold_sweep(
+		const Items& items,
+		const Queries& queries,
+		ItemKey item_key,
+		QueryKey query_key,
+		Activate activate,
+		Answer answer,
+		Compare compare = Compare()) {
+	std::vector<int> item_order(items.size());
+	std::vector<int> query_order(queries.size());
+	std::iota(item_order.begin(), item_order.end(), 0);
+	std::iota(query_order.begin(), query_order.end(), 0);
+	std::sort(item_order.begin(), item_order.end(), [&](int first, int second) {
+		auto first_key = item_key(items[first]);
+		auto second_key = item_key(items[second]);
+		if (compare(first_key, second_key)) return true;
+		if (compare(second_key, first_key)) return false;
+		return first < second;
+	});
+	std::sort(query_order.begin(), query_order.end(), [&](int first, int second) {
+		auto first_key = query_key(queries[first]);
+		auto second_key = query_key(queries[second]);
+		if (compare(first_key, second_key)) return true;
+		if (compare(second_key, first_key)) return false;
+		return first < second;
+	});
+
+	int item_pointer = 0;
+	for (int query_index : query_order) {
+		auto threshold = query_key(queries[query_index]);
+		while (item_pointer < static_cast<int>(item_order.size())) {
+			int item_index = item_order[item_pointer];
+			if (compare(threshold, item_key(items[item_index]))) break;
+			activate(item_index);
+			++item_pointer;
+		}
+		answer(query_index);
+	}
+}

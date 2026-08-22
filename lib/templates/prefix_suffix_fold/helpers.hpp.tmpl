@@ -1,0 +1,40 @@
+template <typename T>
+struct PrefixSuffixFold {
+  std::vector<T> prefix;
+  std::vector<T> suffix;
+};
+
+template <typename T, typename Operation>
+PrefixSuffixFold<T> prefix_suffix_fold(const std::vector<T>& values,
+                                       const T& identity,
+                                       Operation operation) {
+  const int n = static_cast<int>(values.size());
+  PrefixSuffixFold<T> result{
+      std::vector<T>(n + 1, identity), std::vector<T>(n + 1, identity)};
+  for (int i = 0; i < n; ++i) {
+    result.prefix[i + 1] = operation(result.prefix[i], values[i]);
+  }
+  for (int i = n - 1; i >= 0; --i) {
+    result.suffix[i] = operation(values[i], result.suffix[i + 1]);
+  }
+  return result;
+}
+
+template <typename T>
+PrefixSuffixFold<T> prefix_suffix_fold_sum(const std::vector<T>& values) {
+  return prefix_suffix_fold(values, T(0), std::plus<T>());
+}
+
+template <typename T>
+PrefixSuffixFold<T> prefix_suffix_fold_min(const std::vector<T>& values) {
+  return prefix_suffix_fold(
+      values, std::numeric_limits<T>::max(),
+      [](const T& lhs, const T& rhs) { return std::min(lhs, rhs); });
+}
+
+template <typename T>
+PrefixSuffixFold<T> prefix_suffix_fold_max(const std::vector<T>& values) {
+  return prefix_suffix_fold(
+      values, std::numeric_limits<T>::lowest(),
+      [](const T& lhs, const T& rhs) { return std::max(lhs, rhs); });
+}

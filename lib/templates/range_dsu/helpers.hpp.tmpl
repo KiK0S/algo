@@ -1,0 +1,57 @@
+class RangeDsu {
+ public:
+	explicit RangeDsu(int n = 0) { reset(n); }
+
+	void reset(int n) {
+		parent_.resize(n);
+		size_.assign(n, 1);
+		next_.resize(n + 1);
+		std::iota(parent_.begin(), parent_.end(), 0);
+		std::iota(next_.begin(), next_.end(), 0);
+		components_ = n;
+	}
+
+	int find(int vertex) {
+		return parent_[vertex] == vertex
+			? vertex
+			: parent_[vertex] = find(parent_[vertex]);
+	}
+
+	bool unite(int first, int second) {
+		first = find(first);
+		second = find(second);
+		if (first == second) return false;
+		if (size_[first] < size_[second]) std::swap(first, second);
+		parent_[second] = first;
+		size_[first] += size_[second];
+		--components_;
+		return true;
+	}
+
+	int unite_range(int left, int right) {
+		int merged = 0;
+		for (int edge = find_next(left); edge < right; edge = find_next(edge)) {
+			merged += unite(edge, edge + 1);
+			next_[edge] = find_next(edge + 1);
+		}
+		return merged;
+	}
+
+	bool same(int first, int second) { return find(first) == find(second); }
+
+	int component_size(int vertex) { return size_[find(vertex)]; }
+
+	int components() const { return components_; }
+
+ private:
+	std::vector<int> parent_;
+	std::vector<int> size_;
+	std::vector<int> next_;
+	int components_ = 0;
+
+	int find_next(int edge) {
+		return next_[edge] == edge
+			? edge
+			: next_[edge] = find_next(next_[edge]);
+	}
+};

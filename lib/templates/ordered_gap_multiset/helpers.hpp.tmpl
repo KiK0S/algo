@@ -1,0 +1,58 @@
+template <class Value>
+class OrderedGapMultiset {
+ public:
+	void insert(const Value& value) {
+		auto right = values_.upper_bound(value);
+		auto left = right;
+		const bool has_left = left != values_.begin();
+		if (has_left) --left;
+		if (has_left && right != values_.end()) {
+			erase_gap(*right - *left);
+		}
+		if (has_left) gaps_.insert(value - *left);
+		if (right != values_.end()) gaps_.insert(*right - value);
+		values_.insert(right, value);
+	}
+
+	bool erase_one(const Value& value) {
+		auto current = values_.find(value);
+		if (current == values_.end()) return false;
+		auto right = std::next(current);
+		auto left = current;
+		const bool has_left = left != values_.begin();
+		if (has_left) --left;
+		if (has_left) erase_gap(*current - *left);
+		if (right != values_.end()) erase_gap(*right - *current);
+		if (has_left && right != values_.end()) gaps_.insert(*right - *left);
+		values_.erase(current);
+		return true;
+	}
+
+	std::optional<Value> min_gap() const {
+		if (gaps_.empty()) return std::nullopt;
+		return *gaps_.begin();
+	}
+
+	std::optional<Value> max_gap() const {
+		if (gaps_.empty()) return std::nullopt;
+		return *gaps_.rbegin();
+	}
+
+	std::optional<Value> span() const {
+		if (values_.empty()) return std::nullopt;
+		return *values_.rbegin() - *values_.begin();
+	}
+
+	int size() const { return static_cast<int>(values_.size()); }
+	bool empty() const { return values_.empty(); }
+	const std::multiset<Value>& values() const { return values_; }
+
+ private:
+	std::multiset<Value> values_;
+	std::multiset<Value> gaps_;
+
+	void erase_gap(const Value& gap) {
+		auto iterator = gaps_.find(gap);
+		if (iterator != gaps_.end()) gaps_.erase(iterator);
+	}
+};

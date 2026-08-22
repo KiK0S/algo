@@ -19,6 +19,7 @@
     "onCommand:edulcni.linear_sieve",
     "onCommand:edulcni.fenwick",
     "onCommand:edulcni.factorial_precalc",
+    "onCommand:edulcni.combinatorics",
     "onCommand:edulcni.powers_precalc",
     "onCommand:edulcni.modint",
     "onCommand:edulcni.compress_unique",
@@ -55,8 +56,10 @@
     "onCommand:edulcni.bfs_dist",
     "onCommand:edulcni.bitmask_loop",
     "onCommand:edulcni.block_lengths",
+    "onCommand:edulcni.circular_blocks",
     "onCommand:edulcni.decrement_indices",
     "onCommand:edulcni.dfs_tree",
+    "onCommand:edulcni.tree_dp",
     "onCommand:edulcni.dsu_short",
     "onCommand:edulcni.fenwick_sum",
     "onCommand:edulcni.grid4",
@@ -92,17 +95,24 @@
     "onCommand:edulcni.aliens_trick",
     "onCommand:edulcni.output",
     "onCommand:edulcni.first_true",
+    "onCommand:edulcni.transpose_matrix",
     "onCommand:edulcni.difference_array",
     "onCommand:edulcni.sliding_window_max",
     "onCommand:edulcni.zero_one_bfs",
     "onCommand:edulcni.bridges",
     "onCommand:edulcni.tree_diameter",
+    "onCommand:edulcni.k_smallest",
     "onCommand:edulcni.euler_subtrees",
     "onCommand:edulcni.z_function",
+    "onCommand:edulcni.prefix_function",
+    "onCommand:edulcni.order_statistics",
     "onCommand:edulcni.manacher",
+    "onCommand:edulcni.parenthesis_stats",
     "onCommand:edulcni.xor_basis",
     "onCommand:edulcni.bitset_knapsack",
     "onCommand:edulcni.persistent_segment_tree",
+    "onCommand:edulcni.treap",
+    "onCommand:edulcni.arg_extrema",
     "onCommand:edulcni.binary_trie",
     "onCommand:edulcni.crt",
     "onCommand:edulcni.primality_64",
@@ -112,6 +122,7 @@
     "onCommand:edulcni.floyd_warshall",
     "onCommand:edulcni.hopcroft_karp",
     "onCommand:edulcni.global_min_cut",
+    "onCommand:edulcni.algebra_matrix",
     "onCommand:edulcni.geometry_point",
     "onCommand:edulcni.closest_pair",
     "onCommand:edulcni.minimum_enclosing_circle",
@@ -119,11 +130,16 @@
     "onCommand:edulcni.polygon_cut",
     "onCommand:edulcni.hull_diameter",
     "onCommand:edulcni.solve_linear",
+    "onCommand:edulcni.histogram_sequence",
     "onCommand:edulcni.determinant",
     "onCommand:edulcni.golden_section",
     "onCommand:edulcni.interval_set",
     "onCommand:edulcni.constant_intervals",
-    "onCommand:edulcni.permutation_rank"
+    "onCommand:edulcni.permutation_rank",
+    "onCommand:edulcni.consecutive_set",
+    "onCommand:edulcni.bounded_matchings",
+    "onCommand:edulcni.prefix_suffix_fold",
+    "onCommand:edulcni.level_boundary_segtree"
   ],
   "main": "./out/extension.js",
   "files": [
@@ -165,6 +181,10 @@
       {
         "command": "edulcni.factorial_precalc",
         "title": "edulcni: factorial_precalc — Inline"
+      },
+      {
+        "command": "edulcni.combinatorics",
+        "title": "edulcni: combinatorics — Global"
       },
       {
         "command": "edulcni.powers_precalc",
@@ -311,12 +331,20 @@
         "title": "edulcni: block_lengths — Inline"
       },
       {
+        "command": "edulcni.circular_blocks",
+        "title": "edulcni: circular_blocks — Global"
+      },
+      {
         "command": "edulcni.decrement_indices",
         "title": "edulcni: decrement_indices — Inline"
       },
       {
         "command": "edulcni.dfs_tree",
         "title": "edulcni: dfs_tree — Inline"
+      },
+      {
+        "command": "edulcni.tree_dp",
+        "title": "edulcni: tree_dp — Inline"
       },
       {
         "command": "edulcni.dsu_short",
@@ -459,6 +487,10 @@
         "title": "edulcni: first_true — Global"
       },
       {
+        "command": "edulcni.transpose_matrix",
+        "title": "edulcni: transpose_matrix — Global"
+      },
+      {
         "command": "edulcni.difference_array",
         "title": "edulcni: difference_array — Global"
       },
@@ -479,6 +511,10 @@
         "title": "edulcni: tree_diameter — Global"
       },
       {
+        "command": "edulcni.k_smallest",
+        "title": "edulcni: k_smallest — Global"
+      },
+      {
         "command": "edulcni.euler_subtrees",
         "title": "edulcni: euler_subtrees — Global"
       },
@@ -487,8 +523,20 @@
         "title": "edulcni: z_function — Global"
       },
       {
+        "command": "edulcni.prefix_function",
+        "title": "edulcni: prefix_function — Global"
+      },
+      {
+        "command": "edulcni.order_statistics",
+        "title": "edulcni: order_statistics — Global"
+      },
+      {
         "command": "edulcni.manacher",
         "title": "edulcni: manacher — Global"
+      },
+      {
+        "command": "edulcni.parenthesis_stats",
+        "title": "edulcni: parenthesis_stats — Global"
       },
       {
         "command": "edulcni.xor_basis",
@@ -501,6 +549,14 @@
       {
         "command": "edulcni.persistent_segment_tree",
         "title": "edulcni: persistent_segment_tree — Global"
+      },
+      {
+        "command": "edulcni.treap",
+        "title": "edulcni: treap — Global"
+      },
+      {
+        "command": "edulcni.arg_extrema",
+        "title": "edulcni: arg_extrema — Global"
       },
       {
         "command": "edulcni.binary_trie",
@@ -539,6 +595,10 @@
         "title": "edulcni: global_min_cut — Global"
       },
       {
+        "command": "edulcni.algebra_matrix",
+        "title": "edulcni: algebra_matrix — Global"
+      },
+      {
         "command": "edulcni.geometry_point",
         "title": "edulcni: geometry_point — Global"
       },
@@ -567,6 +627,10 @@
         "title": "edulcni: solve_linear — Global"
       },
       {
+        "command": "edulcni.histogram_sequence",
+        "title": "edulcni: histogram_sequence — Global"
+      },
+      {
         "command": "edulcni.determinant",
         "title": "edulcni: determinant — Global"
       },
@@ -585,6 +649,22 @@
       {
         "command": "edulcni.permutation_rank",
         "title": "edulcni: permutation_rank — Global"
+      },
+      {
+        "command": "edulcni.consecutive_set",
+        "title": "edulcni: consecutive_set — Global"
+      },
+      {
+        "command": "edulcni.bounded_matchings",
+        "title": "edulcni: bounded_matchings — Global"
+      },
+      {
+        "command": "edulcni.prefix_suffix_fold",
+        "title": "edulcni: prefix_suffix_fold — Global"
+      },
+      {
+        "command": "edulcni.level_boundary_segtree",
+        "title": "edulcni: level_boundary_segtree — Global"
       }
     ]
   },

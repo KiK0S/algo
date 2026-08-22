@@ -1,0 +1,33 @@
+struct CircularBlock {
+	int start = 0;
+	int length = 0;
+};
+
+template <class Range, class Predicate>
+std::vector<CircularBlock> circular_blocks(const Range& values,
+		Predicate predicate) {
+	const int n = static_cast<int>(values.size());
+	std::vector<CircularBlock> blocks;
+	if (n == 0) return blocks;
+
+	int separator = 0;
+	while (separator < n && predicate(values[separator])) ++separator;
+	if (separator == n) {
+		blocks.push_back({0, n});
+		return blocks;
+	}
+
+	int current_start = -1;
+	int current_length = 0;
+	for (int step = 1; step <= n; ++step) {
+		const int index = (separator + step) % n;
+		if (predicate(values[index])) {
+			if (current_length == 0) current_start = index;
+			++current_length;
+		} else if (current_length > 0) {
+			blocks.push_back({current_start, current_length});
+			current_length = 0;
+		}
+	}
+	return blocks;
+}

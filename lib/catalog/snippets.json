@@ -405,6 +405,16 @@
     }
   },
   {
+    "path": "/templates/combinatorics",
+    "insertMode": "global",
+    "template": "combinatorics/helpers.hpp.tmpl",
+    "label": "/templates/combinatorics",
+    "description": "factorials, combinations, permutations, and stars and bars",
+    "detail": "static / template",
+    "exports": ["Combinatorics"],
+    "features": ["factorial", "ncr", "npr", "multinomial", "catalan", "stars_and_bars"]
+  },
+  {
     "path": "/templates/powers_precalc",
     "insertMode": "cursor",
     "generator": "powers_precalc",
@@ -750,7 +760,7 @@
     "description": "smart implicit treap helper",
     "detail": "dynamic / template",
     "exports": ["TreapSumOp", "ImplicitTreap"],
-    "features": ["sum", "custom", "reverse", "range_add"],
+    "features": ["sum", "custom", "reverse", "range_add", "extract", "move", "rotate"],
     "applications": [
       "sequence_edit",
       "range_query",
@@ -767,7 +777,9 @@
     "wrappers": [
       "build_from_vector",
       "range_reverse",
-      "range_add"
+      "range_add",
+      "cut_paste",
+      "rotate"
     ],
     "bindings": [
       "sourceName",
@@ -1057,7 +1069,11 @@
       "nearest_greater_left",
       "nearest_greater_right",
       "NearestIndices",
-      "nearest_all"
+      "nearest_all",
+      "NearestAggregates",
+      "nearest_aggregates",
+      "sum_of_subarray_minimums",
+      "sum_of_subarray_maximums"
     ],
     "features": [
       "nearest_left",
@@ -1065,12 +1081,17 @@
       "smaller",
       "greater",
       "strict",
-      "non_strict"
+      "non_strict",
+      "boundary_spans",
+      "sums_between_boundaries",
+      "sum_of_subarray_minimums",
+      "sum_of_subarray_maximums"
     ],
     "applications": [
       "nearest_smaller",
       "nearest_greater",
       "all_nearest",
+      "boundary_aggregates",
       "custom_comparator"
     ],
     "constraints": {
@@ -1663,6 +1684,15 @@
     }
   },
   {
+    "path": "/templates/circular_blocks",
+    "insertMode": "global",
+    "template": "circular_blocks/helpers.hpp.tmpl",
+    "label": "/templates/circular_blocks",
+    "description": "cyclic blocks matching a predicate with original start indices",
+    "detail": "static / template",
+    "exports": ["CircularBlock", "circular_blocks"]
+  },
+  {
     "path": "/templates/decrement_indices",
     "insertMode": "cursor",
     "template": "decrement_indices.cpp.tmpl",
@@ -1692,6 +1722,18 @@
       ],
       "layout": "tree_with_array",
       "defaultGranularity": "operations"
+    }
+  },
+  {
+    "path": "/templates/tree_dp",
+    "insertMode": "cursor",
+    "template": "tree_dp.cpp.tmpl",
+    "description": "inline recursive tree DP skeleton",
+    "detail": "postorder child-state merge / O(n)",
+    "visualization": {
+      "status": "none",
+      "models": [],
+      "reason": "The inserted skeleton leaves the state and transition to the caller."
     }
   },
   {
@@ -2269,6 +2311,15 @@
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
+    "path": "/templates/transpose_matrix",
+    "insertMode": "global",
+    "template": "transpose_matrix/helpers.hpp.tmpl",
+    "description": "transpose a rectangular matrix",
+    "detail": "rows become columns / O(rows * columns)",
+    "exports": ["transpose_matrix"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
     "path": "/templates/difference_array",
     "insertMode": "global",
     "template": "difference_array/helpers.hpp.tmpl",
@@ -2314,6 +2365,156 @@
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
+    "path": "/templates/range_dsu",
+    "insertMode": "global",
+    "template": "range_dsu/helpers.hpp.tmpl",
+    "description": "DSU with amortized range unions",
+    "detail": "boundary skipping / O((n + operations) alpha(n))",
+    "exports": ["RangeDsu"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/frequency_tracker",
+    "insertMode": "global",
+    "template": "frequency_tracker/helpers.hpp.tmpl",
+    "description": "dynamic frequencies with mode queries",
+    "detail": "ordered count index / O(log distinct) updates",
+    "exports": ["FrequencyTracker"],
+    "features": ["add", "remove", "count", "max_frequency", "mode"],
+    "constraints": ["ordered_value_type", "largest_value_breaks_mode_ties"],
+    "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/argsort",
+    "insertMode": "global",
+    "template": "argsort/helpers.hpp.tmpl",
+    "description": "indices ordered by the corresponding values",
+    "detail": "deterministic index tie breaking / O(n log n)",
+    "exports": ["argsort"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/ordered_gap_multiset",
+    "insertMode": "global",
+    "template": "ordered_gap_multiset/helpers.hpp.tmpl",
+    "description": "ordered multiset with adjacent-gap queries",
+    "detail": "insert, erase, minimum gap, maximum gap, and span / O(log n)",
+    "exports": ["OrderedGapMultiset"],
+    "features": ["duplicates", "min_gap", "max_gap", "span"],
+    "constraints": ["ordered_subtractable_value_type"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/mex_tracker",
+    "insertMode": "global",
+    "template": "mex_tracker/helpers.hpp.tmpl",
+    "description": "frequency-aware dynamic minimum excluded value",
+    "detail": "bounded values with add and remove / O(log n)",
+    "exports": ["MexTracker"],
+    "features": ["add", "remove", "count", "mex"],
+    "visualization": { "status": "manual", "models": ["array", "set"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/parallel_binary_search",
+    "insertMode": "global",
+    "template": "parallel_binary_search/helpers.hpp.tmpl",
+    "description": "batch first-true search over a shared monotone update stream",
+    "detail": "reset, incremental apply, and per-query predicate callbacks",
+    "exports": ["parallel_binary_search"],
+    "constraints": ["monotone_predicate_per_query", "state_reset_each_round", "steps_applied_in_order"],
+    "visualization": { "status": "manual", "models": ["timeline", "table"], "reason": "Problem-defined state and predicates require custom visualization." }
+  },
+  {
+    "path": "/templates/permutation_decomposition",
+    "insertMode": "global",
+    "template": "permutation_decomposition/helpers.hpp.tmpl",
+    "description": "cycle structure and derived permutation properties",
+    "detail": "inverse, cycle positions, parity, and minimum swaps / O(n)",
+    "exports": ["PermutationDecomposition", "permutation_decomposition"],
+    "features": ["cycles", "inverse", "cycle_id", "cycle_position", "sign", "minimum_swaps"],
+    "constraints": ["zero_based_permutation"],
+    "visualization": { "status": "manual", "models": ["graph", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/offline_threshold_sweep",
+    "insertMode": "global",
+    "template": "offline_threshold_sweep/helpers.hpp.tmpl",
+    "description": "answer threshold queries over incremental activations",
+    "detail": "sorted items and queries with callback-managed state / O((n + q) log(n + q))",
+    "exports": ["offline_threshold_sweep"],
+    "constraints": ["ascending_order", "activate_when_item_key_le_query_key"],
+    "visualization": { "status": "manual", "models": ["timeline", "table"], "reason": "Problem-defined state and callbacks require custom visualization." }
+  },
+  {
+    "path": "/templates/fixed_point_iteration",
+    "insertMode": "global",
+    "template": "fixed_point_iteration/helpers.hpp.tmpl",
+    "description": "bounded iteration to convergence or a repeated state",
+    "detail": "custom transform and equality callbacks",
+    "exports": ["FixedPointResult", "fixed_point_iteration", "IterationCycle", "detect_iteration_cycle"],
+    "features": ["fixed_point", "iteration_limit", "cycle_detection", "custom_equality"],
+    "visualization": { "status": "manual", "models": ["timeline"], "reason": "Problem-defined states require custom visualization." }
+  },
+  {
+    "path": "/templates/dynamic_neighbor_set",
+    "insertMode": "global",
+    "template": "dynamic_neighbor_set/helpers.hpp.tmpl",
+    "description": "ordered set with an aggregate over adjacent-pair contributions",
+    "detail": "local contribution repair on insert and erase / O(log n)",
+    "exports": ["DynamicNeighborSet", "make_dynamic_neighbor_set"],
+    "constraints": ["unique_ordered_values", "additive_contribution_type"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Problem-defined pair contributions require custom visualization." }
+  },
+  {
+    "path": "/templates/sweep_events",
+    "insertMode": "global",
+    "template": "sweep_events/helpers.hpp.tmpl",
+    "description": "sort and process events in coordinate groups",
+    "detail": "custom state update and group callback / O(n log n)",
+    "exports": ["sweep_events"],
+    "visualization": { "status": "manual", "models": ["timeline"], "reason": "Problem-defined events and state require custom visualization." }
+  },
+  {
+    "path": "/templates/functional_graph",
+    "insertMode": "global",
+    "template": "functional_graph/helpers.hpp.tmpl",
+    "description": "decompose a functional graph into cycles and in-trees",
+    "detail": "cycle IDs, positions, entries, and distances / O(n)",
+    "exports": ["FunctionalGraphDecomposition", "functional_graph_decomposition"],
+    "features": ["cycles", "cycle_id", "cycle_position", "cycle_entry", "distance_to_cycle"],
+    "visualization": { "status": "manual", "models": ["graph", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/rerooting_dp",
+    "insertMode": "global",
+    "template": "rerooting_dp/helpers.hpp.tmpl",
+    "description": "generic all-roots tree dynamic programming",
+    "detail": "prefix/suffix rerooting / O(n)",
+    "exports": ["rerooting_dp"],
+    "constraints": ["tree", "associative_merge", "identity_element"],
+    "visualization": { "status": "manual", "models": [], "reason": "Problem-defined states and transitions require custom visualization." }
+  },
+  {
+    "path": "/templates/small_to_large_tree_dp",
+    "insertMode": "global",
+    "template": "small_to_large_tree_dp/helpers.hpp.tmpl",
+    "description": "move-aware small-to-large subtree state merging",
+    "detail": "largest-state accumulator / problem-dependent complexity",
+    "exports": ["small_to_large_tree_dp"],
+    "constraints": ["tree", "mergeable_state", "size_monotone_merge"],
+    "visualization": { "status": "manual", "models": [], "reason": "Problem-defined states and merge operations require custom visualization." }
+  },
+  {
+    "path": "/templates/k_smallest",
+    "insertMode": "global",
+    "template": "k_smallest/helpers.hpp.tmpl",
+    "description": "fixed-size streaming selection of the smallest values",
+    "detail": "stack-backed sorted array / O(nK)",
+    "exports": ["KSmallest", "k_smallest"],
+    "constraints": { "space": "O(K)", "result": "requires at least K values" },
+    "visualization": { "status": "none", "models": [], "reason": "Small fixed-size utility without algorithm-specific state." }
+  },
+  {
     "path": "/templates/euler_subtrees",
     "insertMode": "global",
     "template": "euler_subtrees/helpers.hpp.tmpl",
@@ -2332,6 +2533,24 @@
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
+    "path": "/templates/prefix_function",
+    "insertMode": "global",
+    "template": "prefix_function/helpers.hpp.tmpl",
+    "description": "prefix function for strings or arbitrary sequences",
+    "detail": "longest proper border of every prefix / O(n)",
+    "exports": ["prefix_function"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/order_statistics",
+    "insertMode": "global",
+    "template": "order_statistics/helpers.hpp.tmpl",
+    "description": "per-position prefix and suffix order counts",
+    "detail": "strictly less and greater counts via compression and Fenwick tree / O(n log n)",
+    "exports": ["OrderStatistics", "order_statistics"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
     "path": "/templates/manacher",
     "insertMode": "global",
     "template": "manacher/helpers.hpp.tmpl",
@@ -2339,6 +2558,15 @@
     "detail": "Manacher / O(n)",
     "exports": ["ManacherRadii", "manacher"],
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/parenthesis_stats",
+    "insertMode": "global",
+    "template": "parenthesis_stats/helpers.hpp.tmpl",
+    "description": "parenthesis balance range, validity, and prefix-balance frequencies",
+    "detail": "offset frequency vector including the empty prefix / O(n)",
+    "exports": ["ParenthesisStats", "parenthesis_stats"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
     "path": "/templates/xor_basis",
@@ -2366,6 +2594,25 @@
     "detail": "versions, range sums, and kth between versions / O(log n)",
     "exports": ["PersistentSegmentTree"],
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/treap",
+    "insertMode": "global",
+    "template": "treap/helpers.hpp.tmpl",
+    "description": "explicit-key randomized treap multiset",
+    "detail": "rank, kth, bounds, key split, and disjoint merge / expected O(log n)",
+    "exports": ["Treap"],
+    "features": ["multiset", "rank", "kth", "bounds", "split", "merge"],
+    "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/arg_extrema",
+    "insertMode": "global",
+    "template": "arg_extrema/helpers.hpp.tmpl",
+    "description": "argmin and argmax iterator and index helpers",
+    "detail": "configurable leftmost or rightmost tie breaking / O(n)",
+    "exports": ["ArgExtremaTie", "arg_extrema_element", "argmin_element", "argmax_element", "argmin", "argmax"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
     "path": "/templates/binary_trie",
@@ -2449,6 +2696,16 @@
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
+    "path": "/templates/algebra_matrix",
+    "insertMode": "global",
+    "template": "algebra_matrix/helpers.hpp.tmpl",
+    "description": "matrix multiplication over configurable reduction and extension operations",
+    "detail": "generic algebra with standard, min-plus, max-plus, min-multiply, and max-multiply presets",
+    "exports": ["MatrixAdd", "MatrixMultiply", "MatrixMinPlusExtend", "MatrixMaxPlusExtend", "MatrixMinMultiplyExtend", "MatrixMaxMultiplyExtend", "MatrixMin", "MatrixMax", "AlgebraMatrix", "StandardMatrix", "MinPlusMatrix", "MaxPlusMatrix", "MinMultiplyMatrix", "MaxMultiplyMatrix"],
+    "features": ["custom_operations", "identity", "standard", "min_plus", "max_plus", "min_multiply", "max_multiply"],
+    "visualization": { "status": "manual", "models": ["matrix"], "reason": "Generic algebra helper has no operation-level visualization hooks." }
+  },
+  {
     "path": "/templates/geometry_point",
     "insertMode": "global",
     "template": "geometry_point/helpers.hpp.tmpl",
@@ -2517,6 +2774,16 @@
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
+    "path": "/templates/histogram_sequence",
+    "insertMode": "global",
+    "template": "histogram_sequence/helpers.hpp.tmpl",
+    "description": "step-function breakpoints with point lookup and prefix area",
+    "detail": "optional Pareto ordering supports binary search on either coordinate",
+    "exports": ["HistogramConvention", "HistogramSequence", "ParetoDirection", "ParetoHistogramSequence"],
+    "features": ["left_or_right_breakpoints", "value_at", "prefix_area", "range_area", "x_search", "y_search", "pareto_search"],
+    "visualization": { "status": "manual", "models": ["array", "table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
     "path": "/templates/determinant",
     "insertMode": "global",
     "template": "determinant/helpers.hpp.tmpl",
@@ -2560,5 +2827,41 @@
     "detail": "Lehmer-style integer encoding for n <= 63 / O(n)",
     "exports": ["small_permutation_rank"],
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/consecutive_set",
+    "insertMode": "global",
+    "template": "consecutive_set/helpers.hpp.tmpl",
+    "description": "set of integers grouped into maximal consecutive segments",
+    "detail": "point insertion, removal, and containing-segment lookup / O(log segments)",
+    "exports": ["ConsecutiveSet"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/bounded_matchings",
+    "insertMode": "global",
+    "template": "bounded_matchings/helpers.hpp.tmpl",
+    "description": "count injective assignments to ordered values under upper bounds",
+    "detail": "sorted greedy product / O((slots + values) log slots)",
+    "exports": ["count_bounded_matchings"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/prefix_suffix_fold",
+    "insertMode": "global",
+    "template": "prefix_suffix_fold/helpers.hpp.tmpl",
+    "description": "prefix and suffix folds with sum, minimum, and maximum built-ins",
+    "detail": "generic associative scan / O(n)",
+    "exports": ["PrefixSuffixFold", "prefix_suffix_fold", "prefix_suffix_fold_sum", "prefix_suffix_fold_min", "prefix_suffix_fold_max"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/level_boundary_segtree",
+    "insertMode": "global",
+    "template": "level_boundary_segtree/helpers.hpp.tmpl",
+    "description": "dynamic validity predicates between adjacent blocks at every segment-tree depth",
+    "detail": "point updates and per-level violation counts / O(n) build, O(log n) update",
+    "exports": ["LevelBoundarySegTree", "OrderedBlockSummary", "OrderedBlockBoundaryTree", "make_ordered_block_boundary_tree"],
+    "visualization": { "status": "manual", "models": ["array", "interval_tree"], "reason": "Focused helper imported without runtime visualization hooks." }
   }
 ]

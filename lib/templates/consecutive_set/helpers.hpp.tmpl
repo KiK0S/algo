@@ -1,0 +1,67 @@
+template <typename T>
+class ConsecutiveSet {
+ public:
+  static_assert(std::is_integral_v<T>, "ConsecutiveSet requires an integer type");
+  using Segment = std::pair<T, T>;
+
+  bool insert(T value) {
+    if (contains(value)) return false;
+    auto right = segments_.lower_bound({value, std::numeric_limits<T>::lowest()});
+
+    auto left = right;
+    const bool has_left = left != segments_.begin() &&
+        (--left)->second != std::numeric_limits<T>::max() &&
+        left->second + 1 == value;
+    const bool has_right = right != segments_.end() &&
+        value != std::numeric_limits<T>::max() && right->first == value + 1;
+
+    if (has_left && has_right) {
+      const T begin = left->first;
+      const T end = right->second;
+      segments_.erase(left);
+      segments_.erase(right);
+      segments_.insert({begin, end});
+    } else if (has_left) {
+      const T begin = left->first;
+      segments_.erase(left);
+      segments_.insert({begin, value});
+    } else if (has_right) {
+      const T end = right->second;
+      segments_.erase(right);
+      segments_.insert({value, end});
+    } else {
+      segments_.insert({value, value});
+    }
+    ++size_;
+    return true;
+  }
+
+  bool erase(T value) {
+    auto segment = contains(value);
+    if (!segment) return false;
+
+    segments_.erase(*segment);
+    if (segment->first < value) segments_.insert({segment->first, value - 1});
+    if (value < segment->second) segments_.insert({value + 1, segment->second});
+    --size_;
+    return true;
+  }
+
+  std::optional<Segment> contains(T value) const {
+    auto iterator = segments_.upper_bound(
+        {value, std::numeric_limits<T>::max()});
+    if (iterator == segments_.begin()) return std::nullopt;
+    --iterator;
+    if (iterator->second < value) return std::nullopt;
+    return *iterator;
+  }
+
+  int size() const { return size_; }
+  bool empty() const { return size_ == 0; }
+  int segment_count() const { return static_cast<int>(segments_.size()); }
+  const std::set<Segment>& segments() const { return segments_; }
+
+ private:
+  std::set<Segment> segments_;
+  int size_ = 0;
+};

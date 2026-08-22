@@ -1,0 +1,35 @@
+struct ParenthesisStats {
+  int final_balance;
+  int minimum_balance;
+  int maximum_balance;
+  int balance_offset;
+  std::vector<int> balance_frequency;
+
+  bool is_balanced() const {
+    return final_balance == 0 && minimum_balance >= 0;
+  }
+
+  int frequency(int balance) const {
+    const int index = balance + balance_offset;
+    if (index < 0 || index >= static_cast<int>(balance_frequency.size())) {
+      return 0;
+    }
+    return balance_frequency[index];
+  }
+};
+
+ParenthesisStats parenthesis_stats(const std::string& sequence) {
+  const int n = static_cast<int>(sequence.size());
+  ParenthesisStats result{0, 0, 0, n, std::vector<int>(2 * n + 1, 0)};
+  ++result.balance_frequency[result.balance_offset];
+
+  for (char bracket : sequence) {
+    result.final_balance += (bracket == '(' ? 1 : -1);
+    result.minimum_balance =
+        std::min(result.minimum_balance, result.final_balance);
+    result.maximum_balance =
+        std::max(result.maximum_balance, result.final_balance);
+    ++result.balance_frequency[result.final_balance + result.balance_offset];
+  }
+  return result;
+}

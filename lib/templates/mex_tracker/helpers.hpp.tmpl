@@ -1,0 +1,40 @@
+class MexTracker {
+ public:
+	explicit MexTracker(int maximum_value = 0) { reset(maximum_value); }
+
+	void reset(int maximum_value) {
+		maximum_value_ = std::max(0, maximum_value);
+		count_.assign(maximum_value_ + 1, 0);
+		missing_.clear();
+		for (int value = 0; value <= maximum_value_; ++value) {
+			missing_.insert(value);
+		}
+	}
+
+	void add(int value) {
+		if (value < 0 || value > maximum_value_) return;
+		if (count_[value]++ == 0) missing_.erase(value);
+	}
+
+	bool remove(int value) {
+		if (value < 0 || value > maximum_value_ || count_[value] == 0) {
+			return false;
+		}
+		if (--count_[value] == 0) missing_.insert(value);
+		return true;
+	}
+
+	int count(int value) const {
+		if (value < 0 || value > maximum_value_) return 0;
+		return count_[value];
+	}
+
+	int mex() const {
+		return missing_.empty() ? maximum_value_ + 1 : *missing_.begin();
+	}
+
+ private:
+	int maximum_value_ = 0;
+	std::vector<int> count_;
+	std::set<int> missing_;
+};

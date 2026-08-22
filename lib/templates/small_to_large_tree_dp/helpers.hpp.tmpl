@@ -1,0 +1,31 @@
+template <class State, class MakeState, class StateSize, class Merge, class Finish>
+State small_to_large_tree_dp(
+		const std::vector<std::vector<int>>& tree,
+		int root,
+		MakeState make_state,
+		StateSize state_size,
+		Merge merge,
+		Finish finish) {
+	auto dfs = [&](auto self, int vertex, int parent) -> State {
+		State state = make_state(vertex);
+		for (int to : tree[vertex]) if (to != parent) {
+			State child = self(self, to, vertex);
+			if (state_size(state) < state_size(child)) std::swap(state, child);
+			merge(state, std::move(child));
+		}
+		finish(vertex, state);
+		return state;
+	};
+	return dfs(dfs, root, -1);
+}
+
+template <class State, class MakeState, class StateSize, class Merge>
+State small_to_large_tree_dp(
+		const std::vector<std::vector<int>>& tree,
+		int root,
+		MakeState make_state,
+		StateSize state_size,
+		Merge merge) {
+	return small_to_large_tree_dp<State>(tree, root, make_state, state_size, merge,
+		[](int, const State&) {});
+}

@@ -8,6 +8,7 @@ class TwoSat {
     assignment_.assign(variables_, false);
 {{#if componentsFeature}}
     component_.assign(2 * variables_, -1);
+    component_rank_.clear();
 {{/if}}
     solved_ = false;
     satisfiable_ = false;
@@ -130,6 +131,9 @@ class TwoSat {
       }
     }
 
+{{#if componentsFeature}}
+    component_rank_ = rank;
+{{/if}}
     for (int var = 0; var < variables_; ++var) {
       assignment_[var] = rank[comp[node(var, true)]] > rank[comp[node(var, false)]];
     }
@@ -157,6 +161,19 @@ class TwoSat {
   int component(int var, bool value) const {
     return ok_var(var) && solved_ ? component_[node(var, value)] : -1;
   }
+
+  int component_rank(int component) const {
+    return satisfiable() && component >= 0 &&
+                   component < static_cast<int>(component_rank_.size())
+               ? component_rank_[component]
+               : -1;
+  }
+
+  int literal_rank(int var, bool value) const {
+    return ok_var(var) && satisfiable()
+               ? component_rank_[component_[node(var, value)]]
+               : -1;
+  }
 {{/if}}
 
  private:
@@ -165,6 +182,7 @@ class TwoSat {
   std::vector<bool> assignment_;
 {{#if componentsFeature}}
   std::vector<int> component_;
+  std::vector<int> component_rank_;
 {{/if}}
   bool solved_;
   bool satisfiable_;
@@ -174,6 +192,7 @@ class TwoSat {
     EDULCNI_VIS(edulcni::live::array("twosat.assignment", assignment_));
 {{#if componentsFeature}}
     EDULCNI_VIS(edulcni::live::array("twosat.components", component_));
+    EDULCNI_VIS(edulcni::live::array("twosat.component_ranks", component_rank_));
 {{/if}}
     EDULCNI_STEP(label);
   }

@@ -1,0 +1,28 @@
+template <typename Count>
+Count count_bounded_matchings(int value_count,
+                              std::vector<int> upper_bounds,
+                              const std::vector<bool>& unavailable = {}) {
+  if (value_count < 0 || (!unavailable.empty() &&
+                          static_cast<int>(unavailable.size()) != value_count)) {
+    return Count(0);
+  }
+
+  std::sort(upper_bounds.begin(), upper_bounds.end());
+  std::vector<int> unavailable_prefix(value_count + 1, 0);
+  for (int value = 0; value < value_count; ++value) {
+    unavailable_prefix[value + 1] = unavailable_prefix[value] +
+        (!unavailable.empty() && unavailable[value]);
+  }
+
+  Count answer(1);
+  int assigned = 0;
+  for (int bound : upper_bounds) {
+    if (bound < 0) return Count(0);
+    bound = std::min(bound, value_count - 1);
+    const int available = bound + 1 - unavailable_prefix[bound + 1] - assigned;
+    if (available <= 0) return Count(0);
+    answer *= Count(available);
+    ++assigned;
+  }
+  return answer;
+}

@@ -1,0 +1,58 @@
+template <class State>
+struct FixedPointResult {
+	State state;
+	int iterations = 0;
+	bool converged = false;
+};
+
+template <class State, class Transform, class Equal>
+FixedPointResult<State> fixed_point_iteration(
+		State state,
+		Transform transform,
+		int maximum_iterations,
+		Equal equal) {
+	for (int iteration = 0; iteration < maximum_iterations; ++iteration) {
+		State next = transform(state);
+		if (equal(state, next)) return {std::move(next), iteration + 1, true};
+		state = std::move(next);
+	}
+	return {std::move(state), maximum_iterations, false};
+}
+
+template <class State, class Transform>
+FixedPointResult<State> fixed_point_iteration(
+		State state,
+		Transform transform,
+		int maximum_iterations) {
+	return fixed_point_iteration(
+		std::move(state), transform, maximum_iterations, std::equal_to<State>());
+}
+
+template <class State>
+struct IterationCycle {
+	std::vector<State> history;
+	int repeat_from = -1;
+	bool fixed_point = false;
+};
+
+template <class State, class Transform, class Equal = std::equal_to<State>>
+IterationCycle<State> detect_iteration_cycle(
+		State state,
+		Transform transform,
+		int maximum_iterations,
+		Equal equal = Equal()) {
+	IterationCycle<State> result;
+	result.history.push_back(std::move(state));
+	for (int iteration = 0; iteration < maximum_iterations; ++iteration) {
+		State next = transform(result.history.back());
+		for (int previous = 0;
+				previous < static_cast<int>(result.history.size()); ++previous) {
+			if (!equal(result.history[previous], next)) continue;
+			result.repeat_from = previous;
+			result.fixed_point = previous + 1 == static_cast<int>(result.history.size());
+			return result;
+		}
+		result.history.push_back(std::move(next));
+	}
+	return result;
+}
