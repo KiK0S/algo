@@ -87,6 +87,35 @@ inline BfsResult bfs(const std::vector<std::vector<int>>& graph, int source) {
   return bfs_multi_source(graph, std::vector<int>(1, source));
 }
 
+
+
+inline std::vector<int> bfs_restore_path(int source, int target,
+                                         const BfsResult& result) {
+  const int n = static_cast<int>(result.parent.size());
+  if (source < 0 || source >= n || target < 0 || target >= n) {
+    return {};
+  }
+
+  std::vector<int> path;
+  int current = target;
+  int steps = 0;
+  while (current != -1 && steps <= n) {
+    path.push_back(current);
+    current = result.parent[current];
+    ++steps;
+  }
+
+  if (path.empty() || path.back() != source) {
+    return {};
+  }
+  std::reverse(path.begin(), path.end());
+  EDULCNI_VIS(edulcni::live::graph_path_focus(
+      "bfs.graph", path, edulcni::live::FocusRole::result,
+      "restored shortest unweighted path"));
+  EDULCNI_STEP("BFS restored a path");
+  return path;
+}
+
 int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
@@ -96,11 +125,11 @@ int main() {
   EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
 
   std::vector<std::vector<int>> graph(6);
-    bfs_add_edge(graph, 0, 1, true);
-    bfs_add_edge(graph, 1, 2, true);
-    bfs_add_edge(graph, 2, 3, true);
-    bfs_add_edge(graph, 1, 4, true);
-    bfs_add_edge(graph, 4, 5, true);
+    for (const auto [from, to] : std::vector<std::pair<int, int>>{
+             {0, 1}, {1, 2}, {2, 3}, {1, 4}, {4, 5}}) {
+      graph[from].push_back(to);
+      graph[to].push_back(from);
+    }
     const BfsResult result = bfs(graph, 0);
     assert(result.distance[5] == 3);
     const auto path = bfs_restore_path(0, 5, result);

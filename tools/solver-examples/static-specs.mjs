@@ -291,6 +291,75 @@ export function createStaticSpecs(core) {
   assert(result.lambda == 5);
   assert(result.selected_count == 2);
 `
+    },
+    {
+      name: "wavelet_matrix",
+      path: "/templates/wavelet_matrix",
+      description: "Query order statistics, frequencies, and prefix sums in subarrays.",
+      render: renderStaticSolver(core, "wavelet_matrix"),
+      mainBody: String.raw`
+  const std::vector<unsigned> values = {5, 1, 4, 1, 3};
+  WaveletMatrix<unsigned> matrix(values);
+  assert(matrix.kth(1, 5, 0) == 1);
+  assert(matrix.kth(1, 5, 2) == 3);
+  assert(matrix.frequency(0, 5, 1) == 2);
+  assert(matrix.count_less(0, 5, 4) == 3);
+  assert(matrix.sum_k_smallest(0, 5, 3) == 5);
+`
+    },
+    {
+      name: "suffix_automaton",
+      path: "/templates/suffix_automaton",
+      description: "Count distinct substrings and occurrences with a suffix automaton.",
+      render: renderStaticSolver(core, "suffix_automaton"),
+      mainBody: String.raw`
+  SuffixAutomaton automaton(std::string("ababa"));
+  assert(automaton.distinct_substring_count() == 9);
+  assert(automaton.occurrence_count(std::string("aba")) == 2);
+  assert(automaton.occurrence_count(std::string("ac")) == 0);
+  assert((automaton.representative_occurrence(std::string("bab")) ==
+          std::pair<int, int>{1, 4}));
+`
+    },
+    {
+      name: "potential_dsu",
+      path: "/templates/potential_dsu",
+      description: "Maintain relative potentials and reject inconsistent constraints.",
+      render: renderStaticSolver(core, "potential_dsu"),
+      mainBody: String.raw`
+  PotentialDsu<long long> dsu(4);
+  assert(dsu.unite(0, 1, 5));
+  assert(dsu.unite(1, 2, -2));
+  assert(dsu.difference(0, 2) == std::optional<long long>{3});
+  assert(!dsu.unite(0, 2, 4));
+  assert(!dsu.difference(0, 3).has_value());
+`
+    },
+    {
+      name: "floor_sum",
+      path: "/templates/floor_sum",
+      description: "Evaluate signed floor sums and lattice-point counts.",
+      render: renderStaticSolver(core, "floor_sum"),
+      mainBody: String.raw`
+  assert(floor_sum(5, 7, 3, 2) == 4);
+  assert(floor_sum(4, 5, -2, 1) == -3);
+  assert(count_lattice_points_below(5, 7, 3, 2) == 9);
+`
+    },
+    {
+      name: "lower_bound_flow",
+      path: "/templates/lower_bound_flow",
+      description: "Find a feasible circulation with lower and upper edge bounds.",
+      render: renderStaticSolver(core, "lower_bound_flow"),
+      mainBody: String.raw`
+  LowerBoundFlow<long long> flow(3);
+  flow.add_edge(0, 1, 2, 4);
+  flow.add_edge(1, 2, 2, 4);
+  flow.add_edge(2, 0, 2, 4);
+  assert(flow.feasible_circulation());
+  const auto edge_flows = flow.edge_flows();
+  assert((edge_flows == std::vector<long long>{2, 2, 2}));
+`
     }
   ];
 }

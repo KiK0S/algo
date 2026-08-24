@@ -116,6 +116,41 @@ class ImplicitTreap {
     return true;
   }
 
+  ImplicitTreap extract(int left, int right) {
+    ImplicitTreap extracted(next_priority());
+    if (!normalize_range(left, right)) return extracted;
+    std::pair<Node*, Node*> left_mid = split(root_, left);
+    std::pair<Node*, Node*> mid_right = split(left_mid.second, right - left + 1);
+    root_ = merge(left_mid.first, mid_right.second);
+    extracted.root_ = mid_right.first;
+    trace_operation("Implicit treap extracted a range");
+    return extracted;
+  }
+
+  void insert(int position, ImplicitTreap&& segment) {
+    position = std::max(0, std::min(position, size()));
+    std::pair<Node*, Node*> parts = split(root_, position);
+    root_ = merge(parts.first, merge(segment.root_, parts.second));
+    segment.root_ = nullptr;
+    trace_operation("Implicit treap inserted a range");
+  }
+
+  void move(int left, int right, int destination) {
+    ImplicitTreap segment = extract(left, right);
+    insert(destination, std::move(segment));
+    trace_operation("Implicit treap moved a range");
+  }
+
+  void rotate(int left, int middle, int right) {
+    if (!normalize_range(left, right) || middle <= left || middle > right) return;
+    std::pair<Node*, Node*> prefix_range = split(root_, left);
+    std::pair<Node*, Node*> range_suffix = split(prefix_range.second, right - left + 1);
+    std::pair<Node*, Node*> halves = split(range_suffix.first, middle - left);
+    root_ = merge(prefix_range.first,
+                  merge(merge(halves.second, halves.first), range_suffix.second));
+    trace_operation("Implicit treap rotated a range");
+  }
+
   bool get(int position, T& out) {
     if (position < 0 || position >= size()) {
       return false;

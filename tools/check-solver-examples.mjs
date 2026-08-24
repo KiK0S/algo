@@ -78,7 +78,10 @@ async function main() {
       delete environment.EDULCNI_HOST;
       delete environment.EDULCNI_PORT;
       delete environment.EDULCNI_TOKEN;
-      run(executable, [], { env: environment });
+      run(executable, [], {
+        env: environment,
+        cwd: active ? edulcniRoot : undefined
+      });
       checked += 1;
     }
   } finally {

@@ -134,6 +134,17 @@
       "demo": "https://kik0s.github.io/edulcni/examples/fft_ntt/"
     },
     {
+      "name": "floor_sum",
+      "path": "/templates/floor_sum",
+      "description": "Evaluate signed floor sums and lattice-point counts.",
+      "visualization": "manual",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/floor_sum/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/floor_sum/"
+    },
+    {
       "name": "fwt_convolution",
       "path": "/templates/fwt_convolution",
       "description": "Compute an XOR convolution with the Walsh-Hadamard transform.",
@@ -147,7 +158,7 @@
     {
       "name": "geometry",
       "path": "/templates/geometry",
-      "description": "Intersect segments and construct a convex hull.",
+      "description": "Construct a convex hull from a small point set.",
       "visualization": "automatic",
       "requirements": [
         "portable C++17"
@@ -299,6 +310,17 @@
       "demo": "https://kik0s.github.io/edulcni/examples/lis/"
     },
     {
+      "name": "lower_bound_flow",
+      "path": "/templates/lower_bound_flow",
+      "description": "Find a feasible circulation with lower and upper edge bounds.",
+      "visualization": "manual",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/lower_bound_flow/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/lower_bound_flow/"
+    },
+    {
       "name": "maxflow_dinic",
       "path": "/templates/maxflow_dinic",
       "description": "Find the maximum flow through a small capacitated network.",
@@ -409,6 +431,17 @@
       "demo": "https://kik0s.github.io/edulcni/examples/poly_hash/"
     },
     {
+      "name": "potential_dsu",
+      "path": "/templates/potential_dsu",
+      "description": "Maintain relative potentials and reject inconsistent constraints.",
+      "visualization": "manual",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/potential_dsu/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/potential_dsu/"
+    },
+    {
       "name": "rollback_dsu",
       "path": "/templates/rollback_dsu",
       "description": "Merge components, then restore a previous DSU snapshot.",
@@ -497,6 +530,17 @@
       "demo": "https://kik0s.github.io/edulcni/examples/suffix_array/"
     },
     {
+      "name": "suffix_automaton",
+      "path": "/templates/suffix_automaton",
+      "description": "Count distinct substrings and occurrences with a suffix automaton.",
+      "visualization": "manual",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/suffix_automaton/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/suffix_automaton/"
+    },
+    {
       "name": "test_generators",
       "path": "/templates/test_generators",
       "description": "Generate deterministic arrays, permutations, masks, trees, and graphs.",
@@ -550,6 +594,17 @@
       ],
       "source": "templates/twosat/main.cpp",
       "demo": "https://kik0s.github.io/edulcni/examples/twosat/"
+    },
+    {
+      "name": "wavelet_matrix",
+      "path": "/templates/wavelet_matrix",
+      "description": "Query order statistics, frequencies, and prefix sums in subarrays.",
+      "visualization": "manual",
+      "requirements": [
+        "portable C++17"
+      ],
+      "source": "templates/wavelet_matrix/main.cpp",
+      "demo": "https://kik0s.github.io/edulcni/examples/wavelet_matrix/"
     }
   ]
 }

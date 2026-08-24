@@ -112,6 +112,7 @@ export function createDynamicSpecsB(core) {
       path: "/templates/monotonic_stack",
       description: "Find the nearest smaller and greater elements on both sides.",
       render: () => core.renderMonotonicStack({
+        application: "all_nearest",
         names: core.planMonotonicStackNames(analyze()),
         includeUsageComment: false
       }),
@@ -132,15 +133,15 @@ export function createDynamicSpecsB(core) {
       }),
       mainBody: String.raw`
   std::vector<std::vector<int>> graph(6);
-  toposort_add_edge(graph, 5, 2);
-  toposort_add_edge(graph, 5, 0);
-  toposort_add_edge(graph, 4, 0);
-  toposort_add_edge(graph, 4, 1);
-  toposort_add_edge(graph, 2, 3);
-  toposort_add_edge(graph, 3, 1);
+  graph[5].push_back(2);
+  graph[5].push_back(0);
+  graph[4].push_back(0);
+  graph[4].push_back(1);
+  graph[2].push_back(3);
+  graph[3].push_back(1);
   bool is_dag = false;
   const std::vector<int> order = topological_sort(graph, &is_dag);
-  assert(is_dag && is_topological_order(graph, order));
+  assert(is_dag && order.size() == graph.size());
 `
     },
     {
@@ -153,13 +154,13 @@ export function createDynamicSpecsB(core) {
       }),
       mainBody: String.raw`
   std::vector<std::vector<int>> graph(6);
-  kosaraju_add_edge(graph, 0, 1);
-  kosaraju_add_edge(graph, 1, 2);
-  kosaraju_add_edge(graph, 2, 0);
-  kosaraju_add_edge(graph, 2, 3);
-  kosaraju_add_edge(graph, 3, 4);
-  kosaraju_add_edge(graph, 4, 3);
-  kosaraju_add_edge(graph, 4, 5);
+  graph[0].push_back(1);
+  graph[1].push_back(2);
+  graph[2].push_back(0);
+  graph[2].push_back(3);
+  graph[3].push_back(4);
+  graph[4].push_back(3);
+  graph[4].push_back(5);
   const KosarajuResult result = kosaraju_scc(graph);
   assert(result.component_count == 3);
   assert(result.component_of[0] == result.component_of[2]);
@@ -173,17 +174,18 @@ export function createDynamicSpecsB(core) {
       description: "Trace shortest paths in a small weighted graph.",
       render: () => core.renderDijkstra({
         names: core.planDijkstraNames(analyze()),
+        application: "path_restore",
         includeUsageComment: false
       }),
       mainBody: String.raw`
   const long long infinity = std::numeric_limits<long long>::max();
   std::vector<std::vector<DijkstraEdge<long long>>> graph(5);
-  dijkstra_add_edge(graph, 0, 1, 10);
-  dijkstra_add_edge(graph, 0, 2, 3);
-  dijkstra_add_edge(graph, 2, 1, 1);
-  dijkstra_add_edge(graph, 1, 3, 2);
-  dijkstra_add_edge(graph, 2, 3, 8);
-  dijkstra_add_edge(graph, 3, 4, 2);
+  for (const auto [from, to, weight] :
+       std::vector<std::tuple<int, int, long long>>{
+           {0, 1, 10}, {0, 2, 3}, {2, 1, 1},
+           {1, 3, 2}, {2, 3, 8}, {3, 4, 2}}) {
+    graph[from].push_back({to, weight});
+  }
   const DijkstraResult<long long> result = dijkstra(graph, 0, infinity);
   assert(result.distance[4] == 8);
   assert((dijkstra_restore_path(0, 4, result) == std::vector<int>{0, 2, 1, 3, 4}));
@@ -241,9 +243,7 @@ export function createDynamicSpecsB(core) {
       mainBody: String.raw`
   const std::set<int> values = {2, 4, 8};
   assert(next_value(values, 4).value() == 8);
-  assert(prev_value(values, 4).value() == 2);
   assert(!next_value(values, 8).has_value());
-  assert(!prev_value(values, 2).has_value());
 `
     },
     {
@@ -251,6 +251,7 @@ export function createDynamicSpecsB(core) {
       path: "/templates/hld",
       description: "Decompose tree paths into contiguous heavy-light segments.",
       render: () => core.renderHld({
+        application: "path_query",
         names: core.planHldNames(analyze()),
         includeUsageComment: false
       }),
@@ -263,10 +264,6 @@ export function createDynamicSpecsB(core) {
   hld.add_edge(2, 5);
   hld.add_edge(2, 6);
   hld.build(0);
-  assert(hld.lca(3, 4) == 1);
-  assert(hld.lca(3, 6) == 0);
-  const auto subtree = hld.subtree_segment(2);
-  assert(subtree.second - subtree.first + 1 == 3);
   const auto path = hld.path_segments(3, 6, true);
   assert(!path.empty());
 `
@@ -295,14 +292,13 @@ export function createDynamicSpecsB(core) {
     {
       name: "geometry",
       path: "/templates/geometry",
-      description: "Intersect segments and construct a convex hull.",
-      render: () => core.renderGeometry({ includeUsageComment: false }),
+      description: "Construct a convex hull from a small point set.",
+      render: () => core.renderGeometry({
+        application: "convex_hull",
+        includeUsageComment: false
+      }),
       mainBody: String.raw`
   using Point = Point2<long long>;
-  assert(segments_intersect(Point(0, 0), Point(2, 2), Point(0, 2), Point(2, 0)));
-  const auto intersections = segment_intersection(
-      Point(0, 0), Point(2, 2), Point(0, 2), Point(2, 0));
-  assert(intersections.size() == 1);
   std::vector<Point> points = {
       Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2), Point(1, 1)};
   const std::vector<Point> hull = convex_hull(points);

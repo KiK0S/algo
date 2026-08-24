@@ -11,12 +11,6 @@ using namespace std;
 #define EDULCNI_STEP(...) ((void)0)
 #endif
 
-template <typename T>
-int geometry_sign(const T& value) {
-  return (T(0) < value) - (value < T(0));
-}
-
-
 inline int geometry_sign_eps(long double value, long double eps = 1e-12L) {
   return (value > eps) - (value < -eps);
 }
@@ -86,25 +80,81 @@ inline long double cross_ld(const Point2<T>& a, const Point2<T>& b,
 }
 
 
+
+
+
+
+
+
 template <typename T>
-inline int orientation(const Point2<T>& a, const Point2<T>& b, const Point2<T>& c,
-                       long double eps = 1e-12L) {
-  return geometry_sign_eps(cross_ld(a, b, c), eps);
+inline std::vector<Point2<T>> convex_hull(std::vector<Point2<T>> points,
+                                          long double eps = 1e-12L) {
+  EDULCNI_VIS(edulcni::live::points("convex_hull.points", points));
+  EDULCNI_STEP("Convex hull initialized");
+  if (points.size() <= 1) {
+    return points;
+  }
+
+  std::sort(points.begin(), points.end());
+  points.erase(std::unique(points.begin(), points.end()), points.end());
+  if (points.size() <= 1) {
+    return points;
+  }
+
+  std::vector<Point2<T>> lower;
+  std::vector<Point2<T>> upper;
+
+  for (const Point2<T>& p : points) {
+    while (lower.size() >= 2 &&
+           geometry_sign_eps(cross_ld(lower[lower.size() - 2], lower.back(), p), eps) <=
+               0) {
+      lower.pop_back();
+    }
+    lower.push_back(p);
+    EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+    EDULCNI_VIS(edulcni::live::points_focus(
+        "convex_hull.points", std::vector<Point2<T>>{p},
+        edulcni::live::FocusRole::accepted,
+        "accepted on the lower hull"));
+    EDULCNI_STEP("Convex hull extends the lower chain");
+  }
+
+  for (int i = static_cast<int>(points.size()) - 1; i >= 0; --i) {
+    const Point2<T>& p = points[i];
+    while (upper.size() >= 2 &&
+           geometry_sign_eps(cross_ld(upper[upper.size() - 2], upper.back(), p), eps) <=
+               0) {
+      upper.pop_back();
+    }
+    upper.push_back(p);
+    EDULCNI_VIS(edulcni::live::points("convex_hull.chain", upper));
+    EDULCNI_VIS(edulcni::live::points_focus(
+        "convex_hull.points", std::vector<Point2<T>>{p},
+        edulcni::live::FocusRole::accepted,
+        "accepted on the upper hull"));
+    EDULCNI_STEP("Convex hull extends the upper chain");
+  }
+
+  lower.pop_back();
+  upper.pop_back();
+  lower.insert(lower.end(), upper.begin(), upper.end());
+  EDULCNI_VIS(edulcni::live::points("convex_hull.chain", lower));
+  EDULCNI_VIS(edulcni::live::points_focus(
+      "convex_hull.points", lower, edulcni::live::FocusRole::result,
+      "points on the convex hull"));
+  EDULCNI_STEP("Convex hull completed");
+  return lower;
 }
 
 int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
 
-  EDULCNI_VIS(edulcni::live::text("example.scenario", "Intersect segments and construct a convex hull."));
+  EDULCNI_VIS(edulcni::live::text("example.scenario", "Construct a convex hull from a small point set."));
   EDULCNI_STEP("Example scenario initialized");
   EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
 
   using Point = Point2<long long>;
-    assert(segments_intersect(Point(0, 0), Point(2, 2), Point(0, 2), Point(2, 0)));
-    const auto intersections = segment_intersection(
-        Point(0, 0), Point(2, 2), Point(0, 2), Point(2, 0));
-    assert(intersections.size() == 1);
     std::vector<Point> points = {
         Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2), Point(1, 1)};
     const std::vector<Point> hull = convex_hull(points);

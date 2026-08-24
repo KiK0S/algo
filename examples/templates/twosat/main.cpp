@@ -121,6 +121,7 @@ class TwoSat {
       }
     }
 
+
     for (int var = 0; var < variables_; ++var) {
       assignment_[var] = rank[comp[node(var, true)]] > rank[comp[node(var, false)]];
     }

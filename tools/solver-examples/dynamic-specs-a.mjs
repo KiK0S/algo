@@ -77,15 +77,16 @@ export function createDynamicSpecsA(core) {
       render: () =>
         core.renderBfs({
           names: core.planBfsNames(analysis(core)),
+          application: "path_restore",
           includeUsageComment: false
         }),
       mainBody: String.raw`
   std::vector<std::vector<int>> graph(6);
-  bfs_add_edge(graph, 0, 1, true);
-  bfs_add_edge(graph, 1, 2, true);
-  bfs_add_edge(graph, 2, 3, true);
-  bfs_add_edge(graph, 1, 4, true);
-  bfs_add_edge(graph, 4, 5, true);
+  for (const auto [from, to] : std::vector<std::pair<int, int>>{
+           {0, 1}, {1, 2}, {2, 3}, {1, 4}, {4, 5}}) {
+    graph[from].push_back(to);
+    graph[to].push_back(from);
+  }
   const BfsResult result = bfs(graph, 0);
   assert(result.distance[5] == 3);
   const auto path = bfs_restore_path(0, 5, result);
@@ -192,6 +193,7 @@ export function createDynamicSpecsA(core) {
       description: "Build binary lifting tables and answer ancestor queries.",
       render: () =>
         core.renderLca({
+          application: "lca_dist",
           names: core.planLcaNames(analysis(core)),
           includeUsageComment: false
         }),

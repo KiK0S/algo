@@ -50,12 +50,188 @@ inline std::vector<int> nearest_left_by(const std::vector<T>& values,
 
 
 
+template <typename T, typename Compare>
+inline std::vector<int> nearest_right_by(const std::vector<T>& values,
+                                         Compare compare, bool strict = true) {
+  const int n = static_cast<int>(values.size());
+  std::vector<int> result(n, -1);
+  std::vector<int> st;
+  st.reserve(n);
+
+  for (int i = n - 1; i >= 0; --i) {
+    while (!st.empty()) {
+      const int j = st.back();
+      const bool keep = strict ? compare(values[j], values[i])
+                               : !compare(values[i], values[j]);
+      if (keep) {
+        break;
+      }
+      st.pop_back();
+    }
+    if (!st.empty()) {
+      result[i] = st.back();
+    }
+    st.push_back(i);
+    EDULCNI_VIS(edulcni::live::array("monotonic_stack.values", values));
+    EDULCNI_VIS(edulcni::live::array("monotonic_stack.indices", st));
+    EDULCNI_VIS(edulcni::live::array("monotonic_stack.answer", result));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.values", i, edulcni::live::FocusRole::active,
+        "current element"));
+    EDULCNI_VIS(edulcni::live::array_focus(
+        "monotonic_stack.answer", i,
+        edulcni::live::FocusRole::changed,
+        result[i] == -1 ? "no qualifying element" : "nearest index derived"));
+    EDULCNI_STEP("Monotonic stack processed an element from the right");
+  }
+  return result;
+}
+
 
 
 template <typename T>
 inline std::vector<int> nearest_smaller_left(const std::vector<T>& values,
                                              bool strict = true) {
   return nearest_left_by(values, std::less<T>(), strict);
+}
+
+
+
+template <typename T>
+inline std::vector<int> nearest_smaller_right(const std::vector<T>& values,
+                                              bool strict = true) {
+  return nearest_right_by(values, std::less<T>(), strict);
+}
+
+
+
+template <typename T>
+inline std::vector<int> nearest_greater_left(const std::vector<T>& values,
+                                             bool strict = true) {
+  return nearest_left_by(values, std::greater<T>(), strict);
+}
+
+
+
+template <typename T>
+inline std::vector<int> nearest_greater_right(const std::vector<T>& values,
+                                              bool strict = true) {
+  return nearest_right_by(values, std::greater<T>(), strict);
+}
+
+
+
+template <typename T>
+struct NearestIndices {
+  std::vector<int> left_smaller;
+  std::vector<int> right_smaller;
+  std::vector<int> left_greater;
+  std::vector<int> right_greater;
+};
+
+template <typename T>
+inline NearestIndices<T> nearest_all(const std::vector<T>& values,
+                                     bool strict = true) {
+  NearestIndices<T> result;
+  result.left_smaller = nearest_smaller_left(values, strict);
+  result.right_smaller = nearest_smaller_right(values, strict);
+  result.left_greater = nearest_greater_left(values, strict);
+  result.right_greater = nearest_greater_right(values, strict);
+  return result;
+}
+
+template <typename Sum>
+struct NearestAggregates {
+  NearestIndices<Sum> nearest;
+  std::vector<Sum> prefix_sum;
+
+  Sum range_sum(int left, int right) const {
+    return left >= right ? Sum(0) : prefix_sum[right] - prefix_sum[left];
+  }
+
+  Sum between_left_smaller(int index) const {
+    return range_sum(nearest.left_smaller[index] + 1, index);
+  }
+
+  Sum between_right_smaller(int index) const {
+    int right = nearest.right_smaller[index];
+    if (right == -1) right = static_cast<int>(prefix_sum.size()) - 1;
+    return range_sum(index + 1, right);
+  }
+
+  Sum between_left_greater(int index) const {
+    return range_sum(nearest.left_greater[index] + 1, index);
+  }
+
+  Sum between_right_greater(int index) const {
+    int right = nearest.right_greater[index];
+    if (right == -1) right = static_cast<int>(prefix_sum.size()) - 1;
+    return range_sum(index + 1, right);
+  }
+
+  int left_smaller_span(int index) const {
+    return index - nearest.left_smaller[index] - 1;
+  }
+
+  int right_smaller_span(int index) const {
+    int right = nearest.right_smaller[index];
+    if (right == -1) right = static_cast<int>(prefix_sum.size()) - 1;
+    return right - index - 1;
+  }
+
+  int left_greater_span(int index) const {
+    return index - nearest.left_greater[index] - 1;
+  }
+
+  int right_greater_span(int index) const {
+    int right = nearest.right_greater[index];
+    if (right == -1) right = static_cast<int>(prefix_sum.size()) - 1;
+    return right - index - 1;
+  }
+};
+
+template <typename T, typename Sum = long long>
+inline NearestAggregates<Sum> nearest_aggregates(
+    const std::vector<T>& values, bool strict = true) {
+  NearestAggregates<Sum> result;
+  auto nearest = nearest_all(values, strict);
+  result.nearest.left_smaller = std::move(nearest.left_smaller);
+  result.nearest.right_smaller = std::move(nearest.right_smaller);
+  result.nearest.left_greater = std::move(nearest.left_greater);
+  result.nearest.right_greater = std::move(nearest.right_greater);
+  result.prefix_sum.assign(values.size() + 1, Sum(0));
+  for (int index = 0; index < static_cast<int>(values.size()); ++index) {
+    result.prefix_sum[index + 1] = result.prefix_sum[index] + Sum(values[index]);
+  }
+  return result;
+}
+
+template <typename T, typename Sum = long long>
+inline Sum sum_of_subarray_minimums(const std::vector<T>& values) {
+  const auto left = nearest_smaller_left(values, true);
+  const auto right = nearest_smaller_right(values, false);
+  Sum result = 0;
+  for (int index = 0; index < static_cast<int>(values.size()); ++index) {
+    const int right_index = right[index] == -1
+        ? static_cast<int>(values.size()) : right[index];
+    result += Sum(values[index]) * Sum(index - left[index]) *
+        Sum(right_index - index);
+  }
+  return result;
+}
+
+template <typename T, typename Sum = long long>
+inline Sum sum_of_subarray_maximums(const std::vector<T>& values) {
+  const auto left = nearest_greater_left(values, true);
+  const auto right = nearest_greater_right(values, false);
+  Sum result = 0;
+  for (int index = 0; index < static_cast<int>(values.size()); ++index) {
+    const int right_index = right[index] == -1
+        ? static_cast<int>(values.size()) : right[index];
+    result += Sum(values[index]) * Sum(index - left[index]) *
+        Sum(right_index - index);
+  }
+  return result;
 }
 
 int main() {

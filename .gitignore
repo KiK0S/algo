@@ -1,5 +1,6 @@
 extension/node_modules/
 extension/out/
+extension/.vscode-test/
 extension/library
 .test-bin
 site/archive.json

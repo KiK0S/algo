@@ -43,8 +43,9 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [fast_allocator](templates/fast_allocator/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/fast_allocator/) | diagnostic | portable C++17 | Allocate standard containers from a resettable arena. |
 | [fenwick](templates/fenwick/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/fenwick/) | automatic | portable C++17 | Accumulate point additions and query prefix and range sums. |
 | [fft_ntt](templates/fft_ntt/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/fft_ntt/) | automatic | portable C++17 | Multiply two integer polynomials with the NTT. |
+| [floor_sum](templates/floor_sum/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/floor_sum/) | manual | portable C++17 | Evaluate signed floor sums and lattice-point counts. |
 | [fwt_convolution](templates/fwt_convolution/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/fwt_convolution/) | automatic | portable C++17 | Compute an XOR convolution with the Walsh-Hadamard transform. |
-| [geometry](templates/geometry/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/geometry/) | automatic | portable C++17 | Intersect segments and construct a convex hull. |
+| [geometry](templates/geometry/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/geometry/) | automatic | portable C++17 | Construct a convex hull from a small point set. |
 | [gp_hash_table](templates/gp_hash_table/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/gp_hash_table/) | manual | pbds | Use hardened hashes with GNU PBDS hash tables. |
 | [halfplane_intersection](templates/halfplane_intersection/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/halfplane_intersection/) | automatic | portable C++17 | Intersect four half-planes into a bounded polygon. |
 | [hld](templates/hld/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/hld/) | automatic | portable C++17 | Decompose tree paths into contiguous heavy-light segments. |
@@ -58,6 +59,7 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [li_chao_tree](templates/li_chao_tree/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/li_chao_tree/) | automatic | portable C++17 | Insert arbitrary lines and query their minimum on an integer domain. |
 | [linear_sieve](templates/linear_sieve/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/linear_sieve/) | automatic | portable C++17 | Generate primes and factor an integer with a linear sieve. |
 | [lis](templates/lis/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/lis/) | automatic | portable C++17 | Reconstruct strict and nondecreasing longest subsequences. |
+| [lower_bound_flow](templates/lower_bound_flow/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/lower_bound_flow/) | manual | portable C++17 | Find a feasible circulation with lower and upper edge bounds. |
 | [maxflow_dinic](templates/maxflow_dinic/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/maxflow_dinic/) | automatic | portable C++17 | Find the maximum flow through a small capacitated network. |
 | [merge_sort_tree](templates/merge_sort_tree/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/merge_sort_tree/) | automatic | portable C++17 | Count values in subarray ranges with a merge-sort tree. |
 | [mincost_maxflow](templates/mincost_maxflow/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/mincost_maxflow/) | automatic | portable C++17 | Send maximum flow while minimizing its total edge cost. |
@@ -68,6 +70,7 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [offline_dynamic_connectivity](templates/offline_dynamic_connectivity/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/offline_dynamic_connectivity/) | automatic | portable C++17 | Answer connectivity queries across edge additions and removals. |
 | [ordered_set](templates/ordered_set/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/ordered_set/) | automatic | pbds | Query ranks and k-th elements with a GNU PBDS ordered set. |
 | [poly_hash](templates/poly_hash/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/poly_hash/) | automatic | portable C++17 | Compare substrings and compose polynomial hashes. |
+| [potential_dsu](templates/potential_dsu/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/potential_dsu/) | manual | portable C++17 | Maintain relative potentials and reject inconsistent constraints. |
 | [rollback_dsu](templates/rollback_dsu/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/rollback_dsu/) | automatic | portable C++17 | Merge components, then restore a previous DSU snapshot. |
 | [segtree](templates/segtree/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/segtree/) | automatic | portable C++17 | Point updates and inclusive range sums in the standard segment-tree scenario. |
 | [segtree_beats](templates/segtree_beats/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/segtree_beats/) | automatic | portable C++17 | Apply range chmin, chmax, and add updates with aggregate queries. |
@@ -76,8 +79,10 @@ for example `xeppelin edulcni main --compiler g++-15`.
 | [sparse_table](templates/sparse_table/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/sparse_table/) | automatic | portable C++17 | Build a sparse table and answer immutable range minima. |
 | [substring_dp](templates/substring_dp/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/substring_dp/) | automatic | portable C++17 | Partition a string into palindromes and solve palindromic subsequence DP. |
 | [suffix_array](templates/suffix_array/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/suffix_array/) | automatic | portable C++17 | Build the suffix array and LCP array for a short string. |
+| [suffix_automaton](templates/suffix_automaton/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/suffix_automaton/) | manual | portable C++17 | Count distinct substrings and occurrences with a suffix automaton. |
 | [test_generators](templates/test_generators/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/test_generators/) | snapshot | portable C++17 | Generate deterministic arrays, permutations, masks, trees, and graphs. |
 | [toposort](templates/toposort/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/toposort/) | automatic | portable C++17 | Topologically order a directed acyclic graph. |
 | [tree_hash](templates/tree_hash/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/tree_hash/) | automatic | portable C++17 | Compare canonical hashes of two isomorphic unrooted trees. |
 | [turtle_dp](templates/turtle_dp/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/turtle_dp/) | automatic | portable C++17 | Count right-down grid paths and reconstruct minimum and maximum paths. |
 | [twosat](templates/twosat/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/twosat/) | automatic | portable C++17 | Solve a small implication system and inspect its assignment. |
+| [wavelet_matrix](templates/wavelet_matrix/main.cpp) | [open](https://kik0s.github.io/edulcni/examples/wavelet_matrix/) | manual | portable C++17 | Query order statistics, frequencies, and prefix sums in subarrays. |

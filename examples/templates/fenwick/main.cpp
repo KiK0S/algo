@@ -151,6 +151,19 @@ class Fenwick {
     return pos;
   }
 
+  int lower_bound_prefix(const T& target) const {
+    static_assert(Op::kHasDescend,
+                  "prefix lower_bound is not defined for this operation");
+    return descend(target);
+  }
+
+
+  int kth(const T& zero_based_order) const {
+    assert(!(zero_based_order < T(0)) && zero_based_order < prefix(n_ - 1));
+    return lower_bound_prefix(zero_based_order + T(1));
+  }
+
+
  private:
   int n_;
   int maxn_;

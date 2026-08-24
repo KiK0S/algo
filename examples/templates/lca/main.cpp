@@ -123,6 +123,11 @@ class LcaBinaryLifting {
 
 
 
+  int dist(int a, int b) const {
+    const int c = lca(a, b);
+    return c == -1 ? -1 : depth_[a] + depth_[b] - 2 * depth_[c];
+  }
+
 
  private:
   int n_;

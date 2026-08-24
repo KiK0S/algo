@@ -96,13 +96,13 @@ int main() {
   EDULCNI_VIS(edulcni::internal::State::instance().delete_widget("example.scenario"));
 
   std::vector<std::vector<int>> graph(6);
-    kosaraju_add_edge(graph, 0, 1);
-    kosaraju_add_edge(graph, 1, 2);
-    kosaraju_add_edge(graph, 2, 0);
-    kosaraju_add_edge(graph, 2, 3);
-    kosaraju_add_edge(graph, 3, 4);
-    kosaraju_add_edge(graph, 4, 3);
-    kosaraju_add_edge(graph, 4, 5);
+    graph[0].push_back(1);
+    graph[1].push_back(2);
+    graph[2].push_back(0);
+    graph[2].push_back(3);
+    graph[3].push_back(4);
+    graph[4].push_back(3);
+    graph[4].push_back(5);
     const KosarajuResult result = kosaraju_scc(graph);
     assert(result.component_count == 3);
     assert(result.component_of[0] == result.component_of[2]);

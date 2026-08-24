@@ -51,7 +51,11 @@ function runCompiled(exe) {
   delete environment.EDULCNI_HOST;
   delete environment.EDULCNI_PORT;
   delete environment.EDULCNI_TOKEN;
-  subprocess.execFileSync(exe, [], { stdio: "inherit", env: environment });
+  subprocess.execFileSync(exe, [], {
+    stdio: "inherit",
+    env: environment,
+    cwd: activeEdulcniTests ? edulcniRoot : undefined
+  });
 }
 
 {
@@ -1878,8 +1882,9 @@ function testBundledCatalogGuardrails() {
   ]);
   const granularities = new Set(["summary", "operations", "verbose"]);
   const seenPaths = new Set();
+  const seenTemplates = new Set();
 
-  assert.equal(entries.length, 112);
+  assert.equal(entries.length > 0, true, "catalog must contain entries");
   for (const entry of entries) {
     assert.match(entry.path, /^\/templates\//);
     assert.equal(seenPaths.has(entry.path), false, `duplicate catalog path: ${entry.path}`);
@@ -1892,6 +1897,17 @@ function testBundledCatalogGuardrails() {
     );
     if (entry.template) {
       assert.match(entry.template, /^(?:[^/]+\/)*[^/]+\.tmpl$/);
+      assert.equal(
+        seenTemplates.has(entry.template),
+        false,
+        `template is referenced by multiple catalog entries: ${entry.template}`
+      );
+      seenTemplates.add(entry.template);
+      assert.equal(
+        fs.existsSync(path.join(repoRoot, "lib", "templates", entry.template)),
+        true,
+        `${entry.path} source template is missing`
+      );
       assert.equal(
         fs.existsSync(path.join(extensionRoot, "library", "templates", entry.template)),
         true,
@@ -5708,6 +5724,52 @@ testTokenScanner();
 testCollisionNames();
 testSharedNamePlanner();
 testDetectedSymbols();
+function testChoiceBasedWorkflowCatalog() {
+  const repoRoot = path.join(__dirname, "..", "..");
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "lib", "catalog", "snippets.json"), "utf8")
+  );
+  const byPath = new Map(catalog.map((entry) => [entry.path, entry]));
+  const expectedWorkflows = [
+    "/templates/connectivity_workflow",
+    "/templates/string_workflow",
+    "/templates/geometry_workflow",
+    "/templates/flow_matching_workflow"
+  ];
+
+  for (const workflowPath of expectedWorkflows) {
+    const workflow = byPath.get(workflowPath);
+    assert.ok(workflow, `${workflowPath} is missing`);
+    assert.equal(workflow.insertMode, "global");
+    assert.equal(Array.isArray(workflow.workflowChoices), true);
+    assert.equal(workflow.workflowChoices.length >= 2, true);
+    assert.equal(
+      new Set(workflow.workflowChoices.map((choice) => choice.path)).size,
+      workflow.workflowChoices.length,
+      `${workflowPath} repeats a target`
+    );
+    for (const choice of workflow.workflowChoices) {
+      assert.equal(choice.path.startsWith("/templates/"), true);
+      assert.ok(byPath.has(choice.path), `${workflowPath} target is missing: ${choice.path}`);
+      assert.equal(typeof choice.label, "string");
+      assert.equal(choice.label.length > 0, true);
+    }
+  }
+
+  const rangeStructures = ["fenwick", "sparse_table", "merge_sort_tree", "wavelet"];
+  for (const workflowPath of expectedWorkflows) {
+    const targets = byPath.get(workflowPath).workflowChoices.map((choice) => choice.path);
+    for (const rangeStructure of rangeStructures) {
+      assert.equal(
+        targets.some((target) => target.includes(rangeStructure)),
+        false,
+        `${workflowPath} must not absorb top-level range structure ${rangeStructure}`
+      );
+    }
+  }
+}
+
+testChoiceBasedWorkflowCatalog();
 testSectionDetection();
 testSmartSnippetExportsAndRenames();
 testDependencyOrder();

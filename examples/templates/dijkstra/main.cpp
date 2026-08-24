@@ -111,6 +111,37 @@ DijkstraResult<Weight> dijkstra(
   return dijkstra_multi_source(graph, std::vector<int>(1, source), inf);
 }
 
+
+
+template <typename Weight>
+std::vector<int> dijkstra_restore_path(int source, int target,
+                                       const DijkstraResult<Weight>& result) {
+  const int n = static_cast<int>(result.parent.size());
+  if (source < 0 || source >= n || target < 0 || target >= n) {
+    return {};
+  }
+
+  std::vector<int> path;
+  int current = target;
+  int steps = 0;
+  while (current != -1 && steps <= n) {
+    path.push_back(current);
+    current = result.parent[current];
+    ++steps;
+  }
+
+  if (path.empty() || path.back() != source) {
+    return {};
+  }
+  std::reverse(path.begin(), path.end());
+  EDULCNI_VIS(edulcni::live::array("dijkstra.path", path));
+  EDULCNI_VIS(edulcni::live::graph_path_focus(
+      "dijkstra.graph", path, edulcni::live::FocusRole::result,
+      "restored shortest path"));
+  EDULCNI_STEP("Dijkstra restored a path");
+  return path;
+}
+
 int main() {
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
@@ -121,12 +152,12 @@ int main() {
 
   const long long infinity = std::numeric_limits<long long>::max();
     std::vector<std::vector<DijkstraEdge<long long>>> graph(5);
-    dijkstra_add_edge(graph, 0, 1, 10);
-    dijkstra_add_edge(graph, 0, 2, 3);
-    dijkstra_add_edge(graph, 2, 1, 1);
-    dijkstra_add_edge(graph, 1, 3, 2);
-    dijkstra_add_edge(graph, 2, 3, 8);
-    dijkstra_add_edge(graph, 3, 4, 2);
+    for (const auto [from, to, weight] :
+         std::vector<std::tuple<int, int, long long>>{
+             {0, 1, 10}, {0, 2, 3}, {2, 1, 1},
+             {1, 3, 2}, {2, 3, 8}, {3, 4, 2}}) {
+      graph[from].push_back({to, weight});
+    }
     const DijkstraResult<long long> result = dijkstra(graph, 0, infinity);
     assert(result.distance[4] == 8);
     assert((dijkstra_restore_path(0, 4, result) == std::vector<int>{0, 2, 1, 3, 4}));

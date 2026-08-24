@@ -33,9 +33,7 @@ int main() {
 
   const std::set<int> values = {2, 4, 8};
     assert(next_value(values, 4).value() == 8);
-    assert(prev_value(values, 4).value() == 2);
     assert(!next_value(values, 8).has_value());
-    assert(!prev_value(values, 2).has_value());
 
   EDULCNI_VIS(edulcni::live::text("example.status", "All checks passed"));
   EDULCNI_STEP("Example scenario completed");

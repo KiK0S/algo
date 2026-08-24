@@ -36,6 +36,18 @@ class SegmentTree {
     return result;
   }
 
+  template <typename Predicate>
+  int find_first(int left, int right, Predicate can_contain) const {
+    if (!normalize(left, right)) return -1;
+    return find_first_predicate_rec(1, 0, n_ - 1, left, right, can_contain);
+  }
+
+  template <typename Predicate>
+  int find_last(int left, int right, Predicate can_contain) const {
+    if (!normalize(left, right)) return -1;
+    return find_last_predicate_rec(1, 0, n_ - 1, left, right, can_contain);
+  }
+
   void point_set(int position, const T& value) {
     if (position < 0 || position >= n_) return;
     point_set_rec(1, 0, n_ - 1, position, value);
@@ -68,6 +80,27 @@ class SegmentTree {
     if (l <= tl && tr <= r) return tree_[v];
     const int tm = (tl + tr) / 2;
     return merge(query_rec(v * 2, tl, tm, l, r), query_rec(v * 2 + 1, tm + 1, tr, l, r));
+  }
+  template <typename Predicate>
+  int find_first_predicate_rec(int v, int tl, int tr, int l, int r,
+                               Predicate can_contain) const {
+    if (tl > r || tr < l || !can_contain(tree_[v])) return -1;
+    if (tl == tr) return tl;
+    const int tm = (tl + tr) / 2;
+    int found = find_first_predicate_rec(v * 2, tl, tm, l, r, can_contain);
+    return found != -1 ? found
+                       : find_first_predicate_rec(v * 2 + 1, tm + 1, tr, l, r,
+                                                  can_contain);
+  }
+  template <typename Predicate>
+  int find_last_predicate_rec(int v, int tl, int tr, int l, int r,
+                              Predicate can_contain) const {
+    if (tl > r || tr < l || !can_contain(tree_[v])) return -1;
+    if (tl == tr) return tl;
+    const int tm = (tl + tr) / 2;
+    int found = find_last_predicate_rec(v * 2 + 1, tm + 1, tr, l, r, can_contain);
+    return found != -1 ? found
+                       : find_last_predicate_rec(v * 2, tl, tm, l, r, can_contain);
   }
 
   void point_set_rec(int v, int tl, int tr, int p, const T& value) {
