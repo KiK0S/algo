@@ -1,0 +1,70 @@
+class DuJiaoSieve {
+ public:
+  explicit DuJiaoSieve(int sieve_limit) : limit_(std::max(1, sieve_limit)) {
+    std::vector<int> least_prime(limit_ + 1, 0), primes;
+    mobius_.assign(limit_ + 1, 0);
+    phi_.assign(limit_ + 1, 0);
+    mobius_[1] = 1;
+    phi_[1] = 1;
+    for (int value = 2; value <= limit_; ++value) {
+      if (least_prime[value] == 0) {
+        least_prime[value] = value;
+        primes.push_back(value);
+        mobius_[value] = -1;
+        phi_[value] = value - 1;
+      }
+      for (int prime : primes) {
+        if (prime > least_prime[value] || prime > limit_ / value) break;
+        least_prime[prime * value] = prime;
+        if (value % prime == 0) {
+          mobius_[prime * value] = 0;
+          phi_[prime * value] = phi_[value] * prime;
+          break;
+        }
+        mobius_[prime * value] = -mobius_[value];
+        phi_[prime * value] = phi_[value] * (prime - 1);
+      }
+    }
+    prefix_mobius_.assign(limit_ + 1, 0);
+    prefix_phi_.assign(limit_ + 1, 0);
+    for (int value = 1; value <= limit_; ++value) {
+      prefix_mobius_[value] = prefix_mobius_[value - 1] + mobius_[value];
+      prefix_phi_[value] = prefix_phi_[value - 1] + phi_[value];
+    }
+  }
+
+  long long summatory_mobius(long long value) {
+    if (value <= limit_) return prefix_mobius_[std::max(0LL, value)];
+    auto iterator = mobius_cache_.find(value);
+    if (iterator != mobius_cache_.end()) return iterator->second;
+    __int128 result = 1;
+    for (long long left = 2, right; left <= value; left = right + 1) {
+      const long long quotient = value / left;
+      right = value / quotient;
+      result -= (__int128)(right - left + 1) * summatory_mobius(quotient);
+    }
+    return mobius_cache_[value] = static_cast<long long>(result);
+  }
+
+  __int128 summatory_phi(long long value) {
+    if (value <= limit_) return prefix_phi_[std::max(0LL, value)];
+    auto iterator = phi_cache_.find(value);
+    if (iterator != phi_cache_.end()) return iterator->second;
+    __int128 result = (__int128)value * ((__int128)value + 1) / 2;
+    for (long long left = 2, right; left <= value; left = right + 1) {
+      const long long quotient = value / left;
+      right = value / quotient;
+      result -= (__int128)(right - left + 1) * summatory_phi(quotient);
+    }
+    return phi_cache_[value] = result;
+  }
+
+ private:
+  int limit_;
+  std::vector<int> mobius_;
+  std::vector<long long> phi_;
+  std::vector<long long> prefix_mobius_;
+  std::vector<__int128> prefix_phi_;
+  std::unordered_map<long long, long long> mobius_cache_;
+  std::unordered_map<long long, __int128> phi_cache_;
+};

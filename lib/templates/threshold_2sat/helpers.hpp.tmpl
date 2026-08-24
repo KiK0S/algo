@@ -1,0 +1,114 @@
+template <typename Weight = long long, typename Less = std::less<Weight>>
+class ThresholdTwoSat {
+ public:
+  explicit ThresholdTwoSat(int variable_count, Less less = Less())
+      : variable_count_(std::max(0, variable_count)), less_(less) {}
+
+  int literal(int variable, bool value) const {
+    return valid_variable(variable) ? 2 * variable + (value ? 0 : 1) : -1;
+  }
+
+  static int negate(int literal) { return literal ^ 1; }
+
+  void add_implication(int from, int to, const Weight& activation_weight) {
+    if (!valid_literal(from) || !valid_literal(to)) return;
+    edges_.push_back({from, to, activation_weight});
+    edges_.push_back({negate(to), negate(from), activation_weight});
+  }
+
+  void add_clause(int first, int second, const Weight& activation_weight) {
+    if (!valid_literal(first) || !valid_literal(second)) return;
+    edges_.push_back({negate(first), second, activation_weight});
+    edges_.push_back({negate(second), first, activation_weight});
+  }
+
+  void add_unit(int literal, const Weight& activation_weight) {
+    add_clause(literal, literal, activation_weight);
+  }
+
+  bool satisfiable(const Weight& threshold,
+                   std::vector<bool>* assignment = nullptr) const {
+    const int literal_count = 2 * variable_count_;
+    std::vector<std::vector<int>> graph(literal_count), reverse_graph(literal_count);
+    for (const Edge& edge : edges_) {
+      if (less_(threshold, edge.weight)) continue;
+      graph[edge.from].push_back(edge.to);
+      reverse_graph[edge.to].push_back(edge.from);
+    }
+
+    std::vector<char> visited(literal_count, false);
+    std::vector<int> order;
+    order.reserve(literal_count);
+    for (int start = 0; start < literal_count; ++start) {
+      if (visited[start]) continue;
+      std::vector<std::pair<int, std::size_t>> stack{ {start, 0} };
+      visited[start] = true;
+      while (!stack.empty()) {
+        int vertex = stack.back().first;
+        std::size_t& next_index = stack.back().second;
+        if (next_index < graph[vertex].size()) {
+          int next = graph[vertex][next_index++];
+          if (!visited[next]) {
+            visited[next] = true;
+            stack.push_back({next, 0});
+          }
+        } else {
+          order.push_back(vertex);
+          stack.pop_back();
+        }
+      }
+    }
+
+    std::vector<int> component(literal_count, -1);
+    int component_count = 0;
+    for (int index = literal_count; index-- > 0;) {
+      int start = order[index];
+      if (component[start] != -1) continue;
+      std::vector<int> stack{start};
+      component[start] = component_count;
+      while (!stack.empty()) {
+        int vertex = stack.back();
+        stack.pop_back();
+        for (int next : reverse_graph[vertex]) {
+          if (component[next] == -1) {
+            component[next] = component_count;
+            stack.push_back(next);
+          }
+        }
+      }
+      ++component_count;
+    }
+
+    if (assignment != nullptr) assignment->assign(variable_count_, false);
+    for (int variable = 0; variable < variable_count_; ++variable) {
+      int positive = literal(variable, true);
+      int negative = literal(variable, false);
+      if (component[positive] == component[negative]) {
+        if (assignment != nullptr) assignment->clear();
+        return false;
+      }
+      if (assignment != nullptr) {
+        (*assignment)[variable] = component[positive] > component[negative];
+      }
+    }
+    return true;
+  }
+
+ private:
+  struct Edge {
+    int from;
+    int to;
+    Weight weight;
+  };
+
+  int variable_count_;
+  Less less_;
+  std::vector<Edge> edges_;
+
+  bool valid_variable(int variable) const {
+    return variable >= 0 && variable < variable_count_;
+  }
+  bool valid_literal(int literal) const {
+    return literal >= 0 && literal < 2 * variable_count_;
+  }
+};

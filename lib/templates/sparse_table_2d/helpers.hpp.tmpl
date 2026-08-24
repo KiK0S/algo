@@ -1,0 +1,89 @@
+template <typename T, typename Operation>
+class SparseTable2D {
+ public:
+  SparseTable2D(const std::vector<std::vector<T>>& values, Operation operation)
+      : operation_(operation) {
+    build(values);
+  }
+
+  void build(const std::vector<std::vector<T>>& values) {
+    rows_ = static_cast<int>(values.size());
+    columns_ = rows_ == 0 ? 0 : static_cast<int>(values[0].size());
+    for (const auto& row : values) {
+      if (static_cast<int>(row.size()) != columns_) {
+        rows_ = columns_ = 0;
+        row_log_.assign(1, 0);
+        column_log_.assign(1, 0);
+        table_.clear();
+        return;
+      }
+    }
+    row_log_.assign(rows_ + 1, 0);
+    column_log_.assign(columns_ + 1, 0);
+    for (int i = 2; i <= rows_; ++i) row_log_[i] = row_log_[i / 2] + 1;
+    for (int i = 2; i <= columns_; ++i) column_log_[i] = column_log_[i / 2] + 1;
+    if (rows_ == 0 || columns_ == 0) {
+      table_.clear();
+      return;
+    }
+    const int row_levels = row_log_[rows_] + 1;
+    const int column_levels = column_log_[columns_] + 1;
+    table_.assign(row_levels,
+                  std::vector<std::vector<std::vector<T>>>(column_levels));
+    table_[0][0] = values;
+    for (int column_level = 1; column_level < column_levels; ++column_level) {
+      const int width = 1 << column_level;
+      table_[0][column_level].assign(
+          rows_, std::vector<T>(columns_ - width + 1));
+      for (int row = 0; row < rows_; ++row) {
+        for (int column = 0; column + width <= columns_; ++column) {
+          table_[0][column_level][row][column] = operation_(
+              table_[0][column_level - 1][row][column],
+              table_[0][column_level - 1][row][column + width / 2]);
+        }
+      }
+    }
+    for (int row_level = 1; row_level < row_levels; ++row_level) {
+      const int height = 1 << row_level;
+      for (int column_level = 0; column_level < column_levels; ++column_level) {
+        const int width = 1 << column_level;
+        table_[row_level][column_level].assign(
+            rows_ - height + 1, std::vector<T>(columns_ - width + 1));
+        for (int row = 0; row + height <= rows_; ++row) {
+          for (int column = 0; column + width <= columns_; ++column) {
+            table_[row_level][column_level][row][column] = operation_(
+                table_[row_level - 1][column_level][row][column],
+                table_[row_level - 1][column_level][row + height / 2][column]);
+          }
+        }
+      }
+    }
+  }
+
+  T query(int top, int left, int bottom, int right) const {
+    if (top < 0 || left < 0 || top >= bottom || left >= right ||
+        bottom > rows_ || right > columns_) {
+      return T{};
+    }
+    const int row_level = row_log_[bottom - top];
+    const int column_level = column_log_[right - left];
+    const int lower_top = bottom - (1 << row_level);
+    const int right_left = right - (1 << column_level);
+    return operation_(
+        operation_(table_[row_level][column_level][top][left],
+                   table_[row_level][column_level][lower_top][left]),
+        operation_(table_[row_level][column_level][top][right_left],
+                   table_[row_level][column_level][lower_top][right_left]));
+  }
+
+  int rows() const { return rows_; }
+  int columns() const { return columns_; }
+
+ private:
+  int rows_ = 0;
+  int columns_ = 0;
+  Operation operation_;
+  std::vector<int> row_log_;
+  std::vector<int> column_log_;
+  std::vector<std::vector<std::vector<std::vector<T>>>> table_;
+};

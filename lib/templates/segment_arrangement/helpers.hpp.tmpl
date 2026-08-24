@@ -1,0 +1,60 @@
+struct ArrangementPoint { long double x = 0, y = 0; };
+struct SegmentArrangement { std::vector<ArrangementPoint> vertices; std::vector<std::pair<int, int>> edges; };
+
+inline SegmentArrangement build_segment_arrangement(
+    const std::vector<std::pair<ArrangementPoint, ArrangementPoint>>& segments,
+    long double epsilon = 1e-12L) {
+  std::vector<std::vector<std::pair<long double, ArrangementPoint>>> cuts(segments.size());
+  for (int i = 0; i < static_cast<int>(segments.size()); ++i) {
+    cuts[i].push_back({0, segments[i].first}); cuts[i].push_back({1, segments[i].second});
+  }
+  auto cross = [](ArrangementPoint a, ArrangementPoint b) { return a.x * b.y - a.y * b.x; };
+  auto subtract = [](ArrangementPoint a, ArrangementPoint b) { return ArrangementPoint{a.x - b.x, a.y - b.y}; };
+  auto dot = [](ArrangementPoint a, ArrangementPoint b) { return a.x * b.x + a.y * b.y; };
+  auto add_if_on_segment = [&](int index, ArrangementPoint point) {
+    const auto start = segments[index].first;
+    const auto direction = subtract(segments[index].second, start);
+    const long double squared_length = dot(direction, direction);
+    if (squared_length <= epsilon * epsilon) {
+      if (std::hypotl(point.x - start.x, point.y - start.y) <= epsilon)
+        cuts[index].push_back({0, start});
+      return;
+    }
+    const auto offset = subtract(point, start);
+    const long double parameter = dot(offset, direction) / squared_length;
+    if (parameter >= -epsilon && parameter <= 1 + epsilon &&
+        std::abs(cross(offset, direction)) <= epsilon * std::sqrt(squared_length))
+      cuts[index].push_back({std::clamp(parameter, 0.0L, 1.0L), point});
+  };
+  for (int i = 0; i < static_cast<int>(segments.size()); ++i) for (int j = i + 1; j < static_cast<int>(segments.size()); ++j) {
+    const auto p = segments[i].first, q = segments[j].first;
+    const auto r = subtract(segments[i].second, p), s = subtract(segments[j].second, q);
+    const long double denominator = cross(r, s);
+    if (std::abs(denominator) <= epsilon) {
+      if (std::abs(cross(subtract(q, p), r)) <=
+          epsilon * std::max(1.0L, std::hypotl(r.x, r.y))) {
+        add_if_on_segment(i, segments[j].first);
+        add_if_on_segment(i, segments[j].second);
+        add_if_on_segment(j, segments[i].first);
+        add_if_on_segment(j, segments[i].second);
+      }
+      continue;
+    }
+    const long double first = cross(subtract(q, p), s) / denominator;
+    const long double second = cross(subtract(q, p), r) / denominator;
+    if (first < -epsilon || first > 1 + epsilon || second < -epsilon || second > 1 + epsilon) continue;
+    const ArrangementPoint point{p.x + first * r.x, p.y + first * r.y};
+    cuts[i].push_back({std::clamp(first, 0.0L, 1.0L), point}); cuts[j].push_back({std::clamp(second, 0.0L, 1.0L), point});
+  }
+  SegmentArrangement result;
+  auto vertex = [&](ArrangementPoint point) { for (int i = 0; i < static_cast<int>(result.vertices.size()); ++i)
+    if (std::hypotl(result.vertices[i].x - point.x, result.vertices[i].y - point.y) <= epsilon) return i;
+    result.vertices.push_back(point); return static_cast<int>(result.vertices.size()) - 1; };
+  std::set<std::pair<int, int>> unique_edges;
+  for (auto& segment_cuts : cuts) {
+    std::sort(segment_cuts.begin(), segment_cuts.end(), [](auto a, auto b) { return a.first < b.first; });
+    std::vector<int> ids; for (const auto& cut : segment_cuts) { int id = vertex(cut.second); if (ids.empty() || ids.back() != id) ids.push_back(id); }
+    for (int i = 1; i < static_cast<int>(ids.size()); ++i) if (ids[i - 1] != ids[i]) unique_edges.insert(std::minmax(ids[i - 1], ids[i]));
+  }
+  result.edges.assign(unique_edges.begin(), unique_edges.end()); return result;
+}

@@ -1,0 +1,46 @@
+template <typename UInt, typename Callback>
+void enumerate_prime_exponent_vectors(
+    UInt value_limit, const std::vector<UInt>& primes, Callback callback,
+    int first_exponent_limit = std::numeric_limits<int>::max()) {
+  if (value_limit < UInt(1)) return;
+  std::vector<int> exponents;
+
+  auto dfs = [&](auto&& self, std::size_t prime_index, int previous_exponent,
+                 UInt value) -> void {
+    callback(value, exponents);
+    if (prime_index >= primes.size() || primes[prime_index] <= UInt(1)) return;
+    UInt next_value = value;
+    for (int exponent = 1; exponent <= previous_exponent; ++exponent) {
+      if (next_value > value_limit / primes[prime_index]) break;
+      next_value *= primes[prime_index];
+      exponents.push_back(exponent);
+      self(self, prime_index + 1, exponent, next_value);
+      exponents.pop_back();
+    }
+  };
+
+  int effective_limit = 0;
+  UInt value = UInt(1);
+  if (!primes.empty() && primes[0] > UInt(1)) {
+    while (effective_limit < first_exponent_limit &&
+           value <= value_limit / primes[0]) {
+      value *= primes[0];
+      ++effective_limit;
+    }
+  }
+  dfs(dfs, 0, effective_limit, UInt(1));
+}
+
+template <typename UInt>
+std::vector<std::pair<UInt, std::vector<int>>> prime_exponent_vectors(
+    UInt value_limit, const std::vector<UInt>& primes,
+    int first_exponent_limit = std::numeric_limits<int>::max()) {
+  std::vector<std::pair<UInt, std::vector<int>>> result;
+  enumerate_prime_exponent_vectors(
+      value_limit, primes,
+      [&](UInt value, const std::vector<int>& exponents) {
+        result.push_back({value, exponents});
+      },
+      first_exponent_limit);
+  return result;
+}

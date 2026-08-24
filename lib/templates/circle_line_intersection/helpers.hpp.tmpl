@@ -1,0 +1,47 @@
+struct CircleLinePoint {
+  long double x = 0;
+  long double y = 0;
+
+  CircleLinePoint operator+(const CircleLinePoint& other) const {
+    return {x + other.x, y + other.y};
+  }
+  CircleLinePoint operator-(const CircleLinePoint& other) const {
+    return {x - other.x, y - other.y};
+  }
+  CircleLinePoint operator*(long double scale) const { return {x * scale, y * scale}; }
+  long double dot(const CircleLinePoint& other) const { return x * other.x + y * other.y; }
+};
+
+inline std::vector<CircleLinePoint> circle_line_intersections(
+    const CircleLinePoint& center, long double radius,
+    const CircleLinePoint& first, const CircleLinePoint& second,
+    long double epsilon = 1e-12L) {
+  if (radius < 0) return {};
+  const CircleLinePoint direction = second - first;
+  const long double length_squared = direction.dot(direction);
+  if (length_squared <= epsilon * epsilon) return {};
+  const long double projection = (center - first).dot(direction) / length_squared;
+  const CircleLinePoint closest = first + direction * projection;
+  const CircleLinePoint offset_from_center = closest - center;
+  long double height_squared = radius * radius - offset_from_center.dot(offset_from_center);
+  if (height_squared < -epsilon) return {};
+  if (height_squared <= epsilon) return {closest};
+  const long double scale = std::sqrt(height_squared / length_squared);
+  const CircleLinePoint perpendicular{-direction.y, direction.x};
+  return {closest - perpendicular * scale, closest + perpendicular * scale};
+}
+
+inline std::vector<CircleLinePoint> circle_segment_intersections(
+    const CircleLinePoint& center, long double radius,
+    const CircleLinePoint& first, const CircleLinePoint& second,
+    long double epsilon = 1e-12L) {
+  std::vector<CircleLinePoint> result;
+  const CircleLinePoint direction = second - first;
+  const long double length_squared = direction.dot(direction);
+  for (const CircleLinePoint& point :
+       circle_line_intersections(center, radius, first, second, epsilon)) {
+    const long double parameter = (point - first).dot(direction) / length_squared;
+    if (parameter >= -epsilon && parameter <= 1 + epsilon) result.push_back(point);
+  }
+  return result;
+}

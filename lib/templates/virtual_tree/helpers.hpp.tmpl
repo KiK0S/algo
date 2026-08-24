@@ -1,0 +1,31 @@
+struct VirtualTree {
+  std::vector<int> vertices;
+  std::vector<int> parent;
+};
+
+template <class Lca>
+VirtualTree build_virtual_tree(std::vector<int> vertices,
+                               const std::vector<int>& tin, Lca lca) {
+  VirtualTree result;
+  if (vertices.empty()) return result;
+  auto by_tin = [&](int a, int b) { return tin[a] < tin[b]; };
+  std::sort(vertices.begin(), vertices.end(), by_tin);
+  vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
+  const int original_size = static_cast<int>(vertices.size());
+  for (int i = 1; i < original_size; ++i)
+    vertices.push_back(lca(vertices[i - 1], vertices[i]));
+  std::sort(vertices.begin(), vertices.end(), by_tin);
+  vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
+
+  result.vertices = vertices;
+  result.parent.assign(vertices.size(), -1);
+  std::vector<int> stack;
+  for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
+    while (!stack.empty() && lca(vertices[stack.back()], vertices[i]) !=
+                                 vertices[stack.back()])
+      stack.pop_back();
+    if (!stack.empty()) result.parent[i] = stack.back();
+    stack.push_back(i);
+  }
+  return result;
+}

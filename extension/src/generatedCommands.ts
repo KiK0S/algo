@@ -361,6 +361,62 @@ export const DIRECT_COMMANDS = [
     "snippetPath": "/templates/tree_diameter"
   },
   {
+    "command": "edulcni.range_dsu",
+    "snippetPath": "/templates/range_dsu"
+  },
+  {
+    "command": "edulcni.frequency_tracker",
+    "snippetPath": "/templates/frequency_tracker"
+  },
+  {
+    "command": "edulcni.argsort",
+    "snippetPath": "/templates/argsort"
+  },
+  {
+    "command": "edulcni.ordered_gap_multiset",
+    "snippetPath": "/templates/ordered_gap_multiset"
+  },
+  {
+    "command": "edulcni.mex_tracker",
+    "snippetPath": "/templates/mex_tracker"
+  },
+  {
+    "command": "edulcni.parallel_binary_search",
+    "snippetPath": "/templates/parallel_binary_search"
+  },
+  {
+    "command": "edulcni.permutation_decomposition",
+    "snippetPath": "/templates/permutation_decomposition"
+  },
+  {
+    "command": "edulcni.offline_threshold_sweep",
+    "snippetPath": "/templates/offline_threshold_sweep"
+  },
+  {
+    "command": "edulcni.fixed_point_iteration",
+    "snippetPath": "/templates/fixed_point_iteration"
+  },
+  {
+    "command": "edulcni.dynamic_neighbor_set",
+    "snippetPath": "/templates/dynamic_neighbor_set"
+  },
+  {
+    "command": "edulcni.sweep_events",
+    "snippetPath": "/templates/sweep_events"
+  },
+  {
+    "command": "edulcni.functional_graph",
+    "snippetPath": "/templates/functional_graph"
+  },
+  {
+    "command": "edulcni.rerooting_dp",
+    "snippetPath": "/templates/rerooting_dp"
+  },
+  {
+    "command": "edulcni.small_to_large_tree_dp",
+    "snippetPath": "/templates/small_to_large_tree_dp"
+  },
+  {
     "command": "edulcni.k_smallest",
     "snippetPath": "/templates/k_smallest"
   },
@@ -515,5 +571,473 @@ export const DIRECT_COMMANDS = [
   {
     "command": "edulcni.level_boundary_segtree",
     "snippetPath": "/templates/level_boundary_segtree"
+  },
+  {
+    "command": "edulcni.aho_corasick",
+    "snippetPath": "/templates/aho_corasick"
+  },
+  {
+    "command": "edulcni.centroid_decomposition",
+    "snippetPath": "/templates/centroid_decomposition"
+  },
+  {
+    "command": "edulcni.circle_tangents",
+    "snippetPath": "/templates/circle_tangents"
+  },
+  {
+    "command": "edulcni.exact_segment_intersection",
+    "snippetPath": "/templates/exact_segment_intersection"
+  },
+  {
+    "command": "edulcni.floor_quotient_multiset",
+    "snippetPath": "/templates/floor_quotient_multiset"
+  },
+  {
+    "command": "edulcni.gaussian_elimination_gf2",
+    "snippetPath": "/templates/gaussian_elimination_gf2"
+  },
+  {
+    "command": "edulcni.heavy_neighbor_aggregator",
+    "snippetPath": "/templates/heavy_neighbor_aggregator"
+  },
+  {
+    "command": "edulcni.held_karp",
+    "snippetPath": "/templates/held_karp"
+  },
+  {
+    "command": "edulcni.huffman_multiplicity",
+    "snippetPath": "/templates/huffman_multiplicity"
+  },
+  {
+    "command": "edulcni.mixed_radix_indexer",
+    "snippetPath": "/templates/mixed_radix_indexer"
+  },
+  {
+    "command": "edulcni.persistent_implicit_treap",
+    "snippetPath": "/templates/persistent_implicit_treap"
+  },
+  {
+    "command": "edulcni.piecewise_constant_map",
+    "snippetPath": "/templates/piecewise_constant_map"
+  },
+  {
+    "command": "edulcni.planar_embedding",
+    "snippetPath": "/templates/planar_embedding"
+  },
+  {
+    "command": "edulcni.polygon_area",
+    "snippetPath": "/templates/polygon_area"
+  },
+  {
+    "command": "edulcni.rational",
+    "snippetPath": "/templates/rational"
+  },
+  {
+    "command": "edulcni.rectangle_union",
+    "snippetPath": "/templates/rectangle_union"
+  },
+  {
+    "command": "edulcni.shortest_path_dag",
+    "snippetPath": "/templates/shortest_path_dag"
+  },
+  {
+    "command": "edulcni.simplex",
+    "snippetPath": "/templates/simplex"
+  },
+  {
+    "command": "edulcni.sparse_table_2d",
+    "snippetPath": "/templates/sparse_table_2d"
+  },
+  {
+    "command": "edulcni.steiner_tree",
+    "snippetPath": "/templates/steiner_tree"
+  },
+  {
+    "command": "edulcni.two_bin_knapsack",
+    "snippetPath": "/templates/two_bin_knapsack"
+  },
+  {
+    "command": "edulcni.weighted_order_statistics",
+    "snippetPath": "/templates/weighted_order_statistics"
+  },
+  {
+    "command": "edulcni.weighted_persistent_segment_tree",
+    "snippetPath": "/templates/weighted_persistent_segment_tree"
+  },
+  {
+    "command": "edulcni.angular_event_sweep",
+    "snippetPath": "/templates/angular_event_sweep"
+  },
+  {
+    "command": "edulcni.circle_line_intersection",
+    "snippetPath": "/templates/circle_line_intersection"
+  },
+  {
+    "command": "edulcni.convex_polygon_queries",
+    "snippetPath": "/templates/convex_polygon_queries"
+  },
+  {
+    "command": "edulcni.dynamic_binary_integer",
+    "snippetPath": "/templates/dynamic_binary_integer"
+  },
+  {
+    "command": "edulcni.prime_exponent_vectors",
+    "snippetPath": "/templates/prime_exponent_vectors"
+  },
+  {
+    "command": "edulcni.threshold_2sat",
+    "snippetPath": "/templates/threshold_2sat"
+  },
+  {
+    "command": "edulcni.blossom_matching",
+    "snippetPath": "/templates/blossom_matching"
+  },
+  {
+    "command": "edulcni.cartesian_tree",
+    "snippetPath": "/templates/cartesian_tree"
+  },
+  {
+    "command": "edulcni.directed_mst",
+    "snippetPath": "/templates/directed_mst"
+  },
+  {
+    "command": "edulcni.discrete_log",
+    "snippetPath": "/templates/discrete_log"
+  },
+  {
+    "command": "edulcni.dominator_tree",
+    "snippetPath": "/templates/dominator_tree"
+  },
+  {
+    "command": "edulcni.dynamic_aho_activation",
+    "snippetPath": "/templates/dynamic_aho_activation"
+  },
+  {
+    "command": "edulcni.delaunay_triangulation",
+    "snippetPath": "/templates/delaunay_triangulation"
+  },
+  {
+    "command": "edulcni.dynamic_sequence_hash",
+    "snippetPath": "/templates/dynamic_sequence_hash"
+  },
+  {
+    "command": "edulcni.dynamic_convex_hull",
+    "snippetPath": "/templates/dynamic_convex_hull"
+  },
+  {
+    "command": "edulcni.euler_tour_tree",
+    "snippetPath": "/templates/euler_tour_tree"
+  },
+  {
+    "command": "edulcni.floor_sum",
+    "snippetPath": "/templates/floor_sum"
+  },
+  {
+    "command": "edulcni.formal_power_series",
+    "snippetPath": "/templates/formal_power_series"
+  },
+  {
+    "command": "edulcni.ntt_formal_power_series",
+    "snippetPath": "/templates/ntt_formal_power_series"
+  },
+  {
+    "command": "edulcni.huffman_tree",
+    "snippetPath": "/templates/huffman_tree"
+  },
+  {
+    "command": "edulcni.lyndon_factorization",
+    "snippetPath": "/templates/lyndon_factorization"
+  },
+  {
+    "command": "edulcni.maximum_clique",
+    "snippetPath": "/templates/maximum_clique"
+  },
+  {
+    "command": "edulcni.minimum_mean_cycle",
+    "snippetPath": "/templates/minimum_mean_cycle"
+  },
+  {
+    "command": "edulcni.minkowski_sum",
+    "snippetPath": "/templates/minkowski_sum"
+  },
+  {
+    "command": "edulcni.mo_with_modifications",
+    "snippetPath": "/templates/mo_with_modifications"
+  },
+  {
+    "command": "edulcni.modular_sqrt",
+    "snippetPath": "/templates/modular_sqrt"
+  },
+  {
+    "command": "edulcni.offline_lifetimes",
+    "snippetPath": "/templates/offline_lifetimes"
+  },
+  {
+    "command": "edulcni.palindromic_tree",
+    "snippetPath": "/templates/palindromic_tree"
+  },
+  {
+    "command": "edulcni.parallel_ternary_search",
+    "snippetPath": "/templates/parallel_ternary_search"
+  },
+  {
+    "command": "edulcni.persistent_li_chao",
+    "snippetPath": "/templates/persistent_li_chao"
+  },
+  {
+    "command": "edulcni.potential_dsu",
+    "snippetPath": "/templates/potential_dsu"
+  },
+  {
+    "command": "edulcni.primitive_root",
+    "snippetPath": "/templates/primitive_root"
+  },
+  {
+    "command": "edulcni.rollback_li_chao",
+    "snippetPath": "/templates/rollback_li_chao"
+  },
+  {
+    "command": "edulcni.rollback_parity_dsu",
+    "snippetPath": "/templates/rollback_parity_dsu"
+  },
+  {
+    "command": "edulcni.rotating_calipers",
+    "snippetPath": "/templates/rotating_calipers"
+  },
+  {
+    "command": "edulcni.segment_arrangement",
+    "snippetPath": "/templates/segment_arrangement"
+  },
+  {
+    "command": "edulcni.shortest_path_subgraph",
+    "snippetPath": "/templates/shortest_path_subgraph"
+  },
+  {
+    "command": "edulcni.slope_trick",
+    "snippetPath": "/templates/slope_trick"
+  },
+  {
+    "command": "edulcni.small_terminal_subset_dp",
+    "snippetPath": "/templates/small_terminal_subset_dp"
+  },
+  {
+    "command": "edulcni.sqrt_decomposition",
+    "snippetPath": "/templates/sqrt_decomposition"
+  },
+  {
+    "command": "edulcni.stern_brocot",
+    "snippetPath": "/templates/stern_brocot"
+  },
+  {
+    "command": "edulcni.subset_convolution",
+    "snippetPath": "/templates/subset_convolution"
+  },
+  {
+    "command": "edulcni.suffix_automaton",
+    "snippetPath": "/templates/suffix_automaton"
+  },
+  {
+    "command": "edulcni.summatory_multiplicative",
+    "snippetPath": "/templates/summatory_multiplicative"
+  },
+  {
+    "command": "edulcni.virtual_tree",
+    "snippetPath": "/templates/virtual_tree"
+  },
+  {
+    "command": "edulcni.wavelet_matrix",
+    "snippetPath": "/templates/wavelet_matrix"
+  },
+  {
+    "command": "edulcni.binomial_composite",
+    "snippetPath": "/templates/binomial_composite"
+  },
+  {
+    "command": "edulcni.bitset_lcs",
+    "snippetPath": "/templates/bitset_lcs"
+  },
+  {
+    "command": "edulcni.block_cut_tree",
+    "snippetPath": "/templates/block_cut_tree"
+  },
+  {
+    "command": "edulcni.bostan_mori",
+    "snippetPath": "/templates/bostan_mori"
+  },
+  {
+    "command": "edulcni.bridge_tree",
+    "snippetPath": "/templates/bridge_tree"
+  },
+  {
+    "command": "edulcni.burrows_wheeler_transform",
+    "snippetPath": "/templates/burrows_wheeler_transform"
+  },
+  {
+    "command": "edulcni.cactus_decomposition",
+    "snippetPath": "/templates/cactus_decomposition"
+  },
+  {
+    "command": "edulcni.cdq_dominance",
+    "snippetPath": "/templates/cdq_dominance"
+  },
+  {
+    "command": "edulcni.centroid_nearest_marked",
+    "snippetPath": "/templates/centroid_nearest_marked"
+  },
+  {
+    "command": "edulcni.circle_union_area",
+    "snippetPath": "/templates/circle_union_area"
+  },
+  {
+    "command": "edulcni.continued_fraction",
+    "snippetPath": "/templates/continued_fraction"
+  },
+  {
+    "command": "edulcni.convex_polygon_intersection",
+    "snippetPath": "/templates/convex_polygon_intersection"
+  },
+  {
+    "command": "edulcni.discrete_root_prime",
+    "snippetPath": "/templates/discrete_root_prime"
+  },
+  {
+    "command": "edulcni.dsu_on_tree",
+    "snippetPath": "/templates/dsu_on_tree"
+  },
+  {
+    "command": "edulcni.du_jiao_sieve",
+    "snippetPath": "/templates/du_jiao_sieve"
+  },
+  {
+    "command": "edulcni.functional_graph_fold",
+    "snippetPath": "/templates/functional_graph_fold"
+  },
+  {
+    "command": "edulcni.gaussian_elimination_field",
+    "snippetPath": "/templates/gaussian_elimination_field"
+  },
+  {
+    "command": "edulcni.gomory_hu_tree",
+    "snippetPath": "/templates/gomory_hu_tree"
+  },
+  {
+    "command": "edulcni.lagrange_consecutive",
+    "snippetPath": "/templates/lagrange_consecutive"
+  },
+  {
+    "command": "edulcni.lcp_interval_tree",
+    "snippetPath": "/templates/lcp_interval_tree"
+  },
+  {
+    "command": "edulcni.lehmer_prime_count",
+    "snippetPath": "/templates/lehmer_prime_count"
+  },
+  {
+    "command": "edulcni.link_cut_tree",
+    "snippetPath": "/templates/link_cut_tree"
+  },
+  {
+    "command": "edulcni.lower_bound_flow",
+    "snippetPath": "/templates/lower_bound_flow"
+  },
+  {
+    "command": "edulcni.matroid_intersection",
+    "snippetPath": "/templates/matroid_intersection"
+  },
+  {
+    "command": "edulcni.weighted_matroid_intersection",
+    "snippetPath": "/templates/weighted_matroid_intersection"
+  },
+  {
+    "command": "edulcni.min_cost_circulation",
+    "snippetPath": "/templates/min_cost_circulation"
+  },
+  {
+    "command": "edulcni.min_plus_convolution",
+    "snippetPath": "/templates/min_plus_convolution"
+  },
+  {
+    "command": "edulcni.minimal_absent_substring",
+    "snippetPath": "/templates/minimal_absent_substring"
+  },
+  {
+    "command": "edulcni.offline_kth",
+    "snippetPath": "/templates/offline_kth"
+  },
+  {
+    "command": "edulcni.online_dynamic_connectivity",
+    "snippetPath": "/templates/online_dynamic_connectivity"
+  },
+  {
+    "command": "edulcni.partially_persistent_dsu",
+    "snippetPath": "/templates/partially_persistent_dsu"
+  },
+  {
+    "command": "edulcni.persistent_dsu",
+    "snippetPath": "/templates/persistent_dsu"
+  },
+  {
+    "command": "edulcni.polynomial_tools",
+    "snippetPath": "/templates/polynomial_tools"
+  },
+  {
+    "command": "edulcni.profile_dp",
+    "snippetPath": "/templates/profile_dp"
+  },
+  {
+    "command": "edulcni.range_distinct_updates",
+    "snippetPath": "/templates/range_distinct_updates"
+  },
+  {
+    "command": "edulcni.segment_tree_graph",
+    "snippetPath": "/templates/segment_tree_graph"
+  },
+  {
+    "command": "edulcni.smawk",
+    "snippetPath": "/templates/smawk"
+  },
+  {
+    "command": "edulcni.splay_tree",
+    "snippetPath": "/templates/splay_tree"
+  },
+  {
+    "command": "edulcni.subset_sum_mitm",
+    "snippetPath": "/templates/subset_sum_mitm"
+  },
+  {
+    "command": "edulcni.suffix_tree_from_sa",
+    "snippetPath": "/templates/suffix_tree_from_sa"
+  },
+  {
+    "command": "edulcni.swag_queue",
+    "snippetPath": "/templates/swag_queue"
+  },
+  {
+    "command": "edulcni.tarjan_offline_lca",
+    "snippetPath": "/templates/tarjan_offline_lca"
+  },
+  {
+    "command": "edulcni.tree_isomorphism",
+    "snippetPath": "/templates/tree_isomorphism"
+  },
+  {
+    "command": "edulcni.wildcard_matching",
+    "snippetPath": "/templates/wildcard_matching"
+  },
+  {
+    "command": "edulcni.connectivity_workflow",
+    "snippetPath": "/templates/connectivity_workflow"
+  },
+  {
+    "command": "edulcni.string_workflow",
+    "snippetPath": "/templates/string_workflow"
+  },
+  {
+    "command": "edulcni.geometry_workflow",
+    "snippetPath": "/templates/geometry_workflow"
+  },
+  {
+    "command": "edulcni.flow_matching_workflow",
+    "snippetPath": "/templates/flow_matching_workflow"
   }
 ] as const;

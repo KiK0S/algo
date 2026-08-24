@@ -341,6 +341,7 @@ interface WizardReplayContext {
 
 let wizardReplayContext: WizardReplayContext | undefined;
 let activeWizardSession: WizardPreviewSession | undefined;
+const extensionHostTestQuickPickAnswers: Array<string | undefined> = [];
 
 function defaultQuickPickAnswer<T extends vscode.QuickPickItem>(
   items: readonly T[],
@@ -529,6 +530,17 @@ async function showExplainedQuickPick<T extends vscode.QuickPickItem>(
   const explainedItems = explainPickItems(
     simplifiedItems.length > 0 ? simplifiedItems : originalItems
   );
+  if (process.env.EDULCNI_EXTENSION_HOST_TEST === "1" && extensionHostTestQuickPickAnswers.length > 0) {
+    const answer = extensionHostTestQuickPickAnswers.shift();
+    if (answer === undefined) {
+      return undefined;
+    }
+    const picked = explainedItems.find((item) => item.label === answer);
+    if (!picked) {
+      throw new Error(`extension-host test quick-pick answer is unavailable: ${answer}`);
+    }
+    return (options?.canPickMany ? [picked] : picked) as T | T[];
+  }
   if (explainedItems.length === 1) {
     const picked = explainedItems.find((item) => item.picked) ?? explainedItems[0];
     return (options?.canPickMany ? [picked] : picked) as T | T[];
@@ -736,7 +748,7 @@ interface GeneratorRegistration {
 }
 
 function isCatalogSnippetPath(displayPath: string): boolean {
-  return displayPath.startsWith("/templates/") || displayPath.startsWith("/templates/");
+  return displayPath.startsWith("/templates/");
 }
 
 async function resolveBundledLibraryRoot(
@@ -6778,6 +6790,38 @@ const generatorRegistry = new Map<string, GeneratorRegistration>([
   ]
 ]);
 
+function registerWorkflowGenerator(
+  id: string,
+  path: string,
+  defaultGenerator: string
+): void {
+  generatorRegistry.set(id, {
+    catalogEntry: {
+      path,
+      insertMode: "global",
+      generator: id,
+      label: path,
+      description: "choice-based algorithm workflow",
+      detail: "choice-based workflow"
+    },
+    async prompt(): Promise<RenderedSnippet | undefined> {
+      throw new Error(`workflow ${path} must be routed before rendering`);
+    },
+    defaultSnippet(analysis: CppAnalysis, extraReserved: string[]): RenderedSnippet {
+      const generator = generatorRegistry.get(defaultGenerator);
+      if (!generator) {
+        throw new Error(`workflow default generator is unavailable: ${defaultGenerator}`);
+      }
+      return generator.defaultSnippet(analysis, extraReserved);
+    }
+  });
+}
+
+registerWorkflowGenerator("connectivity_workflow", "/templates/connectivity_workflow", "dsu");
+registerWorkflowGenerator("strings_workflow", "/templates/string_workflow", "poly_hash");
+registerWorkflowGenerator("geometry_workflow", "/templates/geometry_workflow", "geometry");
+registerWorkflowGenerator("flow_matching_workflow", "/templates/flow_matching_workflow", "maxflow_dinic");
+
 const generatorRegistryByPath = new Map(
   [...generatorRegistry.values()].map((generator) => [
     generator.catalogEntry.path,
@@ -6862,6 +6906,34 @@ async function insertSnippet(
   }
 
   const catalogByPath = new Map(catalogEntries.map((entry) => [entry.path, entry]));
+  if (picked.entry?.workflowChoices) {
+    const workflowPick = await showExplainedQuickPick(
+      picked.entry.workflowChoices.map((choice) => ({
+        label: choice.label,
+        description: choice.description,
+        value: choice.path
+      })),
+      {
+        title: `edulcni: ${picked.label.replace(/^\/templates\//, "")}`,
+        placeHolder: "Choose the algorithm that matches the problem constraints",
+        matchOnDescription: true,
+        ignoreFocusOut: true
+      }
+    );
+    if (!workflowPick) return;
+    const targetEntry = catalogByPath.get(workflowPick.value);
+    if (!targetEntry) {
+      throw new Error(`workflow target is missing from the catalog: ${workflowPick.value}`);
+    }
+    picked = {
+      label: targetEntry.label ?? targetEntry.path,
+      description: targetEntry.description ?? "",
+      detail: targetEntry.detail ?? "template",
+      snippetPath: targetEntry.path,
+      entry: targetEntry,
+      insertMode: targetEntry.insertMode
+    };
+  }
   let renderedSnippet: RenderedSnippet;
   const generator = picked.entry?.generator
     ? generatorRegistry.get(picked.entry.generator)
@@ -6925,6 +6997,21 @@ export function activate(context: vscode.ExtensionContext): void {
           vscode.window.showErrorMessage(`edulcni: ${message}`);
         }
       })
+    );
+  }
+
+  if (process.env.EDULCNI_EXTENSION_HOST_TEST === "1") {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "edulcni.test.setQuickPickAnswers",
+        (answers: Array<string | undefined>) => {
+          extensionHostTestQuickPickAnswers.splice(
+            0,
+            extensionHostTestQuickPickAnswers.length,
+            ...answers
+          );
+        }
+      )
     );
   }
 }

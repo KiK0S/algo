@@ -1,0 +1,139 @@
+template <class Weight>
+class CactusDecomposition {
+ public:
+  struct Edge { int from, to; Weight weight; };
+  struct Block {
+    bool cycle = false;
+    std::vector<int> vertices;
+    std::vector<Weight> prefix;
+  };
+
+  CactusDecomposition(int vertex_count, const std::vector<Edge>& edges)
+      : vertex_count_(vertex_count), edges_(edges) {
+    build();
+  }
+
+  bool valid() const { return valid_; }
+  const std::vector<Block>& blocks() const { return blocks_; }
+  const std::vector<std::vector<int>>& block_forest() const { return block_forest_; }
+
+  std::optional<Weight> distance(int from, int to) const {
+    if (!valid_) return std::nullopt;
+    if (from == to) return Weight{};
+    std::vector<int> parent(block_forest_.size(), -1);
+    std::vector<int> queue = {from}; parent[from] = from;
+    for (int begin = 0; begin < static_cast<int>(queue.size()) && parent[to] == -1; ++begin) {
+      int node = queue[begin];
+      for (int next : block_forest_[node]) if (parent[next] == -1) {
+        parent[next] = node; queue.push_back(next);
+      }
+    }
+    if (parent[to] == -1) return std::nullopt;
+    std::vector<int> path;
+    for (int node = to; node != from; node = parent[node]) path.push_back(node);
+    path.push_back(from);
+    std::reverse(path.begin(), path.end());
+    Weight answer{};
+    for (int index = 1; index + 1 < static_cast<int>(path.size()); index += 2)
+      answer += inside_block(path[index] - vertex_count_, path[index - 1], path[index + 1]);
+    return answer;
+  }
+
+ private:
+  int vertex_count_;
+  std::vector<Edge> edges_;
+  bool valid_ = true;
+  std::vector<Block> blocks_;
+  std::vector<std::vector<int>> block_forest_;
+
+  void build() {
+    std::vector<std::vector<std::pair<int, int>>> graph(vertex_count_);
+    for (int id = 0; id < static_cast<int>(edges_.size()); ++id) {
+      const Edge& edge = edges_[id];
+      if (edge.from < 0 || edge.from >= vertex_count_ || edge.to < 0 ||
+          edge.to >= vertex_count_ || edge.from == edge.to) {
+        valid_ = false;
+        return;
+      }
+      graph[edge.from].push_back({edge.to, id});
+      graph[edge.to].push_back({edge.from, id});
+    }
+    std::vector<int> discovery(vertex_count_, -1), low(vertex_count_), stack;
+    std::vector<std::vector<int>> component_edges;
+    int timer = 0;
+    std::function<void(int, int)> dfs = [&](int u, int parent_edge) {
+      discovery[u] = low[u] = timer++;
+      for (auto [v, id] : graph[u]) if (id != parent_edge) {
+        if (discovery[v] == -1) {
+          stack.push_back(id); dfs(v, id); low[u] = std::min(low[u], low[v]);
+          if (low[v] >= discovery[u]) {
+            component_edges.push_back({});
+            while (true) {
+              int edge = stack.back(); stack.pop_back();
+              component_edges.back().push_back(edge);
+              if (edge == id) break;
+            }
+          }
+        } else if (discovery[v] < discovery[u]) {
+          stack.push_back(id); low[u] = std::min(low[u], discovery[v]);
+        }
+      }
+    };
+    for (int root = 0; root < vertex_count_; ++root)
+      if (discovery[root] == -1) dfs(root, -1);
+
+    for (const auto& component : component_edges) {
+      if (component.size() == 1) {
+        const Edge& edge = edges_[component[0]];
+        blocks_.push_back({false, {edge.from, edge.to}, {Weight{}, edge.weight}});
+        continue;
+      }
+      std::vector<int> vertices;
+      std::map<int, std::vector<std::pair<int, int>>> adjacency;
+      for (int id : component) {
+        const Edge& edge = edges_[id];
+        adjacency[edge.from].push_back({edge.to, id});
+        adjacency[edge.to].push_back({edge.from, id});
+      }
+      if (adjacency.size() != component.size()) { valid_ = false; return; }
+      for (const auto& [vertex, neighbors] : adjacency)
+        if (neighbors.size() != 2) { valid_ = false; return; }
+      int start = adjacency.begin()->first, current = start, previous_edge = -1;
+      std::vector<Weight> weights;
+      do {
+        vertices.push_back(current);
+        const auto& neighbors = adjacency[current];
+        auto [next, edge_id] = neighbors[0].second == previous_edge ? neighbors[1] : neighbors[0];
+        weights.push_back(edges_[edge_id].weight);
+        current = next; previous_edge = edge_id;
+      } while (current != start && vertices.size() <= component.size());
+      if (current != start || vertices.size() != component.size()) { valid_ = false; return; }
+      Block block; block.cycle = true; block.vertices = std::move(vertices);
+      block.prefix.assign(weights.size() + 1, Weight{});
+      for (int i = 0; i < static_cast<int>(weights.size()); ++i)
+        block.prefix[i + 1] = block.prefix[i] + weights[i];
+      blocks_.push_back(std::move(block));
+    }
+    block_forest_.assign(vertex_count_ + blocks_.size(), {});
+    for (int block = 0; block < static_cast<int>(blocks_.size()); ++block) {
+      int node = vertex_count_ + block;
+      for (int vertex : blocks_[block].vertices) {
+        block_forest_[node].push_back(vertex);
+        block_forest_[vertex].push_back(node);
+      }
+    }
+  }
+
+  Weight inside_block(int block_index, int from, int to) const {
+    const Block& block = blocks_[block_index];
+    if (!block.cycle) return block.prefix.back();
+    int first = static_cast<int>(std::find(block.vertices.begin(), block.vertices.end(), from) -
+                                 block.vertices.begin());
+    int second = static_cast<int>(std::find(block.vertices.begin(), block.vertices.end(), to) -
+                                  block.vertices.begin());
+    if (first > second) std::swap(first, second);
+    Weight forward = block.prefix[second] - block.prefix[first];
+    Weight backward = block.prefix.back() - forward;
+    return std::min(forward, backward);
+  }
+};

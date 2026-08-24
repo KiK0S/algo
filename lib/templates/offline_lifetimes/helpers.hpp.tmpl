@@ -1,0 +1,64 @@
+template <class Event>
+class OfflineLifetimes {
+ public:
+  explicit OfflineLifetimes(int time_count = 0)
+      : time_count_(std::max(0, time_count)),
+        tree_(std::max(1, 4 * time_count_)) {}
+
+  void add(int first_time, int past_last_time, const Event& event) {
+    first_time = std::max(first_time, 0);
+    past_last_time = std::min(past_last_time, time_count_);
+    if (first_time < past_last_time) {
+      add(1, 0, time_count_, first_time, past_last_time, event);
+      EDULCNI_VIS(edulcni::live::array(
+          "offline_lifetimes.added_interval",
+          std::vector<int>{first_time, past_last_time}));
+      EDULCNI_STEP("Offline lifetime registered");
+    }
+  }
+
+  template <class Snapshot, class Apply, class Rollback, class Visit>
+  void run(Snapshot snapshot, Apply apply, Rollback rollback, Visit visit) const {
+    if (time_count_ != 0)
+      run(1, 0, time_count_, snapshot, apply, rollback, visit);
+  }
+
+ private:
+  int time_count_;
+  std::vector<std::vector<Event>> tree_;
+
+  void add(int node, int left, int right, int query_left, int query_right,
+           const Event& event) {
+    if (query_right <= left || right <= query_left) return;
+    if (query_left <= left && right <= query_right) {
+      tree_[node].push_back(event);
+      return;
+    }
+    const int middle = (left + right) / 2;
+    add(2 * node, left, middle, query_left, query_right, event);
+    add(2 * node + 1, middle, right, query_left, query_right, event);
+  }
+
+  template <class Snapshot, class Apply, class Rollback, class Visit>
+  void run(int node, int left, int right, Snapshot& snapshot, Apply& apply,
+           Rollback& rollback, Visit& visit) const {
+    auto checkpoint = snapshot();
+    EDULCNI_VIS(edulcni::live::array(
+        "offline_lifetimes.active_interval", std::vector<int>{left, right}));
+    EDULCNI_VIS(edulcni::live::value(
+        "offline_lifetimes.event_count", tree_[node].size()));
+    EDULCNI_STEP("Offline lifetime traversal enters an interval");
+    for (const Event& event : tree_[node]) apply(event);
+    if (right - left == 1) {
+      EDULCNI_VIS(edulcni::live::value("offline_lifetimes.time", left));
+      EDULCNI_STEP("Offline lifetime traversal visits a time point");
+      visit(left);
+    } else {
+      const int middle = (left + right) / 2;
+      run(2 * node, left, middle, snapshot, apply, rollback, visit);
+      run(2 * node + 1, middle, right, snapshot, apply, rollback, visit);
+    }
+    rollback(checkpoint);
+    EDULCNI_STEP("Offline lifetime traversal restores its checkpoint");
+  }
+};

@@ -1,0 +1,128 @@
+class BinomialModuloComposite {
+ public:
+  explicit BinomialModuloComposite(long long modulus,
+                                   long long maximum_table_size = 2000000)
+      : modulus_(modulus) {
+    if (modulus_ <= 0) return;
+    long long remaining = modulus_;
+    for (long long prime = 2; prime <= remaining / prime; ++prime) {
+      if (remaining % prime != 0) continue;
+      long long prime_power = 1;
+      while (remaining % prime == 0) {
+        remaining /= prime;
+        prime_power *= prime;
+      }
+      factors_.push_back(make_factor(prime, prime_power, maximum_table_size));
+    }
+    if (remaining > 1)
+      factors_.push_back(make_factor(remaining, remaining, maximum_table_size));
+    valid_ = std::all_of(factors_.begin(), factors_.end(),
+                         [](const Factor& factor) { return !factor.unit_prefix.empty(); });
+  }
+
+  bool valid() const { return valid_; }
+  long long modulus() const { return modulus_; }
+
+  long long choose(long long size, long long selected) const {
+    if (!valid_ || selected < 0 || selected > size || size < 0) return -1;
+    if (modulus_ == 1) return 0;
+    long long answer = 0;
+    for (const Factor& factor : factors_) {
+      const long long residue = choose_prime_power(size, selected, factor);
+      const long long other = modulus_ / factor.modulus;
+      const long long inverse = modular_inverse(other % factor.modulus, factor.modulus);
+      answer = static_cast<long long>((answer +
+          (__int128)residue * other % modulus_ * inverse) % modulus_);
+    }
+    return answer;
+  }
+
+ private:
+  struct Factor {
+    long long prime = 0;
+    long long modulus = 0;
+    std::vector<long long> unit_prefix;
+  };
+
+  static Factor make_factor(long long prime, long long modulus,
+                            long long maximum_table_size) {
+    Factor factor{prime, modulus, {}};
+    if (modulus > maximum_table_size) return factor;
+    factor.unit_prefix.resize(modulus + 1, 1);
+    for (long long value = 1; value <= modulus; ++value) {
+      factor.unit_prefix[value] = factor.unit_prefix[value - 1];
+      if (value % prime != 0)
+        factor.unit_prefix[value] = static_cast<long long>(
+            (__int128)factor.unit_prefix[value] * value % modulus);
+    }
+    return factor;
+  }
+
+  static long long power_mod(long long base, long long exponent, long long modulus) {
+    long long result = 1 % modulus;
+    while (exponent > 0) {
+      if (exponent & 1) result = static_cast<long long>((__int128)result * base % modulus);
+      base = static_cast<long long>((__int128)base * base % modulus);
+      exponent >>= 1;
+    }
+    return result;
+  }
+
+  static long long modular_inverse(long long value, long long modulus) {
+    long long a = value, b = modulus, x = 1, previous_x = 0;
+    while (b != 0) {
+      const long long quotient = a / b;
+      a -= quotient * b;
+      std::swap(a, b);
+      x -= quotient * previous_x;
+      std::swap(x, previous_x);
+    }
+    x %= modulus;
+    return x < 0 ? x + modulus : x;
+  }
+
+  static long long prime_exponent(long long factorial, long long prime) {
+    long long result = 0;
+    while (factorial > 0) {
+      factorial /= prime;
+      result += factorial;
+    }
+    return result;
+  }
+
+  static long long factorial_without_prime(long long size, const Factor& factor) {
+    if (size == 0) return 1;
+    const long long blocks = size / factor.modulus;
+    long long result = power_mod(factor.unit_prefix[factor.modulus], blocks,
+                                 factor.modulus);
+    result = static_cast<long long>((__int128)result *
+        factor.unit_prefix[size % factor.modulus] % factor.modulus);
+    return static_cast<long long>((__int128)result *
+        factorial_without_prime(size / factor.prime, factor) % factor.modulus);
+  }
+
+  static long long choose_prime_power(long long size, long long selected,
+                                      const Factor& factor) {
+    const long long exponent = prime_exponent(size, factor.prime) -
+        prime_exponent(selected, factor.prime) -
+        prime_exponent(size - selected, factor.prime);
+    long long power_bound = factor.modulus;
+    int modulus_exponent = 0;
+    while (power_bound % factor.prime == 0) {
+      power_bound /= factor.prime;
+      ++modulus_exponent;
+    }
+    if (exponent >= modulus_exponent) return 0;
+    const long long numerator = factorial_without_prime(size, factor);
+    const long long denominator = static_cast<long long>((__int128)
+        factorial_without_prime(selected, factor) *
+        factorial_without_prime(size - selected, factor) % factor.modulus);
+    return static_cast<long long>((__int128)numerator *
+        modular_inverse(denominator, factor.modulus) % factor.modulus *
+        power_mod(factor.prime, exponent, factor.modulus) % factor.modulus);
+  }
+
+  long long modulus_ = 0;
+  bool valid_ = false;
+  std::vector<Factor> factors_;
+};

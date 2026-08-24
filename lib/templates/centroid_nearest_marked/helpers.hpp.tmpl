@@ -1,0 +1,59 @@
+class CentroidNearestMarked {
+ public:
+  explicit CentroidNearestMarked(const std::vector<std::vector<int>>& tree)
+      : tree_(tree), removed_(tree.size()), subtree_size_(tree.size()),
+        paths_(tree.size()), distances_(tree.size()), marked_(tree.size()) {
+    for (int vertex = 0; vertex < static_cast<int>(tree.size()); ++vertex)
+      if (!removed_[vertex]) decompose(vertex);
+  }
+
+  void set_marked(int vertex, bool marked) {
+    if (marked_[vertex] == marked) return;
+    marked_[vertex] = marked;
+    for (auto [centroid, distance] : paths_[vertex]) {
+      if (marked) distances_[centroid].insert(distance);
+      else distances_[centroid].erase(distances_[centroid].find(distance));
+    }
+  }
+
+  int nearest_distance(int vertex) const {
+    int answer = std::numeric_limits<int>::max();
+    for (auto [centroid, distance] : paths_[vertex]) {
+      if (!distances_[centroid].empty())
+        answer = std::min(answer, distance + *distances_[centroid].begin());
+    }
+    return answer == std::numeric_limits<int>::max() ? -1 : answer;
+  }
+
+ private:
+  const std::vector<std::vector<int>>& tree_;
+  std::vector<char> removed_;
+  std::vector<int> subtree_size_;
+  std::vector<std::vector<std::pair<int, int>>> paths_;
+  std::vector<std::multiset<int>> distances_;
+  std::vector<char> marked_;
+
+  int measure(int u, int parent) {
+    subtree_size_[u] = 1;
+    for (int v : tree_[u]) if (v != parent && !removed_[v])
+      subtree_size_[u] += measure(v, u);
+    return subtree_size_[u];
+  }
+  int find_centroid(int u, int parent, int size) {
+    for (int v : tree_[u])
+      if (v != parent && !removed_[v] && subtree_size_[v] > size / 2)
+        return find_centroid(v, u, size);
+    return u;
+  }
+  void record_paths(int u, int parent, int distance, int centroid) {
+    paths_[u].push_back({centroid, distance});
+    for (int v : tree_[u]) if (v != parent && !removed_[v])
+      record_paths(v, u, distance + 1, centroid);
+  }
+  void decompose(int start) {
+    int centroid = find_centroid(start, -1, measure(start, -1));
+    record_paths(centroid, -1, 0, centroid);
+    removed_[centroid] = true;
+    for (int next : tree_[centroid]) if (!removed_[next]) decompose(next);
+  }
+};

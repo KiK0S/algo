@@ -1,0 +1,26 @@
+template<class T>
+int bitset_lcs_length(const vector<T>& first, const vector<T>& second) {
+    int words = (second.size() + 63) / 64;
+    map<T, vector<uint64_t>> positions;
+    for (int j = 0; j < int(second.size()); ++j)
+        positions[second[j]].resize(words), positions[second[j]][j / 64] |= 1ULL << (j % 64);
+    vector<uint64_t> state(words);
+    for (const T& value : first) {
+        const auto found = positions.find(value);
+        uint64_t carry = 1, borrow = 0;
+        for (int word = 0; word < words; ++word) {
+            uint64_t matches = found == positions.end() ? 0 : found->second[word];
+            uint64_t x = state[word] | matches;
+            uint64_t shifted = (state[word] << 1) | carry;
+            carry = state[word] >> 63;
+            uint64_t subtrahend = shifted + borrow;
+            uint64_t next_borrow = (subtrahend < shifted) || (x < subtrahend);
+            state[word] = x & ~(x - subtrahend);
+            borrow = next_borrow;
+        }
+        if (second.size() % 64) state.back() &= (1ULL << (second.size() % 64)) - 1;
+    }
+    int answer = 0;
+    for (uint64_t word : state) answer += __builtin_popcountll(word);
+    return answer;
+}

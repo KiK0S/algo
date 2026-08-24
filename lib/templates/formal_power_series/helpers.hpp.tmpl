@@ -1,0 +1,116 @@
+template <typename T>
+struct FormalPowerSeries {
+  // Straightforward O(n^2) coefficient recurrences; this is not an NTT-based
+  // implementation. T must behave like a field, including division by every
+  // integer coefficient used up to the requested truncation size.
+  using Polynomial = std::vector<T>;
+
+  static Polynomial multiply(const Polynomial& lhs, const Polynomial& rhs, int size) {
+    Polynomial result(std::max(0, size), T(0));
+    for (int i = 0; i < static_cast<int>(lhs.size()) && i < size; ++i)
+      for (int j = 0; j < static_cast<int>(rhs.size()) && i + j < size; ++j)
+        result[i + j] += lhs[i] * rhs[j];
+    return result;
+  }
+
+  static Polynomial inverse(const Polynomial& series, int size) {
+    if (size <= 0 || series.empty() || series[0] == T(0)) return {};
+    Polynomial result(size, T(0));
+    result[0] = T(1) / series[0];
+    for (int index = 1; index < size; ++index) {
+      T sum = T(0);
+      for (int term = 1; term <= index && term < static_cast<int>(series.size()); ++term)
+        sum += series[term] * result[index - term];
+      result[index] = -sum / series[0];
+    }
+    return result;
+  }
+
+  static Polynomial derivative(const Polynomial& series) {
+    if (series.size() <= 1) return {};
+    Polynomial result(series.size() - 1);
+    for (int index = 1; index < static_cast<int>(series.size()); ++index)
+      result[index - 1] = series[index] * T(index);
+    return result;
+  }
+
+  static Polynomial integral(const Polynomial& series) {
+    Polynomial result(series.size() + 1, T(0));
+    for (int index = 0; index < static_cast<int>(series.size()); ++index)
+      result[index + 1] = series[index] / T(index + 1);
+    return result;
+  }
+
+  static Polynomial logarithm(const Polynomial& series, int size) {
+    if (size <= 0 || series.empty() || series[0] != T(1)) return {};
+    Polynomial result = integral(multiply(derivative(series), inverse(series, size), size - 1));
+    result.resize(size, T(0));
+    return result;
+  }
+
+  static Polynomial exponential(const Polynomial& series, int size) {
+    if (size <= 0 || (!series.empty() && series[0] != T(0))) return {};
+    Polynomial result(size, T(0));
+    result[0] = T(1);
+    for (int index = 1; index < size; ++index) {
+      T sum = T(0);
+      for (int term = 1; term <= index && term < static_cast<int>(series.size()); ++term)
+        sum += T(term) * series[term] * result[index - term];
+      result[index] = sum / T(index);
+    }
+    return result;
+  }
+
+  static Polynomial power(const Polynomial& series, long long exponent, int size) {
+    if (size <= 0 || exponent < 0) return {};
+    if (exponent == 0) { Polynomial result(size, T(0)); result[0] = T(1); return result; }
+    int leading = 0;
+    while (leading < static_cast<int>(series.size()) && series[leading] == T(0)) ++leading;
+    if (leading == static_cast<int>(series.size()) || (__int128)leading * exponent >= size)
+      return Polynomial(size, T(0));
+    const T scale = series[leading];
+    Polynomial normalized(series.begin() + leading, series.end());
+    for (T& value : normalized) value /= scale;
+    Polynomial logged = logarithm(normalized, size - leading * exponent);
+    for (T& value : logged) value *= T(exponent);
+    Polynomial result = exponential(logged, size - leading * exponent);
+    T scale_power = T(1), base = scale;
+    for (long long power = exponent; power; power >>= 1, base *= base)
+      if (power & 1) scale_power *= base;
+    result.insert(result.begin(), leading * exponent, T(0));
+    result.resize(size, T(0));
+    for (T& value : result) value *= scale_power;
+    return result;
+  }
+
+  template <typename ConstantSquareRoot>
+  static Polynomial square_root(const Polynomial& series, int size,
+                                ConstantSquareRoot&& constant_square_root) {
+    if (size <= 0 || series.empty()) return {};
+    int leading = 0;
+    while (leading < static_cast<int>(series.size()) && series[leading] == T(0)) ++leading;
+    if (leading == static_cast<int>(series.size())) return Polynomial(size, T(0));
+    if (leading & 1) return {};
+    if (leading > 0) {
+      if (leading / 2 >= size) return Polynomial(size, T(0));
+      Polynomial shifted(series.begin() + leading, series.end());
+      Polynomial result = square_root(shifted, size - leading / 2,
+                                      std::forward<ConstantSquareRoot>(constant_square_root));
+      if (result.empty()) return {};
+      result.insert(result.begin(), leading / 2, T(0));
+      result.resize(size, T(0));
+      return result;
+    }
+    T root = T(0);
+    if (!constant_square_root(series[0], root)) return {};
+    if (root == T(0)) return {};
+    Polynomial result(size, T(0));
+    result[0] = root;
+    for (int index = 1; index < size; ++index) {
+      T sum = index < static_cast<int>(series.size()) ? series[index] : T(0);
+      for (int term = 1; term < index; ++term) sum -= result[term] * result[index - term];
+      result[index] = sum / (T(2) * root);
+    }
+    return result;
+  }
+};

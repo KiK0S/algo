@@ -1,0 +1,37 @@
+template <typename Symbol, typename Convolve>
+std::vector<int> wildcard_match_positions(const std::vector<Symbol>& text,
+                                          const std::vector<Symbol>& pattern,
+                                          const Symbol& wildcard,
+                                          Convolve convolve) {
+  if (pattern.size() > text.size()) return {};
+  if (pattern.empty()) {
+    std::vector<int> result(text.size() + 1);
+    std::iota(result.begin(), result.end(), 0);
+    return result;
+  }
+  std::set<Symbol> alphabet;
+  int required = 0;
+  for (const Symbol& symbol : pattern) {
+    if (symbol != wildcard) {
+      alphabet.insert(symbol);
+      ++required;
+    }
+  }
+  std::vector<long long> matches(text.size() + pattern.size() - 1, 0);
+  for (const Symbol& symbol : alphabet) {
+    std::vector<long long> text_indicator(text.size(), 0);
+    std::vector<long long> pattern_indicator(pattern.size(), 0);
+    for (int i = 0; i < static_cast<int>(text.size()); ++i)
+      text_indicator[i] = text[i] == symbol;
+    for (int i = 0; i < static_cast<int>(pattern.size()); ++i)
+      pattern_indicator[pattern.size() - 1 - i] = pattern[i] == symbol;
+    const std::vector<long long> product = convolve(text_indicator, pattern_indicator);
+    for (int i = 0; i < static_cast<int>(std::min(product.size(), matches.size())); ++i)
+      matches[i] += product[i];
+  }
+  std::vector<int> result;
+  for (int start = 0; start + static_cast<int>(pattern.size()) <=
+                          static_cast<int>(text.size()); ++start)
+    if (matches[start + pattern.size() - 1] == required) result.push_back(start);
+  return result;
+}

@@ -4,6 +4,11 @@
   "description": "Render competitive programming templates from the bundled catalog.",
   "version": "0.0.1",
   "publisher": "local",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KiK0S/algo.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -101,6 +106,20 @@
     "onCommand:edulcni.zero_one_bfs",
     "onCommand:edulcni.bridges",
     "onCommand:edulcni.tree_diameter",
+    "onCommand:edulcni.range_dsu",
+    "onCommand:edulcni.frequency_tracker",
+    "onCommand:edulcni.argsort",
+    "onCommand:edulcni.ordered_gap_multiset",
+    "onCommand:edulcni.mex_tracker",
+    "onCommand:edulcni.parallel_binary_search",
+    "onCommand:edulcni.permutation_decomposition",
+    "onCommand:edulcni.offline_threshold_sweep",
+    "onCommand:edulcni.fixed_point_iteration",
+    "onCommand:edulcni.dynamic_neighbor_set",
+    "onCommand:edulcni.sweep_events",
+    "onCommand:edulcni.functional_graph",
+    "onCommand:edulcni.rerooting_dp",
+    "onCommand:edulcni.small_to_large_tree_dp",
     "onCommand:edulcni.k_smallest",
     "onCommand:edulcni.euler_subtrees",
     "onCommand:edulcni.z_function",
@@ -139,12 +158,130 @@
     "onCommand:edulcni.consecutive_set",
     "onCommand:edulcni.bounded_matchings",
     "onCommand:edulcni.prefix_suffix_fold",
-    "onCommand:edulcni.level_boundary_segtree"
+    "onCommand:edulcni.level_boundary_segtree",
+    "onCommand:edulcni.aho_corasick",
+    "onCommand:edulcni.centroid_decomposition",
+    "onCommand:edulcni.circle_tangents",
+    "onCommand:edulcni.exact_segment_intersection",
+    "onCommand:edulcni.floor_quotient_multiset",
+    "onCommand:edulcni.gaussian_elimination_gf2",
+    "onCommand:edulcni.heavy_neighbor_aggregator",
+    "onCommand:edulcni.held_karp",
+    "onCommand:edulcni.huffman_multiplicity",
+    "onCommand:edulcni.mixed_radix_indexer",
+    "onCommand:edulcni.persistent_implicit_treap",
+    "onCommand:edulcni.piecewise_constant_map",
+    "onCommand:edulcni.planar_embedding",
+    "onCommand:edulcni.polygon_area",
+    "onCommand:edulcni.rational",
+    "onCommand:edulcni.rectangle_union",
+    "onCommand:edulcni.shortest_path_dag",
+    "onCommand:edulcni.simplex",
+    "onCommand:edulcni.sparse_table_2d",
+    "onCommand:edulcni.steiner_tree",
+    "onCommand:edulcni.two_bin_knapsack",
+    "onCommand:edulcni.weighted_order_statistics",
+    "onCommand:edulcni.weighted_persistent_segment_tree",
+    "onCommand:edulcni.angular_event_sweep",
+    "onCommand:edulcni.circle_line_intersection",
+    "onCommand:edulcni.convex_polygon_queries",
+    "onCommand:edulcni.dynamic_binary_integer",
+    "onCommand:edulcni.prime_exponent_vectors",
+    "onCommand:edulcni.threshold_2sat",
+    "onCommand:edulcni.blossom_matching",
+    "onCommand:edulcni.cartesian_tree",
+    "onCommand:edulcni.directed_mst",
+    "onCommand:edulcni.discrete_log",
+    "onCommand:edulcni.dominator_tree",
+    "onCommand:edulcni.dynamic_aho_activation",
+    "onCommand:edulcni.delaunay_triangulation",
+    "onCommand:edulcni.dynamic_sequence_hash",
+    "onCommand:edulcni.dynamic_convex_hull",
+    "onCommand:edulcni.euler_tour_tree",
+    "onCommand:edulcni.floor_sum",
+    "onCommand:edulcni.formal_power_series",
+    "onCommand:edulcni.ntt_formal_power_series",
+    "onCommand:edulcni.huffman_tree",
+    "onCommand:edulcni.lyndon_factorization",
+    "onCommand:edulcni.maximum_clique",
+    "onCommand:edulcni.minimum_mean_cycle",
+    "onCommand:edulcni.minkowski_sum",
+    "onCommand:edulcni.mo_with_modifications",
+    "onCommand:edulcni.modular_sqrt",
+    "onCommand:edulcni.offline_lifetimes",
+    "onCommand:edulcni.palindromic_tree",
+    "onCommand:edulcni.parallel_ternary_search",
+    "onCommand:edulcni.persistent_li_chao",
+    "onCommand:edulcni.potential_dsu",
+    "onCommand:edulcni.primitive_root",
+    "onCommand:edulcni.rollback_li_chao",
+    "onCommand:edulcni.rollback_parity_dsu",
+    "onCommand:edulcni.rotating_calipers",
+    "onCommand:edulcni.segment_arrangement",
+    "onCommand:edulcni.shortest_path_subgraph",
+    "onCommand:edulcni.slope_trick",
+    "onCommand:edulcni.small_terminal_subset_dp",
+    "onCommand:edulcni.sqrt_decomposition",
+    "onCommand:edulcni.stern_brocot",
+    "onCommand:edulcni.subset_convolution",
+    "onCommand:edulcni.suffix_automaton",
+    "onCommand:edulcni.summatory_multiplicative",
+    "onCommand:edulcni.virtual_tree",
+    "onCommand:edulcni.wavelet_matrix",
+    "onCommand:edulcni.binomial_composite",
+    "onCommand:edulcni.bitset_lcs",
+    "onCommand:edulcni.block_cut_tree",
+    "onCommand:edulcni.bostan_mori",
+    "onCommand:edulcni.bridge_tree",
+    "onCommand:edulcni.burrows_wheeler_transform",
+    "onCommand:edulcni.cactus_decomposition",
+    "onCommand:edulcni.cdq_dominance",
+    "onCommand:edulcni.centroid_nearest_marked",
+    "onCommand:edulcni.circle_union_area",
+    "onCommand:edulcni.continued_fraction",
+    "onCommand:edulcni.convex_polygon_intersection",
+    "onCommand:edulcni.discrete_root_prime",
+    "onCommand:edulcni.dsu_on_tree",
+    "onCommand:edulcni.du_jiao_sieve",
+    "onCommand:edulcni.functional_graph_fold",
+    "onCommand:edulcni.gaussian_elimination_field",
+    "onCommand:edulcni.gomory_hu_tree",
+    "onCommand:edulcni.lagrange_consecutive",
+    "onCommand:edulcni.lcp_interval_tree",
+    "onCommand:edulcni.lehmer_prime_count",
+    "onCommand:edulcni.link_cut_tree",
+    "onCommand:edulcni.lower_bound_flow",
+    "onCommand:edulcni.matroid_intersection",
+    "onCommand:edulcni.weighted_matroid_intersection",
+    "onCommand:edulcni.min_cost_circulation",
+    "onCommand:edulcni.min_plus_convolution",
+    "onCommand:edulcni.minimal_absent_substring",
+    "onCommand:edulcni.offline_kth",
+    "onCommand:edulcni.online_dynamic_connectivity",
+    "onCommand:edulcni.partially_persistent_dsu",
+    "onCommand:edulcni.persistent_dsu",
+    "onCommand:edulcni.polynomial_tools",
+    "onCommand:edulcni.profile_dp",
+    "onCommand:edulcni.range_distinct_updates",
+    "onCommand:edulcni.segment_tree_graph",
+    "onCommand:edulcni.smawk",
+    "onCommand:edulcni.splay_tree",
+    "onCommand:edulcni.subset_sum_mitm",
+    "onCommand:edulcni.suffix_tree_from_sa",
+    "onCommand:edulcni.swag_queue",
+    "onCommand:edulcni.tarjan_offline_lca",
+    "onCommand:edulcni.tree_isomorphism",
+    "onCommand:edulcni.wildcard_matching",
+    "onCommand:edulcni.connectivity_workflow",
+    "onCommand:edulcni.string_workflow",
+    "onCommand:edulcni.geometry_workflow",
+    "onCommand:edulcni.flow_matching_workflow"
   ],
   "main": "./out/extension.js",
   "files": [
     "out/**",
     "library/**",
+    "LICENSE",
     "README.md",
     "package.json"
   ],
@@ -152,519 +289,1043 @@
     "commands": [
       {
         "command": "edulcni.segtree",
-        "title": "edulcni: segtree — Global"
+        "title": "edulcni: segtree — Range queries · Global"
       },
       {
         "command": "edulcni.berlekamp_massey",
-        "title": "edulcni: berlekamp_massey — Global"
+        "title": "edulcni: berlekamp_massey — Math · Global"
       },
       {
         "command": "edulcni.sparse_table",
-        "title": "edulcni: sparse_table — Global"
+        "title": "edulcni: sparse_table — Range queries · Global"
       },
       {
         "command": "edulcni.modpow",
-        "title": "edulcni: modpow — Inline"
+        "title": "edulcni: modpow — Dynamic programming · Inline"
       },
       {
         "command": "edulcni.bfs",
-        "title": "edulcni: bfs — Global"
+        "title": "edulcni: bfs — Graphs & trees · Global"
       },
       {
         "command": "edulcni.linear_sieve",
-        "title": "edulcni: linear_sieve — Global"
+        "title": "edulcni: linear_sieve — Math · Global"
       },
       {
         "command": "edulcni.fenwick",
-        "title": "edulcni: fenwick — Global"
+        "title": "edulcni: fenwick — Range queries · Global"
       },
       {
         "command": "edulcni.factorial_precalc",
-        "title": "edulcni: factorial_precalc — Inline"
+        "title": "edulcni: factorial_precalc — Math · Inline"
       },
       {
         "command": "edulcni.combinatorics",
-        "title": "edulcni: combinatorics — Global"
+        "title": "edulcni: combinatorics — Math · Global"
       },
       {
         "command": "edulcni.powers_precalc",
-        "title": "edulcni: powers_precalc — Inline"
+        "title": "edulcni: powers_precalc — Utilities · Inline"
       },
       {
         "command": "edulcni.modint",
-        "title": "edulcni: modint — Global"
+        "title": "edulcni: modint — Math · Global"
       },
       {
         "command": "edulcni.compress_unique",
-        "title": "edulcni: compress_unique — Inline"
+        "title": "edulcni: compress_unique — Utilities · Inline"
       },
       {
         "command": "edulcni.input",
-        "title": "edulcni: input — Inline"
+        "title": "edulcni: input — Utilities · Inline"
       },
       {
         "command": "edulcni.connected_components",
-        "title": "edulcni: connected_components — Global"
+        "title": "edulcni: connected_components — Graphs & trees · Global"
       },
       {
         "command": "edulcni.dsu",
-        "title": "edulcni: dsu — Global"
+        "title": "edulcni: dsu — Graphs & trees · Global"
       },
       {
         "command": "edulcni.rollback_dsu",
-        "title": "edulcni: rollback_dsu — Global"
+        "title": "edulcni: rollback_dsu — Graphs & trees · Global"
       },
       {
         "command": "edulcni.lca",
-        "title": "edulcni: lca — Global"
+        "title": "edulcni: lca — Graphs & trees · Global"
       },
       {
         "command": "edulcni.twosat",
-        "title": "edulcni: twosat — Global"
+        "title": "edulcni: twosat — Utilities · Global"
       },
       {
         "command": "edulcni.maxflow_dinic",
-        "title": "edulcni: maxflow_dinic — Global"
+        "title": "edulcni: maxflow_dinic — Flow & matching · Global"
       },
       {
         "command": "edulcni.mincost_maxflow",
-        "title": "edulcni: mincost_maxflow — Global"
+        "title": "edulcni: mincost_maxflow — Flow & matching · Global"
       },
       {
         "command": "edulcni.hungarian",
-        "title": "edulcni: hungarian — Global"
+        "title": "edulcni: hungarian — Flow & matching · Global"
       },
       {
         "command": "edulcni.kuhn",
-        "title": "edulcni: kuhn — Global"
+        "title": "edulcni: kuhn — Flow & matching · Global"
       },
       {
         "command": "edulcni.implicit_treap",
-        "title": "edulcni: implicit_treap — Global"
+        "title": "edulcni: implicit_treap — Utilities · Global"
       },
       {
         "command": "edulcni.merge_sort_tree",
-        "title": "edulcni: merge_sort_tree — Global"
+        "title": "edulcni: merge_sort_tree — Graphs & trees · Global"
       },
       {
         "command": "edulcni.poly_hash",
-        "title": "edulcni: poly_hash — Global"
+        "title": "edulcni: poly_hash — Strings · Global"
       },
       {
         "command": "edulcni.suffix_array",
-        "title": "edulcni: suffix_array — Global"
+        "title": "edulcni: suffix_array — Strings · Global"
       },
       {
         "command": "edulcni.segtree_beats",
-        "title": "edulcni: segtree_beats — Global"
+        "title": "edulcni: segtree_beats — Range queries · Global"
       },
       {
         "command": "edulcni.fft_ntt",
-        "title": "edulcni: fft_ntt — Global"
+        "title": "edulcni: fft_ntt — Math · Global"
       },
       {
         "command": "edulcni.fast_allocator",
-        "title": "edulcni: fast_allocator — Global"
+        "title": "edulcni: fast_allocator — Utilities · Global"
       },
       {
         "command": "edulcni.object_pool",
-        "title": "edulcni: object_pool — Global"
+        "title": "edulcni: object_pool — Utilities · Global"
       },
       {
         "command": "edulcni.monotonic_stack",
-        "title": "edulcni: monotonic_stack — Global"
+        "title": "edulcni: monotonic_stack — Utilities · Global"
       },
       {
         "command": "edulcni.toposort",
-        "title": "edulcni: toposort — Global"
+        "title": "edulcni: toposort — Graphs & trees · Global"
       },
       {
         "command": "edulcni.kosaraju",
-        "title": "edulcni: kosaraju — Global"
+        "title": "edulcni: kosaraju — Graphs & trees · Global"
       },
       {
         "command": "edulcni.dijkstra",
-        "title": "edulcni: dijkstra — Global"
+        "title": "edulcni: dijkstra — Graphs & trees · Global"
       },
       {
         "command": "edulcni.gp_hash_table",
-        "title": "edulcni: gp_hash_table — Global"
+        "title": "edulcni: gp_hash_table — Strings · Global"
       },
       {
         "command": "edulcni.ordered_set",
-        "title": "edulcni: ordered_set — Global"
+        "title": "edulcni: ordered_set — Utilities · Global"
       },
       {
         "command": "edulcni.set_utils",
-        "title": "edulcni: set_utils — Global"
+        "title": "edulcni: set_utils — Utilities · Global"
       },
       {
         "command": "edulcni.hld",
-        "title": "edulcni: hld — Global"
+        "title": "edulcni: hld — Graphs & trees · Global"
       },
       {
         "command": "edulcni.mo",
-        "title": "edulcni: mo — Global"
+        "title": "edulcni: mo — Range queries · Global"
       },
       {
         "command": "edulcni.geometry",
-        "title": "edulcni: geometry — Global"
+        "title": "edulcni: geometry — Geometry · Global"
       },
       {
         "command": "edulcni.halfplane_intersection",
-        "title": "edulcni: halfplane_intersection — Global"
+        "title": "edulcni: halfplane_intersection — Utilities · Global"
       },
       {
         "command": "edulcni.base_template",
-        "title": "edulcni: base_template — Inline"
+        "title": "edulcni: base_template — Utilities · Inline"
       },
       {
         "command": "edulcni.bfs_dist",
-        "title": "edulcni: bfs_dist — Inline"
+        "title": "edulcni: bfs_dist — Graphs & trees · Inline"
       },
       {
         "command": "edulcni.bitmask_loop",
-        "title": "edulcni: bitmask_loop — Inline"
+        "title": "edulcni: bitmask_loop — Utilities · Inline"
       },
       {
         "command": "edulcni.block_lengths",
-        "title": "edulcni: block_lengths — Inline"
+        "title": "edulcni: block_lengths — Utilities · Inline"
       },
       {
         "command": "edulcni.circular_blocks",
-        "title": "edulcni: circular_blocks — Global"
+        "title": "edulcni: circular_blocks — Utilities · Global"
       },
       {
         "command": "edulcni.decrement_indices",
-        "title": "edulcni: decrement_indices — Inline"
+        "title": "edulcni: decrement_indices — Utilities · Inline"
       },
       {
         "command": "edulcni.dfs_tree",
-        "title": "edulcni: dfs_tree — Inline"
+        "title": "edulcni: dfs_tree — Graphs & trees · Inline"
       },
       {
         "command": "edulcni.tree_dp",
-        "title": "edulcni: tree_dp — Inline"
+        "title": "edulcni: tree_dp — Graphs & trees · Inline"
       },
       {
         "command": "edulcni.dsu_short",
-        "title": "edulcni: dsu_short — Inline"
+        "title": "edulcni: dsu_short — Graphs & trees · Inline"
       },
       {
         "command": "edulcni.fenwick_sum",
-        "title": "edulcni: fenwick_sum — Inline"
+        "title": "edulcni: fenwick_sum — Range queries · Inline"
       },
       {
         "command": "edulcni.grid4",
-        "title": "edulcni: grid4 — Inline"
+        "title": "edulcni: grid4 — Utilities · Inline"
       },
       {
         "command": "edulcni.lower_bound_l_false_r_true",
-        "title": "edulcni: lower_bound_l_false_r_true — Inline"
+        "title": "edulcni: lower_bound_l_false_r_true — Utilities · Inline"
       },
       {
         "command": "edulcni.prefix_2d",
-        "title": "edulcni: prefix_2d — Inline"
+        "title": "edulcni: prefix_2d — Utilities · Inline"
       },
       {
         "command": "edulcni.print_vector",
-        "title": "edulcni: print_vector — Inline"
+        "title": "edulcni: print_vector — Utilities · Inline"
       },
       {
         "command": "edulcni.static_rsq",
-        "title": "edulcni: static_rsq — Inline"
+        "title": "edulcni: static_rsq — Utilities · Inline"
       },
       {
         "command": "edulcni.test_generators",
-        "title": "edulcni: test_generators — Global"
+        "title": "edulcni: test_generators — Utilities · Global"
       },
       {
         "command": "edulcni.stress_test",
-        "title": "edulcni: stress_test — Inline"
+        "title": "edulcni: stress_test — Utilities · Inline"
       },
       {
         "command": "edulcni.interactive_query",
-        "title": "edulcni: interactive_query — Global"
+        "title": "edulcni: interactive_query — Utilities · Global"
       },
       {
         "command": "edulcni.tree_hash",
-        "title": "edulcni: tree_hash — Global"
+        "title": "edulcni: tree_hash — Strings · Global"
       },
       {
         "command": "edulcni.submasks",
-        "title": "edulcni: submasks — Inline"
+        "title": "edulcni: submasks — Utilities · Inline"
       },
       {
         "command": "edulcni.proper_submasks",
-        "title": "edulcni: proper_submasks — Inline"
+        "title": "edulcni: proper_submasks — Utilities · Inline"
       },
       {
         "command": "edulcni.supermasks",
-        "title": "edulcni: supermasks — Inline"
+        "title": "edulcni: supermasks — Utilities · Inline"
       },
       {
         "command": "edulcni.subset_partitions",
-        "title": "edulcni: subset_partitions — Inline"
+        "title": "edulcni: subset_partitions — Utilities · Inline"
       },
       {
         "command": "edulcni.disjoint_masks",
-        "title": "edulcni: disjoint_masks — Inline"
+        "title": "edulcni: disjoint_masks — Utilities · Inline"
       },
       {
         "command": "edulcni.subset_zeta",
-        "title": "edulcni: subset_zeta — Inline"
+        "title": "edulcni: subset_zeta — Utilities · Inline"
       },
       {
         "command": "edulcni.subset_mobius",
-        "title": "edulcni: subset_mobius — Inline"
+        "title": "edulcni: subset_mobius — Utilities · Inline"
       },
       {
         "command": "edulcni.kruskal",
-        "title": "edulcni: kruskal — Global"
+        "title": "edulcni: kruskal — Utilities · Global"
       },
       {
         "command": "edulcni.fwt_convolution",
-        "title": "edulcni: fwt_convolution — Global"
+        "title": "edulcni: fwt_convolution — Utilities · Global"
       },
       {
         "command": "edulcni.offline_dynamic_connectivity",
-        "title": "edulcni: offline_dynamic_connectivity — Global"
+        "title": "edulcni: offline_dynamic_connectivity — Graphs & trees · Global"
       },
       {
         "command": "edulcni.dp_knapsack",
-        "title": "edulcni: dp_knapsack — Global"
+        "title": "edulcni: dp_knapsack — Dynamic programming · Global"
       },
       {
         "command": "edulcni.lis",
-        "title": "edulcni: lis — Global"
+        "title": "edulcni: lis — Utilities · Global"
       },
       {
         "command": "edulcni.digit_dp",
-        "title": "edulcni: digit_dp — Global"
+        "title": "edulcni: digit_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.sos_dp",
-        "title": "edulcni: sos_dp — Global"
+        "title": "edulcni: sos_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.turtle_dp",
-        "title": "edulcni: turtle_dp — Global"
+        "title": "edulcni: turtle_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.substring_dp",
-        "title": "edulcni: substring_dp — Global"
+        "title": "edulcni: substring_dp — Strings · Global"
       },
       {
         "command": "edulcni.divide_conquer_dp",
-        "title": "edulcni: divide_conquer_dp — Global"
+        "title": "edulcni: divide_conquer_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.knuth_dp",
-        "title": "edulcni: knuth_dp — Global"
+        "title": "edulcni: knuth_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.convex_hull_trick",
-        "title": "edulcni: convex_hull_trick — Global"
+        "title": "edulcni: convex_hull_trick — Geometry · Global"
       },
       {
         "command": "edulcni.li_chao_tree",
-        "title": "edulcni: li_chao_tree — Global"
+        "title": "edulcni: li_chao_tree — Graphs & trees · Global"
       },
       {
         "command": "edulcni.monotone_queue_dp",
-        "title": "edulcni: monotone_queue_dp — Global"
+        "title": "edulcni: monotone_queue_dp — Dynamic programming · Global"
       },
       {
         "command": "edulcni.aliens_trick",
-        "title": "edulcni: aliens_trick — Global"
+        "title": "edulcni: aliens_trick — Dynamic programming · Global"
       },
       {
         "command": "edulcni.output",
-        "title": "edulcni: output — Global"
+        "title": "edulcni: output — Utilities · Global"
       },
       {
         "command": "edulcni.first_true",
-        "title": "edulcni: first_true — Global"
+        "title": "edulcni: first_true — Utilities · Global"
       },
       {
         "command": "edulcni.transpose_matrix",
-        "title": "edulcni: transpose_matrix — Global"
+        "title": "edulcni: transpose_matrix — Utilities · Global"
       },
       {
         "command": "edulcni.difference_array",
-        "title": "edulcni: difference_array — Global"
+        "title": "edulcni: difference_array — Utilities · Global"
       },
       {
         "command": "edulcni.sliding_window_max",
-        "title": "edulcni: sliding_window_max — Global"
+        "title": "edulcni: sliding_window_max — Utilities · Global"
       },
       {
         "command": "edulcni.zero_one_bfs",
-        "title": "edulcni: zero_one_bfs — Global"
+        "title": "edulcni: zero_one_bfs — Graphs & trees · Global"
       },
       {
         "command": "edulcni.bridges",
-        "title": "edulcni: bridges — Global"
+        "title": "edulcni: bridges — Graphs & trees · Global"
       },
       {
         "command": "edulcni.tree_diameter",
-        "title": "edulcni: tree_diameter — Global"
+        "title": "edulcni: tree_diameter — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.range_dsu",
+        "title": "edulcni: range_dsu — Range queries · Global"
+      },
+      {
+        "command": "edulcni.frequency_tracker",
+        "title": "edulcni: frequency_tracker — Utilities · Global"
+      },
+      {
+        "command": "edulcni.argsort",
+        "title": "edulcni: argsort — Utilities · Global"
+      },
+      {
+        "command": "edulcni.ordered_gap_multiset",
+        "title": "edulcni: ordered_gap_multiset — Utilities · Global"
+      },
+      {
+        "command": "edulcni.mex_tracker",
+        "title": "edulcni: mex_tracker — Utilities · Global"
+      },
+      {
+        "command": "edulcni.parallel_binary_search",
+        "title": "edulcni: parallel_binary_search — Utilities · Global"
+      },
+      {
+        "command": "edulcni.permutation_decomposition",
+        "title": "edulcni: permutation_decomposition — Utilities · Global"
+      },
+      {
+        "command": "edulcni.offline_threshold_sweep",
+        "title": "edulcni: offline_threshold_sweep — Utilities · Global"
+      },
+      {
+        "command": "edulcni.fixed_point_iteration",
+        "title": "edulcni: fixed_point_iteration — Utilities · Global"
+      },
+      {
+        "command": "edulcni.dynamic_neighbor_set",
+        "title": "edulcni: dynamic_neighbor_set — Utilities · Global"
+      },
+      {
+        "command": "edulcni.sweep_events",
+        "title": "edulcni: sweep_events — Utilities · Global"
+      },
+      {
+        "command": "edulcni.functional_graph",
+        "title": "edulcni: functional_graph — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.rerooting_dp",
+        "title": "edulcni: rerooting_dp — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.small_to_large_tree_dp",
+        "title": "edulcni: small_to_large_tree_dp — Graphs & trees · Global"
       },
       {
         "command": "edulcni.k_smallest",
-        "title": "edulcni: k_smallest — Global"
+        "title": "edulcni: k_smallest — Utilities · Global"
       },
       {
         "command": "edulcni.euler_subtrees",
-        "title": "edulcni: euler_subtrees — Global"
+        "title": "edulcni: euler_subtrees — Graphs & trees · Global"
       },
       {
         "command": "edulcni.z_function",
-        "title": "edulcni: z_function — Global"
+        "title": "edulcni: z_function — Utilities · Global"
       },
       {
         "command": "edulcni.prefix_function",
-        "title": "edulcni: prefix_function — Global"
+        "title": "edulcni: prefix_function — Utilities · Global"
       },
       {
         "command": "edulcni.order_statistics",
-        "title": "edulcni: order_statistics — Global"
+        "title": "edulcni: order_statistics — Range queries · Global"
       },
       {
         "command": "edulcni.manacher",
-        "title": "edulcni: manacher — Global"
+        "title": "edulcni: manacher — Utilities · Global"
       },
       {
         "command": "edulcni.parenthesis_stats",
-        "title": "edulcni: parenthesis_stats — Global"
+        "title": "edulcni: parenthesis_stats — Utilities · Global"
       },
       {
         "command": "edulcni.xor_basis",
-        "title": "edulcni: xor_basis — Global"
+        "title": "edulcni: xor_basis — Utilities · Global"
       },
       {
         "command": "edulcni.bitset_knapsack",
-        "title": "edulcni: bitset_knapsack — Global"
+        "title": "edulcni: bitset_knapsack — Dynamic programming · Global"
       },
       {
         "command": "edulcni.persistent_segment_tree",
-        "title": "edulcni: persistent_segment_tree — Global"
+        "title": "edulcni: persistent_segment_tree — Graphs & trees · Global"
       },
       {
         "command": "edulcni.treap",
-        "title": "edulcni: treap — Global"
+        "title": "edulcni: treap — Utilities · Global"
       },
       {
         "command": "edulcni.arg_extrema",
-        "title": "edulcni: arg_extrema — Global"
+        "title": "edulcni: arg_extrema — Utilities · Global"
       },
       {
         "command": "edulcni.binary_trie",
-        "title": "edulcni: binary_trie — Global"
+        "title": "edulcni: binary_trie — Utilities · Global"
       },
       {
         "command": "edulcni.crt",
-        "title": "edulcni: crt — Global"
+        "title": "edulcni: crt — Utilities · Global"
       },
       {
         "command": "edulcni.primality_64",
-        "title": "edulcni: primality_64 — Global"
+        "title": "edulcni: primality_64 — Utilities · Global"
       },
       {
         "command": "edulcni.factorization_64",
-        "title": "edulcni: factorization_64 — Global"
+        "title": "edulcni: factorization_64 — Math · Global"
       },
       {
         "command": "edulcni.minimum_rotation",
-        "title": "edulcni: minimum_rotation — Global"
+        "title": "edulcni: minimum_rotation — Utilities · Global"
       },
       {
         "command": "edulcni.euler_walk",
-        "title": "edulcni: euler_walk — Global"
+        "title": "edulcni: euler_walk — Utilities · Global"
       },
       {
         "command": "edulcni.floyd_warshall",
-        "title": "edulcni: floyd_warshall — Global"
+        "title": "edulcni: floyd_warshall — Utilities · Global"
       },
       {
         "command": "edulcni.hopcroft_karp",
-        "title": "edulcni: hopcroft_karp — Global"
+        "title": "edulcni: hopcroft_karp — Utilities · Global"
       },
       {
         "command": "edulcni.global_min_cut",
-        "title": "edulcni: global_min_cut — Global"
+        "title": "edulcni: global_min_cut — Utilities · Global"
       },
       {
         "command": "edulcni.algebra_matrix",
-        "title": "edulcni: algebra_matrix — Global"
+        "title": "edulcni: algebra_matrix — Utilities · Global"
       },
       {
         "command": "edulcni.geometry_point",
-        "title": "edulcni: geometry_point — Global"
+        "title": "edulcni: geometry_point — Geometry · Global"
       },
       {
         "command": "edulcni.closest_pair",
-        "title": "edulcni: closest_pair — Global"
+        "title": "edulcni: closest_pair — Utilities · Global"
       },
       {
         "command": "edulcni.minimum_enclosing_circle",
-        "title": "edulcni: minimum_enclosing_circle — Global"
+        "title": "edulcni: minimum_enclosing_circle — Geometry · Global"
       },
       {
         "command": "edulcni.circle_intersection",
-        "title": "edulcni: circle_intersection — Global"
+        "title": "edulcni: circle_intersection — Geometry · Global"
       },
       {
         "command": "edulcni.polygon_cut",
-        "title": "edulcni: polygon_cut — Global"
+        "title": "edulcni: polygon_cut — Geometry · Global"
       },
       {
         "command": "edulcni.hull_diameter",
-        "title": "edulcni: hull_diameter — Global"
+        "title": "edulcni: hull_diameter — Geometry · Global"
       },
       {
         "command": "edulcni.solve_linear",
-        "title": "edulcni: solve_linear — Global"
+        "title": "edulcni: solve_linear — Utilities · Global"
       },
       {
         "command": "edulcni.histogram_sequence",
-        "title": "edulcni: histogram_sequence — Global"
+        "title": "edulcni: histogram_sequence — Utilities · Global"
       },
       {
         "command": "edulcni.determinant",
-        "title": "edulcni: determinant — Global"
+        "title": "edulcni: determinant — Utilities · Global"
       },
       {
         "command": "edulcni.golden_section",
-        "title": "edulcni: golden_section — Global"
+        "title": "edulcni: golden_section — Utilities · Global"
       },
       {
         "command": "edulcni.interval_set",
-        "title": "edulcni: interval_set — Global"
+        "title": "edulcni: interval_set — Utilities · Global"
       },
       {
         "command": "edulcni.constant_intervals",
-        "title": "edulcni: constant_intervals — Global"
+        "title": "edulcni: constant_intervals — Utilities · Global"
       },
       {
         "command": "edulcni.permutation_rank",
-        "title": "edulcni: permutation_rank — Global"
+        "title": "edulcni: permutation_rank — Utilities · Global"
       },
       {
         "command": "edulcni.consecutive_set",
-        "title": "edulcni: consecutive_set — Global"
+        "title": "edulcni: consecutive_set — Utilities · Global"
       },
       {
         "command": "edulcni.bounded_matchings",
-        "title": "edulcni: bounded_matchings — Global"
+        "title": "edulcni: bounded_matchings — Flow & matching · Global"
       },
       {
         "command": "edulcni.prefix_suffix_fold",
-        "title": "edulcni: prefix_suffix_fold — Global"
+        "title": "edulcni: prefix_suffix_fold — Strings · Global"
       },
       {
         "command": "edulcni.level_boundary_segtree",
-        "title": "edulcni: level_boundary_segtree — Global"
+        "title": "edulcni: level_boundary_segtree — Range queries · Global"
+      },
+      {
+        "command": "edulcni.aho_corasick",
+        "title": "edulcni: aho_corasick — Strings · Global"
+      },
+      {
+        "command": "edulcni.centroid_decomposition",
+        "title": "edulcni: centroid_decomposition — Utilities · Global"
+      },
+      {
+        "command": "edulcni.circle_tangents",
+        "title": "edulcni: circle_tangents — Geometry · Global"
+      },
+      {
+        "command": "edulcni.exact_segment_intersection",
+        "title": "edulcni: exact_segment_intersection — Geometry · Global"
+      },
+      {
+        "command": "edulcni.floor_quotient_multiset",
+        "title": "edulcni: floor_quotient_multiset — Utilities · Global"
+      },
+      {
+        "command": "edulcni.gaussian_elimination_gf2",
+        "title": "edulcni: gaussian_elimination_gf2 — Utilities · Global"
+      },
+      {
+        "command": "edulcni.heavy_neighbor_aggregator",
+        "title": "edulcni: heavy_neighbor_aggregator — Utilities · Global"
+      },
+      {
+        "command": "edulcni.held_karp",
+        "title": "edulcni: held_karp — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.huffman_multiplicity",
+        "title": "edulcni: huffman_multiplicity — Utilities · Global"
+      },
+      {
+        "command": "edulcni.mixed_radix_indexer",
+        "title": "edulcni: mixed_radix_indexer — Utilities · Global"
+      },
+      {
+        "command": "edulcni.persistent_implicit_treap",
+        "title": "edulcni: persistent_implicit_treap — Utilities · Global"
+      },
+      {
+        "command": "edulcni.piecewise_constant_map",
+        "title": "edulcni: piecewise_constant_map — Utilities · Global"
+      },
+      {
+        "command": "edulcni.planar_embedding",
+        "title": "edulcni: planar_embedding — Geometry · Global"
+      },
+      {
+        "command": "edulcni.polygon_area",
+        "title": "edulcni: polygon_area — Geometry · Global"
+      },
+      {
+        "command": "edulcni.rational",
+        "title": "edulcni: rational — Math · Global"
+      },
+      {
+        "command": "edulcni.rectangle_union",
+        "title": "edulcni: rectangle_union — Geometry · Global"
+      },
+      {
+        "command": "edulcni.shortest_path_dag",
+        "title": "edulcni: shortest_path_dag — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.simplex",
+        "title": "edulcni: simplex — Utilities · Global"
+      },
+      {
+        "command": "edulcni.sparse_table_2d",
+        "title": "edulcni: sparse_table_2d — Range queries · Global"
+      },
+      {
+        "command": "edulcni.steiner_tree",
+        "title": "edulcni: steiner_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.two_bin_knapsack",
+        "title": "edulcni: two_bin_knapsack — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.weighted_order_statistics",
+        "title": "edulcni: weighted_order_statistics — Range queries · Global"
+      },
+      {
+        "command": "edulcni.weighted_persistent_segment_tree",
+        "title": "edulcni: weighted_persistent_segment_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.angular_event_sweep",
+        "title": "edulcni: angular_event_sweep — Geometry · Global"
+      },
+      {
+        "command": "edulcni.circle_line_intersection",
+        "title": "edulcni: circle_line_intersection — Geometry · Global"
+      },
+      {
+        "command": "edulcni.convex_polygon_queries",
+        "title": "edulcni: convex_polygon_queries — Geometry · Global"
+      },
+      {
+        "command": "edulcni.dynamic_binary_integer",
+        "title": "edulcni: dynamic_binary_integer — Utilities · Global"
+      },
+      {
+        "command": "edulcni.prime_exponent_vectors",
+        "title": "edulcni: prime_exponent_vectors — Math · Global"
+      },
+      {
+        "command": "edulcni.threshold_2sat",
+        "title": "edulcni: threshold_2sat — Utilities · Global"
+      },
+      {
+        "command": "edulcni.blossom_matching",
+        "title": "edulcni: blossom_matching — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.cartesian_tree",
+        "title": "edulcni: cartesian_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.directed_mst",
+        "title": "edulcni: directed_mst — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.discrete_log",
+        "title": "edulcni: discrete_log — Math · Global"
+      },
+      {
+        "command": "edulcni.dominator_tree",
+        "title": "edulcni: dominator_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.dynamic_aho_activation",
+        "title": "edulcni: dynamic_aho_activation — Strings · Global"
+      },
+      {
+        "command": "edulcni.delaunay_triangulation",
+        "title": "edulcni: delaunay_triangulation — Geometry · Global"
+      },
+      {
+        "command": "edulcni.dynamic_sequence_hash",
+        "title": "edulcni: dynamic_sequence_hash — Strings · Global"
+      },
+      {
+        "command": "edulcni.dynamic_convex_hull",
+        "title": "edulcni: dynamic_convex_hull — Geometry · Global"
+      },
+      {
+        "command": "edulcni.euler_tour_tree",
+        "title": "edulcni: euler_tour_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.floor_sum",
+        "title": "edulcni: floor_sum — Math · Global"
+      },
+      {
+        "command": "edulcni.formal_power_series",
+        "title": "edulcni: formal_power_series — Utilities · Global"
+      },
+      {
+        "command": "edulcni.ntt_formal_power_series",
+        "title": "edulcni: ntt_formal_power_series — Math · Global"
+      },
+      {
+        "command": "edulcni.huffman_tree",
+        "title": "edulcni: huffman_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.lyndon_factorization",
+        "title": "edulcni: lyndon_factorization — Strings · Global"
+      },
+      {
+        "command": "edulcni.maximum_clique",
+        "title": "edulcni: maximum_clique — Utilities · Global"
+      },
+      {
+        "command": "edulcni.minimum_mean_cycle",
+        "title": "edulcni: minimum_mean_cycle — Utilities · Global"
+      },
+      {
+        "command": "edulcni.minkowski_sum",
+        "title": "edulcni: minkowski_sum — Utilities · Global"
+      },
+      {
+        "command": "edulcni.mo_with_modifications",
+        "title": "edulcni: mo_with_modifications — Range queries · Global"
+      },
+      {
+        "command": "edulcni.modular_sqrt",
+        "title": "edulcni: modular_sqrt — Math · Global"
+      },
+      {
+        "command": "edulcni.offline_lifetimes",
+        "title": "edulcni: offline_lifetimes — Utilities · Global"
+      },
+      {
+        "command": "edulcni.palindromic_tree",
+        "title": "edulcni: palindromic_tree — Strings · Global"
+      },
+      {
+        "command": "edulcni.parallel_ternary_search",
+        "title": "edulcni: parallel_ternary_search — Utilities · Global"
+      },
+      {
+        "command": "edulcni.persistent_li_chao",
+        "title": "edulcni: persistent_li_chao — Utilities · Global"
+      },
+      {
+        "command": "edulcni.potential_dsu",
+        "title": "edulcni: potential_dsu — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.primitive_root",
+        "title": "edulcni: primitive_root — Math · Global"
+      },
+      {
+        "command": "edulcni.rollback_li_chao",
+        "title": "edulcni: rollback_li_chao — Utilities · Global"
+      },
+      {
+        "command": "edulcni.rollback_parity_dsu",
+        "title": "edulcni: rollback_parity_dsu — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.rotating_calipers",
+        "title": "edulcni: rotating_calipers — Geometry · Global"
+      },
+      {
+        "command": "edulcni.segment_arrangement",
+        "title": "edulcni: segment_arrangement — Utilities · Global"
+      },
+      {
+        "command": "edulcni.shortest_path_subgraph",
+        "title": "edulcni: shortest_path_subgraph — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.slope_trick",
+        "title": "edulcni: slope_trick — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.small_terminal_subset_dp",
+        "title": "edulcni: small_terminal_subset_dp — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.sqrt_decomposition",
+        "title": "edulcni: sqrt_decomposition — Range queries · Global"
+      },
+      {
+        "command": "edulcni.stern_brocot",
+        "title": "edulcni: stern_brocot — Math · Global"
+      },
+      {
+        "command": "edulcni.subset_convolution",
+        "title": "edulcni: subset_convolution — Utilities · Global"
+      },
+      {
+        "command": "edulcni.suffix_automaton",
+        "title": "edulcni: suffix_automaton — Strings · Global"
+      },
+      {
+        "command": "edulcni.summatory_multiplicative",
+        "title": "edulcni: summatory_multiplicative — Utilities · Global"
+      },
+      {
+        "command": "edulcni.virtual_tree",
+        "title": "edulcni: virtual_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.wavelet_matrix",
+        "title": "edulcni: wavelet_matrix — Range queries · Global"
+      },
+      {
+        "command": "edulcni.binomial_composite",
+        "title": "edulcni: binomial_composite — Math · Global"
+      },
+      {
+        "command": "edulcni.bitset_lcs",
+        "title": "edulcni: bitset_lcs — Utilities · Global"
+      },
+      {
+        "command": "edulcni.block_cut_tree",
+        "title": "edulcni: block_cut_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.bostan_mori",
+        "title": "edulcni: bostan_mori — Math · Global"
+      },
+      {
+        "command": "edulcni.bridge_tree",
+        "title": "edulcni: bridge_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.burrows_wheeler_transform",
+        "title": "edulcni: burrows_wheeler_transform — Strings · Global"
+      },
+      {
+        "command": "edulcni.cactus_decomposition",
+        "title": "edulcni: cactus_decomposition — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.cdq_dominance",
+        "title": "edulcni: cdq_dominance — Utilities · Global"
+      },
+      {
+        "command": "edulcni.centroid_nearest_marked",
+        "title": "edulcni: centroid_nearest_marked — Utilities · Global"
+      },
+      {
+        "command": "edulcni.circle_union_area",
+        "title": "edulcni: circle_union_area — Geometry · Global"
+      },
+      {
+        "command": "edulcni.continued_fraction",
+        "title": "edulcni: continued_fraction — Math · Global"
+      },
+      {
+        "command": "edulcni.convex_polygon_intersection",
+        "title": "edulcni: convex_polygon_intersection — Geometry · Global"
+      },
+      {
+        "command": "edulcni.discrete_root_prime",
+        "title": "edulcni: discrete_root_prime — Math · Global"
+      },
+      {
+        "command": "edulcni.dsu_on_tree",
+        "title": "edulcni: dsu_on_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.du_jiao_sieve",
+        "title": "edulcni: du_jiao_sieve — Math · Global"
+      },
+      {
+        "command": "edulcni.functional_graph_fold",
+        "title": "edulcni: functional_graph_fold — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.gaussian_elimination_field",
+        "title": "edulcni: gaussian_elimination_field — Utilities · Global"
+      },
+      {
+        "command": "edulcni.gomory_hu_tree",
+        "title": "edulcni: gomory_hu_tree — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.lagrange_consecutive",
+        "title": "edulcni: lagrange_consecutive — Range queries · Global"
+      },
+      {
+        "command": "edulcni.lcp_interval_tree",
+        "title": "edulcni: lcp_interval_tree — Strings · Global"
+      },
+      {
+        "command": "edulcni.lehmer_prime_count",
+        "title": "edulcni: lehmer_prime_count — Math · Global"
+      },
+      {
+        "command": "edulcni.link_cut_tree",
+        "title": "edulcni: link_cut_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.lower_bound_flow",
+        "title": "edulcni: lower_bound_flow — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.matroid_intersection",
+        "title": "edulcni: matroid_intersection — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.weighted_matroid_intersection",
+        "title": "edulcni: weighted_matroid_intersection — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.min_cost_circulation",
+        "title": "edulcni: min_cost_circulation — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.min_plus_convolution",
+        "title": "edulcni: min_plus_convolution — Utilities · Global"
+      },
+      {
+        "command": "edulcni.minimal_absent_substring",
+        "title": "edulcni: minimal_absent_substring — Strings · Global"
+      },
+      {
+        "command": "edulcni.offline_kth",
+        "title": "edulcni: offline_kth — Range queries · Global"
+      },
+      {
+        "command": "edulcni.online_dynamic_connectivity",
+        "title": "edulcni: online_dynamic_connectivity — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.partially_persistent_dsu",
+        "title": "edulcni: partially_persistent_dsu — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.persistent_dsu",
+        "title": "edulcni: persistent_dsu — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.polynomial_tools",
+        "title": "edulcni: polynomial_tools — Math · Global"
+      },
+      {
+        "command": "edulcni.profile_dp",
+        "title": "edulcni: profile_dp — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.range_distinct_updates",
+        "title": "edulcni: range_distinct_updates — Range queries · Global"
+      },
+      {
+        "command": "edulcni.segment_tree_graph",
+        "title": "edulcni: segment_tree_graph — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.smawk",
+        "title": "edulcni: smawk — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.splay_tree",
+        "title": "edulcni: splay_tree — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.subset_sum_mitm",
+        "title": "edulcni: subset_sum_mitm — Dynamic programming · Global"
+      },
+      {
+        "command": "edulcni.suffix_tree_from_sa",
+        "title": "edulcni: suffix_tree_from_sa — Strings · Global"
+      },
+      {
+        "command": "edulcni.swag_queue",
+        "title": "edulcni: swag_queue — Range queries · Global"
+      },
+      {
+        "command": "edulcni.tarjan_offline_lca",
+        "title": "edulcni: tarjan_offline_lca — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.tree_isomorphism",
+        "title": "edulcni: tree_isomorphism — Graphs & trees · Global"
+      },
+      {
+        "command": "edulcni.wildcard_matching",
+        "title": "edulcni: wildcard_matching — Strings · Global"
+      },
+      {
+        "command": "edulcni.connectivity_workflow",
+        "title": "edulcni: connectivity_workflow — Flow & matching · Global"
+      },
+      {
+        "command": "edulcni.string_workflow",
+        "title": "edulcni: string_workflow — Strings · Global"
+      },
+      {
+        "command": "edulcni.geometry_workflow",
+        "title": "edulcni: geometry_workflow — Geometry · Global"
+      },
+      {
+        "command": "edulcni.flow_matching_workflow",
+        "title": "edulcni: flow_matching_workflow — Flow & matching · Global"
       }
     ]
   },
@@ -677,6 +1338,7 @@
     "check:examples": "npm run build && node ../tools/generate-solver-examples.mjs --check",
     "test:examples": "npm run check:examples && node ../tools/check-solver-examples.mjs",
     "test:examples:visualization": "EDULCNI_ACTIVE_EXAMPLES=1 npm run test:examples",
+    "test:extension-host": "npm run build && node ./test/run-extension-host.js",
     "build-archive": "node ../tools/build-archive-site.mjs",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run build"
@@ -684,6 +1346,7 @@
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.5.2",
     "typescript": "^5.4.5"
   }
 }

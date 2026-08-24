@@ -1,0 +1,104 @@
+enum class WeightedMatroidIntersectionObjective {
+  maximum_weight,
+  maximum_cardinality_then_weight,
+};
+
+template <class Weight>
+struct WeightedMatroidIntersectionResult {
+  std::vector<int> elements;
+  Weight weight{};
+};
+
+// An oracle receives a characteristic vector and reports whether the set is
+// independent. Weight must support zero construction, +, unary -, and <.
+template <class Weight, class FirstIndependent, class SecondIndependent>
+WeightedMatroidIntersectionResult<Weight> weighted_matroid_intersection(
+    const std::vector<Weight>& weights,
+    FirstIndependent first_independent,
+    SecondIndependent second_independent,
+    WeightedMatroidIntersectionObjective objective =
+        WeightedMatroidIntersectionObjective::maximum_weight) {
+  const int element_count = static_cast<int>(weights.size());
+  std::vector<char> selected(element_count, false);
+
+  auto can_add = [&](int element, auto& independent) {
+    selected[element] = true;
+    bool result = independent(selected);
+    selected[element] = false;
+    return result;
+  };
+  auto can_exchange = [&](int remove, int add, auto& independent) {
+    selected[remove] = false;
+    selected[add] = true;
+    bool result = independent(selected);
+    selected[add] = false;
+    selected[remove] = true;
+    return result;
+  };
+
+  while (true) {
+    std::vector<std::vector<int>> exchange_graph(element_count);
+    for (int remove = 0; remove < element_count; ++remove) {
+      if (!selected[remove]) continue;
+      for (int add = 0; add < element_count; ++add) {
+        if (selected[add]) continue;
+        if (can_exchange(remove, add, first_independent))
+          exchange_graph[remove].push_back(add);
+        if (can_exchange(remove, add, second_independent))
+          exchange_graph[add].push_back(remove);
+      }
+    }
+
+    std::vector<Weight> distance(element_count, Weight{});
+    std::vector<int> parent(element_count, -2);
+    std::vector<char> reached(element_count, false);
+    for (int add = 0; add < element_count; ++add) {
+      if (selected[add] || !can_add(add, first_independent)) continue;
+      distance[add] = -weights[add];
+      parent[add] = -1;
+      reached[add] = true;
+    }
+
+    // The current set is optimal at its cardinality, hence its exchange graph
+    // has no improving cycle. Bellman-Ford finds a best augmentation.
+    for (int iteration = 1; iteration < element_count; ++iteration) {
+      bool changed = false;
+      for (int from = 0; from < element_count; ++from) {
+        if (!reached[from]) continue;
+        for (int to : exchange_graph[from]) {
+          Weight edge_cost = selected[to] ? weights[to] : -weights[to];
+          Weight candidate = distance[from] + edge_cost;
+          if (!reached[to] || candidate < distance[to]) {
+            distance[to] = candidate;
+            parent[to] = from;
+            reached[to] = true;
+            changed = true;
+          }
+        }
+      }
+      if (!changed) break;
+    }
+
+    int sink = -1;
+    for (int add = 0; add < element_count; ++add) {
+      if (selected[add] || !reached[add] ||
+          !can_add(add, second_independent)) continue;
+      if (sink == -1 || distance[add] < distance[sink]) sink = add;
+    }
+    if (sink == -1) break;
+    if (objective == WeightedMatroidIntersectionObjective::maximum_weight &&
+        !(distance[sink] < Weight{}))
+      break;
+
+    for (int element = sink; element != -1; element = parent[element])
+      selected[element] = !selected[element];
+  }
+
+  WeightedMatroidIntersectionResult<Weight> result;
+  for (int element = 0; element < element_count; ++element) {
+    if (!selected[element]) continue;
+    result.elements.push_back(element);
+    result.weight = result.weight + weights[element];
+  }
+  return result;
+}

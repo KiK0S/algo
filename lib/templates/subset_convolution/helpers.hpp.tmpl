@@ -1,0 +1,36 @@
+template <typename T>
+inline std::vector<T> subset_convolution(const std::vector<T>& lhs,
+                                         const std::vector<T>& rhs) {
+  const int size = static_cast<int>(lhs.size());
+  if (size == 0 || size != static_cast<int>(rhs.size()) || (size & (size - 1)))
+    return {};
+  int bits = 0;
+  while ((1 << bits) < size) ++bits;
+  std::vector<std::vector<T>> left(bits + 1, std::vector<T>(size, T(0)));
+  std::vector<std::vector<T>> right = left, product = left;
+  for (int mask = 0; mask < size; ++mask) {
+    const int count = __builtin_popcount(static_cast<unsigned>(mask));
+    left[count][mask] = lhs[mask];
+    right[count][mask] = rhs[mask];
+  }
+  for (int bit = 0; bit < bits; ++bit)
+    for (int mask = 0; mask < size; ++mask)
+      if (mask & (1 << bit))
+        for (int count = 0; count <= bits; ++count) {
+          left[count][mask] += left[count][mask ^ (1 << bit)];
+          right[count][mask] += right[count][mask ^ (1 << bit)];
+        }
+  for (int mask = 0; mask < size; ++mask)
+    for (int total = 0; total <= bits; ++total)
+      for (int take = 0; take <= total; ++take)
+        product[total][mask] += left[take][mask] * right[total - take][mask];
+  for (int bit = 0; bit < bits; ++bit)
+    for (int mask = 0; mask < size; ++mask)
+      if (mask & (1 << bit))
+        for (int count = 0; count <= bits; ++count)
+          product[count][mask] -= product[count][mask ^ (1 << bit)];
+  std::vector<T> result(size);
+  for (int mask = 0; mask < size; ++mask)
+    result[mask] = product[__builtin_popcount(static_cast<unsigned>(mask))][mask];
+  return result;
+}

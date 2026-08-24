@@ -1,0 +1,63 @@
+template <typename T>
+class RollbackLiChaoTree {
+ public:
+  struct Line { T slope{}, intercept{}; T operator()(T x) const { return slope * x + intercept; } };
+  explicit RollbackLiChaoTree(std::vector<T> coordinates)
+      : x_(std::move(coordinates)), tree_(x_.size() * 4), present_(x_.size() * 4) {
+    std::sort(x_.begin(), x_.end());
+    x_.erase(std::unique(x_.begin(), x_.end()), x_.end());
+    EDULCNI_VIS(edulcni::live::array("rollback_li_chao.domain", x_));
+  }
+  int snapshot() const {
+    const int result = history_.size();
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.snapshot", result));
+    EDULCNI_STEP("Rollback Li Chao tree takes a snapshot");
+    return result;
+  }
+  void rollback(int snapshot) {
+    while (static_cast<int>(history_.size()) > snapshot) {
+      const auto change = history_.back(); history_.pop_back();
+      tree_[change.node] = change.line; present_[change.node] = change.present;
+    }
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.history_size", history_.size()));
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.snapshot", snapshot));
+    EDULCNI_STEP("Rollback Li Chao tree restores a snapshot");
+  }
+  void add_line(Line line) {
+    if (!x_.empty()) add_line(1, 0, x_.size(), line);
+    EDULCNI_VIS(edulcni::live::lines(
+        "rollback_li_chao.inserted_line", std::vector<Line>{line}));
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.history_size", history_.size()));
+    EDULCNI_STEP("Rollback Li Chao tree inserts a line");
+  }
+  T query(T x) const {
+    const int position = std::lower_bound(x_.begin(), x_.end(), x) - x_.begin();
+    assert(position < static_cast<int>(x_.size()) && x_[position] == x);
+    const T result = query(1, 0, x_.size(), position, x);
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.query_x", x));
+    EDULCNI_VIS(edulcni::live::value("rollback_li_chao.result", result));
+    EDULCNI_STEP("Rollback Li Chao tree answers a query");
+    return result;
+  }
+ private:
+  struct Change { int node; Line line; bool present; };
+  std::vector<T> x_; std::vector<Line> tree_; std::vector<bool> present_; std::vector<Change> history_;
+  void assign(int node, Line line) { history_.push_back({node, tree_[node], present_[node]}); tree_[node] = line; present_[node] = true; }
+  void add_line(int node, int left, int right, Line line) {
+    if (!present_[node]) { assign(node, line); return; }
+    const int middle = (left + right) / 2;
+    bool better_left = line(x_[left]) < tree_[node](x_[left]);
+    bool better_middle = line(x_[middle]) < tree_[node](x_[middle]);
+    if (better_middle) { Line old = tree_[node]; assign(node, line); line = old; }
+    if (right - left == 1) return;
+    if (better_left != better_middle) add_line(node * 2, left, middle, line);
+    else add_line(node * 2 + 1, middle, right, line);
+  }
+  T query(int node, int left, int right, int position, T x) const {
+    T result = present_[node] ? tree_[node](x) : std::numeric_limits<T>::max();
+    if (right - left == 1) return result;
+    const int middle = (left + right) / 2;
+    return std::min(result, position < middle ? query(node * 2, left, middle, position, x)
+                                              : query(node * 2 + 1, middle, right, position, x));
+  }
+};

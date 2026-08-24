@@ -1,0 +1,28 @@
+inline long long primitive_root_prime(long long prime) {
+  if (prime == 2) return 1;
+  if (prime < 2) return -1;
+  long long value = prime - 1;
+  std::vector<long long> factors;
+  for (long long divisor = 2; divisor <= value / divisor; ++divisor) {
+    if (value % divisor) continue;
+    factors.push_back(divisor);
+    while (value % divisor == 0) value /= divisor;
+  }
+  if (value > 1) factors.push_back(value);
+  auto power = [prime](long long base, long long exponent) {
+    long long result = 1;
+    while (exponent) {
+      if (exponent & 1) result = static_cast<long long>((__int128)result * base % prime);
+      base = static_cast<long long>((__int128)base * base % prime);
+      exponent >>= 1;
+    }
+    return result;
+  };
+  for (long long root = 2; root < prime; ++root) {
+    bool valid = true;
+    for (long long factor : factors)
+      if (power(root, (prime - 1) / factor) == 1) { valid = false; break; }
+    if (valid) return root;
+  }
+  return -1;
+}

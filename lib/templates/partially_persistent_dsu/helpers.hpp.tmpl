@@ -1,0 +1,45 @@
+class PartiallyPersistentDsu {
+ public:
+  explicit PartiallyPersistentDsu(int size)
+      : parent_(size, -1), parent_time_(size, infinity_) {
+    size_history_.resize(size);
+    for (auto& history : size_history_) history.push_back({-1, 1});
+  }
+
+  int find(int vertex, int time) const {
+    while (parent_time_[vertex] <= time) vertex = parent_[vertex];
+    return vertex;
+  }
+
+  bool unite(int first, int second, int time) {
+    assert(time >= last_time_);
+    last_time_ = time;
+    first = find(first, time);
+    second = find(second, time);
+    if (first == second) return false;
+    int first_size = component_size(first, time);
+    int second_size = component_size(second, time);
+    if (first_size < second_size) { std::swap(first, second); std::swap(first_size, second_size); }
+    parent_[second] = first;
+    parent_time_[second] = time;
+    size_history_[first].push_back({time, first_size + second_size});
+    return true;
+  }
+
+  bool same(int first, int second, int time) const { return find(first, time) == find(second, time); }
+
+  int component_size(int vertex, int time) const {
+    int root = find(vertex, time);
+    const auto& history = size_history_[root];
+    auto iterator = std::upper_bound(history.begin(), history.end(),
+                                     std::pair<int, int>{time, std::numeric_limits<int>::max()});
+    return std::prev(iterator)->second;
+  }
+
+ private:
+  static constexpr long long infinity_ = std::numeric_limits<long long>::max();
+  int last_time_ = -1;
+  std::vector<int> parent_;
+  std::vector<long long> parent_time_;
+  std::vector<std::vector<std::pair<int, int>>> size_history_;
+};

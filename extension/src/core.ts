@@ -166,6 +166,13 @@ export interface CatalogEntry {
   visibility?: "primary" | "compatibility";
   canonicalPath?: string;
   presetScenario?: string;
+  workflowChoices?: WorkflowChoice[];
+}
+
+export interface WorkflowChoice {
+  path: string;
+  label: string;
+  description?: string;
 }
 
 export interface VisualizationSpec {

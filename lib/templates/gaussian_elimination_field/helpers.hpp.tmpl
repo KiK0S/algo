@@ -1,0 +1,65 @@
+template <typename T>
+struct GaussianEliminationFieldResult {
+  bool consistent = true;
+  int rank = 0;
+  std::vector<T> particular_solution;
+  std::vector<std::vector<T>> nullspace_basis;
+};
+
+template <typename T>
+GaussianEliminationFieldResult<T> gaussian_elimination_field(
+    std::vector<std::vector<T>> coefficients, std::vector<T> right_hand_side) {
+  GaussianEliminationFieldResult<T> result;
+  const int rows = static_cast<int>(coefficients.size());
+  if (static_cast<int>(right_hand_side.size()) != rows) {
+    result.consistent = false;
+    return result;
+  }
+  const int columns = rows == 0 ? 0 : static_cast<int>(coefficients[0].size());
+  for (const auto& row : coefficients)
+    if (static_cast<int>(row.size()) != columns) {
+      result.consistent = false;
+      return result;
+    }
+  std::vector<int> pivot_column;
+  int pivot_row = 0;
+  for (int column = 0; column < columns && pivot_row < rows; ++column) {
+    int selected = pivot_row;
+    while (selected < rows && coefficients[selected][column] == T(0)) ++selected;
+    if (selected == rows) continue;
+    std::swap(coefficients[selected], coefficients[pivot_row]);
+    std::swap(right_hand_side[selected], right_hand_side[pivot_row]);
+    const T inverse = T(1) / coefficients[pivot_row][column];
+    for (int j = column; j < columns; ++j) coefficients[pivot_row][j] *= inverse;
+    right_hand_side[pivot_row] *= inverse;
+    for (int row = 0; row < rows; ++row) {
+      if (row == pivot_row || coefficients[row][column] == T(0)) continue;
+      const T factor = coefficients[row][column];
+      for (int j = column; j < columns; ++j)
+        coefficients[row][j] -= factor * coefficients[pivot_row][j];
+      right_hand_side[row] -= factor * right_hand_side[pivot_row];
+    }
+    pivot_column.push_back(column);
+    ++pivot_row;
+  }
+  result.rank = pivot_row;
+  for (int row = pivot_row; row < rows; ++row)
+    if (right_hand_side[row] != T(0)) {
+      result.consistent = false;
+      return result;
+    }
+  result.particular_solution.assign(columns, T(0));
+  for (int row = 0; row < pivot_row; ++row)
+    result.particular_solution[pivot_column[row]] = right_hand_side[row];
+  std::vector<bool> is_pivot(columns, false);
+  for (int column : pivot_column) is_pivot[column] = true;
+  for (int free_column = 0; free_column < columns; ++free_column) {
+    if (is_pivot[free_column]) continue;
+    std::vector<T> basis(columns, T(0));
+    basis[free_column] = T(1);
+    for (int row = 0; row < pivot_row; ++row)
+      basis[pivot_column[row]] = -coefficients[row][free_column];
+    result.nullspace_basis.push_back(std::move(basis));
+  }
+  return result;
+}

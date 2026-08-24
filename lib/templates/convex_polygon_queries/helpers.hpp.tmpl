@@ -1,0 +1,89 @@
+template <typename T>
+struct ConvexPolygonPoint {
+  T x{};
+  T y{};
+};
+
+enum class PointInConvexPolygon { outside, boundary, inside };
+
+template <typename T>
+inline auto convex_polygon_cross(const ConvexPolygonPoint<T>& origin,
+                                 const ConvexPolygonPoint<T>& first,
+                                 const ConvexPolygonPoint<T>& second) {
+  return (first.x - origin.x) * (second.y - origin.y) -
+         (first.y - origin.y) * (second.x - origin.x);
+}
+
+template <typename T>
+inline bool convex_polygon_on_segment(const ConvexPolygonPoint<T>& point,
+                                      const ConvexPolygonPoint<T>& first,
+                                      const ConvexPolygonPoint<T>& second) {
+  if (convex_polygon_cross(first, second, point) != 0) return false;
+  return std::min(first.x, second.x) <= point.x && point.x <= std::max(first.x, second.x) &&
+         std::min(first.y, second.y) <= point.y && point.y <= std::max(first.y, second.y);
+}
+
+template <typename T>
+inline PointInConvexPolygon point_in_convex_polygon(
+    const std::vector<ConvexPolygonPoint<T>>& polygon,
+    const ConvexPolygonPoint<T>& point) {
+  const int n = static_cast<int>(polygon.size());
+  if (n == 0) return PointInConvexPolygon::outside;
+  if (n == 1) return point.x == polygon[0].x && point.y == polygon[0].y
+                         ? PointInConvexPolygon::boundary
+                         : PointInConvexPolygon::outside;
+  if (n == 2) return convex_polygon_on_segment(point, polygon[0], polygon[1])
+                         ? PointInConvexPolygon::boundary
+                         : PointInConvexPolygon::outside;
+
+  const bool counterclockwise = convex_polygon_cross(polygon[0], polygon[1], polygon[n - 1]) < 0;
+  auto at = [&](int index) -> const ConvexPolygonPoint<T>& {
+    return counterclockwise ? polygon[index] : polygon[(n - index) % n];
+  };
+  const auto left = convex_polygon_cross(at(0), at(1), point);
+  const auto right = convex_polygon_cross(at(0), at(n - 1), point);
+  if (left < 0 || right > 0) return PointInConvexPolygon::outside;
+  if (left == 0) return convex_polygon_on_segment(point, at(0), at(1))
+                           ? PointInConvexPolygon::boundary
+                           : PointInConvexPolygon::outside;
+  if (right == 0) return convex_polygon_on_segment(point, at(0), at(n - 1))
+                            ? PointInConvexPolygon::boundary
+                            : PointInConvexPolygon::outside;
+  int low = 1;
+  int high = n - 1;
+  while (low + 1 < high) {
+    const int middle = (low + high) / 2;
+    if (convex_polygon_cross(at(0), at(middle), point) >= 0) low = middle;
+    else high = middle;
+  }
+  const auto side = convex_polygon_cross(at(low), at(high), point);
+  if (side < 0) return PointInConvexPolygon::outside;
+  return side == 0 ? PointInConvexPolygon::boundary : PointInConvexPolygon::inside;
+}
+
+struct ConvexPolygonTangents {
+  int clockwise = -1;
+  int counterclockwise = -1;
+};
+
+template <typename T>
+inline ConvexPolygonTangents convex_polygon_tangents(
+    const std::vector<ConvexPolygonPoint<T>>& polygon,
+    const ConvexPolygonPoint<T>& point) {
+  ConvexPolygonTangents result;
+  if (point_in_convex_polygon(polygon, point) != PointInConvexPolygon::outside) return result;
+  const int n = static_cast<int>(polygon.size());
+  for (int vertex = 0; vertex < n; ++vertex) {
+    const auto previous = convex_polygon_cross(point, polygon[vertex],
+                                               polygon[(vertex + n - 1) % n]);
+    const auto next = convex_polygon_cross(point, polygon[vertex],
+                                           polygon[(vertex + 1) % n]);
+    if (previous >= 0 && next >= 0 && result.counterclockwise == -1) {
+      result.counterclockwise = vertex;
+    }
+    if (previous <= 0 && next <= 0 && result.clockwise == -1) {
+      result.clockwise = vertex;
+    }
+  }
+  return result;
+}

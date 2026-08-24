@@ -1,0 +1,93 @@
+template <typename Symbol = char>
+class DynamicAhoActivation {
+ public:
+  DynamicAhoActivation() : nodes_(1) {}
+
+  template <typename Range>
+  int add_pattern(const Range& pattern) {
+    built_ = false;
+    int state = 0;
+    for (const Symbol& symbol : pattern) {
+      auto [iterator, inserted] = nodes_[state].next.emplace(symbol, -1);
+      if (inserted) {
+        iterator->second = static_cast<int>(nodes_.size());
+        nodes_.push_back(Node{});
+      }
+      state = iterator->second;
+    }
+    terminal_.push_back(state);
+    return static_cast<int>(terminal_.size()) - 1;
+  }
+
+  void build() {
+    std::queue<int> queue;
+    std::vector<std::vector<int>> tree(nodes_.size());
+    for (const auto& edge : nodes_[0].next) queue.push(edge.second);
+    while (!queue.empty()) {
+      const int state = queue.front();
+      queue.pop();
+      tree[nodes_[state].failure].push_back(state);
+      for (const auto& edge : nodes_[state].next) {
+        int link = nodes_[state].failure;
+        while (link && !nodes_[link].next.count(edge.first)) link = nodes_[link].failure;
+        auto iterator = nodes_[link].next.find(edge.first);
+        if (iterator != nodes_[link].next.end()) link = iterator->second;
+        nodes_[edge.second].failure = link;
+        queue.push(edge.second);
+      }
+    }
+    tin_.resize(nodes_.size());
+    tout_.resize(nodes_.size());
+    int timer = 0;
+    std::vector<std::pair<int, int>> stack = { {0, 0} };
+    while (!stack.empty()) {
+      const int node = stack.back().first;
+      int& child = stack.back().second;
+      if (child == 0) tin_[node] = timer++;
+      if (child < static_cast<int>(tree[node].size())) {
+        stack.push_back({tree[node][child++], 0});
+      } else {
+        tout_[node] = timer;
+        stack.pop_back();
+      }
+    }
+    bit_.assign(nodes_.size() + 2, 0);
+    active_.assign(terminal_.size(), false);
+    built_ = true;
+  }
+
+  void set_active(int pattern_id, bool active) {
+    if (!built_ || pattern_id < 0 || pattern_id >= static_cast<int>(terminal_.size()) ||
+        active_[pattern_id] == active) return;
+    active_[pattern_id] = active;
+    const int state = terminal_[pattern_id];
+    add(tin_[state], active ? 1 : -1);
+    add(tout_[state], active ? -1 : 1);
+  }
+
+  int next_state(int state, const Symbol& symbol) const {
+    if (!built_ || state < 0 || state >= static_cast<int>(nodes_.size())) return -1;
+    while (state && !nodes_[state].next.count(symbol)) state = nodes_[state].failure;
+    auto iterator = nodes_[state].next.find(symbol);
+    return iterator == nodes_[state].next.end() ? 0 : iterator->second;
+  }
+
+  int active_match_count(int state) const {
+    if (!built_ || state < 0 || state >= static_cast<int>(nodes_.size())) return 0;
+    int result = 0;
+    for (int index = tin_[state] + 1; index > 0; index -= index & -index)
+      result += bit_[index];
+    return result;
+  }
+
+ private:
+  struct Node { std::map<Symbol, int> next; int failure = 0; };
+  void add(int position, int delta) {
+    for (int index = position + 1; index < static_cast<int>(bit_.size()); index += index & -index)
+      bit_[index] += delta;
+  }
+  std::vector<Node> nodes_;
+  std::vector<int> terminal_, tin_, tout_, bit_;
+  std::vector<bool> active_;
+  bool built_ = false;
+};

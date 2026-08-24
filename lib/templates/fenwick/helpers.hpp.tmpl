@@ -31,7 +31,7 @@ struct FenwickMaxOp {
   static constexpr bool kHasInverse = false;
   static constexpr bool kHasDescend = true;
 
-  static T default_neutral() { return T(); }
+  static T default_neutral() { return std::numeric_limits<T>::lowest(); }
   static T combine(const T& lhs, const T& rhs) { return (lhs < rhs ? rhs : lhs); }
   static bool descend_should_advance(const T& candidate, const T& target) {
     return !(target < candidate);
@@ -45,7 +45,7 @@ struct FenwickMinOp {
   static constexpr bool kHasInverse = false;
   static constexpr bool kHasDescend = false;
 
-  static T default_neutral() { return T(); }
+  static T default_neutral() { return std::numeric_limits<T>::max(); }
   static T combine(const T& lhs, const T& rhs) { return (lhs < rhs ? lhs : rhs); }
 };
 {{/if}}
@@ -197,6 +197,19 @@ class Fenwick {
     }
     return pos;
   }
+
+  int lower_bound_prefix(const T& target) const {
+    static_assert(Op::kHasDescend,
+                  "prefix lower_bound is not defined for this operation");
+    return descend(target);
+  }
+
+{{#if sumOp}}
+  int kth(const T& zero_based_order) const {
+    assert(!(zero_based_order < T(0)) && zero_based_order < prefix(n_ - 1));
+    return lower_bound_prefix(zero_based_order + T(1));
+  }
+{{/if}}
 
  private:
   int n_;

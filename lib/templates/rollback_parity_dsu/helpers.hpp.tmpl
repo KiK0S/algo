@@ -1,0 +1,130 @@
+class RollbackParityDsu {
+ public:
+  explicit RollbackParityDsu(int n = 0) : parent_(n, -1), parity_(n), conflicts_(0) {}
+
+  std::pair<int, int> find(int vertex) const {
+    int parity = 0;
+    while (parent_[vertex] >= 0) {
+      parity ^= parity_[vertex];
+      vertex = parent_[vertex];
+    }
+    return {vertex, parity};
+  }
+
+  int snapshot() const { return static_cast<int>(history_.size()); }
+  bool consistent() const { return conflicts_ == 0; }
+
+  bool unite(int a, int b, int different = 1) {
+    different &= 1;
+    auto [root_a, parity_a] = find(a);
+    auto [root_b, parity_b] = find(b);
+    if (root_a == root_b) {
+      const bool conflict = ((parity_a ^ parity_b) != different);
+      history_.push_back({-1, 0, 0, 0, conflict});
+      conflicts_ += conflict;
+      trace(conflict ? "Parity DSU detected a conflict"
+                     : "Parity DSU accepted a redundant constraint");
+      return !conflict;
+    }
+    if (parent_[root_a] > parent_[root_b]) {
+      std::swap(root_a, root_b);
+      std::swap(parity_a, parity_b);
+    }
+    history_.push_back(
+        {root_b, parent_[root_a], parent_[root_b], parity_[root_b], false});
+    parent_[root_a] += parent_[root_b];
+    parent_[root_b] = root_a;
+    parity_[root_b] = parity_a ^ parity_b ^ different;
+    trace("Parity DSU joined two components");
+    return true;
+  }
+
+  void rollback(int snapshot) {
+    while (static_cast<int>(history_.size()) > snapshot) {
+      Change change = history_.back(); history_.pop_back();
+      if (change.vertex == -1) {
+        conflicts_ -= change.conflict;
+      } else {
+        int root = parent_[change.vertex];
+        parent_[root] = change.old_root_size;
+        parent_[change.vertex] = change.old_vertex_parent;
+        parity_[change.vertex] = change.old_parity;
+      }
+    }
+    trace("Parity DSU restored a snapshot");
+  }
+
+ private:
+  struct Change {
+    int vertex, old_root_size, old_vertex_parent, old_parity;
+    bool conflict;
+  };
+  std::vector<int> parent_, parity_;
+  std::vector<Change> history_;
+  int conflicts_;
+
+  void trace(const char* label) const {
+    EDULCNI_VIS(edulcni::live::array("parity_dsu.parents", parent_));
+    EDULCNI_VIS(edulcni::live::array("parity_dsu.parity", parity_));
+    EDULCNI_VIS(edulcni::live::value("parity_dsu.conflicts", conflicts_));
+    EDULCNI_VIS(edulcni::live::value(
+        "parity_dsu.history_size", history_.size()));
+    EDULCNI_STEP(label);
+  }
+};
+
+class OfflineDynamicBipartiteness {
+ public:
+  OfflineDynamicBipartiteness(int vertex_count, int time_count)
+      : vertex_count_(vertex_count), time_count_(std::max(0, time_count)),
+        tree_(std::max(1, 4 * time_count_)) {}
+
+  void add_edge_lifetime(int u, int v, int first_time, int past_last_time) {
+    first_time = std::max(first_time, 0);
+    past_last_time = std::min(past_last_time, time_count_);
+    if (first_time < past_last_time)
+      add(1, 0, time_count_, first_time, past_last_time, {u, v});
+    EDULCNI_VIS(edulcni::live::edges(
+        "dynamic_bipartiteness.added_edge", vertex_count_,
+        std::vector<std::pair<int, int>>{ {u, v} }));
+    EDULCNI_VIS(edulcni::live::array(
+        "dynamic_bipartiteness.edge_lifetime",
+        std::vector<int>{first_time, past_last_time}));
+    EDULCNI_STEP("Dynamic bipartiteness registered an edge lifetime");
+  }
+
+  std::vector<bool> solve() const {
+    std::vector<bool> answer(time_count_);
+    RollbackParityDsu dsu(vertex_count_);
+    if (time_count_) solve(1, 0, time_count_, dsu, answer);
+    return answer;
+  }
+
+ private:
+  int vertex_count_, time_count_;
+  std::vector<std::vector<std::pair<int, int>>> tree_;
+  void add(int node, int left, int right, int ql, int qr, std::pair<int, int> edge) {
+    if (qr <= left || right <= ql) return;
+    if (ql <= left && right <= qr) { tree_[node].push_back(edge); return; }
+    int middle = (left + right) / 2;
+    add(2 * node, left, middle, ql, qr, edge);
+    add(2 * node + 1, middle, right, ql, qr, edge);
+  }
+  void solve(int node, int left, int right, RollbackParityDsu& dsu,
+             std::vector<bool>& answer) const {
+    int checkpoint = dsu.snapshot();
+    for (auto [u, v] : tree_[node]) dsu.unite(u, v);
+    EDULCNI_VIS(edulcni::live::edges(
+        "dynamic_bipartiteness.active_edges", vertex_count_, tree_[node]));
+    EDULCNI_VIS(edulcni::live::array(
+        "dynamic_bipartiteness.interval", std::vector<int>{left, right}));
+    EDULCNI_STEP("Dynamic bipartiteness enters a time interval");
+    if (right - left == 1) answer[left] = dsu.consistent();
+    else {
+      int middle = (left + right) / 2;
+      solve(2 * node, left, middle, dsu, answer);
+      solve(2 * node + 1, middle, right, dsu, answer);
+    }
+    dsu.rollback(checkpoint);
+  }
+};

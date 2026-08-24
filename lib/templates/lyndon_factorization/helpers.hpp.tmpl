@@ -1,0 +1,19 @@
+template <typename Range>
+inline std::vector<std::pair<int, int>> lyndon_factorization(const Range& text) {
+  const int size = static_cast<int>(text.size());
+  std::vector<std::pair<int, int>> factors;
+  int begin = 0;
+  while (begin < size) {
+    int first = begin;
+    int second = begin + 1;
+    while (second < size && !(text[second] < text[first])) {
+      first = (text[first] < text[second]) ? begin : first + 1;
+      ++second;
+    }
+    while (begin <= first) {
+      factors.push_back({begin, begin + second - first});
+      begin += second - first;
+    }
+  }
+  return factors;
+}

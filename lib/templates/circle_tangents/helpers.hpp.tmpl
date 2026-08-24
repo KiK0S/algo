@@ -1,0 +1,56 @@
+struct CircleTangentPoint {
+  long double x;
+  long double y;
+
+  CircleTangentPoint operator+(const CircleTangentPoint& other) const {
+    return {x + other.x, y + other.y};
+  }
+  CircleTangentPoint operator-(const CircleTangentPoint& other) const {
+    return {x - other.x, y - other.y};
+  }
+  CircleTangentPoint operator*(long double scale) const { return {x * scale, y * scale}; }
+};
+
+struct CircleTangent {
+  CircleTangentPoint first;
+  CircleTangentPoint second;
+  bool internal;
+};
+
+inline std::vector<CircleTangent> common_circle_tangents(
+    CircleTangentPoint first_center, long double first_radius,
+    CircleTangentPoint second_center, long double second_radius,
+    long double eps = 1e-12L) {
+  std::vector<CircleTangent> result;
+  if (first_radius < 0 || second_radius < 0) return result;
+  const CircleTangentPoint direction = second_center - first_center;
+  const long double distance_squared =
+      direction.x * direction.x + direction.y * direction.y;
+  if (distance_squared <= eps * eps) return result;
+
+  for (int radius_sign : {1, -1}) {
+    const long double radius_difference =
+        first_radius - radius_sign * second_radius;
+    long double height_squared =
+        distance_squared - radius_difference * radius_difference;
+    if (height_squared < -eps) continue;
+    height_squared = std::max(0.0L, height_squared);
+    const long double height = std::sqrt(height_squared);
+    for (int side : {-1, 1}) {
+      CircleTangentPoint normal{
+          (direction.x * radius_difference - direction.y * height * side) /
+              distance_squared,
+          (direction.y * radius_difference + direction.x * height * side) /
+              distance_squared};
+      CircleTangent tangent{
+          first_center + normal * first_radius,
+          second_center + normal * (radius_sign * second_radius),
+          radius_sign == -1};
+      if (!result.empty() && height == 0 && result.back().internal == tangent.internal) {
+        continue;
+      }
+      result.push_back(tangent);
+    }
+  }
+  return result;
+}

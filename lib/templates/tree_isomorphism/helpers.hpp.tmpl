@@ -1,0 +1,40 @@
+inline std::vector<int> tree_centers(const std::vector<std::vector<int>>& tree) {
+  const int n = static_cast<int>(tree.size());
+  if (n <= 2) { std::vector<int> all(n); std::iota(all.begin(), all.end(), 0); return all; }
+  std::vector<int> degree(n);
+  std::vector<int> leaves;
+  for (int u = 0; u < n; ++u) {
+    degree[u] = static_cast<int>(tree[u].size());
+    if (degree[u] <= 1) leaves.push_back(u);
+  }
+  int remaining = n;
+  for (int begin = 0; remaining > 2; ) {
+    int end = static_cast<int>(leaves.size());
+    remaining -= end - begin;
+    while (begin < end) {
+      int u = leaves[begin++];
+      for (int v : tree[u]) if (--degree[v] == 1) leaves.push_back(v);
+    }
+  }
+  return std::vector<int>(leaves.end() - remaining, leaves.end());
+}
+
+inline std::string rooted_tree_canonical_form(
+    const std::vector<std::vector<int>>& tree, int root) {
+  std::function<std::string(int, int)> dfs = [&](int u, int parent) {
+    std::vector<std::string> children;
+    for (int v : tree[u]) if (v != parent) children.push_back(dfs(v, u));
+    std::sort(children.begin(), children.end());
+    std::string result = "(";
+    for (const std::string& child : children) result += child;
+    return result + ")";
+  };
+  return dfs(root, -1);
+}
+
+inline std::string tree_canonical_form(const std::vector<std::vector<int>>& tree) {
+  if (tree.empty()) return "";
+  std::vector<std::string> forms;
+  for (int center : tree_centers(tree)) forms.push_back(rooted_tree_canonical_form(tree, center));
+  return *std::min_element(forms.begin(), forms.end());
+}

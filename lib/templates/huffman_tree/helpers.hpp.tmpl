@@ -1,0 +1,58 @@
+template <typename Weight>
+struct HuffmanTree {
+  struct Node { Weight weight{}; int left = -1, right = -1, parent = -1; };
+  std::vector<Node> nodes;
+  std::vector<int> code_length;
+  int root = -1;
+  Weight cost{};
+};
+
+template <typename Weight>
+inline HuffmanTree<Weight> build_huffman_tree(const std::vector<Weight>& weights) {
+  // Weights are expected to be nonnegative, and Weight must hold their sums.
+  HuffmanTree<Weight> result;
+  result.nodes.reserve(std::max<std::size_t>(1, weights.size() * 2 - (weights.empty() ? 0 : 1)));
+  using Item = std::pair<Weight, int>;
+  std::priority_queue<Item, std::vector<Item>, std::greater<Item>> queue;
+  for (int i = 0; i < static_cast<int>(weights.size()); ++i) {
+    result.nodes.push_back({weights[i]}); queue.push({weights[i], i});
+  }
+  while (queue.size() > 1) {
+    const auto first = queue.top(); queue.pop();
+    const auto second = queue.top(); queue.pop();
+    const int node = result.nodes.size();
+    const Weight merged = first.first + second.first;
+    result.nodes.push_back({merged, first.second, second.second, -1});
+    result.nodes[first.second].parent = result.nodes[second.second].parent = node;
+    result.cost += merged; queue.push({merged, node});
+  }
+  result.root = queue.empty() ? -1 : queue.top().second;
+  result.code_length.assign(weights.size(), 0);
+  if (result.root != -1) {
+    std::vector<std::pair<int, int>> stack{ {result.root, 0} };
+    while (!stack.empty()) {
+      const auto [node, depth] = stack.back();
+      stack.pop_back();
+      if (node < static_cast<int>(weights.size())) {
+        result.code_length[node] = depth;
+      } else {
+        stack.push_back({result.nodes[node].left, depth + 1});
+        stack.push_back({result.nodes[node].right, depth + 1});
+      }
+    }
+  }
+  return result;
+}
+
+template <typename Weight>
+inline std::vector<bool> huffman_code(const HuffmanTree<Weight>& tree, int leaf) {
+  std::vector<bool> code;
+  if (leaf < 0 || leaf >= static_cast<int>(tree.code_length.size())) return code;
+  while (leaf >= 0 && tree.nodes[leaf].parent != -1) {
+    const int parent = tree.nodes[leaf].parent;
+    code.push_back(tree.nodes[parent].right == leaf);
+    leaf = parent;
+  }
+  std::reverse(code.begin(), code.end());
+  return code;
+}

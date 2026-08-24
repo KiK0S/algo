@@ -1,0 +1,108 @@
+template <typename T>
+void polynomial_trim(std::vector<T>& polynomial) {
+  while (!polynomial.empty() && polynomial.back() == T(0)) polynomial.pop_back();
+}
+
+template <typename T>
+std::pair<std::vector<T>, std::vector<T>> polynomial_divmod(
+    std::vector<T> dividend, std::vector<T> divisor) {
+  polynomial_trim(dividend);
+  polynomial_trim(divisor);
+  if (divisor.empty()) return {std::vector<T>{}, dividend};
+  if (dividend.size() < divisor.size()) return {std::vector<T>{}, dividend};
+  std::vector<T> quotient(dividend.size() - divisor.size() + 1, T(0));
+  for (int index = static_cast<int>(dividend.size() - divisor.size()); index >= 0; --index) {
+    const T coefficient = dividend[index + divisor.size() - 1] / divisor.back();
+    quotient[index] = coefficient;
+    for (int j = 0; j < static_cast<int>(divisor.size()); ++j)
+      dividend[index + j] -= coefficient * divisor[j];
+  }
+  polynomial_trim(quotient);
+  polynomial_trim(dividend);
+  return {quotient, dividend};
+}
+
+template <typename T>
+std::vector<T> polynomial_gcd(std::vector<T> lhs, std::vector<T> rhs) {
+  polynomial_trim(lhs);
+  polynomial_trim(rhs);
+  while (!rhs.empty()) {
+    std::vector<T> remainder = polynomial_divmod(lhs, rhs).second;
+    lhs.swap(rhs);
+    rhs.swap(remainder);
+  }
+  if (!lhs.empty()) {
+    const T leading = lhs.back();
+    for (T& value : lhs) value /= leading;
+  }
+  return lhs;
+}
+
+template <typename T, typename Multiply>
+class PolynomialProductTree {
+ public:
+  PolynomialProductTree(const std::vector<T>& points, Multiply multiply)
+      : points_(points), multiply_(multiply) {
+    leaf_count_ = 1;
+    while (leaf_count_ < static_cast<int>(points.size())) leaf_count_ <<= 1;
+    tree_.assign(2 * leaf_count_, std::vector<T>{T(1)});
+    for (int i = 0; i < static_cast<int>(points.size()); ++i)
+      tree_[leaf_count_ + i] = {-points[i], T(1)};
+    for (int node = leaf_count_ - 1; node > 0; --node)
+      tree_[node] = multiply_(tree_[2 * node], tree_[2 * node + 1]);
+  }
+
+  const std::vector<T>& product() const { return tree_[1]; }
+
+  std::vector<T> evaluate(const std::vector<T>& polynomial) const {
+    std::vector<std::vector<T>> remainder(2 * leaf_count_);
+    remainder[1] = polynomial_divmod(polynomial, tree_[1]).second;
+    for (int node = 1; node < leaf_count_; ++node) {
+      remainder[2 * node] = polynomial_divmod(remainder[node], tree_[2 * node]).second;
+      remainder[2 * node + 1] =
+          polynomial_divmod(remainder[node], tree_[2 * node + 1]).second;
+    }
+    std::vector<T> values(points_.size(), T(0));
+    for (int i = 0; i < static_cast<int>(points_.size()); ++i)
+      if (!remainder[leaf_count_ + i].empty()) values[i] = remainder[leaf_count_ + i][0];
+    return values;
+  }
+
+ private:
+  std::vector<T> points_;
+  Multiply multiply_;
+  int leaf_count_ = 1;
+  std::vector<std::vector<T>> tree_;
+};
+
+template <typename T, typename Multiply>
+std::vector<T> polynomial_interpolate(const std::vector<T>& points,
+                                      const std::vector<T>& values,
+                                      Multiply multiply) {
+  if (points.size() != values.size() || points.empty()) return {};
+  PolynomialProductTree<T, Multiply> tree(points, multiply);
+  const std::vector<T>& product = tree.product();
+  std::vector<T> derivative(product.size() - 1);
+  for (int i = 1; i < static_cast<int>(product.size()); ++i)
+    derivative[i - 1] = product[i] * T(i);
+  const std::vector<T> denominators = tree.evaluate(derivative);
+  const int size = static_cast<int>(points.size());
+  int leaf_count = 1;
+  while (leaf_count < size) leaf_count <<= 1;
+  std::vector<std::vector<T>> products(2 * leaf_count, std::vector<T>{T(1)});
+  std::vector<std::vector<T>> answer(2 * leaf_count);
+  for (int i = 0; i < size; ++i) {
+    products[leaf_count + i] = {-points[i], T(1)};
+    answer[leaf_count + i] = {values[i] / denominators[i]};
+  }
+  for (int node = leaf_count - 1; node > 0; --node) {
+    products[node] = multiply(products[2 * node], products[2 * node + 1]);
+    std::vector<T> lhs = multiply(answer[2 * node], products[2 * node + 1]);
+    std::vector<T> rhs = multiply(answer[2 * node + 1], products[2 * node]);
+    if (lhs.size() < rhs.size()) lhs.resize(rhs.size(), T(0));
+    for (int i = 0; i < static_cast<int>(rhs.size()); ++i) lhs[i] += rhs[i];
+    polynomial_trim(lhs);
+    answer[node] = std::move(lhs);
+  }
+  return answer[1];
+}

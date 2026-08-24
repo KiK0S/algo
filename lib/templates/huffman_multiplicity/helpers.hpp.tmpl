@@ -1,0 +1,37 @@
+template <typename Weight, typename Count = long long>
+inline Weight huffman_cost_with_multiplicities(
+    const std::vector<std::pair<Weight, Count>>& weighted_counts) {
+  std::map<Weight, Count> counts;
+  Count remaining = 0;
+  for (const auto& [weight, count] : weighted_counts) {
+    if (count > 0) {
+      counts[weight] += count;
+      remaining += count;
+    }
+  }
+  Weight cost{};
+  while (remaining > 1) {
+    auto first = counts.begin();
+    const Weight first_weight = first->first;
+    Count first_count = first->second;
+    counts.erase(first);
+
+    const Count pairs = first_count / 2;
+    if (pairs > 0) {
+      const Weight merged_weight = first_weight + first_weight;
+      counts[merged_weight] += pairs;
+      cost += merged_weight * pairs;
+      remaining -= pairs;
+    }
+    if (first_count % 2 == 0) continue;
+
+    auto second = counts.begin();
+    const Weight second_weight = second->first;
+    if (--second->second == 0) counts.erase(second);
+    const Weight merged_weight = first_weight + second_weight;
+    counts[merged_weight] += 1;
+    cost += merged_weight;
+    --remaining;
+  }
+  return cost;
+}

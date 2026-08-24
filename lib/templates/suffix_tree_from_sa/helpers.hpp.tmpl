@@ -1,0 +1,38 @@
+struct SuffixTreeFromSa {
+  struct Node {
+    int parent = -1;
+    int string_depth = 0;
+    int suffix_start = -1;
+    std::vector<int> children;
+  };
+  std::vector<Node> nodes;
+  int root = 0;
+};
+
+inline SuffixTreeFromSa suffix_tree_from_sa(const std::vector<int>& suffix_array,
+                                             const std::vector<int>& lcp,
+                                             int text_length) {
+  SuffixTreeFromSa tree;
+  tree.nodes.push_back({-1, 0, -1, {}});
+  std::vector<int> path(1, 0);
+  for (int index = 0; index < static_cast<int>(suffix_array.size()); ++index) {
+    const int common = index == 0 ? 0 : lcp[index - 1];
+    while (tree.nodes[path.back()].string_depth > common) path.pop_back();
+    if (tree.nodes[path.back()].string_depth < common) {
+      const int parent = path.back();
+      const int moved_child = tree.nodes[parent].children.back();
+      const int middle = static_cast<int>(tree.nodes.size());
+      tree.nodes.push_back({parent, common, -1, {moved_child}});
+      tree.nodes[moved_child].parent = middle;
+      tree.nodes[parent].children.back() = middle;
+      path.push_back(middle);
+    }
+    const int parent = path.back();
+    const int leaf = static_cast<int>(tree.nodes.size());
+    tree.nodes.push_back({parent, text_length - suffix_array[index],
+                          suffix_array[index], {}});
+    tree.nodes[parent].children.push_back(leaf);
+    path.push_back(leaf);
+  }
+  return tree;
+}

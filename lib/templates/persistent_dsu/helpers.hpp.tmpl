@@ -1,0 +1,64 @@
+class PersistentDsu {
+ public:
+  explicit PersistentDsu(int size) : size_(size) {
+    assert(size > 0);
+    versions_.push_back(build(0, size));
+  }
+
+  int version_count() const { return static_cast<int>(versions_.size()); }
+  int find(int version, int vertex) const {
+    int parent = get(versions_[version], 0, size_, vertex).parent;
+    return parent == vertex ? vertex : find(version, parent);
+  }
+  bool same(int version, int first, int second) const {
+    return find(version, first) == find(version, second);
+  }
+  int component_size(int version, int vertex) const {
+    return get(versions_[version], 0, size_, find(version, vertex)).size;
+  }
+  int unite(int version, int first, int second) {
+    first = find(version, first); second = find(version, second);
+    int root = versions_[version];
+    if (first != second) {
+      Entry a = get(root, 0, size_, first), b = get(root, 0, size_, second);
+      if (a.size < b.size) { std::swap(first, second); std::swap(a, b); }
+      root = update(root, 0, size_, second, {first, b.size});
+      root = update(root, 0, size_, first, {first, a.size + b.size});
+    }
+    versions_.push_back(root);
+    return static_cast<int>(versions_.size()) - 1;
+  }
+
+ private:
+  struct Entry { int parent, size; };
+  struct Node { int left = -1, right = -1; Entry entry{-1, 0}; };
+  int size_;
+  std::vector<Node> nodes_;
+  std::vector<int> versions_;
+  int build(int left, int right) {
+    int node = static_cast<int>(nodes_.size()); nodes_.push_back({});
+    if (right - left == 1) nodes_[node].entry = {left, 1};
+    else {
+      int middle = (left + right) / 2;
+      int first = build(left, middle), second = build(middle, right);
+      nodes_[node].left = first; nodes_[node].right = second;
+    }
+    return node;
+  }
+  Entry get(int node, int left, int right, int position) const {
+    if (right - left == 1) return nodes_[node].entry;
+    int middle = (left + right) / 2;
+    return position < middle ? get(nodes_[node].left, left, middle, position)
+                             : get(nodes_[node].right, middle, right, position);
+  }
+  int update(int node, int left, int right, int position, Entry entry) {
+    int copy = static_cast<int>(nodes_.size()); nodes_.push_back(nodes_[node]);
+    if (right - left == 1) nodes_[copy].entry = entry;
+    else {
+      int middle = (left + right) / 2;
+      if (position < middle) nodes_[copy].left = update(nodes_[node].left, left, middle, position, entry);
+      else nodes_[copy].right = update(nodes_[node].right, middle, right, position, entry);
+    }
+    return copy;
+  }
+};

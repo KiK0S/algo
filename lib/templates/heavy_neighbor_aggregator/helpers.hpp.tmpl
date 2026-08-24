@@ -1,0 +1,103 @@
+template <typename T, typename Add = std::plus<T>, typename Less = std::less<T>>
+class HeavyNeighborMin {
+ public:
+  explicit HeavyNeighborMin(int vertex_count, const std::vector<T>& values,
+                            Add add = Add(), Less less = Less())
+      : graph_(std::max(0, vertex_count)), values_(values), add_(add), less_(less),
+        built_(false) {
+    values_.resize(graph_.size());
+  }
+
+  void add_edge(int first, int second, const T& cost = T()) {
+    if (!valid_vertex(first) || !valid_vertex(second)) return;
+    graph_[first].push_back({second, cost});
+    graph_[second].push_back({first, cost});
+    built_ = false;
+  }
+
+  void build(int heavy_threshold = 0) {
+    if (heavy_threshold <= 0) {
+      std::size_t incidences = 0;
+      for (const auto& edges : graph_) incidences += edges.size();
+      heavy_threshold = std::max(1, int(std::sqrt(static_cast<long double>(incidences))) + 1);
+    }
+
+    heavy_index_.assign(graph_.size(), -1);
+    heavy_vertices_.clear();
+    for (int vertex = 0; vertex < int(graph_.size()); ++vertex) {
+      if (int(graph_[vertex].size()) >= heavy_threshold) {
+        heavy_index_[vertex] = int(heavy_vertices_.size());
+        heavy_vertices_.push_back(vertex);
+      }
+    }
+
+    heavy_values_.clear();
+    heavy_values_.reserve(heavy_vertices_.size());
+    heavy_incidents_.assign(graph_.size(), {});
+    for (int index = 0; index < int(heavy_vertices_.size()); ++index) {
+      heavy_values_.emplace_back(less_);
+      const int heavy_vertex = heavy_vertices_[index];
+      for (const Edge& edge : graph_[heavy_vertex]) {
+        heavy_values_.back().insert(add_(values_[edge.to], edge.cost));
+        heavy_incidents_[edge.to].push_back({index, edge.cost});
+      }
+    }
+    built_ = true;
+  }
+
+  bool set_value(int vertex, const T& value) {
+    if (!valid_vertex(vertex)) return false;
+    if (built_) {
+      for (const HeavyIncident& incident : heavy_incidents_[vertex]) {
+        auto& candidates = heavy_values_[incident.heavy_index];
+        auto old_value = candidates.find(add_(values_[vertex], incident.cost));
+        if (old_value != candidates.end()) candidates.erase(old_value);
+        candidates.insert(add_(value, incident.cost));
+      }
+    }
+    values_[vertex] = value;
+    return true;
+  }
+
+  const T& value(int vertex) const { return values_[vertex]; }
+
+  bool neighbor_min(int vertex, T& result) const {
+    if (!valid_vertex(vertex) || graph_[vertex].empty()) return false;
+    if (built_ && heavy_index_[vertex] != -1) {
+      result = *heavy_values_[heavy_index_[vertex]].begin();
+      return true;
+    }
+    const Edge& first_edge = graph_[vertex].front();
+    result = add_(values_[first_edge.to], first_edge.cost);
+    for (std::size_t i = 1; i < graph_[vertex].size(); ++i) {
+      const Edge& edge = graph_[vertex][i];
+      T candidate = add_(values_[edge.to], edge.cost);
+      if (less_(candidate, result)) result = candidate;
+    }
+    return true;
+  }
+
+ private:
+  struct Edge {
+    int to;
+    T cost;
+  };
+  struct HeavyIncident {
+    int heavy_index;
+    T cost;
+  };
+
+  std::vector<std::vector<Edge>> graph_;
+  std::vector<T> values_;
+  Add add_;
+  Less less_;
+  bool built_;
+  std::vector<int> heavy_index_;
+  std::vector<int> heavy_vertices_;
+  std::vector<std::multiset<T, Less>> heavy_values_;
+  std::vector<std::vector<HeavyIncident>> heavy_incidents_;
+
+  bool valid_vertex(int vertex) const {
+    return vertex >= 0 && vertex < int(graph_.size());
+  }
+};

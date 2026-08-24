@@ -1,0 +1,59 @@
+class FloorQuotientMultiset {
+ public:
+  explicit FloorQuotientMultiset(int maximum_value)
+      : maximum_value_(std::max(0, maximum_value)), threshold_(1),
+        fenwick_(std::max(0, maximum_value) + 2),
+        small_answers_(2, 0), size_(0) {
+    while (threshold_ <= maximum_value_ / threshold_) ++threshold_;
+    small_answers_.assign(threshold_, 0);
+  }
+
+  int size() const { return size_; }
+
+  void insert(int value) { add(value, 1); }
+  void erase(int value) { add(value, -1); }
+
+  long long query(int divisor) const {
+    if (divisor <= 0) return 0;
+    if (divisor < threshold_) return small_answers_[divisor];
+	if (divisor >= maximum_value_) return 0;
+    long long answer = 0;
+    for (int left = divisor + 1, quotient = 1; left <= maximum_value_;
+         left += divisor, ++quotient) {
+      answer += 1LL * quotient * count_range(left, std::min(maximum_value_, left + divisor - 1));
+    }
+    return answer;
+  }
+
+ private:
+  int maximum_value_;
+  int threshold_;
+  std::vector<int> fenwick_;
+  std::vector<long long> small_answers_;
+  int size_;
+
+  void add(int value, int delta) {
+    if (value < 1 || value > maximum_value_ || delta == 0) return;
+    if (delta < 0 && count_range(value, value) == 0) return;
+    for (int divisor = 1; divisor < threshold_; ++divisor) {
+      small_answers_[divisor] += 1LL * delta * ((value - 1) / divisor);
+    }
+    for (int index = value; index <= maximum_value_; index += index & -index) {
+      fenwick_[index] += delta;
+    }
+    size_ += delta;
+  }
+
+  int prefix_count(int right) const {
+    int result = 0;
+    for (int index = std::min(right, maximum_value_); index > 0; index -= index & -index) {
+      result += fenwick_[index];
+    }
+    return result;
+  }
+
+  int count_range(int left, int right) const {
+    if (left > right || right < 1 || left > maximum_value_) return 0;
+    return prefix_count(right) - prefix_count(left - 1);
+  }
+};

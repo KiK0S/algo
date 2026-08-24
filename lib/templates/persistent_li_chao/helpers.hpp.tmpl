@@ -1,0 +1,58 @@
+template <typename T>
+class PersistentLiChaoTree {
+ public:
+  struct Line { T slope{}, intercept{}; T operator()(T x) const { return slope * x + intercept; } };
+  using Root = int;
+  explicit PersistentLiChaoTree(std::vector<T> coordinates) : x_(std::move(coordinates)), nodes_(1) {
+    std::sort(x_.begin(), x_.end()); x_.erase(std::unique(x_.begin(), x_.end()), x_.end());
+  }
+  Root empty_root() const { return 0; }
+  Root add_line(Root root, Line line) {
+    if (x_.empty()) return root;
+    const Root result = add_line(root, 0, x_.size(), line);
+    EDULCNI_VIS(edulcni::live::lines(
+        "persistent_li_chao.inserted_line", std::vector<Line>{line}));
+    EDULCNI_VIS(edulcni::live::array(
+        "persistent_li_chao.domain", x_));
+    EDULCNI_VIS(edulcni::live::array(
+        "persistent_li_chao.versions", std::vector<int>{root, result}));
+    EDULCNI_VIS(edulcni::live::value(
+        "persistent_li_chao.node_count", nodes_.size() - 1));
+    EDULCNI_STEP("Persistent Li Chao tree creates a version");
+    return result;
+  }
+  T query(Root root, T x) const {
+    const int position = std::lower_bound(x_.begin(), x_.end(), x) - x_.begin();
+    assert(position < static_cast<int>(x_.size()) && x_[position] == x);
+    const T result = query(root, 0, x_.size(), position, x);
+    EDULCNI_VIS(edulcni::live::value("persistent_li_chao.version", root));
+    EDULCNI_VIS(edulcni::live::value("persistent_li_chao.query_x", x));
+    EDULCNI_VIS(edulcni::live::value("persistent_li_chao.result", result));
+    EDULCNI_STEP("Persistent Li Chao tree answers a query");
+    return result;
+  }
+ private:
+  struct Node { Line line{}; int left = 0, right = 0; bool present = false; };
+  std::vector<T> x_; std::vector<Node> nodes_;
+  int clone(int node) { nodes_.push_back(nodes_[node]); return nodes_.size() - 1; }
+  Root add_line(Root root, int left, int right, Line line) {
+    const int result = clone(root);
+    if (!nodes_[result].present) { nodes_[result].line = line; nodes_[result].present = true; return result; }
+    const int middle = (left + right) / 2;
+    const bool better_left = line(x_[left]) < nodes_[result].line(x_[left]);
+    const bool better_middle = line(x_[middle]) < nodes_[result].line(x_[middle]);
+    if (better_middle) std::swap(line, nodes_[result].line);
+    if (right - left == 1) return result;
+    if (better_left != better_middle) nodes_[result].left = add_line(nodes_[result].left, left, middle, line);
+    else nodes_[result].right = add_line(nodes_[result].right, middle, right, line);
+    return result;
+  }
+  T query(Root root, int left, int right, int position, T x) const {
+    if (root == 0) return std::numeric_limits<T>::max();
+    T result = nodes_[root].line(x);
+    if (right - left == 1) return result;
+    const int middle = (left + right) / 2;
+    return std::min(result, position < middle ? query(nodes_[root].left, left, middle, position, x)
+                                              : query(nodes_[root].right, middle, right, position, x));
+  }
+};

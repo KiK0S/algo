@@ -1,0 +1,147 @@
+// Maintains a simple undirected graph. Insertions cost O(log n) amortized;
+// deleting a tree edge costs O(m log n) in the worst case because replacement
+// edges are found by scanning the graph. Duplicate edges and loops are rejected.
+class OnlineDynamicConnectivity {
+ public:
+  explicit OnlineDynamicConnectivity(int vertex_count)
+      : forest_(vertex_count) {}
+
+  bool connected(int first, int second) { return forest_.connected(first, second); }
+
+  bool insert_edge(int first, int second) {
+    if (first == second || has_edge(first, second)) return false;
+    auto edge = edge_key(first, second);
+    edges_.insert(edge);
+    if (!forest_.connected(first, second)) {
+      forest_.link(first, second);
+      tree_edges_.insert(edge);
+    }
+    return true;
+  }
+
+  bool erase_edge(int first, int second) {
+    auto edge = edge_key(first, second);
+    if (!edges_.erase(edge)) return false;
+    if (!tree_edges_.erase(edge)) return true;
+    forest_.cut(first, second);
+    for (const auto& candidate : edges_) {
+      if (tree_edges_.count(candidate)) continue;
+      if (!forest_.connected(candidate.first, candidate.second)) {
+        forest_.link(candidate.first, candidate.second);
+        tree_edges_.insert(candidate);
+        break;
+      }
+    }
+    return true;
+  }
+
+  bool has_edge(int first, int second) const {
+    return edges_.count(edge_key(first, second));
+  }
+
+ private:
+  class LinkCutForest {
+   public:
+    explicit LinkCutForest(int vertex_count) : nodes_(vertex_count) {}
+    bool connected(int first, int second) {
+      return first == second || find_root(first) == find_root(second);
+    }
+    void link(int first, int second) {
+      make_root(first);
+      nodes_[first].parent = second;
+    }
+    void cut(int first, int second) {
+      make_root(first);
+      access(second);
+      nodes_[second].child[0] = -1;
+      nodes_[first].parent = -1;
+    }
+
+   private:
+    struct Node {
+      int child[2] = {-1, -1};
+      int parent = -1;
+      bool reversed = false;
+    };
+    std::vector<Node> nodes_;
+    bool auxiliary_root(int vertex) const {
+      int parent = nodes_[vertex].parent;
+      return parent == -1 ||
+             (nodes_[parent].child[0] != vertex && nodes_[parent].child[1] != vertex);
+    }
+    void apply_reverse(int vertex) {
+      if (vertex == -1) return;
+      std::swap(nodes_[vertex].child[0], nodes_[vertex].child[1]);
+      nodes_[vertex].reversed = !nodes_[vertex].reversed;
+    }
+    void push(int vertex) {
+      if (!nodes_[vertex].reversed) return;
+      apply_reverse(nodes_[vertex].child[0]);
+      apply_reverse(nodes_[vertex].child[1]);
+      nodes_[vertex].reversed = false;
+    }
+    void rotate(int vertex) {
+      int parent = nodes_[vertex].parent;
+      int grandparent = nodes_[parent].parent;
+      int direction = nodes_[parent].child[1] == vertex;
+      int middle = nodes_[vertex].child[direction ^ 1];
+      if (!auxiliary_root(parent))
+        nodes_[grandparent].child[nodes_[grandparent].child[1] == parent] = vertex;
+      nodes_[vertex].parent = grandparent;
+      nodes_[vertex].child[direction ^ 1] = parent;
+      nodes_[parent].parent = vertex;
+      nodes_[parent].child[direction] = middle;
+      if (middle != -1) nodes_[middle].parent = parent;
+    }
+    void splay(int vertex) {
+      std::vector<int> path = {vertex};
+      for (int current = vertex; !auxiliary_root(current); current = nodes_[current].parent)
+        path.push_back(nodes_[current].parent);
+      while (!path.empty()) {
+        push(path.back());
+        path.pop_back();
+      }
+      while (!auxiliary_root(vertex)) {
+        int parent = nodes_[vertex].parent;
+        int grandparent = nodes_[parent].parent;
+        if (!auxiliary_root(parent)) {
+          bool zigzag = (nodes_[parent].child[1] == vertex) !=
+                        (nodes_[grandparent].child[1] == parent);
+          rotate(zigzag ? vertex : parent);
+        }
+        rotate(vertex);
+      }
+    }
+    void access(int vertex) {
+      int previous = -1;
+      for (int current = vertex; current != -1; current = nodes_[current].parent) {
+        splay(current);
+        nodes_[current].child[1] = previous;
+        previous = current;
+      }
+      splay(vertex);
+    }
+    void make_root(int vertex) {
+      access(vertex);
+      apply_reverse(vertex);
+    }
+    int find_root(int vertex) {
+      access(vertex);
+      push(vertex);
+      while (nodes_[vertex].child[0] != -1) {
+        vertex = nodes_[vertex].child[0];
+        push(vertex);
+      }
+      splay(vertex);
+      return vertex;
+    }
+  };
+
+  LinkCutForest forest_;
+  std::set<std::pair<int, int>> edges_;
+  std::set<std::pair<int, int>> tree_edges_;
+  static std::pair<int, int> edge_key(int first, int second) {
+    if (first > second) std::swap(first, second);
+    return {first, second};
+  }
+};

@@ -29,6 +29,8 @@
       "first_geq",
       "prefix_lower_bound",
       "kth",
+      "find_first_predicate",
+      "find_last_predicate",
       "max_subarray",
       "persistent",
       "beats"
@@ -317,7 +319,16 @@
       "linear_sieve_lowest_prime",
       "linear_sieve_primes"
     ],
-    "features": ["lowest_prime", "primes", "factorization"],
+    "features": [
+      "lowest_prime",
+      "lowest_prime_exponent",
+      "primes",
+      "factorization",
+      "euler_phi",
+      "mobius",
+      "divisor_count",
+      "divisor_sum"
+    ],
     "sections": ["helpers"],
     "visualization": {
       "status": "automatic",
@@ -361,7 +372,9 @@
       "custom_invertible",
       "range_query",
       "range_update",
-      "descend"
+      "descend",
+      "prefix_lower_bound",
+      "kth"
     ],
     "applications": [
       "point_prefix",
@@ -412,7 +425,12 @@
     "description": "factorials, combinations, permutations, and stars and bars",
     "detail": "static / template",
     "exports": ["Combinatorics"],
-    "features": ["factorial", "ncr", "npr", "multinomial", "catalan", "stars_and_bars"]
+    "features": ["factorial", "ncr", "npr", "multinomial", "catalan", "stars_and_bars"],
+    "visualization": {
+      "status": "manual",
+      "models": ["table"],
+      "reason": "Generic arithmetic helpers have no operation-level visualization hooks."
+    }
   },
   {
     "path": "/templates/powers_precalc",
@@ -876,7 +894,16 @@
       "poly_hash_values",
       "poly_hash_equal_substrings"
     ],
-    "features": ["substring_equal", "reverse", "lcp", "concat"],
+    "features": [
+      "substring_equal",
+      "reverse",
+      "lcp",
+      "concat",
+      "all_fixed_length_hashes",
+      "substring_compare",
+      "period_check",
+      "minimal_period"
+    ],
     "sections": ["constants", "helpers"],
     "visualization": {
       "status": "automatic",
@@ -1690,7 +1717,12 @@
     "label": "/templates/circular_blocks",
     "description": "cyclic blocks matching a predicate with original start indices",
     "detail": "static / template",
-    "exports": ["CircularBlock", "circular_blocks"]
+    "exports": ["CircularBlock", "circular_blocks"],
+    "visualization": {
+      "status": "manual",
+      "models": ["array"],
+      "reason": "The caller-provided predicate and generic range require custom visualization."
+    }
   },
   {
     "path": "/templates/decrement_indices",
@@ -2480,8 +2512,8 @@
     "template": "functional_graph/helpers.hpp.tmpl",
     "description": "decompose a functional graph into cycles and in-trees",
     "detail": "cycle IDs, positions, entries, and distances / O(n)",
-    "exports": ["FunctionalGraphDecomposition", "functional_graph_decomposition"],
-    "features": ["cycles", "cycle_id", "cycle_position", "cycle_entry", "distance_to_cycle"],
+    "exports": ["FunctionalGraphDecomposition", "functional_graph_decomposition", "FunctionalGraph"],
+    "features": ["cycles", "cycle_id", "cycle_position", "cycle_entry", "distance_to_cycle", "binary_lifting", "jump", "distance_if_reachable"],
     "visualization": { "status": "manual", "models": ["graph", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
@@ -2619,8 +2651,9 @@
     "insertMode": "global",
     "template": "binary_trie/helpers.hpp.tmpl",
     "description": "counted binary trie with erase and minimum XOR",
-    "detail": "O(bit width) per operation",
+    "detail": "exact-value multiplicities, minimum XOR, and binary-prefix membership / O(bit width) per operation",
     "exports": ["BinaryTrie"],
+    "features": ["insert", "erase", "multiplicity", "minimum_xor", "insert_prefix", "erase_prefix", "contains_prefix_of", "prefix_multiplicity"],
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
@@ -2647,7 +2680,8 @@
     "template": "factorization_64/helpers.hpp.tmpl",
     "description": "randomized 64-bit integer factorization",
     "detail": "Pollard rho + deterministic Miller-Rabin",
-    "exports": ["factor_mod_multiply", "factor_mod_power", "factor_is_prime", "pollard_rho", "factorize_64"],
+    "exports": ["factor_mod_multiply", "factor_mod_power", "factor_is_prime", "pollard_rho", "factorize_64", "divisors_from_factorization", "divisors_64"],
+    "features": ["primality", "prime_factorization", "divisor_enumeration"],
     "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
@@ -2833,8 +2867,9 @@
     "insertMode": "global",
     "template": "consecutive_set/helpers.hpp.tmpl",
     "description": "set of integers grouped into maximal consecutive segments",
-    "detail": "point insertion, removal, and containing-segment lookup / O(log segments)",
+    "detail": "point updates, containing-segment lookup, and segment-length statistics / O(log segments)",
     "exports": ["ConsecutiveSet"],
+    "features": ["insert", "erase", "contains", "containing_segment", "longest_segment", "length_frequencies"],
     "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
   },
   {
@@ -2863,5 +2898,862 @@
     "detail": "point updates and per-level violation counts / O(n) build, O(log n) update",
     "exports": ["LevelBoundarySegTree", "OrderedBlockSummary", "OrderedBlockBoundaryTree", "make_ordered_block_boundary_tree"],
     "visualization": { "status": "manual", "models": ["array", "interval_tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/aho_corasick",
+    "insertMode": "global",
+    "template": "aho_corasick/helpers.hpp.tmpl",
+    "description": "multi-pattern matching automaton",
+    "detail": "failure links, output propagation, streaming transitions, and occurrence reporting / O(total pattern length + text + matches)",
+    "exports": ["AhoCorasick"],
+    "features": ["failure_links", "pattern_ids", "streaming", "state_matches", "find_all", "per_pattern_occurrence_counts"],
+    "constraints": ["add_patterns_before_build", "rebuild_after_pattern_changes", "ordered_symbol_map_transitions", "find_all_cost_includes_reported_matches"],
+    "visualization": { "status": "manual", "models": ["trie", "graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/centroid_decomposition",
+    "insertMode": "global",
+    "template": "centroid_decomposition/helpers.hpp.tmpl",
+    "description": "centroid decomposition of a tree or forest",
+    "detail": "centroid parent, level, and decomposition tree / O(n log n)",
+    "exports": ["CentroidDecompositionResult", "centroid_decomposition"],
+    "features": ["centroid_parent", "centroid_level", "decomposition_tree"],
+    "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/circle_tangents",
+    "insertMode": "global",
+    "template": "circle_tangents/helpers.hpp.tmpl",
+    "description": "common tangents of two circles",
+    "detail": "internal and external tangent contact points with degeneracy handling / O(1)",
+    "exports": ["CircleTangentPoint", "CircleTangent", "common_circle_tangents"],
+    "features": ["external_tangents", "internal_tangents", "contact_points"],
+    "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/exact_segment_intersection",
+    "insertMode": "global",
+    "template": "exact_segment_intersection/helpers.hpp.tmpl",
+    "description": "exact intersection of integer-coordinate segments",
+    "detail": "widened orientation and normalized rational result, including overlap and degenerate segments / O(1)",
+    "exports": ["ExactPoint", "ExactRationalPoint", "ExactSegmentIntersectionType", "ExactSegmentIntersectionResult", "exact_segment_intersection"],
+    "features": ["exact_predicates", "rational_point", "collinear_overlap", "degenerate_segments"],
+    "constraints": ["signed_integral_coordinates", "caller_coordinate_bounds_prevent_widened_arithmetic_overflow"],
+    "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/floor_quotient_multiset",
+    "insertMode": "global",
+    "template": "floor_quotient_multiset/helpers.hpp.tmpl",
+    "description": "dynamic multiset floor-quotient sums",
+    "detail": "insert, erase, and sum of floor((value-1)/divisor) with square-root decomposition",
+    "exports": ["FloorQuotientMultiset"],
+    "features": ["insert", "erase", "floor_quotient_sum", "sqrt_decomposition"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/gaussian_elimination_gf2",
+    "insertMode": "global",
+    "template": "gaussian_elimination_gf2/helpers.hpp.tmpl",
+    "description": "Gaussian elimination over GF(2)",
+    "detail": "bitset augmented matrix with consistency, rank, pivots, and one solution",
+    "exports": ["GaussianEliminationGF2Result", "gaussian_elimination_gf2"],
+    "features": ["bitset_rows", "rank", "consistency", "solution", "pivot_columns"],
+    "visualization": { "status": "manual", "models": ["matrix", "bits"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/heavy_neighbor_aggregator",
+    "insertMode": "global",
+    "template": "heavy_neighbor_aggregator/helpers.hpp.tmpl",
+    "description": "dynamic minimum over graph neighbors",
+    "detail": "degree-based heavy/light decomposition with vertex-value updates and optional edge costs",
+    "exports": ["HeavyNeighborMin"],
+    "features": ["heavy_light_degree", "point_update", "neighbor_min", "weighted_edges"],
+    "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/held_karp",
+    "insertMode": "global",
+    "template": "held_karp/helpers.hpp.tmpl",
+    "description": "Hamiltonian path and traveling-salesperson subset DP",
+    "detail": "optional path endpoints, cycle root, and path reconstruction / O(2^n n^2)",
+    "exports": ["HeldKarpResult", "held_karp_path", "held_karp_cycle"],
+    "features": ["hamiltonian_path", "tsp_cycle", "fixed_endpoints", "reconstruction"],
+    "visualization": { "status": "manual", "models": ["matrix", "bits"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/huffman_multiplicity",
+    "insertMode": "global",
+    "template": "huffman_multiplicity/helpers.hpp.tmpl",
+    "description": "Huffman merge cost for repeated weights",
+    "detail": "count-compressed priority merging without expanding multiplicities",
+    "exports": ["huffman_cost_with_multiplicities"],
+    "features": ["huffman_cost", "multiplicity_compression", "bulk_pairs"],
+    "visualization": { "status": "manual", "models": ["queue"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/mixed_radix_indexer",
+    "insertMode": "global",
+    "template": "mixed_radix_indexer/helpers.hpp.tmpl",
+    "description": "mixed-radix state encoder and iterator",
+    "detail": "overflow-checked encode/decode plus state and one-digit neighbor iteration / O(dimensions) per decoded state",
+    "exports": ["MixedRadixIndexer"],
+    "features": ["encode", "decode", "digit", "increment", "decrement", "state_iteration", "neighbor_iteration", "overflow_check"],
+    "constraints": ["positive_radices", "least_significant_dimension_first", "state_count_fits_size_t"],
+    "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/persistent_implicit_treap",
+    "insertMode": "global",
+    "template": "persistent_implicit_treap/helpers.hpp.tmpl",
+    "description": "persistent implicit treap sequence",
+    "detail": "path-copy split, merge, insert, erase, point set, range fold, and materialization / expected O(log n) updates",
+    "exports": ["PersistentImplicitTreap"],
+    "features": ["persistent_versions", "split", "merge", "insert", "erase", "point_set", "range_query"],
+    "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/piecewise_constant_map",
+    "insertMode": "global",
+    "template": "piecewise_constant_map/helpers.hpp.tmpl",
+    "description": "map of coalesced constant intervals",
+    "detail": "bounded half-open range assignment, addition, point lookup, and interval materialization / O((k+1) log n)",
+    "exports": ["PiecewiseConstantMap"],
+    "features": ["half_open_ranges", "range_assign", "range_add", "point_lookup", "coalescing"],
+    "visualization": { "status": "manual", "models": ["interval_tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/planar_embedding",
+    "insertMode": "global",
+    "template": "planar_embedding/helpers.hpp.tmpl",
+    "description": "face traversal of a straight-line planar embedding",
+    "detail": "angularly sorted half-edges, face cycles, signed areas, and outer-face identification / O((V+E) log E)",
+    "exports": ["PlanarEmbeddingPoint", "PlanarEmbeddingResult", "planar_embedding_faces"],
+    "features": ["half_edges", "face_cycles", "face_of_half_edge", "signed_area", "outer_face"],
+    "constraints": ["connected_planar_non_crossing_embedding", "distinct_edge_directions_at_vertex", "single_outer_boundary_cycle"],
+    "visualization": { "status": "manual", "models": ["graph", "points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/polygon_area",
+    "insertMode": "global",
+    "template": "polygon_area/helpers.hpp.tmpl",
+    "description": "signed and absolute polygon area",
+    "detail": "shoelace formula with widened integral accumulation / O(n)",
+    "exports": ["PolygonAreaWide", "polygon_signed_area2", "polygon_area"],
+    "features": ["signed_doubled_area", "absolute_area", "widened_accumulation"],
+    "dependsOn": ["/templates/geometry_point"],
+    "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/rational",
+    "insertMode": "global",
+    "template": "rational/helpers.hpp.tmpl",
+    "description": "normalized exact rational arithmetic",
+    "detail": "signed numerator and positive denominator with cross-cancelled arithmetic and widened comparisons",
+    "exports": ["Rational"],
+    "features": ["normalization", "arithmetic", "comparison", "cross_cancellation"],
+    "constraints": ["signed_integral_storage", "caller_bounds_prevent_widened_arithmetic_overflow"],
+    "visualization": { "status": "manual", "models": [], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/rectangle_union",
+    "insertMode": "global",
+    "template": "rectangle_union/helpers.hpp.tmpl",
+    "description": "union area of axis-aligned rectangles",
+    "detail": "x-sweep with compressed-y coverage segment tree / O(n log n)",
+    "exports": ["AxisAlignedRectangle", "rectangle_union_area"],
+    "features": ["sweep_line", "coordinate_compression", "coverage_length", "half_open_rectangles"],
+    "visualization": { "status": "manual", "models": ["interval_tree", "points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/shortest_path_dag",
+    "insertMode": "global",
+    "template": "shortest_path_dag/helpers.hpp.tmpl",
+    "description": "DAG of all shortest-path edges from one source",
+    "detail": "Dijkstra distances followed by tight-edge extraction / O((V+E) log V)",
+    "exports": ["ShortestPathDagResult", "shortest_path_dag"],
+    "features": ["distances", "tight_edges", "forward_dag", "reverse_dag"],
+    "constraints": ["strictly_positive_edge_weights_for_acyclic_tight_subgraph"],
+    "visualization": { "status": "manual", "models": ["graph", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/simplex",
+    "insertMode": "global",
+    "template": "simplex/helpers.hpp.tmpl",
+    "description": "two-phase simplex linear-program solver",
+    "detail": "maximize c*x subject to A*x<=b and x>=0; reports optimal, infeasible, or unbounded",
+    "exports": ["LinearProgramStatus", "LinearProgramResult", "SimplexSolver", "simplex_maximize"],
+    "features": ["phase_one", "phase_two", "primal_solution", "infeasible", "unbounded"],
+    "visualization": { "status": "manual", "models": ["matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/sparse_table_2d",
+    "insertMode": "global",
+    "template": "sparse_table_2d/helpers.hpp.tmpl",
+    "description": "two-dimensional sparse table",
+    "detail": "static half-open rectangle queries for an idempotent operation / O(nm log n log m) build, O(1) query",
+    "exports": ["SparseTable2D"],
+    "features": ["static_matrix", "idempotent_operation", "rectangle_query"],
+    "constraints": ["idempotent_associative_operation", "rectangular_input"],
+    "visualization": { "status": "manual", "models": ["matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/steiner_tree",
+    "insertMode": "global",
+    "template": "steiner_tree/helpers.hpp.tmpl",
+    "description": "minimum Steiner tree connecting selected graph terminals",
+    "detail": "Dreyfus-Wagner subset merges with multi-source Dijkstra closure / O(3^k V + 2^k E log V)",
+    "exports": ["steiner_tree"],
+    "features": ["terminal_subset_dp", "submask_merge", "dijkstra_closure"],
+    "constraints": ["small_terminal_count", "nonnegative_edge_weights"],
+    "visualization": { "status": "manual", "models": ["graph", "matrix", "bits"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/two_bin_knapsack",
+    "insertMode": "global",
+    "template": "two_bin_knapsack/helpers.hpp.tmpl",
+    "description": "reachable loads for two bounded knapsack bins",
+    "detail": "bitset DP over the first and second bin loads / O(items * capacity^2 / word size)",
+    "exports": ["two_bin_knapsack"],
+    "features": ["two_bins", "bitset_dp", "reachable_load_pairs"],
+    "visualization": { "status": "manual", "models": ["matrix", "bits"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/weighted_order_statistics",
+    "insertMode": "global",
+    "template": "weighted_order_statistics/helpers.hpp.tmpl",
+    "description": "dynamic weighted order-statistic multiset",
+    "detail": "compressed Fenwick counts and sums with kth and sum of k smallest / O(log n) per operation",
+    "exports": ["WeightedOrderStatistics"],
+    "features": ["multiplicity_updates", "count_less", "sum_less", "kth", "sum_k_smallest"],
+    "visualization": { "status": "manual", "models": ["array", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/weighted_persistent_segment_tree",
+    "insertMode": "global",
+    "template": "weighted_persistent_segment_tree/helpers.hpp.tmpl",
+    "description": "persistent count-and-sum order-statistic tree",
+    "detail": "path-copy versions with range-version kth, median, and absolute-deviation sums / O(log n) per update or query",
+    "exports": ["WeightedPersistentSegmentTree"],
+    "features": ["persistent_versions", "count_sum", "kth_between", "median_between", "absolute_deviation"],
+    "visualization": { "status": "manual", "models": ["interval_tree", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/angular_event_sweep",
+    "insertMode": "global",
+    "template": "angular_event_sweep/helpers.hpp.tmpl",
+    "description": "grouped sweep over exact integer directions",
+    "detail": "gcd-normalized vectors sorted by polar angle and delivered in equal-direction groups / O(n log n)",
+    "exports": ["AngularDirection", "normalize_angular_direction", "AngularDirectionLess", "AngularEvent", "grouped_angular_event_sweep"],
+    "features": ["direction_normalization", "polar_order", "equal_angle_groups", "payload_events"],
+    "visualization": { "status": "manual", "models": ["points", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/circle_line_intersection",
+    "insertMode": "global",
+    "template": "circle_line_intersection/helpers.hpp.tmpl",
+    "description": "circle intersections with a line or segment",
+    "detail": "projection-based zero, one, or two intersection points / O(1)",
+    "exports": ["CircleLinePoint", "circle_line_intersections", "circle_segment_intersections"],
+    "features": ["circle_line", "circle_segment", "tangency", "degenerate_line"],
+    "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/convex_polygon_queries",
+    "insertMode": "global",
+    "template": "convex_polygon_queries/helpers.hpp.tmpl",
+    "description": "point containment and tangents for a convex polygon",
+    "detail": "orientation-independent point classification in O(log n) and external tangent vertices in O(n)",
+    "exports": ["ConvexPolygonPoint", "PointInConvexPolygon", "convex_polygon_cross", "convex_polygon_on_segment", "point_in_convex_polygon", "ConvexPolygonTangents", "convex_polygon_tangents"],
+    "features": ["point_location", "boundary_classification", "clockwise_or_counterclockwise", "external_tangents"],
+    "constraints": ["convex_polygon", "vertices_in_cyclic_order"],
+    "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/dynamic_binary_integer",
+    "insertMode": "global",
+    "template": "dynamic_binary_integer/helpers.hpp.tmpl",
+    "description": "sparse dynamically sized nonnegative binary integer",
+    "detail": "set-bit representation with carry and borrow for adding or subtracting powers of two",
+    "exports": ["DynamicBinaryInteger"],
+    "features": ["sparse_bits", "add_power", "subtract_power", "test", "popcount", "highest_bit"],
+    "visualization": { "status": "manual", "models": ["bits"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/prime_exponent_vectors",
+    "insertMode": "global",
+    "template": "prime_exponent_vectors/helpers.hpp.tmpl",
+    "description": "enumerate nonincreasing prime-exponent vectors",
+    "detail": "bounded DFS over canonical factorizations and their represented values",
+    "exports": ["enumerate_prime_exponent_vectors", "prime_exponent_vectors"],
+    "features": ["nonincreasing_exponents", "value_limit", "callback_enumeration", "materialized_results"],
+    "constraints": ["ordered_prime_list", "positive_value_limit"],
+    "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/threshold_2sat",
+    "insertMode": "global",
+    "template": "threshold_2sat/helpers.hpp.tmpl",
+    "description": "2-SAT with threshold-activated implications",
+    "detail": "weighted clauses filtered by a query threshold, with Kosaraju satisfiability and optional assignment / O(V+E) per threshold",
+    "exports": ["ThresholdTwoSat"],
+    "features": ["weighted_implications", "weighted_clauses", "unit_clause", "threshold_query", "assignment"],
+    "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/blossom_matching", "insertMode": "global", "template": "blossom_matching/helpers.hpp.tmpl",
+    "description": "maximum-cardinality matching in a general undirected graph", "detail": "Edmonds blossom contraction / O(n^3)",
+    "exports": ["maximum_general_matching"], "features": ["general_graph_matching", "blossom_contraction", "mate_array"],
+    "constraints": ["zero_based_vertices", "undirected_simple_graph_expected"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/cartesian_tree", "insertMode": "global", "template": "cartesian_tree/helpers.hpp.tmpl",
+    "description": "stable Cartesian tree construction", "detail": "parent and left/right child arrays from a monotonic stack / O(n)",
+    "exports": ["CartesianTree"], "features": ["parent_tree", "child_arrays", "custom_comparator"],
+    "constraints": ["strict_comparator", "equal_values_keep_input_order"], "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/directed_mst", "insertMode": "global", "template": "directed_mst/helpers.hpp.tmpl",
+    "description": "minimum rooted directed arborescence cost", "detail": "Chu-Liu/Edmonds cycle contraction; returns nullopt when unreachable",
+    "exports": ["DirectedMstEdge", "directed_mst_cost"], "features": ["rooted_arborescence", "cycle_contraction", "infeasibility"],
+    "constraints": ["cost_supports_order_add_subtract", "cost_only_no_edge_reconstruction"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/discrete_log", "insertMode": "global", "template": "discrete_log/helpers.hpp.tmpl",
+    "description": "discrete logarithm with non-coprime reduction", "detail": "extended baby-step giant-step; returns -1 when no exponent exists",
+    "exports": ["discrete_log"], "features": ["baby_step_giant_step", "non_coprime_modulus"],
+    "constraints": ["positive_modulus", "64_bit_multiplication_uses_int128"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/dominator_tree", "insertMode": "global", "template": "dominator_tree/helpers.hpp.tmpl",
+    "description": "immediate dominators in a directed flow graph", "detail": "Lengauer-Tarjan dominator tree from one source / near-linear",
+    "exports": ["DominatorTreeResult", "dominator_tree"], "features": ["immediate_dominators", "dominator_children", "reachable_filter"],
+    "constraints": ["directed_graph", "unreachable_vertices_have_no_dominator"], "visualization": { "status": "automatic", "models": ["graph", "tree", "array", "scalar"], "layout": "graph_with_sidebar", "defaultGranularity": "operations", "limitations": ["Internal semidominators use DFS-order indices; the final immediate-dominator array uses original vertex indices."] }
+  },
+  {
+    "path": "/templates/dynamic_aho_activation", "insertMode": "global", "template": "dynamic_aho_activation/helpers.hpp.tmpl",
+    "description": "activate and query Aho-Corasick patterns dynamically", "detail": "failure-tree Euler intervals with Fenwick range updates",
+    "exports": ["DynamicAhoActivation"], "features": ["pattern_activation", "pattern_deactivation", "text_query", "failure_tree"],
+    "constraints": ["build_before_updates", "activation_is_boolean_per_pattern"], "visualization": { "status": "manual", "models": ["trie", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/delaunay_triangulation", "insertMode": "global", "template": "delaunay_triangulation/helpers.hpp.tmpl",
+    "description": "Delaunay triangulation and Voronoi dual adjacency", "detail": "incremental Bowyer-Watson construction with an O(n^2) triangle scan",
+    "exports": ["DelaunayTriangulation"], "features": ["delaunay_triangles", "delaunay_edges", "voronoi_site_adjacency", "voronoi_finite_dual_edges"],
+    "constraints": ["long_double_predicates", "distinct_points", "no_three_collinear", "no_four_cocircular", "input_must_be_well_separated_from_degeneracies", "rescale_extreme_coordinates", "voronoi_dual_edges_identify_adjacent_triangles_not_geometric_segments", "unbounded_voronoi_rays_omitted"], "visualization": { "status": "manual", "models": ["geometry", "graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/dynamic_sequence_hash", "insertMode": "global", "template": "dynamic_sequence_hash/helpers.hpp.tmpl",
+    "description": "editable sequence with reversible rolling hashes", "detail": "implicit treap supporting insert, erase, set, reverse, substring equality, and palindrome queries / expected O(log n)",
+    "exports": ["DynamicSequenceHash"], "features": ["forward_reverse_hash", "substring_hash", "substring_equality", "palindrome", "sequence_edits"],
+    "constraints": ["half_open_ranges", "uint64_overflow_hash_is_probabilistic", "single_hash_collision_possible"], "visualization": { "status": "manual", "models": ["sequence", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/dynamic_convex_hull", "insertMode": "global", "template": "dynamic_convex_hull/helpers.hpp.tmpl",
+    "description": "insertion-only dynamic convex hull with exact predicates", "detail": "O(1) buffered insertion, lazy O(n log n) rebuild, then O(log n) containment queries",
+    "exports": ["DynamicConvexHull"], "features": ["point_insert", "convex_hull", "point_containment", "boundary_control", "exact_orientation"],
+    "constraints": ["insertions_only", "first_query_after_insert_rebuilds", "integer_coordinates", "coordinate_differences_and_cross_products_fit_int128", "collinear_boundary_points_are_not_retained_in_hull_output"], "visualization": { "status": "automatic", "models": ["points"], "layout": "plane_with_sidebar", "defaultGranularity": "operations", "limitations": ["Containment predicates expose the query point and rebuilt chains; they do not publish exact __int128 orientation values."] }
+  },
+  {
+    "path": "/templates/euler_tour_tree", "insertMode": "global", "template": "euler_tour_tree/helpers.hpp.tmpl",
+    "description": "Euler-tour tree for dynamic-forest component aggregates", "detail": "randomized implicit-treap link, cut, connectivity, component size, point update, and component fold / expected O(log n)",
+    "exports": ["EulerTourTree"], "features": ["dynamic_forest", "link", "cut", "connected", "component_size", "point_set", "component_fold"],
+    "constraints": ["associative_commutative_operation_with_identity", "only_link_distinct_trees", "cut_requires_existing_edge", "expected_complexity", "vertex_indices_must_be_valid", "noncopyable_owning_structure"], "visualization": { "status": "manual", "models": ["forest", "sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/floor_sum", "insertMode": "global", "template": "floor_sum/helpers.hpp.tmpl",
+    "description": "Euclidean floor sums and lattice-point counts", "detail": "signed affine floor sum using 128-bit results / O(log modulus)",
+    "exports": ["floor_sum_unsigned", "floor_sum", "count_lattice_points_below"], "features": ["signed_coefficients", "floor_sum", "lattice_count"],
+    "constraints": ["positive_modulus", "int128_result"], "visualization": { "status": "manual", "models": ["scalar"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/formal_power_series", "insertMode": "global", "template": "formal_power_series/helpers.hpp.tmpl",
+    "description": "basic formal power-series operations", "detail": "quadratic multiply, inverse, logarithm, exponential, power, and square root",
+    "exports": ["FormalPowerSeries"], "features": ["inverse", "derivative", "integral", "logarithm", "exponential", "power", "square_root"],
+    "constraints": ["coefficient_type_supports_required_division", "quadratic_time", "log_requires_constant_one", "exp_requires_constant_zero"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/ntt_formal_power_series", "insertMode": "global", "template": "ntt_formal_power_series/helpers.hpp.tmpl",
+    "description": "NTT-backed formal power series modulo 998244353", "detail": "quasilinear convolution and Newton inverse, logarithm, exponential, integer power, and square root",
+    "exports": ["NttFormalPowerSeries"], "features": ["ntt_convolution", "inverse", "derivative", "integral", "logarithm", "exponential", "power", "square_root", "tonelli_shanks"],
+    "constraints": ["fixed_modulus_998244353", "primitive_root_3", "fps_size_at_most_2_pow_22", "ntt_length_at_most_2_pow_23", "log_requires_constant_one", "exp_requires_constant_zero", "negative_power_unsupported", "square_root_returns_empty_when_none_exists", "empty_vector_also_reports_invalid_preconditions"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/huffman_tree", "insertMode": "global", "template": "huffman_tree/helpers.hpp.tmpl",
+    "description": "explicit Huffman tree and binary-code reconstruction", "detail": "priority-queue construction with parent/child nodes, total cost, and code lengths / O(n log n)",
+    "exports": ["HuffmanTree", "build_huffman_tree", "huffman_code"], "features": ["tree_reconstruction", "code_lengths", "leaf_codes", "merge_cost"],
+    "constraints": ["explicit_leaf_weights", "nonnegative_weights_expected", "ties_resolved_by_node_index"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/lyndon_factorization", "insertMode": "global", "template": "lyndon_factorization/helpers.hpp.tmpl",
+    "description": "Duval Lyndon factorization", "detail": "decomposes a comparable range into half-open Lyndon factors / O(n)",
+    "exports": ["lyndon_factorization"], "features": ["duval", "factor_intervals"],
+    "constraints": ["random_access_range", "lexicographically_comparable_elements"], "visualization": { "status": "manual", "models": ["sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/maximum_clique", "insertMode": "global", "template": "maximum_clique/helpers.hpp.tmpl",
+    "description": "maximum clique by branch and bound", "detail": "greedy coloring upper bounds on a dynamic adjacency matrix; exponential worst case",
+    "exports": ["MaximumClique"], "features": ["maximum_clique", "color_bound", "clique_reconstruction"],
+    "constraints": ["undirected_simple_graph", "exponential_worst_case", "not_word_bitset_optimized"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/minimum_mean_cycle", "insertMode": "global", "template": "minimum_mean_cycle/helpers.hpp.tmpl",
+    "description": "minimum mean weight cycle value", "detail": "Karp dynamic programming in O(VE) time and O(V^2) memory",
+    "exports": ["MinimumMeanCycleEdge", "MinimumMeanCycleResult", "minimum_mean_cycle"], "features": ["minimum_cycle_mean", "witness_vertex"],
+    "constraints": ["finite_long_double_weights", "approximate_numeric_result", "witness_is_not_cycle_reconstruction"], "visualization": { "status": "manual", "models": ["graph", "table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/minkowski_sum", "insertMode": "global", "template": "minkowski_sum/helpers.hpp.tmpl",
+    "description": "Minkowski arithmetic and collision for convex polygons", "detail": "linear edge-direction merge for sums/differences and origin containment collision testing / O(n+m)",
+    "exports": ["MinkowskiPoint", "minkowski_sum", "minkowski_difference", "convex_polygons_intersect"], "features": ["convex_polygon_sum", "convex_polygon_difference", "convex_collision", "orientation_normalization", "degenerate_points_and_segments"],
+    "constraints": ["convex_polygons", "vertices_in_cyclic_order", "exact_cross_and_dot_comparisons", "arithmetic_must_not_overflow"], "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/mo_with_modifications", "insertMode": "global", "template": "mo_with_modifications/helpers.hpp.tmpl",
+    "description": "Mo ordering with point modifications", "detail": "three-dimensional offline cursor driver with apply and undo callbacks",
+    "exports": ["MoModificationQuery", "run_mo_with_modifications"], "features": ["range_queries", "time_dimension", "apply_undo_callbacks"],
+    "constraints": ["half_open_ranges", "callbacks_maintain_current_state", "all_queries_known_offline"], "visualization": { "status": "manual", "models": ["array", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/modular_sqrt", "insertMode": "global", "template": "modular_sqrt/helpers.hpp.tmpl",
+    "description": "modular square root modulo a prime", "detail": "Tonelli-Shanks with fast cases; returns -1 for a non-residue",
+    "exports": ["modular_sqrt_prime"], "features": ["tonelli_shanks", "quadratic_residue"],
+    "constraints": ["prime_modulus", "nonnegative_normalized_result"], "visualization": { "status": "manual", "models": ["scalar"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/offline_lifetimes", "insertMode": "global", "template": "offline_lifetimes/helpers.hpp.tmpl",
+    "description": "offline interval-lifetime executor", "detail": "segment tree over time with snapshot, apply, rollback, and leaf callbacks",
+    "exports": ["OfflineLifetimes"], "features": ["time_intervals", "rollback_callbacks", "leaf_queries"],
+    "constraints": ["half_open_lifetimes", "rollback_state_supports_snapshots", "offline_timeline"], "visualization": { "status": "automatic", "models": ["array", "scalar"], "layout": "split_horizontal", "defaultGranularity": "operations", "limitations": ["Generic Event values remain opaque; callbacks can publish problem-specific state."] }
+  },
+  {
+    "path": "/templates/palindromic_tree", "insertMode": "global", "template": "palindromic_tree/helpers.hpp.tmpl",
+    "description": "palindromic tree for distinct palindromic substrings", "detail": "eertree construction with suffix links and occurrence propagation / O(n log alphabet)",
+    "exports": ["PalindromicTree"], "features": ["eertree", "palindrome_occurrences", "suffix_links", "distinct_palindromes", "longest_palindromic_suffix", "minimum_palindromic_partition"],
+    "constraints": ["append_only_build", "propagate_occurrences_after_build", "ordered_symbol_map_transitions", "partition_reconstruction_uses_built_text"], "visualization": { "status": "manual", "models": ["tree", "sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/parallel_ternary_search", "insertMode": "global", "template": "parallel_ternary_search/helpers.hpp.tmpl",
+    "description": "batched integer ternary search for many queries", "detail": "submits probe batches to one evaluator and brute-forces final constant-width ranges",
+    "exports": ["parallel_integer_ternary_search"], "features": ["batched_evaluation", "per_query_bounds", "argmin"],
+    "constraints": ["inclusive_integer_bounds", "unimodal_objective", "strict_better_comparator", "difference_must_not_overflow"], "visualization": { "status": "manual", "models": ["timeline", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/persistent_li_chao", "insertMode": "global", "template": "persistent_li_chao/helpers.hpp.tmpl",
+    "description": "persistent Li Chao tree on discrete coordinates", "detail": "path-copy versions for line insertion and minimum queries / O(log n)",
+    "exports": ["PersistentLiChaoTree"], "features": ["persistent_versions", "line_minimum", "discrete_coordinates"],
+    "constraints": ["queries_at_registered_coordinates", "arithmetic_must_not_overflow", "minimum_queries"], "visualization": { "status": "automatic", "models": ["lines", "array", "scalar"], "layout": "main_with_sidebar", "defaultGranularity": "operations", "limitations": ["Path-copied node topology is summarized by version roots and node count."] }
+  },
+  {
+    "path": "/templates/potential_dsu", "insertMode": "global", "template": "potential_dsu/helpers.hpp.tmpl",
+    "description": "weighted DSU for difference constraints", "detail": "maintains relative potentials with path compression and consistency checks",
+    "exports": ["PotentialDsu"], "features": ["potential_difference", "weighted_union", "contradiction_detection"],
+    "constraints": ["additive_group_value_type", "directed_difference_convention"], "visualization": { "status": "manual", "models": ["forest"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/primitive_root", "insertMode": "global", "template": "primitive_root/helpers.hpp.tmpl",
+    "description": "primitive root modulo a prime", "detail": "factors p-1 and tests candidates",
+    "exports": ["primitive_root_prime"], "features": ["generator_search", "factor_p_minus_one"],
+    "constraints": ["prime_modulus", "64_bit_multiplication_uses_int128"], "visualization": { "status": "manual", "models": ["scalar"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/rollback_li_chao", "insertMode": "global", "template": "rollback_li_chao/helpers.hpp.tmpl",
+    "description": "rollback Li Chao tree on discrete coordinates", "detail": "snapshot and rollback around line insertions with minimum queries / O(log n)",
+    "exports": ["RollbackLiChaoTree"], "features": ["line_minimum", "snapshot", "rollback", "discrete_coordinates"],
+    "constraints": ["queries_at_registered_coordinates", "arithmetic_must_not_overflow", "minimum_queries"], "visualization": { "status": "automatic", "models": ["lines", "array", "scalar"], "layout": "main_with_sidebar", "defaultGranularity": "operations", "limitations": ["Rollback state is summarized by snapshot and history sizes rather than exposing the internal segment-tree topology."] }
+  },
+  {
+    "path": "/templates/rollback_parity_dsu", "insertMode": "global", "template": "rollback_parity_dsu/helpers.hpp.tmpl",
+    "description": "rollback parity DSU and offline dynamic bipartiteness", "detail": "parity constraints with snapshots plus edge lifetimes over time",
+    "exports": ["RollbackParityDsu", "OfflineDynamicBipartiteness"], "features": ["parity_constraints", "rollback", "dynamic_bipartiteness"],
+    "constraints": ["no_path_compression", "offline_half_open_edge_lifetimes"], "visualization": { "status": "automatic", "models": ["edges", "array", "scalar"], "layout": "graph_with_sidebar", "defaultGranularity": "operations", "limitations": ["The DSU forest is represented by parent and parity arrays because roots use negative sizes."] }
+  },
+  {
+    "path": "/templates/rotating_calipers", "insertMode": "global", "template": "rotating_calipers/helpers.hpp.tmpl",
+    "description": "convex polygon caliper measurements", "detail": "diameter and width in O(n), maximum triangle in O(n^2), and minimum bounding rectangle in O(n^2)",
+    "exports": ["CalipersPoint", "convex_polygon_diameter_squared", "convex_polygon_minimum_width", "convex_polygon_maximum_triangle_twice_area", "convex_polygon_minimum_bounding_rectangle_area"], "features": ["antipodal_pairs", "diameter", "minimum_width", "maximum_area_triangle", "minimum_bounding_rectangle"],
+    "constraints": ["convex_polygon", "counterclockwise_vertices", "exact_orientation_for_integral_measurements", "floating_measurements_return_long_double", "bounding_rectangle_implementation_is_quadratic"], "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/segment_arrangement", "insertMode": "global", "template": "segment_arrangement/helpers.hpp.tmpl",
+    "description": "planarize a set of intersecting segments", "detail": "splits crossings, T-junctions, and collinear overlap boundaries into deduplicated arrangement vertices and edges",
+    "exports": ["ArrangementPoint", "SegmentArrangement", "build_segment_arrangement"], "features": ["intersection_splitting", "t_junctions", "collinear_overlaps", "vertex_deduplication", "planar_edges"],
+    "constraints": ["long_double_epsilon_geometry", "coordinate_scale_affects_epsilon_classification", "quadratic_segment_pair_scan", "linear_scan_vertex_deduplication"], "visualization": { "status": "manual", "models": ["points", "graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/shortest_path_subgraph", "insertMode": "global", "template": "shortest_path_subgraph/helpers.hpp.tmpl",
+    "description": "analyze the directed shortest-path subgraph", "detail": "distances, probabilistic mandatory vertices/edges, and edge-disjoint shortest paths",
+    "exports": ["WeightedDirectedEdge", "ShortestPathSubgraphResult", "analyze_shortest_path_subgraph"], "features": ["tight_edge_dag", "mandatory_elements", "edge_disjoint_paths"],
+    "constraints": ["strictly_positive_edge_weights", "path_mandatory_detection_uses_two_moduli", "edge_disjoint_count_uses_unit_capacities"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/slope_trick", "insertMode": "global", "template": "slope_trick/helpers.hpp.tmpl",
+    "description": "convex piecewise-linear slope trick", "detail": "adds hinge and absolute-value terms, shifts domains, and reports minima",
+    "exports": ["SlopeTrick"], "features": ["hinge_terms", "absolute_value", "shift", "minimum", "argmin_interval", "point_evaluation"],
+    "constraints": ["convex_piecewise_linear_functions", "point_evaluation_is_linear_in_inserted_breakpoints"], "visualization": { "status": "manual", "models": ["plot"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/small_terminal_subset_dp", "insertMode": "global", "template": "small_terminal_subset_dp/helpers.hpp.tmpl",
+    "description": "subset DP framework for small terminal sets", "detail": "merges proper submasks per state then invokes a caller relaxation",
+    "exports": ["small_terminal_subset_dp"], "features": ["terminal_masks", "submask_merge", "custom_relaxation"],
+    "constraints": ["terminal_count_below_int_bits", "exponential_in_terminal_count", "value_equality_with_infinity"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/sqrt_decomposition", "insertMode": "global", "template": "sqrt_decomposition/helpers.hpp.tmpl",
+    "description": "square-root block decomposition helpers", "detail": "generic point-update folds plus lazy range-add/range-sum blocks",
+    "exports": ["SqrtDecomposition", "RangeAddSumSqrt"], "features": ["point_set", "range_fold", "range_add", "range_sum", "lazy_blocks"],
+    "constraints": ["half_open_ranges", "generic_fold_requires_merge_accepting_values_and_aggregates"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/stern_brocot", "insertMode": "global", "template": "stern_brocot/helpers.hpp.tmpl",
+    "description": "Stern-Brocot rational bounds in the unit interval", "detail": "mediant search under a denominator limit and monotone comparison callback",
+    "exports": ["SternBrocotFraction", "stern_brocot_unit_interval_bounds"], "features": ["rational_search", "farey_neighbors", "denominator_bound"],
+    "constraints": ["target_in_unit_interval", "monotone_comparator", "positive_denominator_limit"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/subset_convolution", "insertMode": "global", "template": "subset_convolution/helpers.hpp.tmpl",
+    "description": "subset convolution by ranked zeta transforms", "detail": "computes h[S]=sum over T subset S of f[T]g[S\\T] / O(n^2 2^n)",
+    "exports": ["subset_convolution"], "features": ["ranked_zeta", "subset_convolution"],
+    "constraints": ["equal_power_of_two_input_sizes", "ring_like_value_type"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/suffix_automaton", "insertMode": "global", "template": "suffix_automaton/helpers.hpp.tmpl",
+    "description": "suffix automaton with occurrence statistics", "detail": "online construction, occurrence propagation, and distinct-substring count",
+    "exports": ["SuffixAutomaton"], "features": ["online_extend", "substring_membership", "occurrence_counts", "representative_occurrence", "distinct_substrings", "state_access"],
+    "constraints": ["append_only_build", "propagate_occurrences_before_occurrence_queries", "ordered_symbol_map_transitions", "representative_occurrence_is_not_leftmost"], "visualization": { "status": "manual", "models": ["automaton"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/summatory_multiplicative", "insertMode": "global", "template": "summatory_multiplicative/helpers.hpp.tmpl",
+    "description": "quotient grouping for summatory number theory", "detail": "enumerates maximal intervals with equal floor(limit/i) and distinct quotients / O(sqrt n)",
+    "exports": ["for_each_quotient_block", "distinct_floor_quotients"], "features": ["floor_quotient_blocks", "distinct_quotients"],
+    "constraints": ["nonnegative_limit", "callback_receives_inclusive_block"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/virtual_tree", "insertMode": "global", "template": "virtual_tree/helpers.hpp.tmpl",
+    "description": "virtual tree induced by selected vertices", "detail": "adds LCAs and builds a compressed ancestor tree in O(k log k)",
+    "exports": ["VirtualTree", "build_virtual_tree"], "features": ["lca_closure", "compressed_tree", "selected_vertices"],
+    "constraints": ["Euler_tin_order", "LCA_callback", "shared_rooted_tree"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/wavelet_matrix", "insertMode": "global", "template": "wavelet_matrix/helpers.hpp.tmpl",
+    "description": "static weighted wavelet matrix for range order statistics and sums", "detail": "kth, counts, frequencies, threshold sums, weighted quantiles, and k-smallest sums in O(bit width)",
+    "exports": ["WaveletMatrix"], "features": ["range_kth", "weighted_kth", "count_less", "frequency", "sum_less", "weight_less", "sum_k_smallest"],
+    "constraints": ["unsigned_integral_values", "nonnegative_weights", "half_open_ranges", "zero_based_orders", "static_sequence", "sum_type_must_hold_aggregates", "memory_proportional_to_bit_width_times_n"], "visualization": { "status": "manual", "models": ["array", "matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/binomial_composite", "insertMode": "global", "template": "binomial_composite/helpers.hpp.tmpl",
+    "description": "binomial coefficients modulo a composite modulus", "detail": "prime-power factorial arithmetic combined with CRT",
+    "exports": ["BinomialModuloComposite"], "features": ["binomial_mod_composite", "prime_power_decomposition", "crt_recombination"],
+    "constraints": ["positive_modulus", "factorization_by_trial_division", "each_prime_power_must_not_exceed_maximum_table_size", "invalid_configuration_returns_minus_one", "64_bit_products_use_int128"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/bitset_lcs", "insertMode": "global", "template": "bitset_lcs/helpers.hpp.tmpl",
+    "description": "bit-parallel longest common subsequence length", "detail": "Hyyrö-style word-parallel recurrence / O(nm/word size)",
+    "exports": ["bitset_lcs_length"], "features": ["lcs_length", "dynamic_bitsets", "generic_symbols"],
+    "constraints": ["length_only", "ordered_map_symbol_index", "no_lcs_reconstruction"], "visualization": { "status": "manual", "models": ["bits", "sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/block_cut_tree", "insertMode": "global", "template": "block_cut_tree/helpers.hpp.tmpl",
+    "description": "vertex-biconnected components and block-cut forest", "detail": "Tarjan edge-stack decomposition / O(V+E)",
+    "exports": ["BlockCutTree", "block_cut_tree"], "features": ["biconnected_components", "articulation_nodes", "block_cut_forest", "vertex_to_nodes"],
+    "constraints": ["undirected_symmetric_adjacency", "self_loops_ignored", "recursive_dfs"], "visualization": { "status": "automatic", "models": ["graph", "tree", "array", "scalar"], "layout": "graph_with_sidebar", "defaultGranularity": "operations", "limitations": ["Component nodes in the block-cut forest are numbered before articulation nodes; extracted component vertices are shown one component at a time."] }
+  },
+  {
+    "path": "/templates/bostan_mori", "insertMode": "global", "template": "bostan_mori/helpers.hpp.tmpl",
+    "description": "coefficient extraction from a rational generating function", "detail": "Bostan-Mori parity reduction with caller polynomial multiplication / O(M(d) log n)",
+    "exports": ["bostan_mori"], "features": ["rational_generating_functions", "kth_coefficient", "custom_polynomial_multiply"],
+    "constraints": ["denominator_constant_term_invertible", "field_like_coefficients", "nonnegative_index"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/bridge_tree", "insertMode": "global", "template": "bridge_tree/helpers.hpp.tmpl",
+    "description": "bridges, two-edge-connected components, and bridge forest", "detail": "low-link bridge detection followed by component contraction / O(V+E)",
+    "exports": ["BridgeTree", "bridge_tree"], "features": ["bridges", "two_edge_connected_components", "bridge_forest"],
+    "constraints": ["undirected_edge_list", "parallel_edges_supported", "recursive_dfs"], "visualization": { "status": "automatic", "models": ["edges", "graph", "array"], "layout": "graph_with_sidebar", "defaultGranularity": "operations", "limitations": ["Each discovered bridge is highlighted as a two-vertex array; parallel edge identities are not rendered separately."] }
+  },
+  {
+    "path": "/templates/burrows_wheeler_transform", "insertMode": "global", "template": "burrows_wheeler_transform/helpers.hpp.tmpl",
+    "description": "Burrows-Wheeler transform and inverse", "detail": "cyclic-shift sorting transform with primary index and stable LF reconstruction",
+    "exports": ["BurrowsWheelerTransform", "burrows_wheeler_transform", "inverse_burrows_wheeler_transform"], "features": ["forward_bwt", "inverse_bwt", "primary_index", "generic_symbols"],
+    "constraints": ["comparison_ordered_symbols", "cyclic_transform_without_sentinel", "sorting_based_construction"], "visualization": { "status": "manual", "models": ["sequence", "matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/cactus_decomposition", "insertMode": "global", "template": "cactus_decomposition/helpers.hpp.tmpl",
+    "description": "weighted cactus decomposition and distance queries", "detail": "contracts cycles into a decomposition forest and prepares binary-lifting distances",
+    "exports": ["CactusDecomposition"], "features": ["cycle_decomposition", "weighted_distance", "binary_lifting"],
+    "constraints": ["undirected_cactus_graph", "each_edge_belongs_to_at_most_one_cycle", "nonnegative_weights_for_distance_semantics", "recursive_dfs"], "visualization": { "status": "manual", "models": ["graph", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/cdq_dominance", "insertMode": "global", "template": "cdq_dominance/helpers.hpp.tmpl",
+    "description": "offline three-dimensional dominance counting", "detail": "CDQ divide-and-conquer with a Fenwick sweep / O(n log^2 n)",
+    "exports": ["DominancePoint3D", "dominance_counts_strict_x_3d"], "features": ["three_dimensional_dominance", "offline_counting", "coordinate_compression"],
+    "constraints": ["counts_strictly_smaller_x", "counts_no_larger_y_and_z", "ids_are_zero_through_n_minus_one"], "visualization": { "status": "manual", "models": ["points", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/centroid_nearest_marked", "insertMode": "global", "template": "centroid_nearest_marked/helpers.hpp.tmpl",
+    "description": "dynamic nearest-marked distance on a tree", "detail": "centroid-decomposition paths with per-centroid distance multisets / O(log^2 n) update, O(log n) query",
+    "exports": ["CentroidNearestMarked"], "features": ["mark_toggle", "nearest_marked", "centroid_paths"],
+    "constraints": ["unweighted_tree_or_forest", "recursive_decomposition", "multiset_updates"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/circle_union_area", "insertMode": "global", "template": "circle_union_area/helpers.hpp.tmpl",
+    "description": "area of a union of circles", "detail": "visible angular-arc integration / O(n^2 log n)",
+    "exports": ["UnionCircle", "circle_union_area"], "features": ["circle_union", "covered_circle_elimination", "arc_integration"],
+    "constraints": ["long_double_geometry", "nonnegative_radii", "epsilon_classification", "quadratic_pair_scan"], "visualization": { "status": "manual", "models": ["circles"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/continued_fraction", "insertMode": "global", "template": "continued_fraction/helpers.hpp.tmpl",
+    "description": "continued fractions, convergents, and Pell equations", "detail": "Euclidean expansions and periodic square-root continued fractions",
+    "exports": ["continued_fraction", "continued_fraction_convergents", "square_root_continued_fraction", "pell_minimum_solution"], "features": ["rational_continued_fraction", "convergents", "quadratic_surds", "pell_equation"],
+    "constraints": ["positive_denominators", "nonnegative_square_root_argument", "pell_input_must_be_nonsquare", "convergents_use_int128"], "visualization": { "status": "manual", "models": ["sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/convex_polygon_intersection", "insertMode": "global", "template": "convex_polygon_intersection/helpers.hpp.tmpl",
+    "description": "intersection of two convex polygons", "detail": "Sutherland-Hodgman half-plane clipping / O(nm)",
+    "exports": ["ConvexIntersectionPoint", "convex_polygon_intersection"], "features": ["convex_clipping", "orientation_normalization"],
+    "constraints": ["convex_polygons", "vertices_in_cyclic_order", "long_double_epsilon_geometry", "may_retain_near_duplicate_vertices"], "visualization": { "status": "manual", "models": ["points"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/discrete_root_prime", "insertMode": "global", "template": "discrete_root_prime/helpers.hpp.tmpl",
+    "description": "all modular roots modulo a prime", "detail": "reduces x^k=a to a linear congruence in discrete logarithms",
+    "exports": ["discrete_roots_prime"], "features": ["modular_kth_roots", "primitive_root_reduction", "all_solutions"],
+    "constraints": ["prime_modulus", "positive_exponent", "baby_step_giant_step_uses_sqrt_prime_memory", "64_bit_modular_arithmetic_uses_int128", "result_size_can_be_large"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/dsu_on_tree", "insertMode": "global", "template": "dsu_on_tree/helpers.hpp.tmpl",
+    "description": "DSU-on-tree callback framework", "detail": "keeps heavy-subtree state while adding and removing light subtrees / O(n log n) callback visits",
+    "exports": ["dsu_on_tree"], "features": ["sack_technique", "subtree_queries", "add_remove_answer_callbacks"],
+    "constraints": ["tree_or_forest", "callbacks_maintain_global_state", "recursive_dfs"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/du_jiao_sieve", "insertMode": "global", "template": "du_jiao_sieve/helpers.hpp.tmpl",
+    "description": "Du Jiao sieve for summatory phi and Mobius functions", "detail": "linear prefix sieve plus quotient-group memoization",
+    "exports": ["DuJiaoSieve"], "features": ["summatory_phi", "summatory_mobius", "quotient_grouping", "memoization"],
+    "constraints": ["positive_precomputation_limit", "64_bit_summatory_values", "int128_intermediates_where_needed"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/functional_graph_fold", "insertMode": "global", "template": "functional_graph_fold/helpers.hpp.tmpl",
+    "description": "binary lifting with path aggregates on a functional graph", "detail": "destination and ordered monoid fold for up to 64-bit step counts / O(n log U) build, O(log U) query",
+    "exports": ["FunctionalGraphFold"], "features": ["binary_lifting", "path_fold", "destination_after_steps", "noncommutative_monoid_order"],
+    "constraints": ["one_valid_successor_per_vertex", "values_size_matches_successors", "associative_operation_with_identity"], "visualization": { "status": "manual", "models": ["graph", "table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/gaussian_elimination_field", "insertMode": "global", "template": "gaussian_elimination_field/helpers.hpp.tmpl",
+    "description": "Gaussian elimination over a field", "detail": "reduced row-echelon solve with rank, consistency, one solution, and nullspace basis / O(rows cols^2)",
+    "exports": ["GaussianEliminationFieldResult", "gaussian_elimination_field"], "features": ["linear_system", "rank", "nullspace_basis", "inconsistency_detection"],
+    "constraints": ["field_like_value_type", "exact_zero_comparison", "rectangular_matrix", "right_hand_side_size_matches_rows"], "visualization": { "status": "manual", "models": ["matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/gomory_hu_tree", "insertMode": "global", "template": "gomory_hu_tree/helpers.hpp.tmpl",
+    "description": "all-pairs undirected minimum cuts as a Gomory-Hu tree", "detail": "n-1 Dinic max-flow computations on a capacity matrix",
+    "exports": ["GomoryHuTree", "gomory_hu_tree"], "features": ["all_pairs_min_cut", "cut_tree", "dinic"],
+    "constraints": ["square_symmetric_capacity_matrix", "nonnegative_capacities", "zero_diagonal_expected", "dense_matrix_rebuild_per_flow"], "visualization": { "status": "manual", "models": ["graph", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/lagrange_consecutive", "insertMode": "global", "template": "lagrange_consecutive/helpers.hpp.tmpl",
+    "description": "polynomial evaluation from consecutive samples", "detail": "prefix/suffix Lagrange interpolation in linear time",
+    "exports": ["lagrange_consecutive"], "features": ["consecutive_point_interpolation", "linear_time_evaluation"],
+    "constraints": ["field_like_value_type", "sample_points_are_zero_through_n_minus_one", "factorials_invertible"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/lcp_interval_tree", "insertMode": "global", "template": "lcp_interval_tree/helpers.hpp.tmpl",
+    "description": "LCP interval tree for suffix-array intervals", "detail": "monotonic-stack construction of the hierarchy of equal-prefix ranges / O(n)",
+    "exports": ["LcpIntervalTree", "lcp_interval_tree"], "features": ["lcp_intervals", "suffix_tree_topology", "interval_parent_tree"],
+    "constraints": ["lcp_array_between_adjacent_suffixes", "topology_only_without_edge_labels"], "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/lehmer_prime_count", "insertMode": "global", "template": "lehmer_prime_count/helpers.hpp.tmpl",
+    "description": "Lehmer prime-counting function", "detail": "pi(n) with sieve tables, phi recursion, and memoization",
+    "exports": ["LehmerPrimeCount"], "features": ["prime_counting", "lehmer_pi", "memoized_phi"],
+    "constraints": ["nonnegative_64_bit_queries", "sieve_limit_must_cover_required_roots", "integer_root_rounding_is_corrected"], "visualization": { "status": "manual", "models": ["table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/link_cut_tree", "insertMode": "global", "template": "link_cut_tree/helpers.hpp.tmpl",
+    "description": "link-cut tree for dynamic-forest ordered path aggregates", "detail": "splay-based reroot, root/parent/LCA queries, link, cut, point values, and directed path fold / amortized O(log n)",
+    "exports": ["LinkCutTree"], "features": ["dynamic_forest", "link", "cut", "connected", "make_root", "find_root", "parent", "lca", "point_get", "point_set", "try_path_fold", "path_fold", "noncommutative_fold"],
+    "constraints": ["associative_operation_with_identity", "operation_need_not_be_commutative", "only_link_distinct_trees", "cut_requires_existing_edge", "parent_and_lca_use_current_represented_root", "path_fold_asserts_connectivity", "vertex_indices_must_be_valid", "amortized_complexity"], "visualization": { "status": "manual", "models": ["forest", "tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/lower_bound_flow", "insertMode": "global", "template": "lower_bound_flow/helpers.hpp.tmpl",
+    "description": "feasible circulation with lower bounds and vertex demands", "detail": "super-source/sink reduction followed by Dinic max flow",
+    "exports": ["LowerBoundFlow"], "features": ["lower_upper_bounds", "vertex_demands", "feasibility", "edge_flow_reconstruction"],
+    "constraints": ["zero_based_vertices", "lower_not_above_upper", "total_demand_must_balance", "edge_flows_available_only_after_feasible_result", "nonnegative_residual_capacities"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/matroid_intersection", "insertMode": "global", "template": "matroid_intersection/helpers.hpp.tmpl",
+    "description": "maximum-cardinality intersection of two matroids", "detail": "augmenting paths in the exchange graph with independence-oracle callbacks",
+    "exports": ["matroid_intersection"], "features": ["matroid_intersection", "exchange_graph", "independence_oracles"],
+    "constraints": ["oracles_accept_selected_element_sets", "matroid_axioms_required", "oracle_heavy_polynomial_time", "unweighted_cardinality_objective"], "visualization": { "status": "manual", "models": ["graph", "set"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/weighted_matroid_intersection", "insertMode": "global", "template": "weighted_matroid_intersection/helpers.hpp.tmpl",
+    "description": "weighted intersection of two oracle-defined matroids", "detail": "exchange graph plus Bellman-Ford augmentation for maximum weight or lexicographic cardinality then weight",
+    "exports": ["WeightedMatroidIntersectionObjective", "WeightedMatroidIntersectionResult", "weighted_matroid_intersection"], "features": ["weighted_matroid_intersection", "maximum_weight", "maximum_cardinality_then_weight", "exchange_graph", "independence_oracles", "witness_elements"],
+    "constraints": ["oracles_accept_a_characteristic_vector", "oracles_must_obey_matroid_axioms", "weight_supports_zero_addition_negation_and_strict_order", "weight_arithmetic_and_comparison_must_be_exact", "oracle_heavy_polynomial_time", "maximum_weight_may_return_a_smaller_or_empty_independent_set_when_further_augmentation_is_not_profitable"], "visualization": { "status": "manual", "models": ["graph", "set"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/min_cost_circulation", "insertMode": "global", "template": "min_cost_circulation/helpers.hpp.tmpl",
+    "description": "minimum-cost circulation", "detail": "residual negative-cycle cancellation with flow reconstruction",
+    "exports": ["MinCostCirculation"], "features": ["circulation", "minimum_cost", "negative_cycle_canceling", "edge_flow_reconstruction"],
+    "constraints": ["finite_integral_or_exact_costs", "capacities_nonnegative", "polynomial_but_not_strongly_fast", "cost_products_must_not_overflow"], "visualization": { "status": "manual", "models": ["graph"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/min_plus_convolution", "insertMode": "global", "template": "min_plus_convolution/helpers.hpp.tmpl",
+    "description": "min-plus convolution of convex sequences", "detail": "merges nondecreasing adjacent differences / O(n+m)",
+    "exports": ["min_plus_convolution_convex"], "features": ["min_plus_convolution", "convex_sequences", "linear_time"],
+    "constraints": ["both_sequences_discretely_convex", "nonempty_inputs_or_empty_result", "differences_and_sums_must_not_overflow"], "visualization": { "status": "manual", "models": ["array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/minimal_absent_substring", "insertMode": "global", "template": "minimal_absent_substring/helpers.hpp.tmpl",
+    "description": "shortest string absent from an automaton language", "detail": "breadth-first search over automaton states and alphabet transitions",
+    "exports": ["minimal_absent_substring"], "features": ["shortest_absent_word", "bfs_reconstruction", "generic_alphabet"],
+    "constraints": ["deterministic_automaton_callback_contract", "finite_explicit_alphabet", "returns_empty_when_no_absent_word_is_reachable"], "visualization": { "status": "manual", "models": ["automaton"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/offline_kth", "insertMode": "global", "template": "offline_kth/helpers.hpp.tmpl",
+    "description": "offline static range kth queries", "detail": "parallel value divide-and-conquer with Fenwick counting / O((n+q) log values log n)",
+    "exports": ["OfflineKthQuery", "offline_range_kth"], "features": ["range_kth", "offline_parallel_search", "coordinate_compression"],
+    "constraints": ["half_open_ranges", "zero_based_k", "static_values", "valid_nonempty_query_ranges"], "visualization": { "status": "manual", "models": ["array", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/online_dynamic_connectivity", "insertMode": "global", "template": "online_dynamic_connectivity/helpers.hpp.tmpl",
+    "description": "online fully dynamic connectivity for a simple graph", "detail": "link-cut spanning forest with replacement-edge scans / O(log n) amortized insertion and O(m log n) worst-case tree-edge deletion",
+    "exports": ["OnlineDynamicConnectivity"], "features": ["online_connectivity", "edge_insert", "edge_delete", "edge_membership", "replacement_edge"],
+    "constraints": ["simple_undirected_graph", "self_loops_rejected", "duplicate_edges_rejected", "vertex_indices_must_be_valid", "tree_edge_deletion_scans_all_graph_edges", "not_polylogarithmic_fully_dynamic_connectivity"], "visualization": { "status": "manual", "models": ["graph", "forest"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/partially_persistent_dsu", "insertMode": "global", "template": "partially_persistent_dsu/helpers.hpp.tmpl",
+    "description": "partially persistent union-find", "detail": "monotone-time unions with historical find, size, and connectivity queries / O(log n) historical find",
+    "exports": ["PartiallyPersistentDsu"], "features": ["historical_connectivity", "historical_component_size", "monotone_time_union"],
+    "constraints": ["union_times_nondecreasing", "queries_do_not_modify_history", "no_path_compression"], "visualization": { "status": "manual", "models": ["forest", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/persistent_dsu", "insertMode": "global", "template": "persistent_dsu/helpers.hpp.tmpl",
+    "description": "fully versioned persistent union-find", "detail": "persistent-array parent and size storage with union-created versions",
+    "exports": ["PersistentDsu"], "features": ["persistent_versions", "historical_connectivity", "versioned_union", "component_size"],
+    "constraints": ["no_path_compression", "persistent_storage_grows_per_union", "version_indices_must_be_valid"], "visualization": { "status": "manual", "models": ["forest", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/polynomial_tools", "insertMode": "global", "template": "polynomial_tools/helpers.hpp.tmpl",
+    "description": "polynomial division, gcd, product trees, evaluation, and interpolation", "detail": "generic field-polynomial utilities with caller multiplication",
+    "exports": ["polynomial_trim", "polynomial_divmod", "polynomial_gcd", "PolynomialProductTree", "polynomial_interpolate"], "features": ["division_remainder", "polynomial_gcd", "product_tree", "multipoint_evaluation", "interpolation"],
+    "constraints": ["field_like_coefficients", "leading_coefficients_invertible", "multiply_callback_returns_full_product", "distinct_interpolation_points"], "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/profile_dp", "insertMode": "global", "template": "profile_dp/helpers.hpp.tmpl",
+    "description": "broken-profile transitions for domino tilings", "detail": "enumerates row-mask transitions then runs a row DP / O(height times transition count)",
+    "exports": ["domino_profile_transitions", "count_domino_tilings"], "features": ["profile_transitions", "domino_tilings", "generic_count_type"],
+    "constraints": ["rectangular_grid_without_obstacles", "width_below_31", "exponential_in_smaller_dimension", "count_type_must_hold_or_reduce_counts"], "visualization": { "status": "manual", "models": ["grid", "table"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/range_distinct_updates", "insertMode": "global", "template": "range_distinct_updates/helpers.hpp.tmpl",
+    "description": "offline range-distinct queries with point updates", "detail": "three-dimensional Mo ordering over left, right, and update time",
+    "exports": ["DistinctPointUpdate", "TimedDistinctQuery", "range_distinct_with_updates"], "features": ["distinct_count", "point_updates", "time_dimension", "coordinate_compression"],
+    "constraints": ["half_open_ranges", "queries_specify_updates_applied", "all_operations_known_offline", "comparison_ordered_values"], "visualization": { "status": "manual", "models": ["array", "timeline"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/segment_tree_graph", "insertMode": "global", "template": "segment_tree_graph/helpers.hpp.tmpl",
+    "description": "compact graph expansion for range edges", "detail": "segment-tree DAG nodes encode vertex-to-range, range-to-vertex, and range-to-range edges / O(log n) added edges per side",
+    "exports": ["SegmentTreeGraph"], "features": ["vertex_to_range", "range_to_vertex", "range_to_range", "weighted_edges"],
+    "constraints": ["half_open_ranges", "original_vertices_are_zero_based", "consumer_runs_graph_algorithm_on_expanded_vertex_count"], "visualization": { "status": "manual", "models": ["graph", "interval_tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/smawk", "insertMode": "global", "template": "smawk/helpers.hpp.tmpl",
+    "description": "row minima of a totally monotone matrix", "detail": "implicit-matrix SMAWK reduction and interpolation / O(rows+columns) value comparisons",
+    "exports": ["smawk_row_minima"], "features": ["totally_monotone_minima", "implicit_matrix", "argmin_columns"],
+    "constraints": ["totally_monotone_matrix", "value_callback_is_pure", "ties_choose_a_valid_not_necessarily_first_minimum", "empty_columns_return_minus_one"], "visualization": { "status": "manual", "models": ["matrix"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/splay_tree", "insertMode": "global", "template": "splay_tree/helpers.hpp.tmpl",
+    "description": "ordered unique-key splay tree with order statistics", "detail": "self-adjusting insert, erase, search, lower bound, kth, and rank / amortized O(log n)",
+    "exports": ["SplayTree"], "features": ["ordered_set", "insert", "erase", "contains", "lower_bound", "kth", "order_of_key", "subtree_sizes"],
+    "constraints": ["unique_keys", "strict_weak_order_comparator", "returned_key_pointers_are_invalidated_by_erasure_or_clear", "amortized_complexity", "noncopyable_owning_structure"], "visualization": { "status": "manual", "models": ["tree", "set"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/subset_sum_mitm", "insertMode": "global", "template": "subset_sum_mitm/helpers.hpp.tmpl",
+    "description": "meet-in-the-middle subset-sum reconstruction", "detail": "enumerates both halves and returns one exact subset / O(2^(n/2) n)",
+    "exports": ["subset_sum_reconstruct"], "features": ["subset_sum", "meet_in_the_middle", "witness_reconstruction"],
+    "constraints": ["each_half_has_fewer_than_63_elements", "exponential_memory", "addition_and_target_subtraction_must_not_overflow"], "visualization": { "status": "manual", "models": ["set", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/suffix_tree_from_sa", "insertMode": "global", "template": "suffix_tree_from_sa/helpers.hpp.tmpl",
+    "description": "compressed suffix-tree topology from suffix array and LCP", "detail": "linear stack construction of explicit leaves and LCP internal nodes",
+    "exports": ["SuffixTreeFromSa", "suffix_tree_from_sa"], "features": ["suffix_tree_topology", "suffix_array_leaves", "lcp_internal_nodes"],
+    "constraints": ["valid_suffix_array", "lcp_size_is_n_minus_one", "topology_only_without_text_edge_labels"], "visualization": { "status": "manual", "models": ["tree", "array"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/swag_queue", "insertMode": "global", "template": "swag_queue/helpers.hpp.tmpl",
+    "description": "sliding-window aggregation queue", "detail": "two aggregate stacks provide amortized O(1) push, pop, and monoid fold",
+    "exports": ["SwagQueue"], "features": ["monoid_queue", "push", "pop", "front", "fold", "noncommutative_order"],
+    "constraints": ["associative_operation", "fold_requires_nonempty_queue", "pop_and_front_require_nonempty_queue"], "visualization": { "status": "manual", "models": ["stack", "queue"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/tarjan_offline_lca", "insertMode": "global", "template": "tarjan_offline_lca/helpers.hpp.tmpl",
+    "description": "Tarjan offline lowest common ancestors", "detail": "DFS with union-find answers a batch of forest LCA queries / O((n+q) alpha(n))",
+    "exports": ["tarjan_offline_lca"], "features": ["offline_lca", "forest_support", "union_find"],
+    "constraints": ["undirected_tree_or_forest", "queries_between_components_return_minus_one", "recursive_dfs"], "visualization": { "status": "manual", "models": ["tree", "forest"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/tree_isomorphism", "insertMode": "global", "template": "tree_isomorphism/helpers.hpp.tmpl",
+    "description": "canonical encoding for unrooted tree isomorphism", "detail": "leaf-peeling centers plus AHU sorted-parentheses forms / O(n log n) string work",
+    "exports": ["tree_centers", "rooted_tree_canonical_form", "tree_canonical_form"], "features": ["tree_centers", "rooted_canonical_form", "unrooted_canonical_form"],
+    "constraints": ["connected_undirected_tree", "recursive_encoding", "string_representation_can_be_quadratic_in_adversarial_copy_cost"], "visualization": { "status": "manual", "models": ["tree"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/wildcard_matching", "insertMode": "global", "template": "wildcard_matching/helpers.hpp.tmpl",
+    "description": "wildcard pattern matching by convolution", "detail": "one indicator convolution per distinct non-wildcard pattern symbol",
+    "exports": ["wildcard_match_positions"], "features": ["wildcard_pattern", "convolution_matching", "all_match_positions"],
+    "constraints": ["comparison_ordered_symbols", "wildcard_value_supplied_explicitly", "convolution_returns_exact_integer_coefficients", "runtime_scales_with_distinct_pattern_symbols", "empty_pattern_matches_every_boundary"], "visualization": { "status": "manual", "models": ["sequence"], "reason": "Focused helper imported without runtime visualization hooks." }
+  },
+  {
+    "path": "/templates/connectivity_workflow", "insertMode": "global", "generator": "connectivity_workflow",
+    "label": "/templates/connectivity_workflow", "description": "choose a connectivity structure by update and history requirements", "detail": "choice-based workflow",
+    "workflowChoices": [
+      { "path": "/templates/dsu", "label": "DSU", "description": "Incremental undirected connectivity and component sizes." },
+      { "path": "/templates/rollback_dsu", "label": "Rollback DSU", "description": "Snapshots, rollback, and offline divide-over-time." },
+      { "path": "/templates/potential_dsu", "label": "Potential DSU", "description": "Connectivity with relative potentials or weighted constraints." },
+      { "path": "/templates/persistent_dsu", "label": "Persistent DSU", "description": "Query immutable historical versions." },
+      { "path": "/templates/offline_dynamic_connectivity", "label": "Offline dynamic connectivity", "description": "Known add/remove/query timeline." },
+      { "path": "/templates/online_dynamic_connectivity", "label": "Online dynamic connectivity", "description": "Fully dynamic updates that must be answered online." }
+    ],
+    "visualization": { "status": "none", "models": [], "reason": "Routing entry; the selected connectivity template defines its visualization." }
+  },
+  {
+    "path": "/templates/string_workflow", "insertMode": "global", "generator": "strings_workflow",
+    "label": "/templates/string_workflow", "description": "choose a string index or matching technique by query shape", "detail": "choice-based workflow",
+    "workflowChoices": [
+      { "path": "/templates/poly_hash", "label": "Polynomial hash", "description": "Fast substring equality and concatenation-oriented hashing." },
+      { "path": "/templates/dynamic_sequence_hash", "label": "Dynamic sequence hash", "description": "Hash queries with sequence updates." },
+      { "path": "/templates/suffix_array", "label": "Suffix array", "description": "Sorted suffixes, LCP, and substring search." },
+      { "path": "/templates/suffix_automaton", "label": "Suffix automaton", "description": "Substring language, occurrences, and distinct substrings." },
+      { "path": "/templates/aho_corasick", "label": "Aho-Corasick", "description": "Match many patterns against text." },
+      { "path": "/templates/manacher", "label": "Manacher", "description": "All odd and even palindrome radii." }
+    ],
+    "visualization": { "status": "none", "models": [], "reason": "Routing entry; the selected string template defines its visualization." }
+  },
+  {
+    "path": "/templates/geometry_workflow", "insertMode": "global", "generator": "geometry_workflow",
+    "label": "/templates/geometry_workflow", "description": "choose focused 2D geometry helpers by operation", "detail": "choice-based workflow",
+    "workflowChoices": [
+      { "path": "/templates/geometry", "label": "Primitives, intersections, hull", "description": "Points, orientation, segments, angle sorting, and convex hull." },
+      { "path": "/templates/polygon_area", "label": "Polygon area", "description": "Signed and absolute polygon area." },
+      { "path": "/templates/polygon_cut", "label": "Polygon cut", "description": "Clip a polygon against a directed line." },
+      { "path": "/templates/convex_polygon_queries", "label": "Convex polygon queries", "description": "Containment and tangency-oriented convex queries." },
+      { "path": "/templates/convex_polygon_intersection", "label": "Convex polygon intersection", "description": "Intersect two convex polygons." },
+      { "path": "/templates/halfplane_intersection", "label": "Half-plane intersection", "description": "Build a convex feasible region from half-planes." }
+    ],
+    "visualization": { "status": "none", "models": [], "reason": "Routing entry; the selected geometry template defines its visualization." }
+  },
+  {
+    "path": "/templates/flow_matching_workflow", "insertMode": "global", "generator": "flow_matching_workflow",
+    "label": "/templates/flow_matching_workflow", "description": "choose flow or matching machinery by constraints and objective", "detail": "choice-based workflow",
+    "workflowChoices": [
+      { "path": "/templates/maxflow_dinic", "label": "Maximum flow (Dinic)", "description": "Capacitated maximum flow and minimum cut." },
+      { "path": "/templates/lower_bound_flow", "label": "Flow with lower bounds", "description": "Feasibility and flow with edge lower bounds." },
+      { "path": "/templates/mincost_maxflow", "label": "Min-cost max-flow", "description": "Optimize cost while sending flow." },
+      { "path": "/templates/min_cost_circulation", "label": "Min-cost circulation", "description": "Cost-optimal circulation without a fixed source and sink." },
+      { "path": "/templates/kuhn", "label": "Bipartite matching (Kuhn)", "description": "Simple unweighted bipartite matching." },
+      { "path": "/templates/blossom_matching", "label": "General matching (Blossom)", "description": "Maximum matching in a non-bipartite graph." }
+    ],
+    "visualization": { "status": "none", "models": [], "reason": "Routing entry; the selected flow or matching template defines its visualization." }
   }
 ]

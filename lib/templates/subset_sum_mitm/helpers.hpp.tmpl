@@ -1,0 +1,24 @@
+template<class T>
+optional<vector<int>> subset_sum_reconstruct(const vector<T>& values, T target) {
+    int middle = values.size() / 2, right_size = values.size() - middle;
+    if (middle >= 63 || right_size >= 63) return nullopt;
+    vector<pair<T, uint64_t>> right;
+    right.reserve(uint64_t(1) << right_size);
+    for (uint64_t mask = 0; mask < (uint64_t(1) << right_size); ++mask) {
+        T sum{};
+        for (int bit = 0; bit < right_size; ++bit) if (mask >> bit & 1) sum += values[middle + bit];
+        right.push_back({sum, mask});
+    }
+    sort(right.begin(), right.end());
+    for (uint64_t mask = 0; mask < (uint64_t(1) << middle); ++mask) {
+        T sum{};
+        for (int bit = 0; bit < middle; ++bit) if (mask >> bit & 1) sum += values[bit];
+        auto it = lower_bound(right.begin(), right.end(), pair<T, uint64_t>{target - sum, 0});
+        if (it == right.end() || it->first != target - sum) continue;
+        vector<int> chosen;
+        for (int bit = 0; bit < middle; ++bit) if (mask >> bit & 1) chosen.push_back(bit);
+        for (int bit = 0; bit < right_size; ++bit) if (it->second >> bit & 1) chosen.push_back(middle + bit);
+        return chosen;
+    }
+    return nullopt;
+}

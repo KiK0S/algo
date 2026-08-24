@@ -1,0 +1,33 @@
+struct ConvexIntersectionPoint { long double x{}, y{}; };
+
+inline vector<ConvexIntersectionPoint> convex_polygon_intersection(
+    vector<ConvexIntersectionPoint> subject, vector<ConvexIntersectionPoint> clip,
+    long double epsilon = 1e-12L) {
+    auto cross = [](auto a, auto b, auto c) {
+        return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    };
+    auto signed_area = [&](const auto& polygon) {
+        long double result = 0;
+        for (int i = 0; i < int(polygon.size()); ++i)
+            result += cross(ConvexIntersectionPoint{}, polygon[i], polygon[(i + 1) % polygon.size()]);
+        return result;
+    };
+    if (subject.empty() || clip.empty()) return {};
+    if (signed_area(clip) < 0) reverse(clip.begin(), clip.end());
+    for (int edge = 0; edge < int(clip.size()) && !subject.empty(); ++edge) {
+        auto a = clip[edge], b = clip[(edge + 1) % clip.size()];
+        vector<ConvexIntersectionPoint> next;
+        for (int i = 0; i < int(subject.size()); ++i) {
+            auto p = subject[i], q = subject[(i + 1) % subject.size()];
+            long double cp = cross(a, b, p), cq = cross(a, b, q);
+            bool inside_p = cp >= -epsilon, inside_q = cq >= -epsilon;
+            if (inside_p) next.push_back(p);
+            if (inside_p != inside_q) {
+                long double t = cp / (cp - cq);
+                next.push_back({p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t});
+            }
+        }
+        subject = move(next);
+    }
+    return subject;
+}

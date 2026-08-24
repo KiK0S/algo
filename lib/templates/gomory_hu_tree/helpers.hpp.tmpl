@@ -1,0 +1,86 @@
+template <class Capacity>
+struct GomoryHuTree {
+  std::vector<int> parent;
+  std::vector<Capacity> cut_value;
+  std::vector<std::vector<std::pair<int, Capacity>>> tree;
+};
+
+template <class Capacity>
+GomoryHuTree<Capacity> gomory_hu_tree(
+    const std::vector<std::vector<Capacity>>& capacity) {
+  const int n = static_cast<int>(capacity.size());
+  for (const auto& row : capacity) assert(static_cast<int>(row.size()) == n);
+  GomoryHuTree<Capacity> result;
+  result.parent.assign(n, 0);
+  result.cut_value.assign(n, Capacity{});
+  for (int source = 1; source < n; ++source) {
+    int sink = result.parent[source];
+    struct Edge { int to, reverse; Capacity capacity; };
+    std::vector<std::vector<Edge>> graph(n);
+    auto add_edge = [&](int from, int to, Capacity value) {
+      int a = static_cast<int>(graph[from].size());
+      int b = static_cast<int>(graph[to].size());
+      graph[from].push_back({to, b, value});
+      graph[to].push_back({from, a, Capacity{}});
+    };
+    for (int u = 0; u < n; ++u)
+      for (int v = 0; v < n; ++v)
+        if (capacity[u][v] > Capacity{}) add_edge(u, v, capacity[u][v]);
+    Capacity flow{};
+    std::vector<int> level(n), next(n);
+    while (true) {
+      std::fill(level.begin(), level.end(), -1);
+      std::vector<int> queue = {source}; level[source] = 0;
+      for (int begin = 0; begin < static_cast<int>(queue.size()); ++begin) {
+        int u = queue[begin];
+        for (const Edge& edge : graph[u])
+          if (edge.capacity > Capacity{} && level[edge.to] == -1) {
+            level[edge.to] = level[u] + 1; queue.push_back(edge.to);
+          }
+      }
+      if (level[sink] == -1) break;
+      std::fill(next.begin(), next.end(), 0);
+      std::function<Capacity(int, Capacity)> send = [&](int u, Capacity pushed) {
+        if (u == sink) return pushed;
+        for (int& index = next[u]; index < static_cast<int>(graph[u].size()); ++index) {
+          Edge& edge = graph[u][index];
+          if (edge.capacity <= Capacity{} || level[edge.to] != level[u] + 1) continue;
+          Capacity sent = send(edge.to, std::min(pushed, edge.capacity));
+          if (sent > Capacity{}) {
+            edge.capacity -= sent;
+            graph[edge.to][edge.reverse].capacity += sent;
+            return sent;
+          }
+        }
+        return Capacity{};
+      };
+      while (Capacity pushed = send(source, std::numeric_limits<Capacity>::max())) flow += pushed;
+    }
+    result.cut_value[source] = flow;
+    std::vector<char> side(n, false);
+    std::vector<int> stack = {source}; side[source] = true;
+    while (!stack.empty()) {
+      int u = stack.back(); stack.pop_back();
+      for (const Edge& edge : graph[u])
+        if (edge.capacity > Capacity{} && !side[edge.to]) {
+          side[edge.to] = true; stack.push_back(edge.to);
+        }
+    }
+    for (int vertex = source + 1; vertex < n; ++vertex)
+      if (result.parent[vertex] == sink && side[vertex]) result.parent[vertex] = source;
+    if (side[result.parent[sink]]) {
+      result.parent[source] = result.parent[sink];
+      result.parent[sink] = source;
+      result.cut_value[source] = result.cut_value[sink];
+      result.cut_value[sink] = flow;
+    }
+  }
+  result.tree.assign(n, {});
+  for (int vertex = 1; vertex < n; ++vertex) {
+    int parent = result.parent[vertex];
+    Capacity value = result.cut_value[vertex];
+    result.tree[vertex].push_back({parent, value});
+    result.tree[parent].push_back({vertex, value});
+  }
+  return result;
+}

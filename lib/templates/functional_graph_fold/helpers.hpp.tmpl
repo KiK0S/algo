@@ -1,0 +1,37 @@
+template <class Value, class Operation>
+class FunctionalGraphFold {
+ public:
+  FunctionalGraphFold(const std::vector<int>& successor,
+                      const std::vector<Value>& values,
+                      Value identity, Operation operation)
+      : identity_(identity), operation_(operation) {
+    const int n = static_cast<int>(successor.size());
+    jump_.assign(64, std::vector<int>(n));
+    fold_.assign(64, std::vector<Value>(n, identity_));
+    jump_[0] = successor;
+    fold_[0] = values;
+    for (int level = 1; level < 64; ++level) {
+      for (int vertex = 0; vertex < n; ++vertex) {
+        int middle = jump_[level - 1][vertex];
+        jump_[level][vertex] = jump_[level - 1][middle];
+        fold_[level][vertex] = operation_(fold_[level - 1][vertex],
+                                          fold_[level - 1][middle]);
+      }
+    }
+  }
+
+  std::pair<int, Value> fold(int start, unsigned long long steps) const {
+    Value result = identity_;
+    for (int level = 0; level < 64; ++level) if ((steps >> level) & 1ULL) {
+      result = operation_(result, fold_[level][start]);
+      start = jump_[level][start];
+    }
+    return {start, result};
+  }
+
+ private:
+  Value identity_;
+  Operation operation_;
+  std::vector<std::vector<int>> jump_;
+  std::vector<std::vector<Value>> fold_;
+};

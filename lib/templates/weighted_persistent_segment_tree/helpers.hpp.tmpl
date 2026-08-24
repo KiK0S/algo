@@ -1,0 +1,139 @@
+template <typename Value, typename Sum = long long>
+class WeightedPersistentSegmentTree {
+ public:
+  struct Aggregate {
+    long long count = 0;
+    Sum sum = Sum(0);
+  };
+
+  explicit WeightedPersistentSegmentTree(std::vector<Value> coordinates)
+      : coordinates_(std::move(coordinates)), nodes_(1) {
+    std::sort(coordinates_.begin(), coordinates_.end());
+    coordinates_.erase(std::unique(coordinates_.begin(), coordinates_.end()),
+                       coordinates_.end());
+  }
+
+  int empty_root() const { return 0; }
+  int coordinate_count() const { return static_cast<int>(coordinates_.size()); }
+
+  int add(int root, const Value& value, long long count_delta = 1) {
+    if (root < 0 || root >= static_cast<int>(nodes_.size()) ||
+        coordinates_.empty()) return root;
+    const int position = static_cast<int>(
+        std::lower_bound(coordinates_.begin(), coordinates_.end(), value) -
+        coordinates_.begin());
+    if (position >= coordinate_count() || coordinates_[position] != value) return root;
+    return add(root, 0, coordinate_count(), position, count_delta,
+               static_cast<Sum>(value) * count_delta);
+  }
+
+  Aggregate aggregate_between(int left_root, int right_root) const {
+    return difference(left_root, right_root);
+  }
+
+  Value kth_between(int left_root, int right_root, long long zero_based_order) const {
+    const Aggregate total = difference(left_root, right_root);
+    assert(0 <= zero_based_order && zero_based_order < total.count);
+    int left = 0;
+    int right = coordinate_count();
+    while (right - left > 1) {
+      const int middle = left + (right - left) / 2;
+      const long long left_count =
+          nodes_[nodes_[right_root].left].aggregate.count -
+          nodes_[nodes_[left_root].left].aggregate.count;
+      if (zero_based_order < left_count) {
+        left_root = nodes_[left_root].left;
+        right_root = nodes_[right_root].left;
+        right = middle;
+      } else {
+        zero_based_order -= left_count;
+        left_root = nodes_[left_root].right;
+        right_root = nodes_[right_root].right;
+        left = middle;
+      }
+    }
+    return coordinates_[left];
+  }
+
+  Value median_between(int left_root, int right_root) const {
+    const long long count = difference(left_root, right_root).count;
+    assert(count > 0);
+    return kth_between(left_root, right_root, (count - 1) / 2);
+  }
+
+  Sum sum_absolute_deviation_between(int left_root, int right_root,
+                                     const Value& center) const {
+    const int split = static_cast<int>(
+        std::upper_bound(coordinates_.begin(), coordinates_.end(), center) -
+        coordinates_.begin());
+    const Aggregate lower = query_between(left_root, right_root, 0, split);
+    const Aggregate total = difference(left_root, right_root);
+    const Aggregate upper{total.count - lower.count, total.sum - lower.sum};
+    return static_cast<Sum>(center) * lower.count - lower.sum +
+           upper.sum - static_cast<Sum>(center) * upper.count;
+  }
+
+  Sum sum_absolute_deviation_from_median(int left_root, int right_root) const {
+    return sum_absolute_deviation_between(left_root, right_root,
+                                          median_between(left_root, right_root));
+  }
+
+ private:
+  struct Node {
+    Aggregate aggregate;
+    int left = 0;
+    int right = 0;
+  };
+
+  std::vector<Value> coordinates_;
+  std::vector<Node> nodes_;
+
+  Aggregate difference(int left_root, int right_root) const {
+    return {nodes_[right_root].aggregate.count - nodes_[left_root].aggregate.count,
+            nodes_[right_root].aggregate.sum - nodes_[left_root].aggregate.sum};
+  }
+
+  int clone(int node) {
+    nodes_.push_back(nodes_[node]);
+    return static_cast<int>(nodes_.size()) - 1;
+  }
+
+  int add(int node, int left, int right, int position, long long count_delta,
+          const Sum& sum_delta) {
+    const int result = clone(node);
+    nodes_[result].aggregate.count += count_delta;
+    nodes_[result].aggregate.sum += sum_delta;
+    if (right - left == 1) return result;
+    const int middle = left + (right - left) / 2;
+    if (position < middle) {
+      nodes_[result].left =
+          add(nodes_[result].left, left, middle, position, count_delta, sum_delta);
+    } else {
+      nodes_[result].right =
+          add(nodes_[result].right, middle, right, position, count_delta, sum_delta);
+    }
+    return result;
+  }
+
+  Aggregate query_between(int left_root, int right_root, int query_left,
+                          int query_right) const {
+    return query_between(left_root, right_root, 0, coordinate_count(), query_left,
+                         query_right);
+  }
+
+  Aggregate query_between(int left_root, int right_root, int left, int right,
+                          int query_left, int query_right) const {
+    if (query_right <= left || right <= query_left) return {};
+    if (query_left <= left && right <= query_right) {
+      return difference(left_root, right_root);
+    }
+    const int middle = left + (right - left) / 2;
+    const Aggregate lhs = query_between(nodes_[left_root].left,
+                                        nodes_[right_root].left, left, middle,
+                                        query_left, query_right);
+    const Aggregate rhs = query_between(nodes_[left_root].right,
+                                        nodes_[right_root].right, middle, right,
+                                        query_left, query_right);
+    return {lhs.count + rhs.count, lhs.sum + rhs.sum};
+  }
+};

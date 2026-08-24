@@ -1,0 +1,60 @@
+inline std::vector<int> maximum_general_matching(
+    const std::vector<std::vector<int>>& graph) {
+  const int n = static_cast<int>(graph.size());
+  std::vector<int> match(n, -1), parent(n), base(n), queue(n);
+  std::vector<char> used(n), blossom(n);
+  auto lca = [&](int a, int b) {
+    std::vector<char> path(n);
+    while (true) {
+      a = base[a]; path[a] = true;
+      if (match[a] == -1) break;
+      a = parent[match[a]];
+    }
+    while (!path[base[b]]) b = parent[match[b]];
+    return base[b];
+  };
+  auto mark_path = [&](int v, int b, int child) {
+    while (base[v] != b) {
+      blossom[base[v]] = blossom[base[match[v]]] = true;
+      parent[v] = child;
+      child = match[v];
+      v = parent[match[v]];
+    }
+  };
+  auto augment_from = [&](int root) {
+    std::fill(used.begin(), used.end(), false);
+    std::fill(parent.begin(), parent.end(), -1);
+    std::iota(base.begin(), base.end(), 0);
+    int head = 0, tail = 0; queue[tail++] = root; used[root] = true;
+    while (head < tail) {
+      int v = queue[head++];
+      for (int to : graph[v]) {
+        if (to == v || base[v] == base[to] || match[v] == to) continue;
+        if (to == root || (match[to] != -1 && parent[match[to]] != -1)) {
+          int b = lca(v, to);
+          std::fill(blossom.begin(), blossom.end(), false);
+          mark_path(v, b, to); mark_path(to, b, v);
+          for (int i = 0; i < n; ++i) if (blossom[base[i]]) {
+            base[i] = b;
+            if (!used[i]) used[i] = true, queue[tail++] = i;
+          }
+        } else if (parent[to] == -1) {
+          parent[to] = v;
+          if (match[to] == -1) {
+            for (int x = to; x != -1;) {
+              int pv = parent[x], next = pv == -1 ? -1 : match[pv];
+              match[x] = pv;
+              if (pv != -1) match[pv] = x;
+              x = next;
+            }
+            return true;
+          }
+          to = match[to]; used[to] = true; queue[tail++] = to;
+        }
+      }
+    }
+    return false;
+  };
+  for (int v = 0; v < n; ++v) if (match[v] == -1) augment_from(v);
+  return match;
+}

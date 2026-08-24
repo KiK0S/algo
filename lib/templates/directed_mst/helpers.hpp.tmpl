@@ -1,0 +1,47 @@
+template <class Cost>
+struct DirectedMstEdge { int from, to; Cost cost; };
+
+template <class Cost>
+std::optional<Cost> directed_mst_cost(
+    int vertex_count, int root, std::vector<DirectedMstEdge<Cost>> edges) {
+  if (vertex_count == 0) return Cost{};
+  if (root < 0 || root >= vertex_count) return std::nullopt;
+  Cost answer{};
+  while (true) {
+    std::vector<std::optional<Cost>> incoming(vertex_count);
+    std::vector<int> predecessor(vertex_count, -1);
+    for (const auto& edge : edges)
+      if (edge.from != edge.to && (!incoming[edge.to] || edge.cost < *incoming[edge.to])) {
+        incoming[edge.to] = edge.cost;
+        predecessor[edge.to] = edge.from;
+      }
+    incoming[root] = Cost{};
+    for (int v = 0; v < vertex_count; ++v)
+      if (!incoming[v]) return std::nullopt;
+    for (const auto& cost : incoming) answer += *cost;
+
+    int component_count = 0;
+    std::vector<int> component(vertex_count, -1), seen(vertex_count, -1);
+    for (int start = 0; start < vertex_count; ++start) {
+      int v = start;
+      while (seen[v] != start && component[v] == -1 && v != root) {
+        seen[v] = start;
+        v = predecessor[v];
+      }
+      if (v != root && component[v] == -1) {
+        for (int u = predecessor[v]; u != v; u = predecessor[u]) component[u] = component_count;
+        component[v] = component_count++;
+      }
+    }
+    if (component_count == 0) return answer;
+    for (int& id : component) if (id == -1) id = component_count++;
+    std::vector<DirectedMstEdge<Cost>> contracted;
+    for (const auto& edge : edges) {
+      int from = component[edge.from], to = component[edge.to];
+      if (from != to) contracted.push_back({from, to, edge.cost - *incoming[edge.to]});
+    }
+    root = component[root];
+    vertex_count = component_count;
+    edges = std::move(contracted);
+  }
+}

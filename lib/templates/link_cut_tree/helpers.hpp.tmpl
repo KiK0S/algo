@@ -1,0 +1,171 @@
+template <class Value, class Operation>
+class LinkCutTree {
+ public:
+  LinkCutTree(int vertex_count, Value identity, Operation operation)
+      : nodes_(vertex_count, Node(identity)), identity_(identity), operation_(operation) {}
+
+  void set_value(int vertex, const Value& value) {
+    access(vertex);
+    nodes_[vertex].value = value;
+    pull(vertex);
+  }
+
+  Value get_value(int vertex) {
+    access(vertex);
+    return nodes_[vertex].value;
+  }
+
+  bool connected(int first, int second) {
+    return first == second || find_root(first) == find_root(second);
+  }
+
+  bool link(int child, int parent) {
+    make_root(child);
+    if (find_root(parent) == child) return false;
+    nodes_[child].parent = parent;
+    return true;
+  }
+
+  void make_root(int vertex) {
+    access(vertex);
+    apply_reverse(vertex);
+  }
+
+  int find_root(int vertex) {
+    access(vertex);
+    push(vertex);
+    while (nodes_[vertex].child[0] != -1) {
+      vertex = nodes_[vertex].child[0];
+      push(vertex);
+    }
+    splay(vertex);
+    return vertex;
+  }
+
+  int parent(int vertex) {
+    access(vertex);
+    int result = nodes_[vertex].child[0];
+    if (result == -1) return -1;
+    push(result);
+    while (nodes_[result].child[1] != -1) {
+      result = nodes_[result].child[1];
+      push(result);
+    }
+    splay(result);
+    return result;
+  }
+
+  // LCA and parent are relative to the represented tree's current root.
+  int lca(int first, int second) {
+    if (!connected(first, second)) return -1;
+    access(first);
+    return access(second);
+  }
+
+  bool cut(int first, int second) {
+    make_root(first);
+    access(second);
+    if (nodes_[second].child[0] != first || nodes_[first].child[1] != -1) return false;
+    nodes_[second].child[0] = -1;
+    nodes_[first].parent = -1;
+    pull(second);
+    return true;
+  }
+
+  bool try_path_fold(int from, int to, Value& result) {
+    if (!connected(from, to)) return false;
+    make_root(from);
+    access(to);
+    result = nodes_[to].forward;
+    return true;
+  }
+
+  Value path_fold(int from, int to) {
+    Value result = identity_;
+    bool has_path = try_path_fold(from, to, result);
+    assert(has_path);
+    return result;
+  }
+
+ private:
+  struct Node {
+    int child[2] = {-1, -1};
+    int parent = -1;
+    bool reversed = false;
+    Value value, forward, backward;
+    explicit Node(const Value& identity)
+        : value(identity), forward(identity), backward(identity) {}
+  };
+  std::vector<Node> nodes_;
+  Value identity_;
+  Operation operation_;
+
+  bool is_auxiliary_root(int vertex) const {
+    int parent = nodes_[vertex].parent;
+    return parent == -1 ||
+           (nodes_[parent].child[0] != vertex && nodes_[parent].child[1] != vertex);
+  }
+  Value forward(int vertex) const { return vertex == -1 ? identity_ : nodes_[vertex].forward; }
+  Value backward(int vertex) const { return vertex == -1 ? identity_ : nodes_[vertex].backward; }
+  void pull(int vertex) {
+    Node& node = nodes_[vertex];
+    node.forward = operation_(operation_(forward(node.child[0]), node.value),
+                              forward(node.child[1]));
+    node.backward = operation_(operation_(backward(node.child[1]), node.value),
+                               backward(node.child[0]));
+  }
+  void apply_reverse(int vertex) {
+    if (vertex == -1) return;
+    Node& node = nodes_[vertex];
+    std::swap(node.child[0], node.child[1]);
+    std::swap(node.forward, node.backward);
+    node.reversed = !node.reversed;
+  }
+  void push(int vertex) {
+    if (!nodes_[vertex].reversed) return;
+    apply_reverse(nodes_[vertex].child[0]);
+    apply_reverse(nodes_[vertex].child[1]);
+    nodes_[vertex].reversed = false;
+  }
+  void rotate(int vertex) {
+    int parent = nodes_[vertex].parent;
+    int grandparent = nodes_[parent].parent;
+    int direction = nodes_[parent].child[1] == vertex;
+    int middle = nodes_[vertex].child[direction ^ 1];
+    if (!is_auxiliary_root(parent))
+      nodes_[grandparent].child[nodes_[grandparent].child[1] == parent] = vertex;
+    nodes_[vertex].parent = grandparent;
+    nodes_[vertex].child[direction ^ 1] = parent;
+    nodes_[parent].parent = vertex;
+    nodes_[parent].child[direction] = middle;
+    if (middle != -1) nodes_[middle].parent = parent;
+    pull(parent); pull(vertex);
+  }
+  void splay(int vertex) {
+    std::vector<int> path = {vertex};
+    for (int u = vertex; !is_auxiliary_root(u); u = nodes_[u].parent)
+      path.push_back(nodes_[u].parent);
+    while (!path.empty()) { push(path.back()); path.pop_back(); }
+    while (!is_auxiliary_root(vertex)) {
+      int parent = nodes_[vertex].parent;
+      int grandparent = nodes_[parent].parent;
+      if (!is_auxiliary_root(parent)) {
+        bool zigzag = (nodes_[parent].child[1] == vertex) !=
+                      (nodes_[grandparent].child[1] == parent);
+        rotate(zigzag ? vertex : parent);
+      }
+      rotate(vertex);
+    }
+  }
+  int access(int vertex) {
+    int previous = -1;
+    for (int u = vertex; u != -1; u = nodes_[u].parent) {
+      splay(u);
+      nodes_[u].child[1] = previous;
+      pull(u);
+      previous = u;
+    }
+    splay(vertex);
+    return previous;
+  }
+};

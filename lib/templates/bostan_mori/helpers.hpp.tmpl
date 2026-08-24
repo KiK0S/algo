@@ -1,0 +1,20 @@
+template <typename T, typename Multiply>
+T bostan_mori(std::vector<T> numerator, std::vector<T> denominator,
+              long long index, Multiply multiply) {
+  if (index < 0 || denominator.empty() || denominator[0] == T(0)) return T(0);
+  while (index > 0) {
+    std::vector<T> negated = denominator;
+    for (int i = 1; i < static_cast<int>(negated.size()); i += 2) negated[i] = -negated[i];
+    const std::vector<T> product_p = multiply(numerator, negated);
+    const std::vector<T> product_q = multiply(denominator, negated);
+    std::vector<T> next_p, next_q;
+    for (int i = index & 1; i < static_cast<int>(product_p.size()); i += 2)
+      next_p.push_back(product_p[i]);
+    for (int i = 0; i < static_cast<int>(product_q.size()); i += 2)
+      next_q.push_back(product_q[i]);
+    numerator.swap(next_p);
+    denominator.swap(next_q);
+    index >>= 1;
+  }
+  return numerator.empty() ? T(0) : numerator[0] / denominator[0];
+}

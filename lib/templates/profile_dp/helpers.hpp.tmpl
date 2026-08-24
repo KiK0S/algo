@@ -1,0 +1,29 @@
+inline vector<vector<int>> domino_profile_transitions(int width) {
+    assert(0 <= width && width < 31);
+    vector<vector<int>> transitions(1 << width);
+    for (int occupied = 0; occupied < (1 << width); ++occupied) {
+        auto fill = [&](auto&& self, int position, int next_mask) -> void {
+            while (position < width && (occupied >> position & 1)) ++position;
+            if (position == width) { transitions[occupied].push_back(next_mask); return; }
+            if (position + 1 < width && !(occupied >> (position + 1) & 1))
+                self(self, position + 2, next_mask);
+            self(self, position + 1, next_mask | (1 << position));
+        };
+        fill(fill, 0, 0);
+    }
+    return transitions;
+}
+
+template<class T>
+T count_domino_tilings(int height, int width, T one = T{1}) {
+    if (width > height) swap(width, height);
+    auto transitions = domino_profile_transitions(width);
+    vector<T> dp(1 << width), next(1 << width); dp[0] = one;
+    for (int row = 0; row < height; ++row) {
+        fill(next.begin(), next.end(), T{});
+        for (int mask = 0; mask < (1 << width); ++mask)
+            for (int next_mask : transitions[mask]) next[next_mask] += dp[mask];
+        dp.swap(next);
+    }
+    return dp[0];
+}

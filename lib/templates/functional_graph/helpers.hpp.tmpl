@@ -54,3 +54,52 @@ inline FunctionalGraphDecomposition functional_graph_decomposition(
 	}
 	return result;
 }
+
+class FunctionalGraph {
+ public:
+	explicit FunctionalGraph(const std::vector<int>& successor)
+			: successor_(successor), decomposition_(functional_graph_decomposition(successor)) {
+		const int n = static_cast<int>(successor_.size());
+		jump_.assign(64, std::vector<int>(n));
+		if (n == 0) return;
+		jump_[0] = successor_;
+		for (int level = 1; level < 64; ++level) {
+			for (int vertex = 0; vertex < n; ++vertex) {
+				jump_[level][vertex] = jump_[level - 1][jump_[level - 1][vertex]];
+			}
+		}
+	}
+
+	int jump(int vertex, unsigned long long steps) const {
+		for (int level = 0; level < 64; ++level) {
+			if ((steps >> level) & 1ULL) vertex = jump_[level][vertex];
+		}
+		return vertex;
+	}
+
+	long long distance_if_reachable(int from, int to) const {
+		if (decomposition_.cycle_id[from] != decomposition_.cycle_id[to]) return -1;
+		const int from_depth = decomposition_.distance_to_cycle[from];
+		const int to_depth = decomposition_.distance_to_cycle[to];
+		if (to_depth > 0) {
+			if (from_depth < to_depth) return -1;
+			const int difference = from_depth - to_depth;
+			return jump(from, difference) == to ? difference : -1;
+		}
+		const int entry = jump(from, from_depth);
+		const int cycle_id = decomposition_.cycle_id[to];
+		const int cycle_size = static_cast<int>(decomposition_.cycles[cycle_id].size());
+		int around = decomposition_.cycle_position[to] -
+			decomposition_.cycle_position[entry];
+		if (around < 0) around += cycle_size;
+		return static_cast<long long>(from_depth) + around;
+	}
+
+	const FunctionalGraphDecomposition& decomposition() const { return decomposition_; }
+	const std::vector<int>& successor() const { return successor_; }
+
+ private:
+	std::vector<int> successor_;
+	FunctionalGraphDecomposition decomposition_;
+	std::vector<std::vector<int>> jump_;
+};

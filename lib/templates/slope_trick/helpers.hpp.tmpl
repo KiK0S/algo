@@ -1,0 +1,58 @@
+template <typename T = long long>
+class SlopeTrick {
+ public:
+  void add_constant(T value) { minimum_ += value; }
+
+  void add_x_minus_a(T a) {
+    if (!left_.empty() && left_.top() + left_offset_ > a) {
+      const T breakpoint = left_.top() + left_offset_;
+      minimum_ += breakpoint - a;
+      right_.push(breakpoint - right_offset_);
+      left_.pop();
+      left_.push(a - left_offset_);
+    } else right_.push(a - right_offset_);
+  }
+
+  void add_a_minus_x(T a) {
+    if (!right_.empty() && right_.top() + right_offset_ < a) {
+      const T breakpoint = right_.top() + right_offset_;
+      minimum_ += a - breakpoint;
+      left_.push(breakpoint - left_offset_);
+      right_.pop();
+      right_.push(a - right_offset_);
+    } else left_.push(a - left_offset_);
+  }
+
+  void add_absolute(T a) { add_x_minus_a(a); add_a_minus_x(a); }
+  void shift(T delta) { shift(delta, delta); }
+  void shift(T left_delta, T right_delta) {
+    left_offset_ += left_delta;
+    right_offset_ += right_delta;
+  }
+  void clear_left() { left_ = {}; }
+  void clear_right() { right_ = {}; }
+  T minimum() const { return minimum_; }
+  T value_at(T x) const {
+    T result = minimum_;
+    auto left = left_;
+    while (!left.empty()) {
+      result += std::max(T{}, left.top() + left_offset_ - x);
+      left.pop();
+    }
+    auto right = right_;
+    while (!right.empty()) {
+      result += std::max(T{}, x - right.top() - right_offset_);
+      right.pop();
+    }
+    return result;
+  }
+  std::pair<T, T> argmin_interval() const {
+    return {left_.empty() ? std::numeric_limits<T>::lowest() : left_.top() + left_offset_,
+            right_.empty() ? std::numeric_limits<T>::max() : right_.top() + right_offset_};
+  }
+
+ private:
+  std::priority_queue<T> left_;
+  std::priority_queue<T, std::vector<T>, std::greater<T>> right_;
+  T left_offset_{}, right_offset_{}, minimum_{};
+};

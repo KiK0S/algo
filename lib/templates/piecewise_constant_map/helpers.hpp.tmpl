@@ -1,0 +1,78 @@
+template <typename Key, typename Value>
+class PiecewiseConstantMap {
+ public:
+  PiecewiseConstantMap(Key left, Key right, const Value& initial_value)
+      : left_(left), right_(right) {
+    assert(left_ < right_);
+    intervals_[left_] = initial_value;
+    intervals_[right_] = Value{};
+  }
+
+  Value value_at(const Key& position) const {
+    assert(left_ <= position && position < right_);
+    return std::prev(intervals_.upper_bound(position))->second;
+  }
+
+  void assign(const Key& left, const Key& right, const Value& value) {
+    if (left >= right) return;
+    assert(left_ <= left && right <= right_);
+    auto after = split(right);
+    auto first = split(left);
+    intervals_.erase(std::next(first), after);
+    first->second = value;
+    coalesce(first);
+  }
+
+  void add(const Key& left, const Key& right, const Value& delta) {
+    if (left >= right) return;
+    assert(left_ <= left && right <= right_);
+    auto after = split(right);
+    for (auto it = split(left); it != after; ++it) it->second += delta;
+    coalesce_range(left, right);
+  }
+
+  std::vector<std::tuple<Key, Key, Value>> intervals() const {
+    std::vector<std::tuple<Key, Key, Value>> result;
+    for (auto it = intervals_.begin(); std::next(it) != intervals_.end(); ++it) {
+      result.emplace_back(it->first, std::next(it)->first, it->second);
+    }
+    return result;
+  }
+
+ private:
+  Key left_;
+  Key right_;
+  std::map<Key, Value> intervals_;
+
+  typename std::map<Key, Value>::iterator split(const Key& position) {
+    if (position == right_) return intervals_.find(right_);
+    auto it = std::prev(intervals_.upper_bound(position));
+    if (it->first == position) return it;
+    return intervals_.emplace(position, it->second).first;
+  }
+
+  void coalesce(typename std::map<Key, Value>::iterator it) {
+    if (it != intervals_.begin()) {
+      auto previous = std::prev(it);
+      if (previous->second == it->second) {
+        intervals_.erase(it);
+        it = previous;
+      }
+    }
+    auto next = std::next(it);
+    if (next != intervals_.end() && next->first != right_ && next->second == it->second) {
+      intervals_.erase(next);
+    }
+  }
+
+  void coalesce_range(const Key& left, const Key& right) {
+    auto it = intervals_.lower_bound(left);
+    if (it != intervals_.begin()) --it;
+    while (it != intervals_.end() && it->first < right) {
+      auto next = std::next(it);
+      if (next == intervals_.end()) break;
+      if (next->first != right_ && next->second == it->second) intervals_.erase(next);
+      else it = next;
+    }
+  }
+};

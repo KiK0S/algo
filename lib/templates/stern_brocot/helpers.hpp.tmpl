@@ -1,0 +1,22 @@
+struct SternBrocotFraction {
+  long long numerator = 0;
+  long long denominator = 1;
+};
+
+template <typename Compare>
+inline std::pair<SternBrocotFraction, SternBrocotFraction> stern_brocot_unit_interval_bounds(
+    long long max_denominator, Compare&& compare_to_target) {
+  SternBrocotFraction lower{0, 1}, upper{1, 1};
+  if (max_denominator < 1) return {lower, upper};
+  while (true) {
+    const __int128 numerator = (__int128)lower.numerator + upper.numerator;
+    const __int128 denominator = (__int128)lower.denominator + upper.denominator;
+    if (denominator > max_denominator || numerator > std::numeric_limits<long long>::max()) break;
+    SternBrocotFraction middle{static_cast<long long>(numerator), static_cast<long long>(denominator)};
+    const int comparison = compare_to_target(middle.numerator, middle.denominator);
+    if (comparison == 0) return {middle, middle};
+    if (comparison < 0) lower = middle;
+    else upper = middle;
+  }
+  return {lower, upper};
+}

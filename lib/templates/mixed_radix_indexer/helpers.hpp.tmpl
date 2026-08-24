@@ -1,0 +1,95 @@
+class MixedRadixIndexer {
+ public:
+  explicit MixedRadixIndexer(const std::vector<std::size_t>& radices)
+      : radices_(radices), place_values_(radices.size(), 1), state_count_(1), valid_(true) {
+    for (std::size_t i = 0; i < radices_.size(); ++i) {
+      if (radices_[i] == 0 || state_count_ >
+              std::numeric_limits<std::size_t>::max() / radices_[i]) {
+        valid_ = false;
+        state_count_ = 0;
+        return;
+      }
+      place_values_[i] = state_count_;
+      state_count_ *= radices_[i];
+    }
+  }
+
+  bool valid() const { return valid_; }
+  std::size_t dimensions() const { return radices_.size(); }
+  std::size_t state_count() const { return state_count_; }
+
+  bool encode(const std::vector<std::size_t>& digits, std::size_t& state) const {
+    if (!valid_ || digits.size() != radices_.size()) return false;
+    state = 0;
+    for (std::size_t i = 0; i < digits.size(); ++i) {
+      if (digits[i] >= radices_[i]) return false;
+      state += digits[i] * place_values_[i];
+    }
+    return true;
+  }
+
+  std::vector<std::size_t> decode(std::size_t state) const {
+    if (!valid_ || state >= state_count_) return {};
+    std::vector<std::size_t> digits(radices_.size());
+    for (std::size_t i = radices_.size(); i-- > 0;) {
+      digits[i] = (state / place_values_[i]) % radices_[i];
+    }
+    return digits;
+  }
+
+  std::size_t digit(std::size_t state, std::size_t dimension) const {
+    if (!valid_ || state >= state_count_ || dimension >= dimensions()) return 0;
+    return (state / place_values_[dimension]) % radices_[dimension];
+  }
+
+  bool increment(std::size_t state, std::size_t dimension, std::size_t& next) const {
+    if (!valid_ || state >= state_count_ || dimension >= dimensions() ||
+        digit(state, dimension) + 1 == radices_[dimension]) return false;
+    next = state + place_values_[dimension];
+    return true;
+  }
+
+  bool decrement(std::size_t state, std::size_t dimension, std::size_t& next) const {
+    if (!valid_ || state >= state_count_ || dimension >= dimensions() ||
+        digit(state, dimension) == 0) return false;
+    next = state - place_values_[dimension];
+    return true;
+  }
+
+  template <typename Visit>
+  void for_each_state(Visit visit) const {
+    if (!valid_) return;
+    std::vector<std::size_t> digits(radices_.size(), 0);
+    for (std::size_t state = 0; state < state_count_; ++state) {
+      visit(state, digits);
+      for (std::size_t dimension = 0; dimension < digits.size(); ++dimension) {
+        if (++digits[dimension] < radices_[dimension]) break;
+        digits[dimension] = 0;
+      }
+    }
+  }
+
+  template <typename Visit>
+  void for_each_increment(std::size_t state, Visit visit) const {
+    if (!valid_ || state >= state_count_) return;
+    for (std::size_t dimension = 0; dimension < dimensions(); ++dimension) {
+      if (digit(state, dimension) + 1 < radices_[dimension])
+        visit(dimension, state + place_values_[dimension]);
+    }
+  }
+
+  template <typename Visit>
+  void for_each_decrement(std::size_t state, Visit visit) const {
+    if (!valid_ || state >= state_count_) return;
+    for (std::size_t dimension = 0; dimension < dimensions(); ++dimension) {
+      if (digit(state, dimension) > 0)
+        visit(dimension, state - place_values_[dimension]);
+    }
+  }
+
+ private:
+  std::vector<std::size_t> radices_;
+  std::vector<std::size_t> place_values_;
+  std::size_t state_count_;
+  bool valid_;
+};

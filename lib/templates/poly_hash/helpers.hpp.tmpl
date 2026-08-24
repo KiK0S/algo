@@ -103,6 +103,45 @@ class PolyHash {
     return hashes;
   }
 
+  int compare_substrings(int left1, int right1, int left2, int right2) const {
+    normalize_range(left1, right1);
+    normalize_range(left2, right2);
+    const int length1 = right1 - left1;
+    const int length2 = right2 - left2;
+    const int common = common_prefix(left1, left2, std::min(length1, length2));
+    if (common == std::min(length1, length2)) {
+      return (length1 > length2) - (length1 < length2);
+    }
+    return (values_[left1 + common] > values_[left2 + common]) -
+           (values_[left1 + common] < values_[left2 + common]);
+  }
+
+  bool is_periodic(int left, int right, int period) const {
+    normalize_range(left, right);
+    const int length = right - left;
+    if (period <= 0 || period > length || length % period != 0) return false;
+    return period == length ||
+           hash_substring(left, right - period) ==
+               hash_substring(left + period, right);
+  }
+
+  int minimal_period(int left, int right) const {
+    normalize_range(left, right);
+    const int length = right - left;
+    if (length <= 1) return length;
+    std::vector<int> candidates;
+    for (int divisor = 1; 1LL * divisor * divisor <= length; ++divisor) {
+      if (length % divisor != 0) continue;
+      candidates.push_back(divisor);
+      if (divisor * divisor != length) candidates.push_back(length / divisor);
+    }
+    std::sort(candidates.begin(), candidates.end());
+    for (int period : candidates) {
+      if (is_periodic(left, right, period)) return period;
+    }
+    return length;
+  }
+
 {{#if equalFeature}}
   bool equal_substrings(int left1, int right1, int left2, int right2) const {
     if (right1 - left1 != right2 - left2) {
@@ -160,6 +199,7 @@ class PolyHash {
   std::vector<int> prefix2_;
   std::vector<int> power1_;
   std::vector<int> power2_;
+  std::vector<long long> values_;
 {{#if reverseFeature}}
   std::vector<int> reverse_prefix1_;
   std::vector<int> reverse_prefix2_;
@@ -171,6 +211,26 @@ class PolyHash {
       x += mod;
     }
     return static_cast<int>(x);
+  }
+
+  void normalize_range(int& left, int& right) const {
+    left = std::max(0, std::min(left, size()));
+    right = std::max(left, std::min(right, size()));
+  }
+
+  int common_prefix(int left1, int left2, int limit) const {
+    int low = 0;
+    int high = limit;
+    while (low < high) {
+      const int middle = (low + high + 1) / 2;
+      if (hash_substring(left1, left1 + middle) ==
+          hash_substring(left2, left2 + middle)) {
+        low = middle;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return low;
   }
 
   PolyHashValue range_hash(const std::vector<int>& prefix1,
@@ -226,6 +286,8 @@ class PolyHash {
     prefix2_.assign(1, 0);
     power1_.assign(n + 1, 1);
     power2_.assign(n + 1, 1);
+    values_.clear();
+    values_.reserve(n);
 {{#if reverseFeature}}
     reverse_prefix1_.assign(1, 0);
     reverse_prefix2_.assign(1, 0);
@@ -234,6 +296,7 @@ class PolyHash {
     for (int i = 0; i < n; ++i) {
       power1_[i + 1] = static_cast<int>((static_cast<long long>(power1_[i]) * base_mod1_) % POLY_HASH_MOD1);
       power2_[i + 1] = static_cast<int>((static_cast<long long>(power2_[i]) * base_mod2_) % POLY_HASH_MOD2);
+      values_.push_back(static_cast<long long>(values[i]));
       push_prefix_value(static_cast<long long>(values[i]), prefix1_, prefix2_);
     }
 

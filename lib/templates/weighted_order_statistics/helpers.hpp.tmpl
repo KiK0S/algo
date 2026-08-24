@@ -1,0 +1,85 @@
+template <typename Value, typename Sum = long long>
+class WeightedOrderStatistics {
+ public:
+  explicit WeightedOrderStatistics(std::vector<Value> coordinates)
+      : coordinates_(std::move(coordinates)) {
+    std::sort(coordinates_.begin(), coordinates_.end());
+    coordinates_.erase(std::unique(coordinates_.begin(), coordinates_.end()),
+                       coordinates_.end());
+    count_tree_.assign(coordinates_.size() + 1, 0);
+    sum_tree_.assign(coordinates_.size() + 1, Sum(0));
+    frequencies_.assign(coordinates_.size(), 0);
+  }
+
+  bool add(const Value& value, long long count_delta) {
+    const int index = index_of(value);
+    if (index >= static_cast<int>(coordinates_.size()) || coordinates_[index] != value ||
+        count_delta < -frequencies_[index]) {
+      return false;
+    }
+    frequencies_[index] += count_delta;
+    add_fenwick(count_tree_, index, count_delta);
+    add_fenwick(sum_tree_, index, static_cast<Sum>(value) * count_delta);
+    total_count_ += count_delta;
+    total_sum_ += static_cast<Sum>(value) * count_delta;
+    return true;
+  }
+
+  long long size() const { return total_count_; }
+  Sum sum() const { return total_sum_; }
+
+  long long count_less(const Value& value) const {
+    return prefix(count_tree_, index_of(value));
+  }
+
+  Sum sum_less(const Value& value) const { return prefix(sum_tree_, index_of(value)); }
+
+  Value kth(long long order) const {
+    assert(0 <= order && order < total_count_);
+    int index = 0;
+    long long seen = 0;
+    int step = 1;
+    while (step < static_cast<int>(count_tree_.size())) step <<= 1;
+    for (; step > 0; step >>= 1) {
+      const int next = index + step;
+      if (next < static_cast<int>(count_tree_.size()) && seen + count_tree_[next] <= order) {
+        index = next;
+        seen += count_tree_[next];
+      }
+    }
+    return coordinates_[index];
+  }
+
+  Sum sum_k_smallest(long long count) const {
+    count = std::max(0LL, std::min(count, total_count_));
+    if (count == 0) return Sum(0);
+    const Value boundary = kth(count - 1);
+    const long long before_count = count_less(boundary);
+    return sum_less(boundary) + static_cast<Sum>(boundary) * (count - before_count);
+  }
+
+ private:
+  std::vector<Value> coordinates_;
+  std::vector<long long> count_tree_;
+  std::vector<long long> frequencies_;
+  std::vector<Sum> sum_tree_;
+  long long total_count_ = 0;
+  Sum total_sum_ = Sum(0);
+
+  int index_of(const Value& value) const {
+    return static_cast<int>(std::lower_bound(coordinates_.begin(), coordinates_.end(), value) -
+                            coordinates_.begin());
+  }
+
+  template <typename T>
+  static void add_fenwick(std::vector<T>& tree, int index, const T& delta) {
+    for (++index; index < static_cast<int>(tree.size()); index += index & -index) tree[index] += delta;
+  }
+
+  template <typename T>
+  static T prefix(const std::vector<T>& tree, int count) {
+    T result{};
+    for (int index = count; index > 0; index -= index & -index) result += tree[index];
+    return result;
+  }
+};

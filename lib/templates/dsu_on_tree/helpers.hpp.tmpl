@@ -1,0 +1,38 @@
+template <class AddVertex, class RemoveVertex, class AnswerVertex>
+void dsu_on_tree(const std::vector<std::vector<int>>& forest,
+                 AddVertex add_vertex, RemoveVertex remove_vertex,
+                 AnswerVertex answer_vertex) {
+  const int n = static_cast<int>(forest.size());
+  std::vector<int> parent(n, -1), subtree_size(n), heavy(n, -1);
+  std::vector<char> visited(n, false), kept(n, false);
+  std::function<void(int, int)> prepare = [&](int u, int p) {
+    visited[u] = true; parent[u] = p; subtree_size[u] = 1;
+    int best_size = 0;
+    for (int v : forest[u]) if (v != p && !visited[v]) {
+      prepare(v, u);
+      subtree_size[u] += subtree_size[v];
+      if (subtree_size[v] > best_size) { best_size = subtree_size[v]; heavy[u] = v; }
+    }
+  };
+  std::vector<int> roots;
+  for (int root = 0; root < n; ++root) if (!visited[root]) {
+    roots.push_back(root); prepare(root, -1);
+  }
+  auto modify_subtree = [&](int start, auto callback) {
+    std::vector<int> stack = {start};
+    while (!stack.empty()) {
+      int u = stack.back(); stack.pop_back();
+      callback(u);
+      for (int v : forest[u]) if (parent[v] == u && !kept[v]) stack.push_back(v);
+    }
+  };
+  std::function<void(int, bool)> solve = [&](int u, bool keep) {
+    for (int v : forest[u]) if (parent[v] == u && v != heavy[u]) solve(v, false);
+    if (heavy[u] != -1) { solve(heavy[u], true); kept[heavy[u]] = true; }
+    modify_subtree(u, add_vertex);
+    answer_vertex(u);
+    if (heavy[u] != -1) kept[heavy[u]] = false;
+    if (!keep) modify_subtree(u, remove_vertex);
+  };
+  for (int root : roots) solve(root, false);
+}

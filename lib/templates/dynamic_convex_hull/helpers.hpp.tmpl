@@ -1,0 +1,97 @@
+template <typename Integer = long long>
+struct DynamicConvexHull {
+  struct Point { Integer x, y; };
+
+  // Insertions are O(1). The first query after any insertion rebuilds both hulls
+  // in O(n log n); subsequent containment queries are O(log n). Coordinates and
+  // cross products must fit __int128. Duplicate and collinear points are allowed.
+  std::vector<Point> points;
+  mutable std::vector<Point> lower, upper;
+  mutable Integer minimum_y{}, maximum_y{};
+  mutable bool dirty = true;
+
+  static __int128 cross(const Point& origin, const Point& a, const Point& b) {
+    return ((__int128)a.x - origin.x) * ((__int128)b.y - origin.y) -
+           ((__int128)a.y - origin.y) * ((__int128)b.x - origin.x);
+  }
+
+  void insert(Point point) {
+    points.push_back(point); dirty = true;
+    EDULCNI_VIS(edulcni::live::points("dynamic_hull.points", points));
+    EDULCNI_STEP("Dynamic convex hull inserts a point");
+  }
+  void clear() {
+    points.clear(); lower.clear(); upper.clear(); dirty = false;
+    EDULCNI_VIS(edulcni::live::points("dynamic_hull.points", points));
+    EDULCNI_STEP("Dynamic convex hull cleared");
+  }
+
+  void rebuild() const {
+    if (!dirty) return;
+    std::vector<Point> sorted = points;
+    std::sort(sorted.begin(), sorted.end(), [](const Point& a, const Point& b) {
+      return a.x != b.x ? a.x < b.x : a.y < b.y;
+    });
+    sorted.erase(std::unique(sorted.begin(), sorted.end(), [](const Point& a, const Point& b) {
+      return a.x == b.x && a.y == b.y;
+    }), sorted.end());
+    lower.clear(); upper.clear();
+    if (!sorted.empty()) {
+      minimum_y = maximum_y = sorted.front().y;
+      for (const Point& point : sorted) {
+        minimum_y = std::min(minimum_y, point.y);
+        maximum_y = std::max(maximum_y, point.y);
+      }
+    }
+    for (const Point& point : sorted) {
+      while (lower.size() >= 2 && cross(lower[lower.size() - 2], lower.back(), point) <= 0)
+        lower.pop_back();
+      lower.push_back(point);
+    }
+    for (auto iterator = sorted.rbegin(); iterator != sorted.rend(); ++iterator) {
+      while (upper.size() >= 2 && cross(upper[upper.size() - 2], upper.back(), *iterator) <= 0)
+        upper.pop_back();
+      upper.push_back(*iterator);
+    }
+    std::reverse(upper.begin(), upper.end());
+    dirty = false;
+    EDULCNI_VIS(edulcni::live::points("dynamic_hull.input", points));
+    EDULCNI_VIS(edulcni::live::points("dynamic_hull.lower", lower));
+    EDULCNI_VIS(edulcni::live::points("dynamic_hull.upper", upper));
+    EDULCNI_STEP("Dynamic convex hull rebuilt its boundary");
+  }
+
+  std::vector<Point> hull() const {
+    rebuild();
+    if (lower.size() <= 1) return lower;
+    std::vector<Point> result = lower;
+    for (int i = static_cast<int>(upper.size()) - 2; i > 0; --i) result.push_back(upper[i]);
+    return result;
+  }
+
+  bool contains(Point point, bool include_boundary = true) const {
+    rebuild();
+    EDULCNI_VIS(edulcni::live::points(
+        "dynamic_hull.query", std::vector<Point>{point}));
+    if (lower.empty()) {
+      EDULCNI_STEP("Dynamic convex hull rejects a query on an empty hull");
+      return false;
+    }
+    if (lower.size() == 1)
+      return include_boundary && lower[0].x == point.x && lower[0].y == point.y;
+    if (point.x < lower.front().x || point.x > lower.back().x ||
+        point.y < minimum_y || point.y > maximum_y) return false;
+    auto side = [&](const std::vector<Point>& chain) {
+      auto iterator = std::upper_bound(chain.begin(), chain.end(), point.x,
+        [](const Integer& x, const Point& candidate) { return x < candidate.x; });
+      int right = static_cast<int>(iterator - chain.begin());
+      if (right == 0) right = 1;
+      if (right == static_cast<int>(chain.size())) --right;
+      return cross(chain[right - 1], chain[right], point);
+    };
+    const __int128 below_lower = side(lower);
+    const __int128 below_upper = side(upper);
+    return include_boundary ? below_lower >= 0 && below_upper <= 0
+                            : below_lower > 0 && below_upper < 0;
+  }
+};

@@ -1,0 +1,73 @@
+template <typename Int = long long>
+class Rational {
+ public:
+  Rational(Int numerator = 0, Int denominator = 1)
+      : numerator_(numerator), denominator_(denominator) {
+    normalize();
+  }
+
+  Int numerator() const { return numerator_; }
+  Int denominator() const { return denominator_; }
+
+  Rational operator-() const { return Rational(-numerator_, denominator_); }
+
+  Rational& operator+=(const Rational& other) {
+    const Int divisor = std::gcd(denominator_, other.denominator_);
+    numerator_ = numerator_ * (other.denominator_ / divisor) +
+                 other.numerator_ * (denominator_ / divisor);
+    denominator_ *= other.denominator_ / divisor;
+    normalize();
+    return *this;
+  }
+
+  Rational& operator-=(const Rational& other) { return *this += -other; }
+
+  Rational& operator*=(const Rational& other) {
+    const Int first = std::gcd(abs_value(numerator_), other.denominator_);
+    const Int second = std::gcd(abs_value(other.numerator_), denominator_);
+    numerator_ = (numerator_ / first) * (other.numerator_ / second);
+    denominator_ = (denominator_ / second) * (other.denominator_ / first);
+    normalize();
+    return *this;
+  }
+
+  Rational& operator/=(const Rational& other) {
+    assert(other.numerator_ != 0);
+    return *this *= Rational(other.denominator_, other.numerator_);
+  }
+
+  friend Rational operator+(Rational lhs, const Rational& rhs) { return lhs += rhs; }
+  friend Rational operator-(Rational lhs, const Rational& rhs) { return lhs -= rhs; }
+  friend Rational operator*(Rational lhs, const Rational& rhs) { return lhs *= rhs; }
+  friend Rational operator/(Rational lhs, const Rational& rhs) { return lhs /= rhs; }
+
+  friend bool operator==(const Rational& lhs, const Rational& rhs) {
+    return lhs.numerator_ == rhs.numerator_ && lhs.denominator_ == rhs.denominator_;
+  }
+  friend bool operator!=(const Rational& lhs, const Rational& rhs) { return !(lhs == rhs); }
+  friend bool operator<(const Rational& lhs, const Rational& rhs) {
+    return static_cast<Wide>(lhs.numerator_) * rhs.denominator_ <
+           static_cast<Wide>(rhs.numerator_) * lhs.denominator_;
+  }
+  friend bool operator>(const Rational& lhs, const Rational& rhs) { return rhs < lhs; }
+  friend bool operator<=(const Rational& lhs, const Rational& rhs) { return !(rhs < lhs); }
+  friend bool operator>=(const Rational& lhs, const Rational& rhs) { return !(lhs < rhs); }
+
+ private:
+  using Wide = std::conditional_t<(sizeof(Int) < sizeof(long long)), long long, __int128_t>;
+  Int numerator_;
+  Int denominator_;
+
+  static Int abs_value(Int value) { return value < 0 ? -value : value; }
+
+  void normalize() {
+    assert(denominator_ != 0);
+    if (denominator_ < 0) {
+      numerator_ = -numerator_;
+      denominator_ = -denominator_;
+    }
+    const Int divisor = std::gcd(abs_value(numerator_), denominator_);
+    numerator_ /= divisor;
+    denominator_ /= divisor;
+  }
+};

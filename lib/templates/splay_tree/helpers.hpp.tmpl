@@ -1,0 +1,187 @@
+template <class Key, class Compare = std::less<Key>>
+class SplayTree {
+ public:
+  SplayTree() = default;
+  explicit SplayTree(Compare compare) : compare_(std::move(compare)) {}
+  ~SplayTree() { clear(); }
+  SplayTree(const SplayTree&) = delete;
+  SplayTree& operator=(const SplayTree&) = delete;
+
+  int size() const { return node_size(root_); }
+  bool empty() const { return root_ == nullptr; }
+
+  bool contains(const Key& key) {
+    Node* node = find_node(key);
+    return node != nullptr && equal(node->key, key);
+  }
+
+  bool insert(const Key& key) {
+    if (!root_) {
+      root_ = new Node(key);
+      return true;
+    }
+    Node* current = root_;
+    Node* parent = nullptr;
+    while (current) {
+      parent = current;
+      if (equal(key, current->key)) {
+        splay(current);
+        return false;
+      }
+      current = current->child[compare_(current->key, key)];
+    }
+    Node* node = new Node(key);
+    node->parent = parent;
+    parent->child[compare_(parent->key, key)] = node;
+    splay(node);
+    return true;
+  }
+
+  bool erase(const Key& key) {
+    Node* node = find_node(key);
+    if (!node || !equal(node->key, key)) return false;
+    Node* left = node->child[0];
+    Node* right = node->child[1];
+    if (left) left->parent = nullptr;
+    if (right) right->parent = nullptr;
+    delete node;
+    root_ = join(left, right);
+    return true;
+  }
+
+  const Key* lower_bound(const Key& key) {
+    Node* current = root_;
+    Node* answer = nullptr;
+    Node* last = nullptr;
+    while (current) {
+      last = current;
+      if (!compare_(current->key, key)) {
+        answer = current;
+        current = current->child[0];
+      } else {
+        current = current->child[1];
+      }
+    }
+    if (answer) splay(answer);
+    else if (last) splay(last);
+    return answer ? &answer->key : nullptr;
+  }
+
+  const Key* kth(int index) {
+    if (index < 0 || index >= size()) return nullptr;
+    Node* current = root_;
+    while (true) {
+      int left_size = node_size(current->child[0]);
+      if (index == left_size) {
+        splay(current);
+        return &current->key;
+      }
+      if (index < left_size) current = current->child[0];
+      else {
+        index -= left_size + 1;
+        current = current->child[1];
+      }
+    }
+  }
+
+  int order_of_key(const Key& key) {
+    int result = 0;
+    Node* current = root_;
+    Node* last = nullptr;
+    while (current) {
+      last = current;
+      if (compare_(current->key, key)) {
+        result += node_size(current->child[0]) + 1;
+        current = current->child[1];
+      } else {
+        current = current->child[0];
+      }
+    }
+    if (last) splay(last);
+    return result;
+  }
+
+  void clear() {
+    std::vector<Node*> stack;
+    if (root_) stack.push_back(root_);
+    while (!stack.empty()) {
+      Node* node = stack.back();
+      stack.pop_back();
+      if (node->child[0]) stack.push_back(node->child[0]);
+      if (node->child[1]) stack.push_back(node->child[1]);
+      delete node;
+    }
+    root_ = nullptr;
+  }
+
+ private:
+  struct Node {
+    Key key;
+    Node* child[2] = {nullptr, nullptr};
+    Node* parent = nullptr;
+    int size = 1;
+    explicit Node(const Key& key) : key(key) {}
+  };
+
+  Node* root_ = nullptr;
+  Compare compare_;
+
+  static int node_size(Node* node) { return node ? node->size : 0; }
+  static void pull(Node* node) {
+    if (node) node->size = 1 + node_size(node->child[0]) + node_size(node->child[1]);
+  }
+  bool equal(const Key& first, const Key& second) const {
+    return !compare_(first, second) && !compare_(second, first);
+  }
+  void rotate(Node* node) {
+    Node* parent = node->parent;
+    Node* grandparent = parent->parent;
+    int direction = parent->child[1] == node;
+    Node* middle = node->child[direction ^ 1];
+    if (grandparent)
+      grandparent->child[grandparent->child[1] == parent] = node;
+    else
+      root_ = node;
+    node->parent = grandparent;
+    node->child[direction ^ 1] = parent;
+    parent->parent = node;
+    parent->child[direction] = middle;
+    if (middle) middle->parent = parent;
+    pull(parent);
+    pull(node);
+  }
+  void splay(Node* node) {
+    while (node->parent) {
+      Node* parent = node->parent;
+      Node* grandparent = parent->parent;
+      if (grandparent) {
+        bool zigzag = (parent->child[1] == node) !=
+                      (grandparent->child[1] == parent);
+        rotate(zigzag ? node : parent);
+      }
+      rotate(node);
+    }
+  }
+  Node* find_node(const Key& key) {
+    Node* current = root_;
+    Node* last = nullptr;
+    while (current) {
+      last = current;
+      if (equal(key, current->key)) break;
+      current = current->child[compare_(current->key, key)];
+    }
+    if (last) splay(last);
+    return root_;
+  }
+  Node* join(Node* left, Node* right) {
+    if (!left) return right;
+    root_ = left;
+    Node* maximum = left;
+    while (maximum->child[1]) maximum = maximum->child[1];
+    splay(maximum);
+    root_->child[1] = right;
+    if (right) right->parent = root_;
+    pull(root_);
+    return root_;
+  }
+};

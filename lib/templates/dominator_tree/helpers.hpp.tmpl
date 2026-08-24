@@ -1,0 +1,84 @@
+struct DominatorTreeResult {
+  std::vector<int> immediate_dominator;
+  std::vector<std::vector<int>> tree;
+};
+
+inline DominatorTreeResult dominator_tree(
+    const std::vector<std::vector<int>>& graph, int source) {
+  const int n = static_cast<int>(graph.size());
+  DominatorTreeResult result;
+  result.immediate_dominator.assign(n, -1);
+  result.tree.assign(n, {});
+  if (source < 0 || source >= n) return result;
+  EDULCNI_VIS(edulcni::live::graph("dominator.input", graph));
+  EDULCNI_VIS(edulcni::live::value("dominator.source", source));
+
+  std::vector<int> order(n, -1), vertex(1), parent(1);
+  std::vector<std::pair<int, int>> stack{ {source, 0} };
+  order[source] = 0;
+  vertex.push_back(source);
+  parent.push_back(0);
+  while (!stack.empty()) {
+    int v = stack.back().first;
+    int& edge = stack.back().second;
+    if (edge == static_cast<int>(graph[v].size())) {
+      stack.pop_back();
+      continue;
+    }
+    int to = graph[v][edge++];
+    if (order[to] != -1) continue;
+    order[to] = static_cast<int>(vertex.size()) - 1;
+    vertex.push_back(to);
+    parent.push_back(order[v] + 1);
+    stack.push_back({to, 0});
+  }
+  const int reachable = static_cast<int>(vertex.size()) - 1;
+  EDULCNI_VIS(edulcni::live::array("dominator.dfs_order", vertex));
+  EDULCNI_VIS(edulcni::live::value("dominator.reachable", reachable));
+  EDULCNI_STEP("Dominator tree numbers reachable vertices");
+  std::vector<std::vector<int>> reverse(reachable + 1), bucket(reachable + 1);
+  for (int v = 0; v < n; ++v) if (order[v] != -1)
+    for (int to : graph[v]) if (order[to] != -1)
+      reverse[order[to] + 1].push_back(order[v] + 1);
+  std::vector<int> semi(reachable + 1), label(reachable + 1), ancestor(reachable + 1), idom(reachable + 1);
+  std::iota(semi.begin(), semi.end(), 0);
+  std::iota(label.begin(), label.end(), 0);
+  std::function<void(int)> compress = [&](int v) {
+    if (ancestor[ancestor[v]] != 0) {
+      compress(ancestor[v]);
+      if (semi[label[ancestor[v]]] < semi[label[v]]) label[v] = label[ancestor[v]];
+      ancestor[v] = ancestor[ancestor[v]];
+    }
+  };
+  auto eval = [&](int v) {
+    if (ancestor[v] == 0) return label[v];
+    compress(v);
+    return semi[label[ancestor[v]]] < semi[label[v]] ? label[ancestor[v]] : label[v];
+  };
+  for (int w = reachable; w >= 2; --w) {
+    for (int v : reverse[w]) semi[w] = std::min(semi[w], semi[eval(v)]);
+    bucket[semi[w]].push_back(w);
+    ancestor[w] = parent[w];
+    for (int v : bucket[parent[w]]) {
+      int u = eval(v);
+      idom[v] = semi[u] < semi[v] ? u : parent[w];
+    }
+    bucket[parent[w]].clear();
+    EDULCNI_VIS(edulcni::live::array("dominator.semidominator", semi));
+    EDULCNI_VIS(edulcni::live::value("dominator.processing_order", w));
+    EDULCNI_STEP("Dominator tree resolves a semidominator");
+  }
+  for (int w = 2; w <= reachable; ++w)
+    if (idom[w] != semi[w]) idom[w] = idom[idom[w]];
+  result.immediate_dominator[source] = source;
+  for (int i = 2; i <= reachable; ++i) {
+    int v = vertex[i], p = vertex[idom[i]];
+    result.immediate_dominator[v] = p;
+    result.tree[p].push_back(v);
+  }
+  EDULCNI_VIS(edulcni::live::array(
+      "dominator.immediate_dominator", result.immediate_dominator));
+  EDULCNI_VIS(edulcni::live::graph("dominator.tree", result.tree));
+  EDULCNI_STEP("Dominator tree is ready");
+  return result;
+}

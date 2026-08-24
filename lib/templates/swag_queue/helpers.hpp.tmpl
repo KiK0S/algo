@@ -1,0 +1,33 @@
+template<class T, class Op>
+struct SwagQueue {
+    struct Item { T value, aggregate; };
+    Op op;
+    vector<Item> front_stack, back_stack;
+
+    explicit SwagQueue(Op op = Op()) : op(op) {}
+    bool empty() const { return front_stack.empty() && back_stack.empty(); }
+    int size() const { return int(front_stack.size() + back_stack.size()); }
+
+    void push(const T& value) {
+        T aggregate = back_stack.empty() ? value : op(back_stack.back().aggregate, value);
+        back_stack.push_back({value, aggregate});
+    }
+
+    void transfer() {
+        if (!front_stack.empty()) return;
+        while (!back_stack.empty()) {
+            T value = back_stack.back().value;
+            back_stack.pop_back();
+            T aggregate = front_stack.empty() ? value : op(value, front_stack.back().aggregate);
+            front_stack.push_back({value, aggregate});
+        }
+    }
+
+    void pop() { transfer(); front_stack.pop_back(); }
+    const T& front() { transfer(); return front_stack.back().value; }
+    T fold() const {
+        if (front_stack.empty()) return back_stack.back().aggregate;
+        if (back_stack.empty()) return front_stack.back().aggregate;
+        return op(front_stack.back().aggregate, back_stack.back().aggregate);
+    }
+};

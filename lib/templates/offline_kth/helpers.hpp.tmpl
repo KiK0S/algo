@@ -1,0 +1,40 @@
+struct OfflineKthQuery { int left, right, k; };
+
+template<class T>
+vector<T> offline_range_kth(const vector<T>& values, const vector<OfflineKthQuery>& queries) {
+    if (queries.empty()) return {};
+    assert(!values.empty());
+    for (auto query : queries)
+        assert(0 <= query.left && query.left < query.right && query.right <= int(values.size()) &&
+               0 <= query.k && query.k < query.right - query.left);
+    vector<T> sorted = values;
+    sort(sorted.begin(), sorted.end());
+    sorted.erase(unique(sorted.begin(), sorted.end()), sorted.end());
+    vector<vector<pair<int, int>>> buckets(sorted.size());
+    for (int i = 0; i < int(values.size()); ++i)
+        buckets[lower_bound(sorted.begin(), sorted.end(), values[i]) - sorted.begin()].push_back({i, 1});
+    vector<int> answer(queries.size()), ids(queries.size()), bit(values.size() + 1);
+    iota(ids.begin(), ids.end(), 0);
+    auto add = [&](int p, int delta) { for (++p; p < int(bit.size()); p += p & -p) bit[p] += delta; };
+    auto prefix = [&](int p) { int result = 0; for (; p > 0; p -= p & -p) result += bit[p]; return result; };
+    vector<int> remaining(queries.size());
+    for (int i = 0; i < int(queries.size()); ++i) remaining[i] = queries[i].k;
+    auto pbs = [&](auto&& self, int lo, int hi, const vector<int>& active) -> void {
+        if (active.empty()) return;
+        if (hi - lo == 1) { for (int id : active) answer[id] = lo; return; }
+        int mid = (lo + hi) / 2;
+        for (int rank = lo; rank < mid; ++rank) for (auto [p, delta] : buckets[rank]) add(p, delta);
+        vector<int> a, b;
+        for (int id : active) {
+            int count = prefix(queries[id].right) - prefix(queries[id].left);
+            if (remaining[id] < count) a.push_back(id);
+            else { remaining[id] -= count; b.push_back(id); }
+        }
+        for (int rank = lo; rank < mid; ++rank) for (auto [p, delta] : buckets[rank]) add(p, -delta);
+        self(self, lo, mid, a); self(self, mid, hi, b);
+    };
+    pbs(pbs, 0, sorted.size(), ids);
+    vector<T> result(queries.size());
+    for (int i = 0; i < int(queries.size()); ++i) result[i] = sorted[answer[i]];
+    return result;
+}

@@ -1,0 +1,89 @@
+struct PlanarEmbeddingPoint {
+  long double x = 0;
+  long double y = 0;
+};
+
+struct PlanarEmbeddingResult {
+  std::vector<std::vector<int>> faces;
+  std::vector<int> face_of_half_edge;
+  std::vector<long double> signed_area;
+  int outer_face = -1;
+};
+
+inline PlanarEmbeddingResult planar_embedding_faces(
+    const std::vector<PlanarEmbeddingPoint>& points,
+    const std::vector<std::pair<int, int>>& edges) {
+  const int n = static_cast<int>(points.size());
+  const int half_edges = static_cast<int>(edges.size()) * 2;
+  std::vector<int> from(half_edges);
+  std::vector<int> to(half_edges);
+  std::vector<std::vector<int>> outgoing(n);
+  for (int edge = 0; edge < static_cast<int>(edges.size()); ++edge) {
+    if (edges[edge].first < 0 || edges[edge].first >= n ||
+        edges[edge].second < 0 || edges[edge].second >= n) {
+      return {};
+    }
+    const int first = edge * 2;
+    from[first] = edges[edge].first;
+    to[first] = edges[edge].second;
+    from[first + 1] = edges[edge].second;
+    to[first + 1] = edges[edge].first;
+    outgoing[from[first]].push_back(first);
+    outgoing[from[first + 1]].push_back(first + 1);
+  }
+  auto half = [&](int dart) {
+    const long double dx = points[to[dart]].x - points[from[dart]].x;
+    const long double dy = points[to[dart]].y - points[from[dart]].y;
+    return dy > 0 || (dy == 0 && dx >= 0) ? 0 : 1;
+  };
+  auto angle_less = [&](int first, int second) {
+    const int first_half = half(first);
+    const int second_half = half(second);
+    if (first_half != second_half) return first_half < second_half;
+    const long double ax = points[to[first]].x - points[from[first]].x;
+    const long double ay = points[to[first]].y - points[from[first]].y;
+    const long double bx = points[to[second]].x - points[from[second]].x;
+    const long double by = points[to[second]].y - points[from[second]].y;
+    const long double cross = ax * by - ay * bx;
+    if (cross != 0) return cross > 0;
+    return ax * ax + ay * ay < bx * bx + by * by;
+  };
+  std::vector<int> position(half_edges);
+  for (int vertex = 0; vertex < n; ++vertex) {
+    std::sort(outgoing[vertex].begin(), outgoing[vertex].end(), angle_less);
+    for (int index = 0; index < static_cast<int>(outgoing[vertex].size()); ++index) {
+      position[outgoing[vertex][index]] = index;
+    }
+  }
+
+  PlanarEmbeddingResult result;
+  result.face_of_half_edge.assign(half_edges, -1);
+  for (int start = 0; start < half_edges; ++start) {
+    if (result.face_of_half_edge[start] != -1) continue;
+    const int face_id = static_cast<int>(result.faces.size());
+    std::vector<int> face;
+    long double twice_area = 0;
+    int dart = start;
+    do {
+      result.face_of_half_edge[dart] = face_id;
+      const int vertex = from[dart];
+      const int next_vertex = to[dart];
+      face.push_back(vertex);
+      twice_area += points[vertex].x * points[next_vertex].y -
+                    points[vertex].y * points[next_vertex].x;
+      const int reverse = dart ^ 1;
+      const auto& around = outgoing[next_vertex];
+      dart = around[(position[reverse] + static_cast<int>(around.size()) - 1) %
+                    static_cast<int>(around.size())];
+    } while (dart != start);
+    result.faces.push_back(std::move(face));
+    result.signed_area.push_back(twice_area / 2);
+  }
+  for (int face = 0; face < static_cast<int>(result.faces.size()); ++face) {
+    if (result.outer_face == -1 ||
+        result.signed_area[face] < result.signed_area[result.outer_face]) {
+      result.outer_face = face;
+    }
+  }
+  return result;
+}

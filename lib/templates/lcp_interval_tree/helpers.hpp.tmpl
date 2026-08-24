@@ -1,0 +1,40 @@
+struct LcpIntervalTree {
+  struct Node {
+    int parent = -1;
+    int lcp = 0;
+    int suffix_left = 0;
+    int suffix_right = 0;
+    std::vector<int> children;
+  };
+  std::vector<Node> nodes;
+  int root = 0;
+};
+
+inline LcpIntervalTree lcp_interval_tree(const std::vector<int>& lcp) {
+  LcpIntervalTree tree;
+  tree.nodes.push_back({-1, 0, 0, static_cast<int>(lcp.size()) + 1, {}});
+  std::vector<int> stack(1, 0);
+  for (int boundary = 0; boundary <= static_cast<int>(lcp.size()); ++boundary) {
+    const int value = boundary == static_cast<int>(lcp.size()) ? 0 : lcp[boundary];
+    int last = -1;
+    while (tree.nodes[stack.back()].lcp > value) {
+      last = stack.back();
+      stack.pop_back();
+      tree.nodes[last].suffix_right = boundary + 1;
+    }
+    if (tree.nodes[stack.back()].lcp < value) {
+      const int parent = stack.back();
+      const int node = static_cast<int>(tree.nodes.size());
+      const int left = last == -1 ? boundary : tree.nodes[last].suffix_left;
+      tree.nodes.push_back({parent, value, left, 0, {}});
+      if (last != -1) {
+        tree.nodes[parent].children.pop_back();
+        tree.nodes[last].parent = node;
+        tree.nodes[node].children.push_back(last);
+      }
+      tree.nodes[parent].children.push_back(node);
+      stack.push_back(node);
+    }
+  }
+  return tree;
+}

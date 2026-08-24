@@ -33,6 +33,56 @@ public:
 
 	int size() const { return nodes_[0].count; }
 
+	void insert_prefix(unsigned value, int length) {
+		length = std::max(0, std::min(length, Bits));
+		int node = 0;
+		for (int depth = 0; depth < length; ++depth) {
+			int direction = (value >> (Bits - 1 - depth)) & 1U;
+			if (nodes_[node].child[direction] == -1) {
+				nodes_[node].child[direction] = static_cast<int>(nodes_.size());
+				nodes_.push_back(Node{});
+			}
+			node = nodes_[node].child[direction];
+		}
+		++nodes_[node].prefix_count;
+	}
+
+	bool erase_prefix(unsigned value, int length) {
+		length = std::max(0, std::min(length, Bits));
+		int node = 0;
+		for (int depth = 0; depth < length; ++depth) {
+			int direction = (value >> (Bits - 1 - depth)) & 1U;
+			node = nodes_[node].child[direction];
+			if (node == -1) return false;
+		}
+		if (nodes_[node].prefix_count == 0) return false;
+		--nodes_[node].prefix_count;
+		return true;
+	}
+
+	bool contains_prefix_of(unsigned value) const {
+		int node = 0;
+		if (nodes_[node].prefix_count > 0) return true;
+		for (int bit = Bits - 1; bit >= 0; --bit) {
+			int direction = (value >> bit) & 1U;
+			node = nodes_[node].child[direction];
+			if (node == -1) return false;
+			if (nodes_[node].prefix_count > 0) return true;
+		}
+		return false;
+	}
+
+	int prefix_multiplicity(unsigned value, int length) const {
+		length = std::max(0, std::min(length, Bits));
+		int node = 0;
+		for (int depth = 0; depth < length; ++depth) {
+			int direction = (value >> (Bits - 1 - depth)) & 1U;
+			node = nodes_[node].child[direction];
+			if (node == -1) return 0;
+		}
+		return nodes_[node].prefix_count;
+	}
+
 	unsigned minimum_xor(unsigned value) const {
 		if (size() == 0) return 0;
 		int node = 0;
@@ -53,6 +103,7 @@ private:
 	struct Node {
 		int child[2] = {-1, -1};
 		int count = 0;
+		int prefix_count = 0;
 	};
 	std::vector<Node> nodes_;
 };

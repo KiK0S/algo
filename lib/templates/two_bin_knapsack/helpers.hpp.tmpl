@@ -1,0 +1,15 @@
+template <std::size_t Capacity, typename Range>
+std::vector<std::bitset<Capacity + 1>> two_bin_knapsack(const Range& weights) {
+  std::vector<std::bitset<Capacity + 1>> reachable(Capacity + 1);
+  reachable[0][0] = true;
+  for (auto raw_weight : weights) {
+    if (raw_weight < 0 || static_cast<std::size_t>(raw_weight) > Capacity) continue;
+    const std::size_t weight = static_cast<std::size_t>(raw_weight);
+    for (std::size_t first = Capacity + 1; first-- > 0;) {
+      const auto previous = reachable[first];
+      reachable[first] |= previous << weight;
+      if (first + weight <= Capacity) reachable[first + weight] |= previous;
+    }
+  }
+  return reachable;
+}

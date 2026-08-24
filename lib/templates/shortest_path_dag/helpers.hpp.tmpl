@@ -1,0 +1,55 @@
+template <typename Distance = long long>
+struct ShortestPathDagResult {
+  std::vector<Distance> distance;
+  std::vector<std::vector<int>> dag;
+  std::vector<std::vector<int>> reverse_dag;
+};
+
+template <typename Distance = long long>
+inline ShortestPathDagResult<Distance> shortest_path_dag(
+    const std::vector<std::vector<std::pair<int, Distance>>>& graph,
+    int source,
+    Distance infinity = std::numeric_limits<Distance>::max() / 4) {
+  const int n = static_cast<int>(graph.size());
+  ShortestPathDagResult<Distance> result;
+  result.distance.assign(n, infinity);
+  result.dag.assign(n, {});
+  result.reverse_dag.assign(n, {});
+  if (source < 0 || source >= n) return result;
+  using QueueItem = std::pair<Distance, int>;
+  std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<QueueItem>> queue;
+  result.distance[source] = 0;
+  queue.push({0, source});
+  while (!queue.empty()) {
+    const auto [distance, vertex] = queue.top();
+    queue.pop();
+    if (distance != result.distance[vertex]) continue;
+    for (const auto& [next, weight] : graph[vertex]) {
+      if (next < 0 || next >= n) continue;
+      if constexpr (std::is_signed_v<Distance>) {
+        if (weight < 0) continue;
+      }
+      if (weight > infinity || distance > infinity - weight) continue;
+      const Distance candidate = distance + weight;
+      if (result.distance[next] > candidate) {
+        result.distance[next] = candidate;
+        queue.push({result.distance[next], next});
+      }
+    }
+  }
+  for (int vertex = 0; vertex < n; ++vertex) {
+    if (result.distance[vertex] == infinity) continue;
+    for (const auto& [next, weight] : graph[vertex]) {
+      if (next < 0 || next >= n) continue;
+      if constexpr (std::is_signed_v<Distance>) {
+        if (weight < 0) continue;
+      }
+      if (weight <= infinity && result.distance[vertex] <= infinity - weight &&
+          result.distance[next] == result.distance[vertex] + weight) {
+        result.dag[vertex].push_back(next);
+        result.reverse_dag[next].push_back(vertex);
+      }
+    }
+  }
+  return result;
+}

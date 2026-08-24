@@ -1,0 +1,191 @@
+template <class Value, class Operation>
+class EulerTourTree {
+ public:
+  // Operation must be associative and commutative: rerooting rotates a tour.
+  // Operations take expected O(log n); allocated memory is O(n).
+  EulerTourTree(const std::vector<Value>& values, Value identity, Operation operation)
+      : identity_(identity), operation_(operation), markers_(values.size()) {
+    for (int vertex = 0; vertex < (int)values.size(); ++vertex)
+      markers_[vertex] = make_node(values[vertex], true);
+  }
+  ~EulerTourTree() {
+    for (Node* node : allocated_) delete node;
+  }
+  EulerTourTree(const EulerTourTree&) = delete;
+  EulerTourTree& operator=(const EulerTourTree&) = delete;
+
+  bool connected(int first, int second) const {
+    return root(markers_[first]) == root(markers_[second]);
+  }
+  int component_size(int vertex) const { return root(markers_[vertex])->marker_count; }
+  Value component_fold(int vertex) const { return root(markers_[vertex])->aggregate; }
+
+  void set_value(int vertex, const Value& value) {
+    Node* node = markers_[vertex];
+    node->value = value;
+    for (; node; node = node->parent) pull(node);
+  }
+
+  bool link(int first, int second) {
+    if (first == second || connected(first, second)) return false;
+    Node* first_tour = reroot(markers_[first]);
+    Node* second_tour = reroot(markers_[second]);
+    Node* forward = make_edge_node();
+    Node* backward = make_edge_node();
+    edge_nodes_[edge_key(first, second)] = {forward, backward};
+    merge(merge(merge(first_tour, forward), second_tour), backward);
+    return true;
+  }
+
+  bool cut(int first, int second) {
+    auto iterator = edge_nodes_.find(edge_key(first, second));
+    if (iterator == edge_nodes_.end()) return false;
+    Node* first_edge = iterator->second.first;
+    Node* second_edge = iterator->second.second;
+    int first_position = index(first_edge);
+    int second_position = index(second_edge);
+    if (first_position > second_position) {
+      std::swap(first_position, second_position);
+      std::swap(first_edge, second_edge);
+    }
+    Node* tour = root(first_edge);
+    auto [prefix, from_first] = split(tour, first_position);
+    auto [discard_first, from_middle] = split(from_first, 1);
+    auto [middle, from_second] = split(from_middle, second_position - first_position - 1);
+    auto [discard_second, suffix] = split(from_second, 1);
+    merge(suffix, prefix);
+    release_edge_node(discard_first);
+    release_edge_node(discard_second);
+    edge_nodes_.erase(iterator);
+    return true;
+  }
+
+ private:
+  struct Node {
+    Node* child[2] = {nullptr, nullptr};
+    Node* parent = nullptr;
+    unsigned priority;
+    int size = 1;
+    int marker_count;
+    bool value_marker;
+    Value value;
+    Value aggregate;
+    Node(const Value& value, bool marker, unsigned priority)
+        : priority(priority), marker_count(marker), value_marker(marker), value(value),
+          aggregate(value) {}
+  };
+
+  Value identity_;
+  Operation operation_;
+  std::vector<Node*> markers_;
+  std::vector<Node*> allocated_;
+  std::vector<Node*> free_edge_nodes_;
+  std::map<std::pair<int, int>, std::pair<Node*, Node*>> edge_nodes_;
+  unsigned random_state_ = 0x9e3779b9U;
+
+  static int size(Node* node) { return node ? node->size : 0; }
+  static int marker_count(Node* node) { return node ? node->marker_count : 0; }
+  Value aggregate(Node* node) const { return node ? node->aggregate : identity_; }
+  void pull(Node* node) {
+    if (!node) return;
+    node->size = 1 + size(node->child[0]) + size(node->child[1]);
+    node->marker_count = (node->value_marker ? 1 : 0) +
+                         marker_count(node->child[0]) +
+                         marker_count(node->child[1]);
+    Value own = node->value_marker ? node->value : identity_;
+    node->aggregate = operation_(operation_(aggregate(node->child[0]), own),
+                                 aggregate(node->child[1]));
+  }
+  unsigned next_priority() {
+    random_state_ ^= random_state_ << 13;
+    random_state_ ^= random_state_ >> 17;
+    random_state_ ^= random_state_ << 5;
+    return random_state_;
+  }
+  Node* make_node(const Value& value, bool marker) {
+    Node* node = new Node(value, marker, next_priority());
+    if (!marker) node->aggregate = identity_;
+    allocated_.push_back(node);
+    return node;
+  }
+  Node* make_edge_node() {
+    if (free_edge_nodes_.empty()) return make_node(identity_, false);
+    Node* node = free_edge_nodes_.back();
+    free_edge_nodes_.pop_back();
+    node->child[0] = node->child[1] = nullptr;
+    node->parent = nullptr;
+    node->priority = next_priority();
+    node->size = 1;
+    node->marker_count = 0;
+    node->value_marker = false;
+    node->value = identity_;
+    node->aggregate = identity_;
+    return node;
+  }
+  void release_edge_node(Node* node) {
+    assert(node && !node->child[0] && !node->child[1] && !node->parent);
+    free_edge_nodes_.push_back(node);
+  }
+  static std::pair<int, int> edge_key(int first, int second) {
+    if (first > second) std::swap(first, second);
+    return {first, second};
+  }
+  static Node* root(Node* node) {
+    while (node->parent) node = node->parent;
+    return node;
+  }
+  static int index(Node* node) {
+    int result = size(node->child[0]);
+    while (node->parent) {
+      if (node == node->parent->child[1])
+        result += 1 + size(node->parent->child[0]);
+      node = node->parent;
+    }
+    return result;
+  }
+  Node* merge(Node* left, Node* right) {
+    if (!left) {
+      if (right) right->parent = nullptr;
+      return right;
+    }
+    if (!right) {
+      left->parent = nullptr;
+      return left;
+    }
+    if (left->priority > right->priority) {
+      left->child[1] = merge(left->child[1], right);
+      left->child[1]->parent = left;
+      left->parent = nullptr;
+      pull(left);
+      return left;
+    }
+    right->child[0] = merge(left, right->child[0]);
+    right->child[0]->parent = right;
+    right->parent = nullptr;
+    pull(right);
+    return right;
+  }
+  std::pair<Node*, Node*> split(Node* node, int left_size) {
+    if (!node) return {nullptr, nullptr};
+    if (size(node->child[0]) >= left_size) {
+      auto [left, middle] = split(node->child[0], left_size);
+      node->child[0] = middle;
+      if (middle) middle->parent = node;
+      node->parent = nullptr;
+      pull(node);
+      return {left, node};
+    }
+    auto [middle, right] = split(
+        node->child[1], left_size - size(node->child[0]) - 1);
+    node->child[1] = middle;
+    if (middle) middle->parent = node;
+    node->parent = nullptr;
+    pull(node);
+    return {node, right};
+  }
+  Node* reroot(Node* marker) {
+    Node* tour = root(marker);
+    auto [prefix, suffix] = split(tour, index(marker));
+    return merge(suffix, prefix);
+  }
+};

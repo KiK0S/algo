@@ -18,19 +18,23 @@ class ConsecutiveSet {
     if (has_left && has_right) {
       const T begin = left->first;
       const T end = right->second;
+	  remove_length(*left);
+	  remove_length(*right);
       segments_.erase(left);
       segments_.erase(right);
-      segments_.insert({begin, end});
+	  add_segment({begin, end});
     } else if (has_left) {
       const T begin = left->first;
+	  remove_length(*left);
       segments_.erase(left);
-      segments_.insert({begin, value});
+	  add_segment({begin, value});
     } else if (has_right) {
       const T end = right->second;
+	  remove_length(*right);
       segments_.erase(right);
-      segments_.insert({value, end});
+	  add_segment({value, end});
     } else {
-      segments_.insert({value, value});
+	  add_segment({value, value});
     }
     ++size_;
     return true;
@@ -40,9 +44,10 @@ class ConsecutiveSet {
     auto segment = contains(value);
     if (!segment) return false;
 
+	remove_length(*segment);
     segments_.erase(*segment);
-    if (segment->first < value) segments_.insert({segment->first, value - 1});
-    if (value < segment->second) segments_.insert({value + 1, segment->second});
+    if (segment->first < value) add_segment({segment->first, value - 1});
+    if (value < segment->second) add_segment({value + 1, segment->second});
     --size_;
     return true;
   }
@@ -59,9 +64,30 @@ class ConsecutiveSet {
   int size() const { return size_; }
   bool empty() const { return size_ == 0; }
   int segment_count() const { return static_cast<int>(segments_.size()); }
+	T longest_segment() const {
+	  return length_frequency_.empty() ? T(0) : length_frequency_.rbegin()->first;
+	}
+	int segments_of_length(T length) const {
+	  auto iterator = length_frequency_.find(length);
+	  return iterator == length_frequency_.end() ? 0 : iterator->second;
+	}
+	const std::map<T, int>& length_frequencies() const { return length_frequency_; }
   const std::set<Segment>& segments() const { return segments_; }
 
  private:
   std::set<Segment> segments_;
+	std::map<T, int> length_frequency_;
   int size_ = 0;
+
+	static T segment_length(const Segment& segment) {
+	  return segment.second - segment.first + 1;
+	}
+	void add_segment(const Segment& segment) {
+	  segments_.insert(segment);
+	  ++length_frequency_[segment_length(segment)];
+	}
+	void remove_length(const Segment& segment) {
+	  auto iterator = length_frequency_.find(segment_length(segment));
+	  if (--iterator->second == 0) length_frequency_.erase(iterator);
+	}
 };

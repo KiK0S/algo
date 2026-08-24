@@ -1,0 +1,103 @@
+template <typename Int>
+struct ExactPoint {
+  Int x{};
+  Int y{};
+};
+
+template <typename Wide>
+struct ExactRationalPoint {
+  Wide x_numerator{};
+  Wide y_numerator{};
+  Wide denominator{1};
+};
+
+enum class ExactSegmentIntersectionType { none, point, overlap };
+
+template <typename Int>
+struct ExactSegmentIntersectionResult {
+  using Wide = std::conditional_t<(sizeof(Int) < sizeof(long long)), long long,
+                                  __int128_t>;
+  ExactSegmentIntersectionType type = ExactSegmentIntersectionType::none;
+  ExactRationalPoint<Wide> first;
+  ExactRationalPoint<Wide> second;
+};
+
+template <typename Int>
+ExactSegmentIntersectionResult<Int> exact_segment_intersection(
+    ExactPoint<Int> a, ExactPoint<Int> b, ExactPoint<Int> c, ExactPoint<Int> d) {
+  using Result = ExactSegmentIntersectionResult<Int>;
+  using Wide = typename Result::Wide;
+  auto cross = [](ExactPoint<Int> origin, ExactPoint<Int> first,
+                  ExactPoint<Int> second) {
+    return (static_cast<Wide>(first.x) - origin.x) *
+               (static_cast<Wide>(second.y) - origin.y) -
+           (static_cast<Wide>(first.y) - origin.y) *
+               (static_cast<Wide>(second.x) - origin.x);
+  };
+  auto sign = [](Wide value) { return (Wide(0) < value) - (value < Wide(0)); };
+  auto ordered = [](ExactPoint<Int> lhs, ExactPoint<Int> rhs) {
+    return lhs.x < rhs.x || (lhs.x == rhs.x && lhs.y < rhs.y);
+  };
+  auto on_segment = [&](ExactPoint<Int> first, ExactPoint<Int> second,
+                        ExactPoint<Int> point) {
+    return cross(first, second, point) == 0 &&
+           std::min(first.x, second.x) <= point.x &&
+           point.x <= std::max(first.x, second.x) &&
+           std::min(first.y, second.y) <= point.y &&
+           point.y <= std::max(first.y, second.y);
+  };
+  auto integral_point = [](ExactPoint<Int> point) {
+    return ExactRationalPoint<Wide>{static_cast<Wide>(point.x),
+                                    static_cast<Wide>(point.y), Wide(1)};
+  };
+
+  const Wide ab_c = cross(a, b, c);
+  const Wide ab_d = cross(a, b, d);
+  const Wide cd_a = cross(c, d, a);
+  const Wide cd_b = cross(c, d, b);
+  if (ab_c == 0 && ab_d == 0 && cd_a == 0 && cd_b == 0) {
+    if (ordered(b, a)) std::swap(a, b);
+    if (ordered(d, c)) std::swap(c, d);
+    const ExactPoint<Int> left = ordered(a, c) ? c : a;
+    const ExactPoint<Int> right = ordered(b, d) ? b : d;
+    if (ordered(right, left)) return {};
+    if (left.x == right.x && left.y == right.y) {
+      return {ExactSegmentIntersectionType::point, integral_point(left), {}};
+    }
+    return {ExactSegmentIntersectionType::overlap, integral_point(left),
+            integral_point(right)};
+  }
+  if (sign(ab_c) * sign(ab_d) > 0 || sign(cd_a) * sign(cd_b) > 0) return {};
+
+  const Wide ab_x = static_cast<Wide>(b.x) - a.x;
+  const Wide ab_y = static_cast<Wide>(b.y) - a.y;
+  const Wide cd_x = static_cast<Wide>(d.x) - c.x;
+  const Wide cd_y = static_cast<Wide>(d.y) - c.y;
+  Wide denominator = ab_x * cd_y - ab_y * cd_x;
+  Wide parameter = (static_cast<Wide>(c.x) - a.x) * cd_y -
+                   (static_cast<Wide>(c.y) - a.y) * cd_x;
+  Wide x_numerator = static_cast<Wide>(a.x) * denominator + ab_x * parameter;
+  Wide y_numerator = static_cast<Wide>(a.y) * denominator + ab_y * parameter;
+  if (denominator < 0) {
+    denominator = -denominator;
+    x_numerator = -x_numerator;
+    y_numerator = -y_numerator;
+  }
+  auto abs_wide = [](Wide value) { return value < 0 ? -value : value; };
+  auto gcd_wide = [&](Wide lhs, Wide rhs) {
+    lhs = abs_wide(lhs);
+    rhs = abs_wide(rhs);
+    while (rhs != 0) {
+      const Wide remainder = lhs % rhs;
+      lhs = rhs;
+      rhs = remainder;
+    }
+    return lhs;
+  };
+  const Wide divisor = gcd_wide(gcd_wide(x_numerator, y_numerator), denominator);
+  x_numerator /= divisor;
+  y_numerator /= divisor;
+  denominator /= divisor;
+  return {ExactSegmentIntersectionType::point,
+          {x_numerator, y_numerator, denominator}, {}};
+}

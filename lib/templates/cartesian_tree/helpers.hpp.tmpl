@@ -1,0 +1,27 @@
+template <typename T, typename Compare = std::less<T>>
+struct CartesianTree {
+  std::vector<int> parent, left, right;
+  int root = -1;
+
+  explicit CartesianTree(const std::vector<T>& values, Compare compare = Compare())
+      : parent(values.size(), -1), left(values.size(), -1), right(values.size(), -1) {
+    std::vector<int> stack;
+    for (int i = 0; i < static_cast<int>(values.size()); ++i) {
+      int detached = -1;
+      while (!stack.empty() && compare(values[i], values[stack.back()])) {
+        detached = stack.back();
+        stack.pop_back();
+      }
+      if (!stack.empty()) {
+        parent[i] = stack.back();
+        right[stack.back()] = i;
+      }
+      if (detached != -1) {
+        parent[detached] = i;
+        left[i] = detached;
+      }
+      stack.push_back(i);
+    }
+    if (!stack.empty()) root = stack.front();
+  }
+};

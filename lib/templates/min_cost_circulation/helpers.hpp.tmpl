@@ -1,0 +1,149 @@
+template <class Capacity, class Cost>
+class MinCostCirculation {
+ public:
+  struct Edge { int from, to; Capacity lower, upper; Cost cost; };
+  struct Result { bool feasible; Cost cost; std::vector<Capacity> flow; };
+
+  explicit MinCostCirculation(int vertex_count)
+      : vertex_count_(vertex_count), demand_(vertex_count, Capacity{}) {}
+
+  int add_edge(int from, int to, Capacity lower, Capacity upper, Cost cost) {
+    edges_.push_back({from, to, lower, upper, cost});
+    return static_cast<int>(edges_.size()) - 1;
+  }
+  void add_demand(int vertex, Capacity required_net_inflow) {
+    demand_[vertex] += required_net_inflow;
+  }
+
+  Result solve() {
+    const int source = vertex_count_, sink = source + 1;
+    graph_.assign(vertex_count_ + 2, {});
+    positions_.clear();
+    std::vector<Capacity> balance(vertex_count_);
+    for (int vertex = 0; vertex < vertex_count_; ++vertex) balance[vertex] = -demand_[vertex];
+    for (const Edge& edge : edges_) {
+      if (edge.from < 0 || edge.from >= vertex_count_ || edge.to < 0 ||
+          edge.to >= vertex_count_ || edge.lower < Capacity{} || edge.upper < edge.lower)
+        return {false, Cost{}, {}};
+      positions_.push_back(add_residual(edge.from, edge.to, edge.upper - edge.lower, edge.cost));
+      balance[edge.from] -= edge.lower;
+      balance[edge.to] += edge.lower;
+    }
+    std::vector<std::pair<int, int>> auxiliary;
+    Capacity required{}, sink_capacity{};
+    for (int vertex = 0; vertex < vertex_count_; ++vertex) {
+      if (balance[vertex] > Capacity{}) {
+        auxiliary.push_back(add_residual(source, vertex, balance[vertex], Cost{}));
+        required += balance[vertex];
+      } else if (balance[vertex] < Capacity{}) {
+        auxiliary.push_back(add_residual(vertex, sink, -balance[vertex], Cost{}));
+        sink_capacity += -balance[vertex];
+      }
+    }
+    if (required != sink_capacity || max_flow(source, sink) != required)
+      return {false, Cost{}, {}};
+    for (auto [from, index] : auxiliary) {
+      ResidualEdge& edge = graph_[from][index];
+      graph_[edge.to][edge.reverse].capacity = Capacity{};
+      edge.capacity = Capacity{};
+    }
+    cancel_negative_cycles(vertex_count_);
+    Result result{true, Cost{}, {}};
+    result.flow.reserve(edges_.size());
+    for (int id = 0; id < static_cast<int>(edges_.size()); ++id) {
+      auto [from, index] = positions_[id];
+      Capacity flow = edges_[id].upper - graph_[from][index].capacity;
+      result.flow.push_back(flow);
+      result.cost += static_cast<Cost>(flow) * edges_[id].cost;
+    }
+    return result;
+  }
+
+ private:
+  struct ResidualEdge { int to, reverse; Capacity capacity; Cost cost; };
+  int vertex_count_;
+  std::vector<Capacity> demand_;
+  std::vector<Edge> edges_;
+  std::vector<std::vector<ResidualEdge>> graph_;
+  std::vector<std::pair<int, int>> positions_;
+
+  std::pair<int, int> add_residual(int from, int to, Capacity capacity, Cost cost) {
+    int index = static_cast<int>(graph_[from].size());
+    int reverse = static_cast<int>(graph_[to].size());
+    graph_[from].push_back({to, reverse, capacity, cost});
+    graph_[to].push_back({from, index, Capacity{}, -cost});
+    return {from, index};
+  }
+  Capacity max_flow(int source, int sink) {
+    Capacity total{};
+    std::vector<int> level(graph_.size()), next(graph_.size());
+    while (true) {
+      std::fill(level.begin(), level.end(), -1);
+      std::vector<int> queue = {source}; level[source] = 0;
+      for (int begin = 0; begin < static_cast<int>(queue.size()); ++begin) {
+        int u = queue[begin];
+        for (const auto& edge : graph_[u])
+          if (edge.capacity > Capacity{} && level[edge.to] == -1) {
+            level[edge.to] = level[u] + 1; queue.push_back(edge.to);
+          }
+      }
+      if (level[sink] == -1) return total;
+      std::fill(next.begin(), next.end(), 0);
+      std::function<Capacity(int, Capacity)> send = [&](int u, Capacity pushed) {
+        if (u == sink) return pushed;
+        for (int& index = next[u]; index < static_cast<int>(graph_[u].size()); ++index) {
+          ResidualEdge& edge = graph_[u][index];
+          if (edge.capacity <= Capacity{} || level[edge.to] != level[u] + 1) continue;
+          Capacity sent = send(edge.to, std::min(pushed, edge.capacity));
+          if (sent > Capacity{}) {
+            edge.capacity -= sent;
+            graph_[edge.to][edge.reverse].capacity += sent;
+            return sent;
+          }
+        }
+        return Capacity{};
+      };
+      while (Capacity pushed = send(source, std::numeric_limits<Capacity>::max())) total += pushed;
+    }
+  }
+  void cancel_negative_cycles(int vertices) {
+    while (true) {
+      std::vector<Cost> distance(vertices, Cost{});
+      std::vector<std::pair<int, int>> previous(vertices, {-1, -1});
+      int changed = -1;
+      for (int iteration = 0; iteration < vertices; ++iteration) {
+        changed = -1;
+        for (int from = 0; from < vertices; ++from) {
+          for (int index = 0; index < static_cast<int>(graph_[from].size()); ++index) {
+            const ResidualEdge& edge = graph_[from][index];
+            if (edge.to >= vertices || edge.capacity <= Capacity{}) continue;
+            if (distance[edge.to] > distance[from] + edge.cost) {
+              distance[edge.to] = distance[from] + edge.cost;
+              previous[edge.to] = {from, index};
+              changed = edge.to;
+            }
+          }
+        }
+        if (changed == -1) break;
+      }
+      if (changed == -1) return;
+      int vertex = changed;
+      for (int step = 0; step < vertices; ++step) vertex = previous[vertex].first;
+      int start = vertex;
+      Capacity amount = std::numeric_limits<Capacity>::max();
+      do {
+        auto [from, index] = previous[vertex];
+        amount = std::min(amount, graph_[from][index].capacity);
+        vertex = from;
+      } while (vertex != start);
+      vertex = start;
+      do {
+        auto [from, index] = previous[vertex];
+        ResidualEdge& edge = graph_[from][index];
+        edge.capacity -= amount;
+        graph_[edge.to][edge.reverse].capacity += amount;
+        vertex = from;
+      } while (vertex != start);
+    }
+  }
+};

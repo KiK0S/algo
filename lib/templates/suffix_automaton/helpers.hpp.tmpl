@@ -1,0 +1,110 @@
+template <typename Symbol = char>
+class SuffixAutomaton {
+ public:
+  struct State {
+    int link = -1;
+    int length = 0;
+    long long occurrences = 0;
+    int first_end_position = -1;
+    std::map<Symbol, int> next;
+  };
+
+  SuffixAutomaton() : states_(1), terminal_occurrences_(1), last_(0) {}
+
+  template <typename Range>
+  explicit SuffixAutomaton(const Range& text) : SuffixAutomaton() {
+    for (const Symbol& symbol : text) extend(symbol);
+    propagate_occurrences();
+  }
+
+  int extend(const Symbol& symbol) {
+    occurrences_ready_ = false;
+    const int current = static_cast<int>(states_.size());
+    states_.push_back(State{});
+    terminal_occurrences_.push_back(1);
+    states_[current].length = states_[last_].length + 1;
+    states_[current].first_end_position = states_[current].length - 1;
+    int parent = last_;
+    while (parent != -1 && !states_[parent].next.count(symbol)) {
+      states_[parent].next[symbol] = current;
+      parent = states_[parent].link;
+    }
+    if (parent == -1) {
+      states_[current].link = 0;
+    } else {
+      const int target = states_[parent].next[symbol];
+      if (states_[parent].length + 1 == states_[target].length) {
+        states_[current].link = target;
+      } else {
+        const int clone = static_cast<int>(states_.size());
+        states_.push_back(states_[target]);
+        terminal_occurrences_.push_back(0);
+        states_[clone].length = states_[parent].length + 1;
+        states_[clone].occurrences = 0;
+        while (parent != -1 && states_[parent].next[symbol] == target) {
+          states_[parent].next[symbol] = clone;
+          parent = states_[parent].link;
+        }
+        states_[target].link = states_[current].link = clone;
+      }
+    }
+    return last_ = current;
+  }
+
+  void propagate_occurrences() {
+    for (int state = 0; state < static_cast<int>(states_.size()); ++state)
+      states_[state].occurrences = terminal_occurrences_[state];
+    std::vector<int> order(states_.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](int a, int b) {
+      return states_[a].length > states_[b].length;
+    });
+    for (int state : order) {
+      if (states_[state].link >= 0)
+        states_[states_[state].link].occurrences += states_[state].occurrences;
+    }
+    occurrences_ready_ = true;
+  }
+
+  template <typename Range>
+  int state_for(const Range& pattern) const {
+    int state = 0;
+    for (const Symbol& symbol : pattern) {
+      auto iterator = states_[state].next.find(symbol);
+      if (iterator == states_[state].next.end()) return -1;
+      state = iterator->second;
+    }
+    return state;
+  }
+
+  template <typename Range>
+  long long occurrence_count(const Range& pattern) const {
+    if (!occurrences_ready_) return -1;
+    const int state = state_for(pattern);
+    return state == -1 ? 0 : states_[state].occurrences;
+  }
+
+  long long distinct_substring_count() const {
+    long long result = 0;
+    for (int state = 1; state < static_cast<int>(states_.size()); ++state)
+      result += states_[state].length - states_[states_[state].link].length;
+    return result;
+  }
+
+  template <typename Range>
+  std::pair<int, int> representative_occurrence(const Range& pattern) const {
+    const int state = state_for(pattern);
+    if (state == -1) return {-1, -1};
+    const int right = states_[state].first_end_position + 1;
+    return {right - static_cast<int>(std::size(pattern)), right};
+  }
+
+  const std::vector<State>& states() const { return states_; }
+  bool occurrences_ready() const { return occurrences_ready_; }
+
+ private:
+  std::vector<State> states_;
+  std::vector<long long> terminal_occurrences_;
+  int last_;
+  bool occurrences_ready_ = false;
+};

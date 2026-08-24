@@ -1,0 +1,25 @@
+template <typename T>
+using PolygonAreaWide = std::conditional_t<
+    std::is_integral_v<T>,
+    std::conditional_t<(sizeof(T) < sizeof(long long)), long long, __int128_t>,
+    long double>;
+
+template <typename T>
+PolygonAreaWide<T> polygon_signed_area2(const std::vector<GeometryPoint<T>>& polygon) {
+  using Wide = PolygonAreaWide<T>;
+  Wide area = Wide(0);
+  for (int i = 0; i < static_cast<int>(polygon.size()); ++i) {
+    const auto& current = polygon[i];
+    const auto& next = polygon[(i + 1) % polygon.size()];
+    area += static_cast<Wide>(current.x) * static_cast<Wide>(next.y) -
+            static_cast<Wide>(current.y) * static_cast<Wide>(next.x);
+  }
+  return area;
+}
+
+template <typename T>
+long double polygon_area(const std::vector<GeometryPoint<T>>& polygon) {
+  const auto doubled = polygon_signed_area2(polygon);
+  const long double value = static_cast<long double>(doubled);
+  return std::fabs(value) / 2.0L;
+}

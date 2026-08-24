@@ -1,0 +1,33 @@
+inline std::vector<int> tarjan_offline_lca(
+    const std::vector<std::vector<int>>& forest,
+    const std::vector<std::pair<int, int>>& queries) {
+  const int n = static_cast<int>(forest.size());
+  std::vector<std::vector<std::pair<int, int>>> at(n);
+  for (int id = 0; id < static_cast<int>(queries.size()); ++id) {
+    auto [u, v] = queries[id];
+    at[u].push_back({v, id});
+    at[v].push_back({u, id});
+  }
+  std::vector<int> dsu(n), ancestor(n), answer(queries.size(), -1);
+  std::vector<int> component(n, -1);
+  std::vector<char> visited(n, false), finished(n, false);
+  std::iota(dsu.begin(), dsu.end(), 0);
+  std::function<int(int)> find = [&](int u) {
+    return dsu[u] == u ? u : dsu[u] = find(dsu[u]);
+  };
+  std::function<void(int, int, int)> dfs = [&](int u, int parent, int root) {
+    visited[u] = true;
+    component[u] = root;
+    ancestor[u] = u;
+    for (int v : forest[u]) if (v != parent && !visited[v]) {
+      dfs(v, u, root);
+      dsu[find(v)] = find(u);
+      ancestor[find(u)] = u;
+    }
+    finished[u] = true;
+    for (auto [v, id] : at[u])
+      if (finished[v] && component[v] == root) answer[id] = ancestor[find(v)];
+  };
+  for (int root = 0; root < n; ++root) if (!visited[root]) dfs(root, -1, root);
+  return answer;
+}

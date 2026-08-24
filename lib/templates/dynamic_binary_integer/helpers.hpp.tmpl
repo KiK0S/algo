@@ -1,0 +1,25 @@
+class DynamicBinaryInteger {
+ public:
+  bool test(int bit) const { return ones_.count(bit) != 0; }
+  bool zero() const { return ones_.empty(); }
+  int popcount() const { return static_cast<int>(ones_.size()); }
+  int highest_bit() const { return ones_.empty() ? -1 : *ones_.rbegin(); }
+  const std::set<int>& set_bits() const { return ones_; }
+
+  void add_power(int bit) {
+    while (ones_.erase(bit) != 0) ++bit;
+    ones_.insert(bit);
+  }
+
+  bool subtract_power(int bit) {
+    auto source = ones_.lower_bound(bit);
+    if (source == ones_.end()) return false;
+    const int source_bit = *source;
+    ones_.erase(source);
+    for (int current = bit; current < source_bit; ++current) ones_.insert(current);
+    return true;
+  }
+
+ private:
+  std::set<int> ones_;
+};

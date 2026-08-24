@@ -1,0 +1,84 @@
+inline std::vector<long long> discrete_roots_prime(long long exponent,
+                                                   long long value,
+                                                   long long prime) {
+  if (prime < 2 || exponent <= 0) return {};
+  value %= prime;
+  if (value < 0) value += prime;
+  if (value == 0) return {0};
+  auto power = [prime](long long base, long long power_value) {
+    long long result = 1;
+    while (power_value > 0) {
+      if (power_value & 1)
+        result = static_cast<long long>((__int128)result * base % prime);
+      base = static_cast<long long>((__int128)base * base % prime);
+      power_value >>= 1;
+    }
+    return result;
+  };
+  long long remaining = prime - 1;
+  std::vector<long long> factors;
+  for (long long divisor = 2; divisor <= remaining / divisor; ++divisor) {
+    if (remaining % divisor != 0) continue;
+    factors.push_back(divisor);
+    while (remaining % divisor == 0) remaining /= divisor;
+  }
+  if (remaining > 1) factors.push_back(remaining);
+  long long generator = -1;
+  for (long long candidate = 1; candidate < prime; ++candidate) {
+    bool valid = true;
+    for (long long factor : factors)
+      if (power(candidate, (prime - 1) / factor) == 1) {
+        valid = false;
+        break;
+      }
+    if (valid) {
+      generator = candidate;
+      break;
+    }
+  }
+  if (generator == -1) return {};
+  const long long block =
+      static_cast<long long>(std::sqrt(static_cast<long double>(prime - 1))) + 1;
+  std::unordered_map<long long, long long> baby;
+  long long current = 1;
+  for (long long step = 0; step < block; ++step) {
+    if (!baby.count(current)) baby[current] = step;
+    current = static_cast<long long>((__int128)current * generator % prime);
+  }
+  const long long giant = power(power(generator, block), prime - 2);
+  current = value;
+  long long logarithm = -1;
+  for (long long group = 0; group <= block; ++group) {
+    auto iterator = baby.find(current);
+    if (iterator != baby.end()) {
+      logarithm = group * block + iterator->second;
+      if (logarithm < prime - 1) break;
+      logarithm = -1;
+    }
+    current = static_cast<long long>((__int128)current * giant % prime);
+  }
+  if (logarithm == -1) return {};
+  const long long modulus = prime - 1;
+  exponent %= modulus;
+  const long long divisor = std::gcd(exponent, modulus);
+  if (logarithm % divisor != 0) return {};
+  auto extended_gcd = [&](auto&& self, __int128 a, __int128 b)
+      -> std::array<__int128, 3> {
+    if (b == 0) return {a, 1, 0};
+    auto next = self(self, b, a % b);
+    return {next[0], next[2], next[1] - (a / b) * next[2]};
+  };
+  const long long reduced_modulus = modulus / divisor;
+  long long inverse = static_cast<long long>(
+      extended_gcd(extended_gcd, exponent / divisor, reduced_modulus)[1] %
+      reduced_modulus);
+  if (inverse < 0) inverse += reduced_modulus;
+  const long long first_exponent = static_cast<long long>(
+      (__int128)(logarithm / divisor) * inverse % reduced_modulus);
+  std::vector<long long> roots;
+  roots.reserve(divisor);
+  for (long long index = 0; index < divisor; ++index)
+    roots.push_back(power(generator, first_exponent + index * reduced_modulus));
+  std::sort(roots.begin(), roots.end());
+  return roots;
+}

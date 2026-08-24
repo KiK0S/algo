@@ -1,0 +1,53 @@
+template <typename Cost>
+Cost steiner_tree(const std::vector<std::vector<std::pair<int, Cost>>>& graph,
+                  const std::vector<int>& terminals,
+                  Cost infinity = std::numeric_limits<Cost>::max() / 4) {
+  const int n = static_cast<int>(graph.size());
+  const int terminal_count = static_cast<int>(terminals.size());
+  if (terminal_count == 0) return Cost(0);
+  if (terminal_count >= 31) return infinity;
+  for (int terminal : terminals) {
+    if (terminal < 0 || terminal >= n) return infinity;
+  }
+
+  const int mask_count = 1 << terminal_count;
+  std::vector<std::vector<Cost>> distance(mask_count, std::vector<Cost>(n, infinity));
+  for (int i = 0; i < terminal_count; ++i) distance[1 << i][terminals[i]] = Cost(0);
+
+  for (int mask = 1; mask < mask_count; ++mask) {
+    for (int part = (mask - 1) & mask; part > 0; part = (part - 1) & mask) {
+      const int other = mask ^ part;
+      if (part > other) continue;
+      for (int vertex = 0; vertex < n; ++vertex) {
+        if (distance[part][vertex] == infinity || distance[other][vertex] == infinity) continue;
+        if (distance[part][vertex] <= infinity - distance[other][vertex]) {
+          distance[mask][vertex] = std::min(
+              distance[mask][vertex], distance[part][vertex] + distance[other][vertex]);
+        }
+      }
+    }
+
+    using QueueEntry = std::pair<Cost, int>;
+    std::priority_queue<QueueEntry, std::vector<QueueEntry>, std::greater<QueueEntry>> queue;
+    for (int vertex = 0; vertex < n; ++vertex) {
+      if (distance[mask][vertex] != infinity) queue.push({distance[mask][vertex], vertex});
+    }
+    while (!queue.empty()) {
+      const auto [current_distance, vertex] = queue.top();
+      queue.pop();
+      if (current_distance != distance[mask][vertex]) continue;
+      for (const auto& [next, edge_cost] : graph[vertex]) {
+        if (next < 0 || next >= n) continue;
+        if constexpr (std::is_signed_v<Cost>) {
+          if (edge_cost < 0) continue;
+        }
+        if (edge_cost <= infinity && current_distance <= infinity - edge_cost &&
+            current_distance + edge_cost < distance[mask][next]) {
+          distance[mask][next] = current_distance + edge_cost;
+          queue.push({distance[mask][next], next});
+        }
+      }
+    }
+  }
+  return *std::min_element(distance.back().begin(), distance.back().end());
+}

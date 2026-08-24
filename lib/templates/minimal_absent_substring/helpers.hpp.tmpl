@@ -1,0 +1,32 @@
+template <typename Symbol, typename Automaton>
+std::vector<Symbol> minimal_absent_substring(
+    const Automaton& automaton, const std::vector<Symbol>& alphabet) {
+  const auto& states = automaton.states();
+  if (states.empty() || alphabet.empty()) return {};
+  std::vector<int> parent(states.size(), -1);
+  std::vector<Symbol> parent_symbol(states.size());
+  std::queue<int> queue;
+  parent[0] = 0;
+  queue.push(0);
+  while (!queue.empty()) {
+    const int state = queue.front();
+    queue.pop();
+    for (const Symbol& symbol : alphabet) {
+      auto iterator = states[state].next.find(symbol);
+      if (iterator == states[state].next.end()) {
+        std::vector<Symbol> result{symbol};
+        for (int node = state; node != 0; node = parent[node])
+          result.push_back(parent_symbol[node]);
+        std::reverse(result.begin(), result.end());
+        return result;
+      }
+      const int next = iterator->second;
+      if (parent[next] == -1) {
+        parent[next] = state;
+        parent_symbol[next] = symbol;
+        queue.push(next);
+      }
+    }
+  }
+  return {};
+}

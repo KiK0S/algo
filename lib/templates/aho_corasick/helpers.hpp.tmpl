@@ -1,0 +1,142 @@
+template <typename Symbol = char>
+class AhoCorasick {
+ public:
+  AhoCorasick() : nodes_(1) {}
+
+  template <typename Range>
+  int add_pattern(const Range& pattern, int pattern_id = -1) {
+    if (pattern_id < -1) return -1;
+    if (pattern_id == -1) pattern_id = pattern_count_;
+    pattern_count_ = std::max(pattern_count_, pattern_id + 1);
+    if (static_cast<int>(pattern_terminal_.size()) <= pattern_id)
+      pattern_terminal_.resize(pattern_id + 1, -1);
+    if (pattern_terminal_[pattern_id] != -1) {
+      auto& old_output = nodes_[pattern_terminal_[pattern_id]].output;
+      old_output.erase(std::remove(old_output.begin(), old_output.end(), pattern_id),
+                       old_output.end());
+    }
+    int state = 0;
+    for (const Symbol& symbol : pattern) {
+      auto [iterator, inserted] = nodes_[state].next.emplace(symbol, -1);
+      if (inserted) {
+        iterator->second = static_cast<int>(nodes_.size());
+        nodes_.push_back(Node{});
+      }
+      state = iterator->second;
+    }
+    nodes_[state].output.push_back(pattern_id);
+    pattern_terminal_[pattern_id] = state;
+    built_ = false;
+    return state;
+  }
+
+  void build() {
+    std::queue<int> queue;
+    for (Node& node : nodes_) node.matched.clear();
+    nodes_[0].matched = nodes_[0].output;
+    nodes_[0].failure = 0;
+    for (const auto& edge : nodes_[0].next) {
+      nodes_[edge.second].failure = 0;
+      nodes_[edge.second].failure_depth = 1;
+      queue.push(edge.second);
+    }
+    while (!queue.empty()) {
+      const int state = queue.front();
+      queue.pop();
+      const int failure = nodes_[state].failure;
+      nodes_[state].matched = nodes_[state].output;
+      nodes_[state].matched.insert(nodes_[state].matched.end(),
+                                   nodes_[failure].matched.begin(),
+                                   nodes_[failure].matched.end());
+      for (const auto& edge : nodes_[state].next) {
+        int link = failure;
+        while (link != 0 && !nodes_[link].next.count(edge.first)) {
+          link = nodes_[link].failure;
+        }
+        auto iterator = nodes_[link].next.find(edge.first);
+        if (iterator != nodes_[link].next.end()) link = iterator->second;
+        nodes_[edge.second].failure = link;
+        nodes_[edge.second].failure_depth = nodes_[link].failure_depth + 1;
+        queue.push(edge.second);
+      }
+    }
+    built_ = true;
+  }
+
+  int next_state(int state, const Symbol& symbol) const {
+    if (!built_ || state < 0 || state >= static_cast<int>(nodes_.size())) return -1;
+    while (state != 0 && !nodes_[state].next.count(symbol)) {
+      state = nodes_[state].failure;
+    }
+    auto iterator = nodes_[state].next.find(symbol);
+    return iterator == nodes_[state].next.end() ? 0 : iterator->second;
+  }
+
+  const std::vector<int>& matches(int state) const {
+    static const std::vector<int> empty;
+    return !built_ || state < 0 || state >= static_cast<int>(nodes_.size())
+               ? empty
+               : nodes_[state].matched;
+  }
+  int failure_link(int state) const {
+    return !built_ || state < 0 || state >= static_cast<int>(nodes_.size())
+               ? 0
+               : nodes_[state].failure;
+  }
+  int state_count() const { return static_cast<int>(nodes_.size()); }
+  int pattern_count() const { return pattern_count_; }
+  bool built() const { return built_; }
+
+  template <typename Range>
+  std::vector<std::pair<int, int>> find_all(const Range& text) const {
+    std::vector<std::pair<int, int>> occurrences;
+    if (!built_) return occurrences;
+    int state = 0;
+    int position = 0;
+    for (const Symbol& symbol : text) {
+      state = next_state(state, symbol);
+      for (int pattern_id : nodes_[state].matched) {
+        occurrences.push_back({position, pattern_id});
+      }
+      ++position;
+    }
+    return occurrences;
+  }
+
+  template <typename Range>
+  std::vector<long long> occurrence_counts(const Range& text) const {
+    if (!built_) return {};
+    std::vector<long long> visits(nodes_.size(), 0);
+    visits[0] = 1;
+    int state = 0;
+    for (const Symbol& symbol : text) {
+      state = next_state(state, symbol);
+      ++visits[state];
+    }
+    std::vector<int> order(nodes_.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) {
+      return nodes_[lhs].failure_depth > nodes_[rhs].failure_depth;
+    });
+    for (int node : order)
+      if (node != 0) visits[nodes_[node].failure] += visits[node];
+    std::vector<long long> result(pattern_count_, 0);
+    for (int pattern_id = 0; pattern_id < pattern_count_; ++pattern_id)
+      if (pattern_terminal_[pattern_id] != -1)
+        result[pattern_id] = visits[pattern_terminal_[pattern_id]];
+    return result;
+  }
+
+ private:
+  struct Node {
+    std::map<Symbol, int> next;
+    int failure = 0;
+    int failure_depth = 0;
+    std::vector<int> output;
+    std::vector<int> matched;
+  };
+  std::vector<Node> nodes_;
+  std::vector<int> pattern_terminal_;
+  int pattern_count_ = 0;
+  bool built_ = false;
+};

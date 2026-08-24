@@ -1,0 +1,151 @@
+class DynamicSequenceHash {
+ public:
+  using Hash = std::uint64_t;
+
+  explicit DynamicSequenceHash(Hash base = 11995408973635179863ULL,
+                               unsigned seed = 712367821u)
+      : base_((base | 1) == 1 ? 11995408973635179863ULL : (base | 1)),
+        rng_state_(seed ? seed : 1) {
+    powers_.push_back(1);
+  }
+  ~DynamicSequenceHash() { clear(root_); }
+  DynamicSequenceHash(const DynamicSequenceHash&) = delete;
+  DynamicSequenceHash& operator=(const DynamicSequenceHash&) = delete;
+
+  int size() const { return node_size(root_); }
+  void push_back(Hash value) { insert(size(), value); }
+  void insert(int position, Hash value) {
+    position = std::clamp(position, 0, size());
+    ensure_powers(size() + 1);
+    auto parts = split(root_, position);
+    root_ = merge(merge(parts.first, new Node(value + 1, next_priority())), parts.second);
+  }
+  bool erase(int position) {
+    if (position < 0 || position >= size()) return false;
+    auto first = split(root_, position);
+    auto second = split(first.second, 1);
+    clear(second.first);
+    root_ = merge(first.first, second.second);
+    return true;
+  }
+  bool set(int position, Hash value) {
+    if (position < 0 || position >= size()) return false;
+    auto first = split(root_, position);
+    auto second = split(first.second, 1);
+    second.first->value = value + 1;
+    pull(second.first);
+    root_ = merge(first.first, merge(second.first, second.second));
+    return true;
+  }
+  void reverse(int left, int right) {
+    normalize(left, right);
+    if (left >= right) return;
+    auto first = split(root_, left);
+    auto second = split(first.second, right - left);
+    apply_reverse(second.first);
+    root_ = merge(first.first, merge(second.first, second.second));
+  }
+  Hash substring_hash(int left, int right) {
+    normalize(left, right);
+    if (left >= right) return 0;
+    auto first = split(root_, left);
+    auto second = split(first.second, right - left);
+    const Hash result = forward(second.first);
+    root_ = merge(first.first, merge(second.first, second.second));
+    return result;
+  }
+  bool equal(int first_left, int first_right, int second_left, int second_right) {
+    normalize(first_left, first_right);
+    normalize(second_left, second_right);
+    if (first_right - first_left != second_right - second_left) return false;
+    return substring_hash(first_left, first_right) == substring_hash(second_left, second_right);
+  }
+  bool palindrome(int left, int right) {
+    normalize(left, right);
+    if (left >= right) return true;
+    auto first = split(root_, left);
+    auto second = split(first.second, right - left);
+    const bool result = forward(second.first) == backward(second.first);
+    root_ = merge(first.first, merge(second.first, second.second));
+    return result;
+  }
+
+ private:
+  struct Node {
+    Hash value, forward, backward;
+    unsigned priority;
+    int size = 1;
+    bool reversed = false;
+    Node* left = nullptr;
+    Node* right = nullptr;
+    Node(Hash value_, unsigned priority_)
+        : value(value_), forward(value_), backward(value_), priority(priority_) {}
+  };
+  Node* root_ = nullptr;
+  Hash base_;
+  unsigned rng_state_;
+  std::vector<Hash> powers_;
+
+  static int node_size(Node* node) { return node ? node->size : 0; }
+  static Hash forward(Node* node) { return node ? node->forward : 0; }
+  static Hash backward(Node* node) { return node ? node->backward : 0; }
+  void ensure_powers(int length) {
+    while (static_cast<int>(powers_.size()) <= length) powers_.push_back(powers_.back() * base_);
+  }
+  void pull(Node* node) {
+    if (!node) return;
+    const int left_size = node_size(node->left), right_size = node_size(node->right);
+    ensure_powers(std::max(left_size, right_size) + 1);
+    node->size = left_size + 1 + right_size;
+    node->forward = forward(node->left) * powers_[right_size + 1] +
+                    node->value * powers_[right_size] + forward(node->right);
+    node->backward = backward(node->right) * powers_[left_size + 1] +
+                     node->value * powers_[left_size] + backward(node->left);
+  }
+  static void apply_reverse(Node* node) {
+    if (!node) return;
+    std::swap(node->left, node->right);
+    std::swap(node->forward, node->backward);
+    node->reversed = !node->reversed;
+  }
+  static void push(Node* node) {
+    if (!node || !node->reversed) return;
+    apply_reverse(node->left); apply_reverse(node->right); node->reversed = false;
+  }
+  std::pair<Node*, Node*> split(Node* node, int left_size) {
+    if (!node) return {nullptr, nullptr};
+    push(node);
+    if (node_size(node->left) >= left_size) {
+      auto parts = split(node->left, left_size);
+      node->left = parts.second; pull(node); return {parts.first, node};
+    }
+    auto parts = split(node->right, left_size - node_size(node->left) - 1);
+    node->right = parts.first; pull(node); return {node, parts.second};
+  }
+  Node* merge(Node* left, Node* right) {
+    if (!left) return right; if (!right) return left;
+    if (left->priority > right->priority) {
+      push(left); left->right = merge(left->right, right); pull(left); return left;
+    }
+    push(right); right->left = merge(left, right->left); pull(right); return right;
+  }
+  unsigned next_priority() {
+    rng_state_ ^= rng_state_ << 13; rng_state_ ^= rng_state_ >> 17; rng_state_ ^= rng_state_ << 5;
+    return rng_state_;
+  }
+  static void clear(Node* node) {
+    if (!node) return;
+    std::vector<Node*> stack{node};
+    while (!stack.empty()) {
+      Node* current = stack.back();
+      stack.pop_back();
+      if (current->left) stack.push_back(current->left);
+      if (current->right) stack.push_back(current->right);
+      delete current;
+    }
+  }
+  void normalize(int& left, int& right) const {
+    left = std::clamp(left, 0, size()); right = std::clamp(right, 0, size());
+    if (left > right) std::swap(left, right);
+  }
+};

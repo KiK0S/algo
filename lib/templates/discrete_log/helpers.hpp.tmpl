@@ -1,0 +1,40 @@
+inline long long discrete_log(long long base, long long target, long long modulus) {
+  if (modulus <= 0) return -1;
+  base %= modulus; if (base < 0) base += modulus;
+  target %= modulus; if (target < 0) target += modulus;
+  if (modulus == 1 || target == 1) return 0;
+  long long removed = 0, factor = 1;
+  for (long long divisor = std::gcd(base, modulus); divisor > 1;
+       divisor = std::gcd(base, modulus)) {
+    if (target % divisor) return -1;
+    target /= divisor;
+    modulus /= divisor;
+    factor = static_cast<long long>((__int128)factor * (base / divisor) % modulus);
+    ++removed;
+    if (factor == target) return removed;
+    base %= modulus;
+  }
+  auto multiply = [modulus](long long a, long long b) {
+    return static_cast<long long>((__int128)a * b % modulus);
+  };
+  const long long block = static_cast<long long>(std::sqrt(static_cast<long double>(modulus))) + 1;
+  std::unordered_map<long long, long long> baby;
+  long long value = target;
+  for (long long step = 0; step < block; ++step) {
+    baby[value] = step;
+    value = multiply(value, base);
+  }
+  long long giant = 1;
+  for (long long step = 0; step < block; ++step) giant = multiply(giant, base);
+  value = factor;
+  for (long long group = 1; group <= block + 1; ++group) {
+    value = multiply(value, giant);
+    auto iterator = baby.find(value);
+    if (iterator != baby.end()) {
+      const __int128 answer = (__int128)group * block - iterator->second + removed;
+      if (answer >= 0 && answer <= std::numeric_limits<long long>::max())
+        return static_cast<long long>(answer);
+    }
+  }
+  return -1;
+}

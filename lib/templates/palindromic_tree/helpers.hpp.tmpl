@@ -1,0 +1,95 @@
+template <typename Symbol = char>
+class PalindromicTree {
+ public:
+  struct Node {
+    int length = 0;
+    int suffix_link = 0;
+    long long occurrences = 0;
+    std::map<Symbol, int> next;
+  };
+
+  PalindromicTree() : nodes_(2), terminal_occurrences_(2), suffix_(1) {
+    nodes_[0].length = -1;
+    nodes_[0].suffix_link = 0;
+    nodes_[1].length = 0;
+    nodes_[1].suffix_link = 0;
+  }
+
+  int append(const Symbol& symbol) {
+    text_.push_back(symbol);
+    const int position = static_cast<int>(text_.size()) - 1;
+    int current = suffix_;
+    while (position - 1 - nodes_[current].length < 0 ||
+           text_[position - 1 - nodes_[current].length] != symbol)
+      current = nodes_[current].suffix_link;
+    auto iterator = nodes_[current].next.find(symbol);
+    if (iterator != nodes_[current].next.end()) {
+      suffix_ = iterator->second;
+      ++terminal_occurrences_[suffix_];
+      suffix_at_position_.push_back(suffix_);
+      return suffix_;
+    }
+    suffix_ = static_cast<int>(nodes_.size());
+    nodes_.push_back(Node{});
+    terminal_occurrences_.push_back(1);
+    nodes_[suffix_].length = nodes_[current].length + 2;
+    nodes_[current].next[symbol] = suffix_;
+    if (nodes_[suffix_].length == 1) {
+      suffix_at_position_.push_back(suffix_);
+      return suffix_;
+    }
+    int link = nodes_[current].suffix_link;
+    while (position - 1 - nodes_[link].length < 0 ||
+           text_[position - 1 - nodes_[link].length] != symbol)
+      link = nodes_[link].suffix_link;
+    nodes_[suffix_].suffix_link = nodes_[link].next[symbol];
+    suffix_at_position_.push_back(suffix_);
+    return suffix_;
+  }
+
+  void propagate_occurrences() {
+    for (int node = 0; node < static_cast<int>(nodes_.size()); ++node)
+      nodes_[node].occurrences = terminal_occurrences_[node];
+    std::vector<int> order(nodes_.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](int a, int b) {
+      return nodes_[a].length > nodes_[b].length;
+    });
+    for (int node : order)
+      if (node >= 2) nodes_[nodes_[node].suffix_link].occurrences += nodes_[node].occurrences;
+  }
+
+  int distinct_palindrome_count() const { return static_cast<int>(nodes_.size()) - 2; }
+  int longest_suffix_length() const { return nodes_[suffix_].length; }
+  const std::vector<Node>& nodes() const { return nodes_; }
+
+  std::vector<std::pair<int, int>> minimum_palindromic_partition() const {
+    const int size = static_cast<int>(text_.size());
+    std::vector<int> best(size + 1, size + 1), previous(size + 1, -1);
+    best[0] = 0;
+    for (int right = 1; right <= size; ++right) {
+      for (int node = suffix_at_position_[right - 1]; node >= 2;
+           node = nodes_[node].suffix_link) {
+        const int left = right - nodes_[node].length;
+        if (best[left] + 1 < best[right]) {
+          best[right] = best[left] + 1;
+          previous[right] = left;
+        }
+      }
+    }
+    std::vector<std::pair<int, int>> result;
+    for (int right = size; right > 0; right = previous[right]) {
+      if (previous[right] < 0) return {};
+      result.push_back({previous[right], right});
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
+
+ private:
+  std::vector<Node> nodes_;
+  std::vector<long long> terminal_occurrences_;
+  std::vector<Symbol> text_;
+  std::vector<int> suffix_at_position_;
+  int suffix_;
+};

@@ -1,0 +1,56 @@
+struct MinimumMeanCycleEdge {
+  int from;
+  int to;
+  long double weight;
+};
+
+struct MinimumMeanCycleResult {
+  long double mean;
+  // A vertex attaining Karp's formula; this is not a reconstructed cycle.
+  int witness_vertex;
+};
+
+// Weights must be finite. The computation uses long-double arithmetic and
+// therefore returns a numerical approximation, not an exact rational value.
+inline std::optional<MinimumMeanCycleResult> minimum_mean_cycle(
+    int vertex_count, const std::vector<MinimumMeanCycleEdge>& edges) {
+  if (vertex_count <= 0) return std::nullopt;
+  const long double infinity = std::numeric_limits<long double>::infinity();
+  std::vector<std::vector<long double>> distance(
+      vertex_count + 1, std::vector<long double>(vertex_count, infinity));
+  std::fill(distance[0].begin(), distance[0].end(), 0.0L);
+  for (int length = 1; length <= vertex_count; ++length) {
+    for (const auto& edge : edges) {
+      if (edge.from < 0 || edge.from >= vertex_count || edge.to < 0 ||
+          edge.to >= vertex_count || !std::isfinite(edge.weight))
+        return std::nullopt;
+      if (distance[length - 1][edge.from] != infinity) {
+        const long double candidate = distance[length - 1][edge.from] + edge.weight;
+        if (!std::isfinite(candidate)) return std::nullopt;
+        distance[length][edge.to] =
+            std::min(distance[length][edge.to], candidate);
+      }
+    }
+  }
+
+  long double best = infinity;
+  int witness = -1;
+  for (int vertex = 0; vertex < vertex_count; ++vertex) {
+    if (distance[vertex_count][vertex] == infinity) continue;
+    long double worst_prefix = -infinity;
+    for (int length = 0; length < vertex_count; ++length) {
+      if (distance[length][vertex] == infinity) continue;
+      const long double average =
+          (distance[vertex_count][vertex] - distance[length][vertex]) /
+          static_cast<long double>(vertex_count - length);
+      if (!std::isfinite(average)) return std::nullopt;
+      worst_prefix = std::max(worst_prefix, average);
+    }
+    if (worst_prefix < best) {
+      best = worst_prefix;
+      witness = vertex;
+    }
+  }
+  if (witness == -1) return std::nullopt;
+  return MinimumMeanCycleResult{best, witness};
+}

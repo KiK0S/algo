@@ -1,0 +1,80 @@
+class LehmerPrimeCount {
+ public:
+  explicit LehmerPrimeCount(long long maximum_value = 1000000000000LL)
+      : maximum_value_(std::max(2LL, maximum_value)),
+        limit_(std::max(550, static_cast<int>(integer_root(maximum_value_, 2)) + 1)),
+        prime_count_(limit_ + 1) {
+    std::vector<bool> composite(limit_ + 1, false);
+    for (int value = 2; value <= limit_; ++value) {
+      if (!composite[value]) primes_.push_back(value);
+      for (int prime : primes_) {
+        if (prime > limit_ / value) break;
+        composite[prime * value] = true;
+        if (value % prime == 0) break;
+      }
+      prime_count_[value] = static_cast<int>(primes_.size());
+    }
+    phi_.assign(phi_rows_, std::vector<int>(phi_columns_));
+    for (int value = 0; value < phi_columns_; ++value) phi_[0][value] = value;
+    for (int count = 1; count < phi_rows_; ++count)
+      for (int value = 0; value < phi_columns_; ++value)
+        phi_[count][value] = phi_[count - 1][value] -
+            phi_[count - 1][value / primes_[count - 1]];
+  }
+
+  long long count(long long value) {
+    if (value > maximum_value_) return -1;
+    if (value <= limit_) return prime_count_[value];
+    auto iterator = cache_.find(value);
+    if (iterator != cache_.end()) return iterator->second;
+    const long long fourth_root = integer_root(value, 4);
+    const long long square_root = integer_root(value, 2);
+    const long long cube_root = integer_root(value, 3);
+    const int a = static_cast<int>(count(fourth_root));
+    const int b = static_cast<int>(count(square_root));
+    const int c = static_cast<int>(count(cube_root));
+    long long result = phi(value, a) +
+        (static_cast<long long>(b + a - 2) * (b - a + 1)) / 2;
+    for (int i = a; i < b; ++i) {
+      const long long quotient = value / primes_[i];
+      result -= count(quotient);
+      if (i < c) {
+        const int bound = static_cast<int>(count(integer_root(quotient, 2)));
+        for (int j = i; j < bound; ++j)
+          result -= count(quotient / primes_[j]) - j;
+      }
+    }
+    cache_[value] = result;
+    return result;
+  }
+
+ private:
+  static constexpr int phi_rows_ = 100;
+  static constexpr int phi_columns_ = 100000;
+
+  static long long integer_root(long long value, int exponent) {
+    long long root = static_cast<long long>(std::pow(static_cast<long double>(value),
+                                                     1.0L / exponent));
+    auto power_at_most = [&](long long base) {
+      __int128 product = 1;
+      for (int i = 0; i < exponent; ++i) product *= base;
+      return product <= value;
+    };
+    while (power_at_most(root + 1)) ++root;
+    while (!power_at_most(root)) --root;
+    return root;
+  }
+
+  long long phi(long long value, int count) {
+    if (count == 0) return value;
+    if (count < phi_rows_ && value < phi_columns_) return phi_[count][value];
+    return phi(value, count - 1) - phi(value / primes_[count - 1], count - 1);
+  }
+
+  long long maximum_value_;
+  int limit_;
+  std::vector<int> primes_;
+  std::vector<int> prime_count_;
+  std::vector<std::vector<int>> phi_;
+  std::map<long long, long long> cache_;
+};

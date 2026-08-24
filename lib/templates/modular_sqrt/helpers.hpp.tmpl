@@ -1,0 +1,35 @@
+inline long long modular_sqrt_prime(long long value, long long prime) {
+  if (prime == 2) return ((value % prime) + prime) % prime;
+  if (prime < 2 || prime % 2 == 0) return -1;
+  value %= prime; if (value < 0) value += prime;
+  if (value == 0) return 0;
+  auto power = [prime](long long base, long long exponent) {
+    long long result = 1;
+    while (exponent) {
+      if (exponent & 1) result = static_cast<long long>((__int128)result * base % prime);
+      base = static_cast<long long>((__int128)base * base % prime);
+      exponent >>= 1;
+    }
+    return result;
+  };
+  if (power(value, (prime - 1) / 2) != 1) return -1;
+  if (prime % 4 == 3) return power(value, (prime + 1) / 4);
+  long long odd = prime - 1, exponent = 0;
+  while ((odd & 1) == 0) { odd >>= 1; ++exponent; }
+  long long non_residue = 2;
+  while (power(non_residue, (prime - 1) / 2) != prime - 1) ++non_residue;
+  long long current = power(value, odd), root = power(value, (odd + 1) / 2);
+  long long multiplier = power(non_residue, odd);
+  while (current != 1) {
+    long long level = 1, squared = static_cast<long long>((__int128)current * current % prime);
+    while (squared != 1) { squared = static_cast<long long>((__int128)squared * squared % prime); ++level; }
+    long long correction = multiplier;
+    for (long long i = 0; i < exponent - level - 1; ++i)
+      correction = static_cast<long long>((__int128)correction * correction % prime);
+    root = static_cast<long long>((__int128)root * correction % prime);
+    multiplier = static_cast<long long>((__int128)correction * correction % prime);
+    current = static_cast<long long>((__int128)current * multiplier % prime);
+    exponent = level;
+  }
+  return std::min(root, prime - root);
+}

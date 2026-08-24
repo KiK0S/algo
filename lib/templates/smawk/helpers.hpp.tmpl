@@ -1,0 +1,36 @@
+template<class Value>
+vector<int> smawk_row_minima(int rows, int columns, Value value) {
+    vector<int> answer(rows, -1), row_ids(rows), column_ids(columns);
+    if (columns == 0) return answer;
+    iota(row_ids.begin(), row_ids.end(), 0);
+    iota(column_ids.begin(), column_ids.end(), 0);
+    auto solve = [&](auto&& self, const vector<int>& rs, const vector<int>& cs) -> void {
+        if (rs.empty()) return;
+        vector<int> reduced;
+        for (int column : cs) {
+            while (!reduced.empty()) {
+                int row = rs[reduced.size() - 1];
+                if (!(value(row, column) < value(row, reduced.back()))) break;
+                reduced.pop_back();
+            }
+            if (reduced.size() < rs.size()) reduced.push_back(column);
+        }
+        vector<int> odd_rows;
+        for (int i = 1; i < int(rs.size()); i += 2) odd_rows.push_back(rs[i]);
+        self(self, odd_rows, reduced);
+        int start = 0;
+        for (int i = 0; i < int(rs.size()); i += 2) {
+            int finish = reduced.size() - 1;
+            if (i + 1 < int(rs.size())) {
+                finish = find(reduced.begin(), reduced.end(), answer[rs[i + 1]]) - reduced.begin();
+            }
+            int best = start;
+            for (int j = start + 1; j <= finish; ++j)
+                if (value(rs[i], reduced[j]) < value(rs[i], reduced[best])) best = j;
+            answer[rs[i]] = reduced[best];
+            start = best;
+        }
+    };
+    solve(solve, row_ids, column_ids);
+    return answer;
+}

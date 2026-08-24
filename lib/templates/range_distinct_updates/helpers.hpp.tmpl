@@ -1,0 +1,68 @@
+template<class T>
+struct DistinctPointUpdate { int index; T value; };
+
+struct TimedDistinctQuery {
+  int left, right, updates_applied; // [left, right), after this many updates
+};
+
+template<class T>
+std::vector<int> range_distinct_with_updates(
+    const std::vector<T>& initial,
+    const std::vector<DistinctPointUpdate<T>>& updates,
+    const std::vector<TimedDistinctQuery>& queries) {
+  const int n = initial.size(), q = queries.size();
+  std::vector<T> coordinates = initial;
+  for (const auto& update : updates) coordinates.push_back(update.value);
+  std::sort(coordinates.begin(), coordinates.end());
+  coordinates.erase(std::unique(coordinates.begin(), coordinates.end()), coordinates.end());
+  auto rank = [&](const T& value) {
+    return int(std::lower_bound(coordinates.begin(), coordinates.end(), value) - coordinates.begin());
+  };
+  std::vector<int> values(n);
+  for (int i = 0; i < n; ++i) values[i] = rank(initial[i]);
+  struct Change { int index, before, after; };
+  std::vector<Change> changes;
+  std::vector<int> timeline = values;
+  for (const auto& update : updates) {
+    assert(0 <= update.index && update.index < n);
+    int after = rank(update.value);
+    changes.push_back({update.index, timeline[update.index], after});
+    timeline[update.index] = after;
+  }
+  struct IndexedQuery { int left, right, time, id; };
+  std::vector<IndexedQuery> order;
+  for (int id = 0; id < q; ++id) {
+    auto query = queries[id];
+    assert(0 <= query.left && query.left <= query.right && query.right <= n);
+    assert(0 <= query.updates_applied && query.updates_applied <= int(changes.size()));
+    order.push_back({query.left, query.right, query.updates_applied, id});
+  }
+  int block = std::max(1, int(std::pow(std::max(1, n), 2.0 / 3.0)));
+  std::sort(order.begin(), order.end(), [&](const auto& a, const auto& b) {
+    int left_a = a.left / block, left_b = b.left / block;
+    if (left_a != left_b) return left_a < left_b;
+    int right_a = a.right / block, right_b = b.right / block;
+    if (right_a != right_b) return (left_a & 1) ? right_a > right_b : right_a < right_b;
+    return (right_a & 1) ? a.time > b.time : a.time < b.time;
+  });
+  std::vector<int> frequency(coordinates.size()), answer(q);
+  int left = 0, right = 0, time = 0, distinct = 0;
+  auto add = [&](int position) { distinct += frequency[values[position]]++ == 0; };
+  auto remove = [&](int position) { distinct -= --frequency[values[position]] == 0; };
+  auto apply = [&](int id, bool forward) {
+    const auto& change = changes[id];
+    if (left <= change.index && change.index < right) remove(change.index);
+    values[change.index] = forward ? change.after : change.before;
+    if (left <= change.index && change.index < right) add(change.index);
+  };
+  for (auto query : order) {
+    while (time < query.time) apply(time++, true);
+    while (time > query.time) apply(--time, false);
+    while (left > query.left) add(--left);
+    while (right < query.right) add(right++);
+    while (left < query.left) remove(left++);
+    while (right > query.right) remove(--right);
+    answer[query.id] = distinct;
+  }
+  return answer;
+}

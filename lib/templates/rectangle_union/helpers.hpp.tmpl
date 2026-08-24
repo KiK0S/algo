@@ -1,0 +1,85 @@
+template <typename T>
+struct AxisAlignedRectangle {
+  T left;
+  T bottom;
+  T right;
+  T top;
+};
+
+template <typename T, typename Area = long long>
+Area rectangle_union_area(const std::vector<AxisAlignedRectangle<T>>& rectangles) {
+  struct Event {
+    T x;
+    T bottom;
+    T top;
+    int delta;
+  };
+
+  std::vector<Event> events;
+  std::vector<T> ys;
+  events.reserve(2 * rectangles.size());
+  ys.reserve(2 * rectangles.size());
+  for (const auto& rectangle : rectangles) {
+    if (!(rectangle.left < rectangle.right) || !(rectangle.bottom < rectangle.top)) {
+      continue;
+    }
+    events.push_back({rectangle.left, rectangle.bottom, rectangle.top, 1});
+    events.push_back({rectangle.right, rectangle.bottom, rectangle.top, -1});
+    ys.push_back(rectangle.bottom);
+    ys.push_back(rectangle.top);
+  }
+  if (events.empty()) return Area(0);
+
+  std::sort(ys.begin(), ys.end());
+  ys.erase(std::unique(ys.begin(), ys.end()), ys.end());
+  std::sort(events.begin(), events.end(), [](const Event& lhs, const Event& rhs) {
+    return lhs.x < rhs.x;
+  });
+
+  const int segment_count = int(ys.size()) - 1;
+  std::vector<int> cover(4 * std::max(1, segment_count));
+  std::vector<T> covered(4 * std::max(1, segment_count), T(0));
+
+  auto pull = [&](auto&& self, int node, int left, int right) -> void {
+    if (cover[node] > 0) {
+      covered[node] = ys[right + 1] - ys[left];
+    } else if (left == right) {
+      covered[node] = T(0);
+    } else {
+      covered[node] = covered[2 * node] + covered[2 * node + 1];
+    }
+  };
+  auto update = [&](auto&& self, int node, int left, int right, int query_left,
+                    int query_right, int delta) -> void {
+    if (query_right < left || right < query_left) return;
+    if (query_left <= left && right <= query_right) {
+      cover[node] += delta;
+      pull(pull, node, left, right);
+      return;
+    }
+    int middle = (left + right) / 2;
+    self(self, 2 * node, left, middle, query_left, query_right, delta);
+    self(self, 2 * node + 1, middle + 1, right, query_left, query_right, delta);
+    pull(pull, node, left, right);
+  };
+
+  Area area = Area(0);
+  T previous_x = events.front().x;
+  std::size_t event_index = 0;
+  while (event_index < events.size()) {
+    const T x = events[event_index].x;
+    area += static_cast<Area>(x - previous_x) * static_cast<Area>(covered[1]);
+    while (event_index < events.size() && events[event_index].x == x) {
+      int first = int(std::lower_bound(ys.begin(), ys.end(), events[event_index].bottom) -
+                      ys.begin());
+      int last = int(std::lower_bound(ys.begin(), ys.end(), events[event_index].top) -
+                     ys.begin()) - 1;
+      if (first <= last) {
+        update(update, 1, 0, segment_count - 1, first, last, events[event_index].delta);
+      }
+      ++event_index;
+    }
+    previous_x = x;
+  }
+  return area;
+}

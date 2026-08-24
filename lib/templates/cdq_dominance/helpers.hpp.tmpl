@@ -1,0 +1,46 @@
+struct DominancePoint3D { int x, y, z, id; };
+
+// Counts points with strictly smaller x and no larger y or z. ids must be 0..n-1.
+inline vector<int> dominance_counts_strict_x_3d(vector<DominancePoint3D> points) {
+    int n = points.size();
+    vector<int> answer(n), order(n), temp(n);
+    iota(order.begin(), order.end(), 0);
+    sort(order.begin(), order.end(), [&](int a, int b) {
+        return tie(points[a].x, points[a].y, points[a].z, points[a].id) <
+               tie(points[b].x, points[b].y, points[b].z, points[b].id);
+    });
+    vector<int> zs;
+    for (auto& point : points) zs.push_back(point.z);
+    sort(zs.begin(), zs.end());
+    zs.erase(unique(zs.begin(), zs.end()), zs.end());
+    vector<int> bit(zs.size() + 1);
+    auto add = [&](int p, int delta) { for (++p; p < int(bit.size()); p += p & -p) bit[p] += delta; };
+    auto sum = [&](int p) { int result = 0; for (++p; p > 0; p -= p & -p) result += bit[p]; return result; };
+    auto cdq = [&](auto&& self, int left, int right) -> void {
+        if (right - left <= 1) return;
+        int middle = (left + right) / 2, original_middle = middle;
+        while (middle < right && points[order[middle - 1]].x == points[order[middle]].x) ++middle;
+        if (middle == right) {
+            middle = original_middle;
+            while (middle > left && points[order[middle - 1]].x == points[order[middle]].x) --middle;
+        }
+        if (middle == left || middle == right) return;
+        self(self, left, middle);
+        self(self, middle, right);
+        int i = left;
+        vector<int> added;
+        for (int j = middle; j < right; ++j) {
+            while (i < middle && points[order[i]].y <= points[order[j]].y) {
+                int z = lower_bound(zs.begin(), zs.end(), points[order[i]].z) - zs.begin();
+                add(z, 1); added.push_back(z); ++i;
+            }
+            int z = upper_bound(zs.begin(), zs.end(), points[order[j]].z) - zs.begin() - 1;
+            answer[points[order[j]].id] += sum(z);
+        }
+        for (int z : added) add(z, -1);
+        inplace_merge(order.begin() + left, order.begin() + middle, order.begin() + right,
+                      [&](int a, int b) { return points[a].y < points[b].y; });
+    };
+    cdq(cdq, 0, n);
+    return answer;
+}

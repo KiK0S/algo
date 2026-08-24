@@ -1,0 +1,57 @@
+class MaximumClique {
+ public:
+  explicit MaximumClique(int vertices) : adjacency_(vertices, std::vector<bool>(vertices)) {}
+  void add_edge(int first, int second) {
+    assert(first != second);
+    adjacency_[first][second] = adjacency_[second][first] = true;
+  }
+  std::vector<int> solve() {
+    best_.clear();
+    std::vector<int> candidates(adjacency_.size());
+    std::iota(candidates.begin(), candidates.end(), 0);
+    expand({}, candidates);
+    return best_;
+  }
+
+ private:
+  std::vector<std::vector<bool>> adjacency_;
+  std::vector<int> best_;
+
+  void expand(std::vector<int> clique, const std::vector<int>& candidates) {
+    std::vector<int> order, colors;
+    greedy_color(candidates, order, colors);
+    for (int i = static_cast<int>(order.size()) - 1; i >= 0; --i) {
+      if (static_cast<int>(clique.size()) + colors[i] <= static_cast<int>(best_.size())) return;
+      const int vertex = order[i];
+      clique.push_back(vertex);
+      std::vector<int> next;
+      for (int j = 0; j < i; ++j)
+        if (adjacency_[vertex][order[j]]) next.push_back(order[j]);
+      if (next.empty()) {
+        if (clique.size() > best_.size()) best_ = clique;
+      } else expand(clique, next);
+      clique.pop_back();
+    }
+  }
+
+  void greedy_color(const std::vector<int>& candidates, std::vector<int>& order,
+                    std::vector<int>& colors) const {
+    std::vector<int> remaining = candidates;
+    int color = 0;
+    while (!remaining.empty()) {
+      ++color;
+      std::vector<int> next, independent;
+      for (int vertex : remaining) {
+        bool compatible = true;
+        for (int chosen : independent)
+          if (adjacency_[vertex][chosen]) { compatible = false; break; }
+        if (compatible) {
+          independent.push_back(vertex);
+          order.push_back(vertex);
+          colors.push_back(color);
+        } else next.push_back(vertex);
+      }
+      remaining.swap(next);
+    }
+  }
+};

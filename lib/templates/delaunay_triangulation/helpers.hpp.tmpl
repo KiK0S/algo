@@ -1,0 +1,120 @@
+struct DelaunayTriangulation {
+  struct Point { long double x, y; };
+  struct Triangle { int a, b, c; };
+  struct Edge { int a, b; };
+
+  // Bowyer-Watson triangulation. Input points must be distinct, no three may be
+  // collinear, and no four cocircular. Floating predicates are reliable when the
+  // input is well separated from those degeneracies; rescale extreme coordinates.
+  std::vector<Point> points;
+  std::vector<Triangle> triangles;
+
+  static long double orientation(const Point& a, const Point& b, const Point& c) {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  }
+
+  static bool inside_circumcircle(const Point& point, const Point& a,
+                                  const Point& b, const Point& c) {
+    const long double ax = a.x - point.x, ay = a.y - point.y;
+    const long double bx = b.x - point.x, by = b.y - point.y;
+    const long double cx = c.x - point.x, cy = c.y - point.y;
+    const long double determinant =
+      (ax * ax + ay * ay) * (bx * cy - by * cx) -
+      (bx * bx + by * by) * (ax * cy - ay * cx) +
+      (cx * cx + cy * cy) * (ax * by - ay * bx);
+    return orientation(a, b, c) > 0 ? determinant > 0 : determinant < 0;
+  }
+
+  explicit DelaunayTriangulation(std::vector<Point> input = {}) { build(std::move(input)); }
+
+  void build(std::vector<Point> input) {
+    points = std::move(input);
+    triangles.clear();
+    const int count = static_cast<int>(points.size());
+    if (count < 3) return;
+    long double min_x = points[0].x, max_x = points[0].x;
+    long double min_y = points[0].y, max_y = points[0].y;
+    for (const Point& point : points) {
+      min_x = std::min(min_x, point.x); max_x = std::max(max_x, point.x);
+      min_y = std::min(min_y, point.y); max_y = std::max(max_y, point.y);
+    }
+    const long double span = std::max(max_x - min_x, max_y - min_y);
+    const long double center_x = (min_x + max_x) / 2;
+    const long double center_y = (min_y + max_y) / 2;
+    points.push_back({center_x - 32 * span, center_y - span});
+    points.push_back({center_x, center_y + 32 * span});
+    points.push_back({center_x + 32 * span, center_y - span});
+    triangles.push_back({count, count + 2, count + 1});
+
+    for (int index = 0; index < count; ++index) {
+      std::map<std::pair<int, int>, int> boundary;
+      std::vector<Triangle> kept;
+      auto add_edge = [&](int a, int b) {
+        if (a > b) std::swap(a, b);
+        ++boundary[{a, b}];
+      };
+      for (const Triangle& triangle : triangles) {
+        if (!inside_circumcircle(points[index], points[triangle.a], points[triangle.b], points[triangle.c])) {
+          kept.push_back(triangle);
+          continue;
+        }
+        add_edge(triangle.a, triangle.b);
+        add_edge(triangle.b, triangle.c);
+        add_edge(triangle.c, triangle.a);
+      }
+      for (const auto& [edge, frequency] : boundary) if (frequency == 1) {
+        Triangle triangle{edge.first, edge.second, index};
+        if (orientation(points[triangle.a], points[triangle.b], points[triangle.c]) < 0)
+          std::swap(triangle.a, triangle.b);
+        kept.push_back(triangle);
+      }
+      triangles.swap(kept);
+    }
+    triangles.erase(std::remove_if(triangles.begin(), triangles.end(), [&](const Triangle& triangle) {
+      return triangle.a >= count || triangle.b >= count || triangle.c >= count;
+    }), triangles.end());
+    points.resize(count);
+  }
+
+  std::vector<Edge> delaunay_edges() const {
+    if (points.size() == 2) return { {0, 1} };
+    std::set<std::pair<int, int>> unique;
+    for (const Triangle& triangle : triangles) {
+      int vertices[3]{triangle.a, triangle.b, triangle.c};
+      for (int i = 0; i < 3; ++i) {
+        int a = vertices[i], b = vertices[(i + 1) % 3];
+        if (a > b) std::swap(a, b);
+        unique.insert({a, b});
+      }
+    }
+    std::vector<Edge> result;
+    for (auto [a, b] : unique) result.push_back({a, b});
+    return result;
+  }
+
+  std::vector<std::vector<int>> voronoi_adjacency() const {
+    std::vector<std::vector<int>> result(points.size());
+    for (const Edge& edge : delaunay_edges()) {
+      result[edge.a].push_back(edge.b);
+      result[edge.b].push_back(edge.a);
+    }
+    return result;
+  }
+
+  // Each pair identifies adjacent Delaunay triangles and therefore a finite
+  // Voronoi dual edge. Hull edges correspond to unbounded Voronoi rays and are omitted.
+  std::vector<std::pair<int, int>> voronoi_dual_edges() const {
+    std::map<std::pair<int, int>, int> owner;
+    std::vector<std::pair<int, int>> result;
+    for (int triangle_index = 0; triangle_index < static_cast<int>(triangles.size()); ++triangle_index) {
+      int vertices[3]{triangles[triangle_index].a, triangles[triangle_index].b, triangles[triangle_index].c};
+      for (int i = 0; i < 3; ++i) {
+        int a = vertices[i], b = vertices[(i + 1) % 3];
+        if (a > b) std::swap(a, b);
+        auto [iterator, inserted] = owner.emplace(std::make_pair(a, b), triangle_index);
+        if (!inserted) result.push_back({iterator->second, triangle_index});
+      }
+    }
+    return result;
+  }
+};

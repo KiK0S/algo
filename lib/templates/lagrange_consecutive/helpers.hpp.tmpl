@@ -1,0 +1,20 @@
+template <typename T>
+T lagrange_consecutive(const std::vector<T>& values, T point) {
+  const int degree = static_cast<int>(values.size()) - 1;
+  if (degree < 0) return T(0);
+  std::vector<T> prefix(degree + 2, T(1)), suffix(degree + 2, T(1));
+  for (int i = 0; i <= degree; ++i) prefix[i + 1] = prefix[i] * (point - T(i));
+  for (int i = degree; i >= 0; --i) suffix[i] = suffix[i + 1] * (point - T(i));
+  std::vector<T> inverse_factorial(degree + 1, T(1));
+  T factorial = T(1);
+  for (int i = 1; i <= degree; ++i) factorial *= T(i);
+  inverse_factorial[degree] = T(1) / factorial;
+  for (int i = degree; i > 0; --i) inverse_factorial[i - 1] = inverse_factorial[i] * T(i);
+  T answer = T(0);
+  for (int i = 0; i <= degree; ++i) {
+    T term = values[i] * prefix[i] * suffix[i + 1] *
+             inverse_factorial[i] * inverse_factorial[degree - i];
+    answer += ((degree - i) & 1) ? -term : term;
+  }
+  return answer;
+}

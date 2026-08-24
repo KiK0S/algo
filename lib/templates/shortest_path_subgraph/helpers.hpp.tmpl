@@ -1,0 +1,84 @@
+template <class Weight>
+struct WeightedDirectedEdge { int from, to; Weight weight; };
+
+template <class Weight>
+struct ShortestPathSubgraphResult {
+  std::vector<Weight> distance;
+  std::vector<char> mandatory_vertex, mandatory_edge;
+  int edge_disjoint_path_count = 0;
+};
+
+template <class Weight>
+ShortestPathSubgraphResult<Weight> analyze_shortest_path_subgraph(
+    int vertex_count, const std::vector<WeightedDirectedEdge<Weight>>& edges,
+    int source, int target, Weight infinity) {
+  ShortestPathSubgraphResult<Weight> result;
+  result.distance.assign(vertex_count, infinity);
+  result.mandatory_vertex.assign(vertex_count, false);
+  result.mandatory_edge.assign(edges.size(), false);
+  if (source < 0 || source >= vertex_count || target < 0 || target >= vertex_count)
+    return result;
+  // All edge weights must be strictly positive. This makes the tight-edge
+  // subgraph acyclic and permits path counting in distance order.
+  std::vector<std::vector<std::pair<int, int>>> graph(vertex_count);
+  for (int i = 0; i < static_cast<int>(edges.size()); ++i)
+    graph[edges[i].from].push_back({edges[i].to, i});
+  std::priority_queue<std::pair<Weight, int>, std::vector<std::pair<Weight, int>>,
+                      std::greater<std::pair<Weight, int>>> queue;
+  result.distance[source] = Weight{}; queue.push({Weight{}, source});
+  while (!queue.empty()) {
+    auto [distance, v] = queue.top(); queue.pop();
+    if (distance != result.distance[v]) continue;
+    for (auto [to, id] : graph[v]) if (distance + edges[id].weight < result.distance[to]) {
+      result.distance[to] = distance + edges[id].weight;
+      queue.push({result.distance[to], to});
+    }
+  }
+  if (result.distance[target] == infinity) return result;
+  std::vector<std::vector<std::pair<int, int>>> tight(vertex_count), reverse(vertex_count);
+  for (int i = 0; i < static_cast<int>(edges.size()); ++i) {
+    const auto& edge = edges[i];
+    if (result.distance[edge.from] != infinity &&
+        result.distance[edge.from] + edge.weight == result.distance[edge.to]) {
+      tight[edge.from].push_back({edge.to, i});
+      reverse[edge.to].push_back({edge.from, i});
+    }
+  }
+  std::vector<int> order(vertex_count); std::iota(order.begin(), order.end(), 0);
+  std::sort(order.begin(), order.end(), [&](int a, int b) { return result.distance[a] < result.distance[b]; });
+  using Count = std::pair<long long, long long>;
+  constexpr long long mod1 = 1000000007, mod2 = 1000000009;
+  auto add = [&](Count a, Count b) { return Count{(a.first + b.first) % mod1, (a.second + b.second) % mod2}; };
+  auto multiply = [&](Count a, Count b) { return Count{a.first * b.first % mod1, a.second * b.second % mod2}; };
+  std::vector<Count> from(vertex_count), to(vertex_count); from[source] = {1, 1};
+  for (int v : order) for (auto [next, id] : tight[v]) from[next] = add(from[next], from[v]);
+  to[target] = {1, 1};
+  for (auto it = order.rbegin(); it != order.rend(); ++it)
+    for (auto [next, id] : tight[*it]) to[*it] = add(to[*it], to[next]);
+  Count total = from[target];
+  for (int v = 0; v < vertex_count; ++v) result.mandatory_vertex[v] = multiply(from[v], to[v]) == total;
+  for (int i = 0; i < static_cast<int>(edges.size()); ++i)
+    if (result.distance[edges[i].from] != infinity &&
+        result.distance[edges[i].from] + edges[i].weight == result.distance[edges[i].to])
+      result.mandatory_edge[i] = multiply(from[edges[i].from], to[edges[i].to]) == total;
+
+  if (source == target) return result;
+
+  std::vector<std::map<int, int>> capacity(vertex_count);
+  for (int v = 0; v < vertex_count; ++v) for (auto [to_vertex, id] : tight[v]) ++capacity[v][to_vertex];
+  while (true) {
+    std::vector<int> parent(vertex_count, -1); parent[source] = source;
+    std::queue<int> bfs; bfs.push(source);
+    while (!bfs.empty() && parent[target] == -1) {
+      int v = bfs.front(); bfs.pop();
+      for (auto [to_vertex, cap] : capacity[v]) if (cap > 0 && parent[to_vertex] == -1)
+        parent[to_vertex] = v, bfs.push(to_vertex);
+    }
+    if (parent[target] == -1) break;
+    ++result.edge_disjoint_path_count;
+    for (int v = target; v != source; v = parent[v]) {
+      --capacity[parent[v]][v]; ++capacity[v][parent[v]];
+    }
+  }
+  return result;
+}

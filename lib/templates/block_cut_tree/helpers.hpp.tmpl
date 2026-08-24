@@ -1,0 +1,90 @@
+struct BlockCutTree {
+  std::vector<std::vector<int>> components;
+  std::vector<int> articulation;
+  std::vector<std::vector<int>> tree;
+  std::vector<std::vector<int>> vertex_nodes;
+};
+
+inline BlockCutTree block_cut_tree(const std::vector<std::vector<int>>& graph) {
+  const int n = static_cast<int>(graph.size());
+  EDULCNI_VIS(edulcni::live::graph("block_cut.input", graph));
+  std::vector<int> discovery(n, -1), low(n), edge_stack;
+  std::vector<std::pair<int, int>> edges;
+  std::vector<std::vector<std::pair<int, int>>> adjacency(n);
+  for (int u = 0; u < n; ++u) {
+    for (int v : graph[u]) if (u < v) {
+      int id = static_cast<int>(edges.size());
+      edges.push_back({u, v});
+      adjacency[u].push_back({v, id});
+      adjacency[v].push_back({u, id});
+    }
+  }
+  BlockCutTree result;
+  int timer = 0;
+  std::function<void(int, int)> dfs = [&](int u, int parent_edge) {
+    discovery[u] = low[u] = timer++;
+    for (auto [v, id] : adjacency[u]) {
+      if (id == parent_edge) continue;
+      if (discovery[v] == -1) {
+        edge_stack.push_back(id);
+        dfs(v, id);
+        low[u] = std::min(low[u], low[v]);
+        if (low[v] >= discovery[u]) {
+          std::vector<int> vertices;
+          while (true) {
+            int edge = edge_stack.back();
+            edge_stack.pop_back();
+            vertices.push_back(edges[edge].first);
+            vertices.push_back(edges[edge].second);
+            if (edge == id) break;
+          }
+          std::sort(vertices.begin(), vertices.end());
+          vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
+          result.components.push_back(std::move(vertices));
+          EDULCNI_VIS(edulcni::live::array(
+              "block_cut.component", result.components.back()));
+          EDULCNI_VIS(edulcni::live::array("block_cut.discovery", discovery));
+          EDULCNI_VIS(edulcni::live::array("block_cut.low", low));
+          EDULCNI_STEP("Block-cut decomposition extracts a component");
+        }
+      } else if (discovery[v] < discovery[u]) {
+        edge_stack.push_back(id);
+        low[u] = std::min(low[u], discovery[v]);
+      }
+    }
+  };
+  for (int root = 0; root < n; ++root) {
+    if (discovery[root] == -1) {
+      if (adjacency[root].empty()) result.components.push_back({root});
+      else dfs(root, -1);
+    }
+  }
+  std::vector<int> occurrences(n);
+  for (const auto& component : result.components)
+    for (int vertex : component) ++occurrences[vertex];
+  result.articulation.assign(n, -1);
+  int nodes = static_cast<int>(result.components.size());
+  for (int vertex = 0; vertex < n; ++vertex)
+    if (occurrences[vertex] > 1) result.articulation[vertex] = nodes++;
+  result.tree.assign(nodes, {});
+  result.vertex_nodes.assign(n, {});
+  for (int vertex = 0; vertex < n; ++vertex)
+    if (result.articulation[vertex] != -1)
+      result.vertex_nodes[vertex].push_back(result.articulation[vertex]);
+  for (int component = 0; component < static_cast<int>(result.components.size()); ++component) {
+    for (int vertex : result.components[component]) {
+      int node = result.articulation[vertex];
+      if (node == -1) result.vertex_nodes[vertex].push_back(component);
+      else {
+        result.tree[component].push_back(node);
+        result.tree[node].push_back(component);
+      }
+    }
+  }
+  EDULCNI_VIS(edulcni::live::graph("block_cut.forest", result.tree));
+  EDULCNI_VIS(edulcni::live::array("block_cut.articulation_node", result.articulation));
+  EDULCNI_VIS(edulcni::live::value(
+      "block_cut.component_count", result.components.size()));
+  EDULCNI_STEP("Block-cut forest is ready");
+  return result;
+}

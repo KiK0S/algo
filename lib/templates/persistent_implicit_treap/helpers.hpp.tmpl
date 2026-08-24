@@ -1,0 +1,154 @@
+template <typename T, typename Combine = std::plus<T>>
+class PersistentImplicitTreap {
+ public:
+  using Root = int;
+
+  explicit PersistentImplicitTreap(T identity = T(), Combine combine = Combine(),
+                                   unsigned seed = 712367821u)
+      : identity_(identity), combine_(combine), rng_state_(seed == 0 ? 1u : seed) {
+    nodes_.push_back(Node{});
+  }
+
+  Root empty_root() const { return 0; }
+  int size(Root root) const { return nodes_[root].size; }
+  T aggregate(Root root) const { return root == 0 ? identity_ : nodes_[root].aggregate; }
+
+  Root singleton(const T& value) {
+    nodes_.push_back(Node{value, value, next_priority(), 1, 0, 0});
+    return int(nodes_.size()) - 1;
+  }
+
+  Root merge(Root left, Root right) {
+    if (left == 0) return right;
+    if (right == 0) return left;
+    if (nodes_[left].priority > nodes_[right].priority) {
+      Root copy = clone(left);
+      nodes_[copy].right = merge(nodes_[copy].right, right);
+      pull(copy);
+      return copy;
+    }
+    Root copy = clone(right);
+    nodes_[copy].left = merge(left, nodes_[copy].left);
+    pull(copy);
+    return copy;
+  }
+
+  std::pair<Root, Root> split(Root root, int left_size) {
+    if (root == 0) return {0, 0};
+    left_size = std::max(0, std::min(left_size, size(root)));
+    Root copy = clone(root);
+    if (size(nodes_[copy].left) >= left_size) {
+      auto parts = split(nodes_[copy].left, left_size);
+      nodes_[copy].left = parts.second;
+      pull(copy);
+      return {parts.first, copy};
+    }
+    auto parts = split(nodes_[copy].right,
+                       left_size - size(nodes_[copy].left) - 1);
+    nodes_[copy].right = parts.first;
+    pull(copy);
+    return {copy, parts.second};
+  }
+
+  Root insert(Root root, int position, const T& value) {
+    position = std::max(0, std::min(position, size(root)));
+    auto parts = split(root, position);
+    return merge(merge(parts.first, singleton(value)), parts.second);
+  }
+
+  Root erase(Root root, int position) {
+    if (position < 0 || position >= size(root)) return root;
+    auto prefix_suffix = split(root, position);
+    auto removed_suffix = split(prefix_suffix.second, 1);
+    return merge(prefix_suffix.first, removed_suffix.second);
+  }
+
+  Root set(Root root, int position, const T& value) {
+    if (position < 0 || position >= size(root)) return root;
+    auto prefix_suffix = split(root, position);
+    auto old_suffix = split(prefix_suffix.second, 1);
+    return merge(merge(prefix_suffix.first, singleton(value)), old_suffix.second);
+  }
+
+  bool get(Root root, int position, T& value) const {
+    if (position < 0 || position >= size(root)) return false;
+    while (root != 0) {
+      int left_size = size(nodes_[root].left);
+      if (position < left_size) {
+        root = nodes_[root].left;
+      } else if (position == left_size) {
+        value = nodes_[root].value;
+        return true;
+      } else {
+        position -= left_size + 1;
+        root = nodes_[root].right;
+      }
+    }
+    return false;
+  }
+
+  T range_query(Root root, int left, int right) const {
+    left = std::max(left, 0);
+    right = std::min(right, size(root));
+    if (left >= right) return identity_;
+    return range_query_rec(root, left, right, 0);
+  }
+
+  std::vector<T> to_vector(Root root) const {
+    std::vector<T> result;
+    result.reserve(size(root));
+    collect(root, result);
+    return result;
+  }
+
+ private:
+  struct Node {
+    T value{};
+    T aggregate{};
+    unsigned priority = 0;
+    int size = 0;
+    Root left = 0;
+    Root right = 0;
+  };
+
+  std::vector<Node> nodes_;
+  T identity_;
+  Combine combine_;
+  unsigned rng_state_;
+
+  Root clone(Root root) {
+    nodes_.push_back(nodes_[root]);
+    return int(nodes_.size()) - 1;
+  }
+
+  unsigned next_priority() {
+    rng_state_ ^= rng_state_ << 13;
+    rng_state_ ^= rng_state_ >> 17;
+    rng_state_ ^= rng_state_ << 5;
+    return rng_state_;
+  }
+
+  void pull(Root root) {
+    Node& node = nodes_[root];
+    node.size = 1 + size(node.left) + size(node.right);
+    node.aggregate = combine_(combine_(aggregate(node.left), node.value),
+                              aggregate(node.right));
+  }
+
+  void collect(Root root, std::vector<T>& result) const {
+    if (root == 0) return;
+    collect(nodes_[root].left, result);
+    result.push_back(nodes_[root].value);
+    collect(nodes_[root].right, result);
+  }
+
+  T range_query_rec(Root root, int left, int right, int offset) const {
+    if (root == 0 || right <= offset || offset + size(root) <= left) return identity_;
+    if (left <= offset && offset + size(root) <= right) return aggregate(root);
+    const int position = offset + size(nodes_[root].left);
+    T result = range_query_rec(nodes_[root].left, left, right, offset);
+    if (left <= position && position < right) result = combine_(result, nodes_[root].value);
+    return combine_(result,
+                    range_query_rec(nodes_[root].right, left, right, position + 1));
+  }
+};

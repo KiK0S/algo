@@ -1,0 +1,47 @@
+struct UnionCircle { long double x{}, y{}, radius{}; };
+
+inline long double circle_union_area(const vector<UnionCircle>& circles,
+                                     long double epsilon = 1e-12L) {
+    const long double pi = acosl(-1.0L);
+    long double answer = 0;
+    for (int i = 0; i < int(circles.size()); ++i) {
+        const auto& current = circles[i];
+        if (current.radius <= epsilon) continue;
+        bool covered = false;
+        vector<pair<long double, long double>> intervals;
+        for (int j = 0; j < int(circles.size()); ++j) if (i != j) {
+            const auto& other = circles[j];
+            long double dx = other.x - current.x, dy = other.y - current.y;
+            long double distance = hypotl(dx, dy);
+            if (distance + current.radius <= other.radius + epsilon &&
+                (other.radius > current.radius + epsilon || j < i)) { covered = true; break; }
+            if (distance >= current.radius + other.radius - epsilon ||
+                distance <= fabsl(current.radius - other.radius) + epsilon) continue;
+            long double center = atan2l(dy, dx);
+            long double half = acosl(clamp((distance * distance + current.radius * current.radius -
+                                            other.radius * other.radius) /
+                                           (2 * distance * current.radius), -1.0L, 1.0L));
+            long double left = center - half, right = center + half;
+            while (left < 0) left += 2 * pi, right += 2 * pi;
+            while (left >= 2 * pi) left -= 2 * pi, right -= 2 * pi;
+            if (right <= 2 * pi) intervals.push_back({left, right});
+            else { intervals.push_back({left, 2 * pi}); intervals.push_back({0, right - 2 * pi}); }
+        }
+        if (covered) continue;
+        sort(intervals.begin(), intervals.end());
+        vector<pair<long double, long double>> visible;
+        long double cursor = 0;
+        for (auto [left, right] : intervals) {
+            if (left > cursor + epsilon) visible.push_back({cursor, left});
+            cursor = max(cursor, right);
+        }
+        if (cursor < 2 * pi - epsilon) visible.push_back({cursor, 2 * pi});
+        for (auto [left, right] : visible) {
+            long double r = current.radius;
+            answer += (r * current.x * (sinl(right) - sinl(left)) +
+                       r * current.y * (cosl(left) - cosl(right)) +
+                       r * r * (right - left)) / 2;
+        }
+    }
+    return answer;
+}

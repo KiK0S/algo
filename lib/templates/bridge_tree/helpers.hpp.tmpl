@@ -1,0 +1,67 @@
+struct BridgeTree {
+  std::vector<int> component;
+  std::vector<std::pair<int, int>> bridges;
+  std::vector<std::vector<int>> tree;
+};
+
+inline BridgeTree bridge_tree(int vertex_count,
+                              const std::vector<std::pair<int, int>>& edges) {
+  const int m = static_cast<int>(edges.size());
+  std::vector<std::vector<std::pair<int, int>>> graph(vertex_count);
+  for (int id = 0; id < m; ++id) {
+    auto [u, v] = edges[id];
+    graph[u].push_back({v, id});
+    graph[v].push_back({u, id});
+  }
+  EDULCNI_VIS(edulcni::live::edges("bridge_tree.input", vertex_count, edges));
+  std::vector<int> discovery(vertex_count, -1), low(vertex_count);
+  std::vector<char> is_bridge(m, false);
+  int timer = 0;
+  std::function<void(int, int)> dfs = [&](int u, int parent_edge) {
+    discovery[u] = low[u] = timer++;
+    for (auto [v, id] : graph[u]) if (id != parent_edge) {
+      if (discovery[v] == -1) {
+        dfs(v, id);
+        low[u] = std::min(low[u], low[v]);
+        if (low[v] > discovery[u]) {
+          is_bridge[id] = true;
+          EDULCNI_VIS(edulcni::live::array("bridge_tree.discovery", discovery));
+          EDULCNI_VIS(edulcni::live::array("bridge_tree.low", low));
+          EDULCNI_VIS(edulcni::live::array(
+              "bridge_tree.bridge", std::vector<int>{u, v}));
+          EDULCNI_STEP("Bridge tree finds a bridge");
+        }
+      } else low[u] = std::min(low[u], discovery[v]);
+    }
+  };
+  for (int u = 0; u < vertex_count; ++u) if (discovery[u] == -1) dfs(u, -1);
+
+  BridgeTree result;
+  result.component.assign(vertex_count, -1);
+  int count = 0;
+  for (int start = 0; start < vertex_count; ++start) if (result.component[start] == -1) {
+    std::vector<int> stack = {start};
+    result.component[start] = count;
+    while (!stack.empty()) {
+      int u = stack.back(); stack.pop_back();
+      for (auto [v, id] : graph[u])
+        if (!is_bridge[id] && result.component[v] == -1) {
+          result.component[v] = count;
+          stack.push_back(v);
+        }
+    }
+    ++count;
+  }
+  result.tree.assign(count, {});
+  for (int id = 0; id < m; ++id) if (is_bridge[id]) {
+    auto [u, v] = edges[id];
+    int a = result.component[u], b = result.component[v];
+    result.bridges.push_back({u, v});
+    result.tree[a].push_back(b);
+    result.tree[b].push_back(a);
+  }
+  EDULCNI_VIS(edulcni::live::array("bridge_tree.component", result.component));
+  EDULCNI_VIS(edulcni::live::graph("bridge_tree.forest", result.tree));
+  EDULCNI_STEP("Bridge forest is ready");
+  return result;
+}

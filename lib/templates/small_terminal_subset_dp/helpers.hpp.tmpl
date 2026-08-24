@@ -1,0 +1,25 @@
+template <class Value, class Merge, class Relax>
+std::vector<std::vector<Value>> small_terminal_subset_dp(
+    int terminal_count, int state_count, Value infinity,
+    std::vector<std::vector<Value>> initial, Merge merge, Relax relax) {
+  if (terminal_count < 0 || terminal_count >= std::numeric_limits<int>::digits ||
+      state_count < 0) return {};
+  const int mask_count = 1 << terminal_count;
+  initial.resize(mask_count, std::vector<Value>(state_count, infinity));
+  for (int mask = 1; mask < mask_count; ++mask) {
+    for (int submask = (mask - 1) & mask; submask != 0;
+         submask = (submask - 1) & mask) {
+      int other = mask ^ submask;
+      if (submask > other) continue;
+      for (int state = 0; state < state_count; ++state) {
+        if (initial[submask][state] == infinity ||
+            initial[other][state] == infinity) continue;
+        initial[mask][state] = std::min(
+            initial[mask][state],
+            merge(initial[submask][state], initial[other][state]));
+      }
+    }
+    relax(mask, initial[mask]);
+  }
+  return initial;
+}

@@ -19,6 +19,18 @@ function commandName(entry) {
   return name;
 }
 
+function paletteGroup(name) {
+  const matches = (pattern) => pattern.test(name);
+  if (matches(/(segtree|fenwick|sparse_table|wavelet|range_|offline_kth|mo$|mo_|sqrt_decomposition|swag_queue|order_statistics)/)) return "Range queries";
+  if (matches(/(string|suffix|aho|palindrom|lyndon|lcp|hash|wildcard|burrows|absent)/)) return "Strings";
+  if (matches(/(geometry|polygon|circle|convex|hull|calipers|delaunay|planar|segment_intersection|rectangle|angular)/)) return "Geometry";
+  if (matches(/(flow|matching|hungarian|kuhn|blossom|gomory|circulation|matroid)/)) return "Flow & matching";
+  if (matches(/(dsu|connectivity|component|tree|graph|lca|hld|bfs|dijkstra|toposort|kosaraju|dominator|cactus|bridge|mst|shortest_path)/)) return "Graphs & trees";
+  if (matches(/(dp|knapsack|slope_trick|aliens|smawk|subset_sum|held_karp|turtle)/)) return "Dynamic programming";
+  if (matches(/(prime|sieve|mod|factor|binomial|combinatorics|polynomial|ntt|fft|floor_sum|rational|continued_fraction|stern_brocot|discrete_|primitive_root|bostan|berlekamp)/)) return "Math";
+  return "Utilities";
+}
+
 async function syncCommands() {
   const catalogPath = path.join(sourceRoot, "catalog", "snippets.json");
   const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
@@ -27,7 +39,7 @@ async function syncCommands() {
     return {
       command: `edulcni.${name}`,
       snippetPath: entry.path,
-      title: `edulcni: ${name} — ${entry.insertMode === "global" ? "Global" : "Inline"}`
+      title: `edulcni: ${name} — ${paletteGroup(name)} · ${entry.insertMode === "global" ? "Global" : "Inline"}`
     };
   });
   const commandIds = commands.map(({ command }) => command);

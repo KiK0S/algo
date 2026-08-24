@@ -1,0 +1,16 @@
+template <typename Callback>
+inline void for_each_quotient_block(long long limit, Callback&& callback) {
+  for (long long left = 1, right; left <= limit; left = right + 1) {
+    const long long quotient = limit / left;
+    right = limit / quotient;
+    callback(left, right, quotient);
+  }
+}
+
+inline std::vector<long long> distinct_floor_quotients(long long limit) {
+  std::vector<long long> values;
+  for_each_quotient_block(limit, [&](long long, long long, long long quotient) {
+    values.push_back(quotient);
+  });
+  return values;
+}

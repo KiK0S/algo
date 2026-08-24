@@ -1,0 +1,17 @@
+template<class T>
+vector<T> min_plus_convolution_convex(const vector<T>& first, const vector<T>& second) {
+    if (first.empty() || second.empty()) return {};
+    vector<T> result;
+    result.reserve(first.size() + second.size() - 1);
+    result.push_back(first[0] + second[0]);
+    int i = 1, j = 1;
+    while (i < int(first.size()) || j < int(second.size())) {
+        if (j == int(second.size()) ||
+            (i < int(first.size()) && first[i] - first[i - 1] <= second[j] - second[j - 1])) {
+            result.push_back(result.back() + first[i] - first[i - 1]); ++i;
+        } else {
+            result.push_back(result.back() + second[j] - second[j - 1]); ++j;
+        }
+    }
+    return result;
+}

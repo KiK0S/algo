@@ -1,0 +1,49 @@
+template <typename Integer, typename BatchEvaluate, typename Better = std::less<>>
+inline std::vector<Integer> parallel_integer_ternary_search(
+    std::vector<Integer> left, std::vector<Integer> right,
+    BatchEvaluate batch_evaluate, Better better = Better()) {
+  // Each closed interval must have a representable width, and its objective
+  // must be discrete unimodal according to Better (std::less<> minimizes).
+  assert(left.size() == right.size());
+  struct Probe { int query; Integer argument; };
+  while (true) {
+    std::vector<Probe> probes;
+    std::vector<std::pair<int, int>> positions(left.size(), {-1, -1});
+    for (int query = 0; query < static_cast<int>(left.size()); ++query) {
+      assert(left[query] <= right[query]);
+      if (right[query] - left[query] <= Integer(3)) continue;
+      const Integer third = (right[query] - left[query]) / Integer(3);
+      positions[query].first = probes.size(); probes.push_back({query, left[query] + third});
+      positions[query].second = probes.size(); probes.push_back({query, right[query] - third});
+    }
+    if (probes.empty()) break;
+    const auto values = batch_evaluate(probes);
+    assert(values.size() == probes.size());
+    for (int query = 0; query < static_cast<int>(left.size()); ++query) {
+      if (positions[query].first == -1) continue;
+      if (better(values[positions[query].second], values[positions[query].first]))
+        left[query] = probes[positions[query].first].argument + 1;
+      else right[query] = probes[positions[query].second].argument - 1;
+    }
+  }
+  std::vector<Probe> probes;
+  std::vector<int> begin(left.size());
+  for (int query = 0; query < static_cast<int>(left.size()); ++query) {
+    begin[query] = probes.size();
+    for (Integer argument = left[query];; ++argument) {
+      probes.push_back({query, argument});
+      if (argument == right[query]) break;
+    }
+  }
+  const auto values = batch_evaluate(probes);
+  assert(values.size() == probes.size());
+  std::vector<Integer> answer(left.size());
+  for (int query = 0; query < static_cast<int>(left.size()); ++query) {
+    int best = begin[query];
+    const int end = query + 1 == static_cast<int>(left.size()) ? probes.size() : begin[query + 1];
+    for (int position = best + 1; position < end; ++position)
+      if (better(values[position], values[best])) best = position;
+    answer[query] = probes[best].argument;
+  }
+  return answer;
+}

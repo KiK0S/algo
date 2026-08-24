@@ -1,0 +1,80 @@
+template <typename Int>
+struct AngularDirection {
+  Int x;
+  Int y;
+
+  bool operator==(const AngularDirection& other) const {
+    return x == other.x && y == other.y;
+  }
+};
+
+template <typename Int>
+bool normalize_angular_direction(Int x, Int y, AngularDirection<Int>& result) {
+  if (x == 0 && y == 0) return false;
+  __int128 wide_x = static_cast<__int128>(x);
+  __int128 wide_y = static_cast<__int128>(y);
+  __int128 abs_x = wide_x < 0 ? -wide_x : wide_x;
+  __int128 abs_y = wide_y < 0 ? -wide_y : wide_y;
+  while (abs_y != 0) {
+    __int128 remainder = abs_x % abs_y;
+    abs_x = abs_y;
+    abs_y = remainder;
+  }
+  result = {static_cast<Int>(wide_x / abs_x),
+            static_cast<Int>(wide_y / abs_x)};
+  return true;
+}
+
+template <typename Int>
+struct AngularDirectionLess {
+  bool operator()(const AngularDirection<Int>& lhs,
+                  const AngularDirection<Int>& rhs) const {
+    const int lhs_half = half(lhs);
+    const int rhs_half = half(rhs);
+    if (lhs_half != rhs_half) return lhs_half < rhs_half;
+    return static_cast<__int128>(lhs.x) * rhs.y -
+               static_cast<__int128>(lhs.y) * rhs.x >
+           0;
+  }
+
+ private:
+  static int half(const AngularDirection<Int>& direction) {
+    return direction.y < 0 || (direction.y == 0 && direction.x < 0);
+  }
+};
+
+template <typename Int, typename Payload>
+struct AngularEvent {
+  AngularDirection<Int> direction;
+  Payload payload;
+};
+
+template <typename Int, typename Payload, typename Callback>
+void grouped_angular_event_sweep(std::vector<AngularEvent<Int, Payload>> events,
+                                 Callback callback) {
+  std::vector<AngularEvent<Int, Payload>> normalized;
+  normalized.reserve(events.size());
+  for (auto& event : events) {
+    AngularDirection<Int> direction;
+    if (!normalize_angular_direction(event.direction.x, event.direction.y, direction)) {
+      continue;
+    }
+    normalized.push_back({direction, std::move(event.payload)});
+  }
+  AngularDirectionLess<Int> less;
+  std::sort(normalized.begin(), normalized.end(), [&](const auto& lhs, const auto& rhs) {
+    return less(lhs.direction, rhs.direction);
+  });
+
+  std::size_t first = 0;
+  while (first < normalized.size()) {
+    std::size_t last = first + 1;
+    while (last < normalized.size() &&
+           normalized[last].direction == normalized[first].direction) {
+      ++last;
+    }
+    callback(normalized[first].direction, normalized.begin() + first,
+             normalized.begin() + last);
+    first = last;
+  }
+}

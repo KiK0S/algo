@@ -1,0 +1,59 @@
+struct SegmentTreeGraph {
+  struct Edge { int from, to; long long weight; };
+  int original_vertices;
+  int size;
+  std::vector<Edge> edges;
+
+  explicit SegmentTreeGraph(int vertex_count)
+      : original_vertices(vertex_count), size(1) {
+    while (size < vertex_count) size *= 2;
+    out_offset = vertex_count;
+    in_offset = out_offset + 2 * size;
+    next_vertex = in_offset + 2 * size;
+    for (int node = 1; node < size; ++node) {
+      edges.push_back({out(node), out(2 * node), 0});
+      edges.push_back({out(node), out(2 * node + 1), 0});
+      edges.push_back({in(2 * node), in(node), 0});
+      edges.push_back({in(2 * node + 1), in(node), 0});
+    }
+    for (int index = 0; index < vertex_count; ++index) {
+      edges.push_back({out(size + index), index, 0});
+      edges.push_back({index, in(size + index), 0});
+    }
+  }
+
+  int vertex_count() const { return next_vertex; }
+  void add_edge(int from, int to, long long weight) { edges.push_back({from, to, weight}); }
+
+  void add_vertex_to_range(int from, int left, int right, long long weight) {
+    assert(0 <= from && from < original_vertices && 0 <= left && left <= right &&
+           right <= original_vertices);
+    cover(left, right, [&](int node) { edges.push_back({from, out(node), weight}); });
+  }
+  void add_range_to_vertex(int left, int right, int to, long long weight) {
+    assert(0 <= left && left <= right && right <= original_vertices &&
+           0 <= to && to < original_vertices);
+    cover(left, right, [&](int node) { edges.push_back({in(node), to, weight}); });
+  }
+  void add_range_to_range(int from_left, int from_right,
+                          int to_left, int to_right, long long weight) {
+    assert(0 <= from_left && from_left <= from_right &&
+           from_right <= original_vertices && 0 <= to_left &&
+           to_left <= to_right && to_right <= original_vertices);
+    int connector = next_vertex++;
+    add_range_to_vertex(from_left, from_right, connector, 0);
+    add_vertex_to_range(connector, to_left, to_right, weight);
+  }
+
+ private:
+  int out_offset, in_offset, next_vertex;
+  int out(int node) const { return out_offset + node; }
+  int in(int node) const { return in_offset + node; }
+  template <class Callback>
+  void cover(int left, int right, Callback callback) {
+    for (left += size, right += size; left < right; left /= 2, right /= 2) {
+      if (left & 1) callback(left++);
+      if (right & 1) callback(--right);
+    }
+  }
+};

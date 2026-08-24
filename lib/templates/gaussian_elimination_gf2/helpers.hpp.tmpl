@@ -1,0 +1,50 @@
+template <std::size_t MaxVariables>
+struct GaussianEliminationGF2Result {
+  bool consistent = true;
+  int rank = 0;
+  std::vector<int> solution;
+  std::vector<int> pivot_columns;
+};
+
+template <std::size_t MaxVariables>
+GaussianEliminationGF2Result<MaxVariables> gaussian_elimination_gf2(
+    std::vector<std::bitset<MaxVariables + 1>> equations, int variable_count) {
+  if (variable_count < 0 || variable_count > static_cast<int>(MaxVariables)) {
+    GaussianEliminationGF2Result<MaxVariables> invalid;
+    invalid.consistent = false;
+    return invalid;
+  }
+  const int row_count = static_cast<int>(equations.size());
+  std::vector<int> pivot_columns;
+  int pivot_row = 0;
+  for (int column = 0; column < variable_count && pivot_row < row_count; ++column) {
+    int selected = pivot_row;
+    while (selected < row_count && !equations[selected][column]) ++selected;
+    if (selected == row_count) continue;
+    std::swap(equations[pivot_row], equations[selected]);
+    for (int row = 0; row < row_count; ++row) {
+      if (row != pivot_row && equations[row][column]) equations[row] ^= equations[pivot_row];
+    }
+    pivot_columns.push_back(column);
+    ++pivot_row;
+  }
+
+  GaussianEliminationGF2Result<MaxVariables> result;
+  result.rank = pivot_row;
+  result.pivot_columns = pivot_columns;
+  result.solution.assign(variable_count, 0);
+  for (int row = pivot_row; row < row_count; ++row) {
+    bool has_coefficient = false;
+    for (int column = 0; column < variable_count; ++column) {
+      has_coefficient = has_coefficient || equations[row][column];
+    }
+    if (!has_coefficient && equations[row][variable_count]) {
+      result.consistent = false;
+      return result;
+    }
+  }
+  for (int row = 0; row < pivot_row; ++row) {
+    result.solution[pivot_columns[row]] = equations[row][variable_count];
+  }
+  return result;
+}

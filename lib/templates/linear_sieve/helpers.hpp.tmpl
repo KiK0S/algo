@@ -5,15 +5,31 @@ class {{className}} {
   void build(int limit) {
     limit_ = (limit < 0 ? 0 : limit);
     lowest_prime_.assign(limit_ + 1, 0);
+    lowest_prime_exponent_.assign(limit_ + 1, 0);
+    prime_power_.assign(limit_ + 1, 1);
+    phi_.assign(limit_ + 1, 0);
+    mobius_.assign(limit_ + 1, 0);
+    divisor_count_.assign(limit_ + 1, 0);
+    divisor_sum_.assign(limit_ + 1, 0);
     primes_.clear();
 
     if (limit_ >= 1) {
       lowest_prime_[1] = 1;
+      phi_[1] = 1;
+      mobius_[1] = 1;
+      divisor_count_[1] = 1;
+      divisor_sum_[1] = 1;
     }
 
     for (int i = 2; i <= limit_; ++i) {
       if (lowest_prime_[i] == 0) {
         lowest_prime_[i] = i;
+        lowest_prime_exponent_[i] = 1;
+        prime_power_[i] = i;
+        phi_[i] = i - 1;
+        mobius_[i] = -1;
+        divisor_count_[i] = 2;
+        divisor_sum_[i] = saturated_add(1, static_cast<unsigned long long>(i));
         primes_.push_back(i);
       }
       for (int p : primes_) {
@@ -21,7 +37,30 @@ class {{className}} {
         if (next > limit_ || p > lowest_prime_[i]) {
           break;
         }
-        lowest_prime_[static_cast<int>(next)] = p;
+        const int value = static_cast<int>(next);
+        lowest_prime_[value] = p;
+        if (p == lowest_prime_[i]) {
+          lowest_prime_exponent_[value] = lowest_prime_exponent_[i] + 1;
+          prime_power_[value] = prime_power_[i] * p;
+          phi_[value] = phi_[i] * p;
+          mobius_[value] = 0;
+          divisor_count_[value] = saturated_multiply(
+              divisor_count_[i] / (lowest_prime_exponent_[i] + 1),
+              static_cast<unsigned long long>(lowest_prime_exponent_[value] + 1));
+          const int coprime_part = i / prime_power_[i];
+          divisor_sum_[value] = saturated_add(
+              divisor_sum_[i],
+              saturated_multiply(divisor_sum_[coprime_part],
+                                 static_cast<unsigned long long>(prime_power_[value])));
+        } else {
+          lowest_prime_exponent_[value] = 1;
+          prime_power_[value] = p;
+          phi_[value] = phi_[i] * (p - 1);
+          mobius_[value] = -mobius_[i];
+          divisor_count_[value] = saturated_multiply(divisor_count_[i], 2);
+          divisor_sum_[value] = saturated_multiply(
+              divisor_sum_[i], static_cast<unsigned long long>(p) + 1);
+        }
       }
     }
     EDULCNI_VIS(edulcni::live::array("linear_sieve.lowest_prime", lowest_prime_));
@@ -30,6 +69,30 @@ class {{className}} {
   }
 
   int limit() const { return limit_; }
+
+  const std::vector<int>& lowest_prime_exponents() const {
+    return lowest_prime_exponent_;
+  }
+  const std::vector<long long>& phi_table() const { return phi_; }
+  const std::vector<int>& mobius_table() const { return mobius_; }
+  const std::vector<unsigned long long>& divisor_count_table() const {
+    return divisor_count_;
+  }
+  const std::vector<unsigned long long>& divisor_sum_table() const {
+    return divisor_sum_;
+  }
+
+  int lowest_prime_exponent_of(int value) const {
+    return in_range(value) ? lowest_prime_exponent_[value] : 0;
+  }
+  long long phi_of(int value) const { return in_range(value) ? phi_[value] : 0; }
+  int mobius_of(int value) const { return in_range(value) ? mobius_[value] : 0; }
+  unsigned long long divisor_count_of(int value) const {
+    return in_range(value) ? divisor_count_[value] : 0;
+  }
+  unsigned long long divisor_sum_of(int value) const {
+    return in_range(value) ? divisor_sum_[value] : 0;
+  }
 {{#if includeLowestPrime}}
 
   const std::vector<int>& lowest_prime() const { return lowest_prime_; }
@@ -76,7 +139,30 @@ class {{className}} {
  private:
   int limit_;
   std::vector<int> lowest_prime_;
+  std::vector<int> lowest_prime_exponent_;
+  std::vector<int> prime_power_;
+  std::vector<long long> phi_;
+  std::vector<int> mobius_;
+  std::vector<unsigned long long> divisor_count_;
+  std::vector<unsigned long long> divisor_sum_;
   std::vector<int> primes_;
+
+  bool in_range(int value) const { return value >= 1 && value <= limit_; }
+
+  static unsigned long long saturated_add(unsigned long long lhs,
+                                          unsigned long long rhs) {
+    const unsigned long long maximum =
+        std::numeric_limits<unsigned long long>::max();
+    return rhs > maximum - lhs ? maximum : lhs + rhs;
+  }
+
+  static unsigned long long saturated_multiply(unsigned long long lhs,
+                                               unsigned long long rhs) {
+    const unsigned long long maximum =
+        std::numeric_limits<unsigned long long>::max();
+    if (lhs == 0 || rhs == 0) return 0;
+    return lhs > maximum / rhs ? maximum : lhs * rhs;
+  }
 };
 {{#if includeLowestPrime}}
 

@@ -1,0 +1,28 @@
+struct MoModificationQuery {
+  int left = 0, right = 0, time = 0, index = 0;
+};
+
+template <typename Add, typename Remove, typename Apply, typename Undo, typename Answer>
+inline void run_mo_with_modifications(int value_count,
+    std::vector<MoModificationQuery> queries, Add add, Remove remove,
+    Apply apply, Undo undo, Answer answer) {
+  const int block = std::max(1, static_cast<int>(std::pow(std::max(1, value_count), 2.0 / 3.0)));
+  std::sort(queries.begin(), queries.end(), [&](const auto& first, const auto& second) {
+    const int first_left = first.left / block, second_left = second.left / block;
+    if (first_left != second_left) return first_left < second_left;
+    const int first_right = first.right / block, second_right = second.right / block;
+    if (first_right != second_right) return (first_left & 1) ? first_right > second_right
+                                                            : first_right < second_right;
+    return (first_right & 1) ? first.time > second.time : first.time < second.time;
+  });
+  int left = 0, right = 0, time = 0;
+  for (const auto& query : queries) {
+    while (time < query.time) apply(time++, left, right);
+    while (time > query.time) undo(--time, left, right);
+    while (left > query.left) add(--left);
+    while (right < query.right) add(right++);
+    while (left < query.left) remove(left++);
+    while (right > query.right) remove(--right);
+    answer(query.index);
+  }
+}

@@ -2,6 +2,7 @@
 inline unsigned long long factor_mod_multiply(
 		unsigned long long first, unsigned long long second,
 		unsigned long long modulus) {
+	if (modulus == 0) return 0;
 	return static_cast<unsigned long long>(
 		static_cast<unsigned __int128>(first) * second % modulus);
 }
@@ -9,6 +10,7 @@ inline unsigned long long factor_mod_multiply(
 inline unsigned long long factor_mod_power(
 		unsigned long long base, unsigned long long exponent,
 		unsigned long long modulus) {
+	if (modulus == 0) return 0;
 	unsigned long long result = 1 % modulus;
 	while (exponent > 0) {
 		if (exponent & 1ULL) result = factor_mod_multiply(result, base, modulus);
@@ -48,7 +50,9 @@ inline unsigned long long pollard_rho(unsigned long long value) {
 		unsigned long long other = current;
 		unsigned long long divisor = 1;
 		auto advance = [&](unsigned long long x) {
-			return (factor_mod_multiply(x, x, value) + constant) % value;
+			return static_cast<unsigned long long>(
+				(static_cast<unsigned __int128>(factor_mod_multiply(x, x, value)) +
+				 constant) % value);
 		};
 		while (divisor == 1) {
 			current = advance(current);
@@ -75,4 +79,32 @@ inline std::vector<unsigned long long> factorize_64(unsigned long long value) {
 	split(value);
 	std::sort(factors.begin(), factors.end());
 	return factors;
+}
+
+inline std::vector<unsigned long long> divisors_from_factorization(
+		const std::vector<unsigned long long>& sorted_prime_factors) {
+	std::vector<unsigned long long> divisors{1};
+	for (int first = 0; first < static_cast<int>(sorted_prime_factors.size());) {
+		int last = first;
+		while (last < static_cast<int>(sorted_prime_factors.size()) &&
+				sorted_prime_factors[last] == sorted_prime_factors[first]) {
+			++last;
+		}
+		const std::size_t previous_size = divisors.size();
+		unsigned long long power = 1;
+		for (int exponent = 1; exponent <= last - first; ++exponent) {
+			power *= sorted_prime_factors[first];
+			for (std::size_t i = 0; i < previous_size; ++i) {
+				divisors.push_back(divisors[i] * power);
+			}
+		}
+		first = last;
+	}
+	std::sort(divisors.begin(), divisors.end());
+	return divisors;
+}
+
+inline std::vector<unsigned long long> divisors_64(unsigned long long value) {
+	assert(value > 0);
+	return divisors_from_factorization(factorize_64(value));
 }

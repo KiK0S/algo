@@ -1,0 +1,57 @@
+struct CentroidDecompositionResult {
+  std::vector<int> parent;
+  std::vector<int> level;
+  std::vector<std::vector<int>> tree;
+};
+
+inline CentroidDecompositionResult centroid_decomposition(
+    const std::vector<std::vector<int>>& graph) {
+  const int n = static_cast<int>(graph.size());
+  CentroidDecompositionResult result;
+  result.parent.assign(n, -1);
+  result.level.assign(n, -1);
+  result.tree.assign(n, {});
+  std::vector<int> subtree_size(n);
+  std::vector<char> removed(n, false);
+
+  std::function<int(int, int)> measure = [&](int vertex, int parent) {
+    subtree_size[vertex] = 1;
+    for (int next : graph[vertex]) {
+      if (next != parent && !removed[next]) {
+        subtree_size[vertex] += measure(next, vertex);
+      }
+    }
+    return subtree_size[vertex];
+  };
+  std::function<int(int, int, int)> find_centroid =
+      [&](int vertex, int parent, int component_size) {
+        for (int next : graph[vertex]) {
+          if (next != parent && !removed[next] &&
+              subtree_size[next] > component_size / 2) {
+            return find_centroid(next, vertex, component_size);
+          }
+        }
+        return vertex;
+      };
+  std::function<int(int, int, int)> decompose =
+      [&](int start, int parent, int level) {
+        const int component_size = measure(start, -1);
+        const int centroid = find_centroid(start, -1, component_size);
+        removed[centroid] = true;
+        result.parent[centroid] = parent;
+        result.level[centroid] = level;
+        if (parent != -1) {
+          result.tree[parent].push_back(centroid);
+          result.tree[centroid].push_back(parent);
+        }
+        for (int next : graph[centroid]) {
+          if (!removed[next]) decompose(next, centroid, level + 1);
+        }
+        return centroid;
+      };
+
+  for (int vertex = 0; vertex < n; ++vertex) {
+    if (!removed[vertex]) decompose(vertex, -1, 0);
+  }
+  return result;
+}

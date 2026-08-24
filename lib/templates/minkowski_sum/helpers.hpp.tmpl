@@ -1,0 +1,75 @@
+template <typename T>
+struct MinkowskiPoint { T x{}, y{}; };
+
+template <typename T>
+inline std::vector<MinkowskiPoint<T>> minkowski_sum(std::vector<MinkowskiPoint<T>> first,
+                                                    std::vector<MinkowskiPoint<T>> second) {
+  auto prepare = [](std::vector<MinkowskiPoint<T>>& polygon) {
+    if (polygon.size() <= 1) return;
+    if (polygon.size() > 2) {
+      auto area = [&] { T sum{}; for (int i = 0; i < static_cast<int>(polygon.size()); ++i)
+        sum += polygon[i].x * polygon[(i + 1) % polygon.size()].y - polygon[i].y * polygon[(i + 1) % polygon.size()].x; return sum; };
+      if (area() < T{}) std::reverse(polygon.begin(), polygon.end());
+    }
+    std::rotate(polygon.begin(), std::min_element(polygon.begin(), polygon.end(), [](auto a, auto b) {
+      return std::tie(a.y, a.x) < std::tie(b.y, b.x);
+    }), polygon.end());
+  };
+  prepare(first); prepare(second);
+  if (first.empty() || second.empty()) return {};
+  if (first.size() == 1) { for (auto& point : second) { point.x += first[0].x; point.y += first[0].y; } return second; }
+  if (second.size() == 1) { for (auto& point : first) { point.x += second[0].x; point.y += second[0].y; } return first; }
+  auto edges = [](const auto& polygon) { std::vector<MinkowskiPoint<T>> result; for (int i = 0; i < static_cast<int>(polygon.size()); ++i)
+    result.push_back({polygon[(i + 1) % polygon.size()].x - polygon[i].x, polygon[(i + 1) % polygon.size()].y - polygon[i].y}); return result; };
+  auto a = edges(first), b = edges(second);
+  std::vector<MinkowskiPoint<T>> result{ {first[0].x + second[0].x, first[0].y + second[0].y} };
+  std::size_t i = 0, j = 0;
+  while (i < a.size() || j < b.size()) {
+    const auto cross = i < a.size() && j < b.size() ? a[i].x * b[j].y - a[i].y * b[j].x : T{};
+    MinkowskiPoint<T> delta{};
+    if (j == b.size() || (i < a.size() && cross > T{})) delta = a[i++];
+    else if (i == a.size() || cross < T{}) delta = b[j++];
+    else { delta = {a[i].x + b[j].x, a[i].y + b[j].y}; ++i; ++j; }
+    result.push_back({result.back().x + delta.x, result.back().y + delta.y});
+  }
+  result.pop_back();
+  return result;
+}
+
+template <typename T>
+inline std::vector<MinkowskiPoint<T>> minkowski_difference(
+    std::vector<MinkowskiPoint<T>> first, std::vector<MinkowskiPoint<T>> second) {
+  for (auto& point : second) point = {-point.x, -point.y};
+  return minkowski_sum(std::move(first), std::move(second));
+}
+
+template <typename T>
+inline bool convex_polygons_intersect(std::vector<MinkowskiPoint<T>> first,
+                                      std::vector<MinkowskiPoint<T>> second) {
+  auto difference = minkowski_difference(std::move(first), std::move(second));
+  if (difference.empty()) return false;
+  auto cross = [](auto a, auto b) { return a.x * b.y - a.y * b.x; };
+  auto dot = [](auto a, auto b) { return a.x * b.x + a.y * b.y; };
+  if (difference.size() == 1)
+    return difference[0].x == T{} && difference[0].y == T{};
+  T twice_area{};
+  for (int i = 0; i < static_cast<int>(difference.size()); ++i)
+    twice_area += cross(difference[i], difference[(i + 1) % difference.size()]);
+  if (twice_area == T{}) {
+    const auto first_point = *std::min_element(
+        difference.begin(), difference.end(), [](auto lhs, auto rhs) {
+          return std::tie(lhs.x, lhs.y) < std::tie(rhs.x, rhs.y);
+        });
+    const auto last_point = *std::max_element(
+        difference.begin(), difference.end(), [](auto lhs, auto rhs) {
+          return std::tie(lhs.x, lhs.y) < std::tie(rhs.x, rhs.y);
+        });
+    return cross(first_point, last_point) == T{} &&
+           dot(first_point, last_point) <= T{};
+  }
+  for (int i = 0; i < static_cast<int>(difference.size()); ++i) {
+    auto a = difference[i], b = difference[(i + 1) % difference.size()];
+    if ((b.x - a.x) * (-a.y) - (b.y - a.y) * (-a.x) < T{}) return false;
+  }
+  return true;
+}

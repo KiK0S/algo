@@ -1,0 +1,51 @@
+template <class FirstIndependent, class SecondIndependent>
+std::vector<int> matroid_intersection(int element_count,
+                                      FirstIndependent first_independent,
+                                      SecondIndependent second_independent) {
+  std::vector<char> selected(element_count, false);
+  while (true) {
+    std::vector<int> parent(element_count, -2), queue;
+    for (int add = 0; add < element_count; ++add) if (!selected[add]) {
+      selected[add] = true;
+      bool source = first_independent(selected);
+      selected[add] = false;
+      if (source) { parent[add] = -1; queue.push_back(add); }
+    }
+    int sink = -1;
+    for (int begin = 0; begin < static_cast<int>(queue.size()) && sink == -1; ++begin) {
+      int current = queue[begin];
+      if (!selected[current]) {
+        selected[current] = true;
+        bool is_sink = second_independent(selected);
+        selected[current] = false;
+        if (is_sink) { sink = current; break; }
+        for (int remove = 0; remove < element_count; ++remove) {
+          if (!selected[remove] || parent[remove] != -2) continue;
+          selected[remove] = false;
+          selected[current] = true;
+          bool exchange = second_independent(selected);
+          selected[current] = false;
+          selected[remove] = true;
+          if (exchange) { parent[remove] = current; queue.push_back(remove); }
+        }
+      } else {
+        for (int add = 0; add < element_count; ++add) {
+          if (selected[add] || parent[add] != -2) continue;
+          selected[current] = false;
+          selected[add] = true;
+          bool exchange = first_independent(selected);
+          selected[add] = false;
+          selected[current] = true;
+          if (exchange) { parent[add] = current; queue.push_back(add); }
+        }
+      }
+    }
+    if (sink == -1) break;
+    for (int element = sink; element != -1; element = parent[element])
+      selected[element] = !selected[element];
+  }
+  std::vector<int> result;
+  for (int element = 0; element < element_count; ++element)
+    if (selected[element]) result.push_back(element);
+  return result;
+}

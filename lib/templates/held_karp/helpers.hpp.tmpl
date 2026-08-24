@@ -1,0 +1,123 @@
+template <typename Cost>
+struct HeldKarpResult {
+  Cost cost;
+  std::vector<int> path;
+
+  static bool safe_add(const Cost& first, const Cost& second,
+                       const Cost& infinity, Cost& result) {
+    if (first == infinity || second == infinity) return false;
+    if constexpr (std::is_integral_v<Cost>) {
+      if (second > 0 && first > std::numeric_limits<Cost>::max() - second) return false;
+      if constexpr (std::is_signed_v<Cost>) {
+        if (second < 0 && first < std::numeric_limits<Cost>::lowest() - second) return false;
+      }
+    }
+    result = first + second;
+    return result < infinity;
+  }
+};
+
+template <typename Cost>
+HeldKarpResult<Cost> held_karp_path(
+    const std::vector<std::vector<Cost>>& edge_cost, int required_start = -1,
+    int required_end = -1,
+    Cost infinity = std::numeric_limits<Cost>::max() / 4) {
+  const int n = static_cast<int>(edge_cost.size());
+  if (n == 0) return {Cost(0), {}};
+  assert(n < 31 && -1 <= required_start && required_start < n &&
+         -1 <= required_end && required_end < n);
+  for (const auto& row : edge_cost) assert(static_cast<int>(row.size()) == n);
+  const int mask_count = 1 << n;
+  std::vector<std::vector<Cost>> dp(mask_count, std::vector<Cost>(n, infinity));
+  std::vector<std::vector<int>> parent(mask_count, std::vector<int>(n, -1));
+  if (required_start == -1) {
+    for (int vertex = 0; vertex < n; ++vertex) dp[1 << vertex][vertex] = Cost(0);
+  } else {
+    dp[1 << required_start][required_start] = Cost(0);
+  }
+  for (int mask = 1; mask < mask_count; ++mask) {
+    for (int last = 0; last < n; ++last) {
+      if (!(mask & (1 << last)) || dp[mask][last] == infinity) continue;
+      for (int next = 0; next < n; ++next) {
+        if (mask & (1 << next)) continue;
+        const int next_mask = mask | (1 << next);
+        Cost candidate;
+        if (HeldKarpResult<Cost>::safe_add(dp[mask][last], edge_cost[last][next],
+                                           infinity, candidate) &&
+            candidate < dp[next_mask][next]) {
+          dp[next_mask][next] = candidate;
+          parent[next_mask][next] = last;
+        }
+      }
+    }
+  }
+  const int full_mask = mask_count - 1;
+  int last = required_end;
+  if (last == -1) {
+    last = static_cast<int>(std::min_element(dp[full_mask].begin(), dp[full_mask].end()) -
+                            dp[full_mask].begin());
+  }
+  if (dp[full_mask][last] == infinity) return {infinity, {}};
+  std::vector<int> path;
+  for (int mask = full_mask; last != -1;) {
+    path.push_back(last);
+    const int previous = parent[mask][last];
+    mask ^= 1 << last;
+    last = previous;
+  }
+  std::reverse(path.begin(), path.end());
+  return {dp[full_mask][path.back()], path};
+}
+
+template <typename Cost>
+HeldKarpResult<Cost> held_karp_cycle(
+    const std::vector<std::vector<Cost>>& edge_cost, int start = 0,
+    Cost infinity = std::numeric_limits<Cost>::max() / 4) {
+  const int n = static_cast<int>(edge_cost.size());
+  if (n == 0) return {Cost(0), {}};
+  assert(n < 31 && 0 <= start && start < n);
+  for (const auto& row : edge_cost) assert(static_cast<int>(row.size()) == n);
+  const int mask_count = 1 << n;
+  std::vector<std::vector<Cost>> dp(mask_count, std::vector<Cost>(n, infinity));
+  std::vector<std::vector<int>> parent(mask_count, std::vector<int>(n, -1));
+  dp[1 << start][start] = Cost(0);
+  for (int mask = 1; mask < mask_count; ++mask) {
+    for (int last = 0; last < n; ++last) {
+      if (!(mask & (1 << last)) || dp[mask][last] == infinity) continue;
+      for (int next = 0; next < n; ++next) {
+        if (mask & (1 << next)) continue;
+        const int next_mask = mask | (1 << next);
+        Cost candidate;
+        if (HeldKarpResult<Cost>::safe_add(dp[mask][last], edge_cost[last][next],
+                                           infinity, candidate) &&
+            candidate < dp[next_mask][next]) {
+          dp[next_mask][next] = candidate;
+          parent[next_mask][next] = last;
+        }
+      }
+    }
+  }
+  const int full_mask = mask_count - 1;
+  int best_last = -1;
+  Cost best = infinity;
+  for (int last = 0; last < n; ++last) {
+    Cost candidate;
+    if (HeldKarpResult<Cost>::safe_add(dp[full_mask][last], edge_cost[last][start],
+                                       infinity, candidate) &&
+        candidate < best) {
+      best = candidate;
+      best_last = last;
+    }
+  }
+  if (best_last == -1) return {infinity, {}};
+  std::vector<int> path;
+  for (int mask = full_mask, last = best_last; last != -1;) {
+    path.push_back(last);
+    const int previous = parent[mask][last];
+    mask ^= 1 << last;
+    last = previous;
+  }
+  std::reverse(path.begin(), path.end());
+  path.push_back(start);
+  return {best, path};
+}

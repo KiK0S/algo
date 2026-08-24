@@ -1,0 +1,155 @@
+enum class LinearProgramStatus { optimal, infeasible, unbounded };
+
+struct LinearProgramResult {
+  LinearProgramStatus status = LinearProgramStatus::infeasible;
+  long double value = 0;
+  std::vector<long double> solution;
+};
+
+class SimplexSolver {
+ public:
+  SimplexSolver(const std::vector<std::vector<long double>>& constraints,
+                const std::vector<long double>& bounds,
+                const std::vector<long double>& objective,
+                long double epsilon = 1e-12L)
+      : rows_(static_cast<int>(bounds.size())),
+        columns_(static_cast<int>(objective.size())),
+        epsilon_(epsilon),
+        basic_(rows_),
+        nonbasic_(columns_ + 1),
+        tableau_(rows_ + 2, std::vector<long double>(columns_ + 2)) {
+    for (int row = 0; row < rows_; ++row) {
+      for (int column = 0; column < columns_; ++column) {
+        if (row < static_cast<int>(constraints.size()) &&
+            column < static_cast<int>(constraints[row].size())) {
+          tableau_[row][column] = constraints[row][column];
+        }
+      }
+      basic_[row] = columns_ + row;
+      tableau_[row][columns_] = -1;
+      tableau_[row][columns_ + 1] = bounds[row];
+    }
+    for (int column = 0; column < columns_; ++column) {
+      nonbasic_[column] = column;
+      tableau_[rows_][column] = -objective[column];
+    }
+    nonbasic_[columns_] = -1;
+    tableau_[rows_ + 1][columns_] = 1;
+  }
+
+  LinearProgramResult solve() {
+    LinearProgramResult result;
+    int pivot_row = 0;
+    for (int row = 1; row < rows_; ++row) {
+      if (tableau_[row][columns_ + 1] < tableau_[pivot_row][columns_ + 1]) {
+        pivot_row = row;
+      }
+    }
+    if (rows_ > 0 && tableau_[pivot_row][columns_ + 1] < -epsilon_) {
+      pivot(pivot_row, columns_);
+      if (!run_phase(1) || tableau_[rows_ + 1][columns_ + 1] < -epsilon_) {
+        return result;
+      }
+      if (std::fabs(tableau_[rows_ + 1][columns_ + 1]) > epsilon_) {
+        return result;
+      }
+      for (int row = 0; row < rows_; ++row) {
+        if (basic_[row] != -1) continue;
+        int entering = 0;
+        for (int column = 1; column <= columns_; ++column) {
+          if (tableau_[row][column] < tableau_[row][entering] - epsilon_ ||
+              (std::fabs(tableau_[row][column] - tableau_[row][entering]) <= epsilon_ &&
+               nonbasic_[column] < nonbasic_[entering])) {
+            entering = column;
+          }
+        }
+        pivot(row, entering);
+      }
+    }
+    if (!run_phase(2)) {
+      result.status = LinearProgramStatus::unbounded;
+      return result;
+    }
+    result.status = LinearProgramStatus::optimal;
+    result.value = tableau_[rows_][columns_ + 1];
+    result.solution.assign(columns_, 0);
+    for (int row = 0; row < rows_; ++row) {
+      if (basic_[row] < columns_) {
+        result.solution[basic_[row]] = tableau_[row][columns_ + 1];
+      }
+    }
+    return result;
+  }
+
+ private:
+  int rows_;
+  int columns_;
+  long double epsilon_;
+  std::vector<int> basic_;
+  std::vector<int> nonbasic_;
+  std::vector<std::vector<long double>> tableau_;
+
+  void pivot(int leaving, int entering) {
+    const long double inverse = 1 / tableau_[leaving][entering];
+    for (int row = 0; row < rows_ + 2; ++row) {
+      if (row == leaving) continue;
+      for (int column = 0; column < columns_ + 2; ++column) {
+        if (column == entering) continue;
+        tableau_[row][column] -=
+            tableau_[leaving][column] * tableau_[row][entering] * inverse;
+      }
+    }
+    for (int column = 0; column < columns_ + 2; ++column) {
+      if (column != entering) tableau_[leaving][column] *= inverse;
+    }
+    for (int row = 0; row < rows_ + 2; ++row) {
+      if (row != leaving) tableau_[row][entering] *= -inverse;
+    }
+    tableau_[leaving][entering] = inverse;
+    std::swap(basic_[leaving], nonbasic_[entering]);
+  }
+
+  bool run_phase(int phase) {
+    const int objective_row = phase == 1 ? rows_ + 1 : rows_;
+    for (;;) {
+      int entering = -1;
+      for (int column = 0; column <= columns_; ++column) {
+        if (phase == 2 && nonbasic_[column] == -1) continue;
+        if (entering == -1 ||
+            tableau_[objective_row][column] < tableau_[objective_row][entering] - epsilon_ ||
+            (std::fabs(tableau_[objective_row][column] -
+                       tableau_[objective_row][entering]) <= epsilon_ &&
+             nonbasic_[column] < nonbasic_[entering])) {
+          entering = column;
+        }
+      }
+      if (entering == -1 || tableau_[objective_row][entering] >= -epsilon_) return true;
+      int leaving = -1;
+      for (int row = 0; row < rows_; ++row) {
+        if (tableau_[row][entering] <= epsilon_) continue;
+        if (leaving == -1) {
+          leaving = row;
+          continue;
+        }
+        const long double lhs =
+            tableau_[row][columns_ + 1] / tableau_[row][entering];
+        const long double rhs =
+            tableau_[leaving][columns_ + 1] / tableau_[leaving][entering];
+        if (lhs < rhs - epsilon_ ||
+            (std::fabs(lhs - rhs) <= epsilon_ && basic_[row] < basic_[leaving])) {
+          leaving = row;
+        }
+      }
+      if (leaving == -1) return false;
+      pivot(leaving, entering);
+    }
+  }
+};
+
+inline LinearProgramResult simplex_maximize(
+    const std::vector<std::vector<long double>>& constraints,
+    const std::vector<long double>& bounds,
+    const std::vector<long double>& objective,
+    long double epsilon = 1e-12L) {
+  return SimplexSolver(constraints, bounds, objective, epsilon).solve();
+}

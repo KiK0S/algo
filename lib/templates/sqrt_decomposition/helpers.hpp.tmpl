@@ -1,0 +1,65 @@
+template <typename T, typename Aggregate, typename Merge>
+class SqrtDecomposition {
+ public:
+  SqrtDecomposition(std::vector<T> values, Aggregate identity, Merge merge)
+      : values_(std::move(values)), identity_(identity), merge_(merge) {
+    block_size_ = std::max(1, static_cast<int>(std::sqrt(std::max<std::size_t>(1, values_.size()))) + 1);
+    blocks_.assign((values_.size() + block_size_ - 1) / block_size_, identity_);
+    for (int block = 0; block < static_cast<int>(blocks_.size()); ++block) rebuild(block);
+  }
+  const T& get(int index) const { return values_[index]; }
+  void set(int index, T value) { values_[index] = std::move(value); rebuild(index / block_size_); }
+  Aggregate fold(int left, int right) const {
+    Aggregate result = identity_;
+    while (left < right && left % block_size_) result = merge_(result, values_[left++]);
+    while (left + block_size_ <= right) {
+      result = merge_(result, blocks_[left / block_size_]);
+      left += block_size_;
+    }
+    while (left < right) result = merge_(result, values_[left++]);
+    return result;
+  }
+ private:
+  std::vector<T> values_;
+  std::vector<Aggregate> blocks_;
+  Aggregate identity_;
+  Merge merge_;
+  int block_size_ = 1;
+  void rebuild(int block) {
+    blocks_[block] = identity_;
+    const int end = std::min<int>(values_.size(), (block + 1) * block_size_);
+    for (int i = block * block_size_; i < end; ++i) blocks_[block] = merge_(blocks_[block], values_[i]);
+  }
+};
+
+template <typename T = long long>
+class RangeAddSumSqrt {
+ public:
+  explicit RangeAddSumSqrt(std::vector<T> values) : values_(std::move(values)) {
+    block_size_ = std::max(1, static_cast<int>(std::sqrt(std::max<std::size_t>(1, values_.size()))) + 1);
+    const int count = (values_.size() + block_size_ - 1) / block_size_;
+    sums_.assign(count, T{}); lazy_.assign(count, T{});
+    for (int i = 0; i < static_cast<int>(values_.size()); ++i) sums_[i / block_size_] += values_[i];
+  }
+  void add(int left, int right, T delta) {
+    assert(0 <= left && left <= right && right <= static_cast<int>(values_.size()));
+    while (left < right && left % block_size_) add_one(left++, delta);
+    while (left + block_size_ <= right) {
+      const int block = left / block_size_;
+      lazy_[block] += delta; sums_[block] += delta * block_size_; left += block_size_;
+    }
+    while (left < right) add_one(left++, delta);
+  }
+  T sum(int left, int right) const {
+    assert(0 <= left && left <= right && right <= static_cast<int>(values_.size()));
+    T result{};
+    while (left < right && left % block_size_) { result += values_[left] + lazy_[left / block_size_]; ++left; }
+    while (left + block_size_ <= right) { result += sums_[left / block_size_]; left += block_size_; }
+    while (left < right) { result += values_[left] + lazy_[left / block_size_]; ++left; }
+    return result;
+  }
+ private:
+  std::vector<T> values_, sums_, lazy_;
+  int block_size_ = 1;
+  void add_one(int index, T delta) { values_[index] += delta; sums_[index / block_size_] += delta; }
+};

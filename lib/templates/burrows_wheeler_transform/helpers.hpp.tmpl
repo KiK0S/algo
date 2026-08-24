@@ -1,0 +1,67 @@
+template <typename Symbol>
+struct BurrowsWheelerTransform {
+  std::vector<Symbol> last_column;
+  int primary_index = 0;
+};
+
+template <typename Symbol>
+BurrowsWheelerTransform<Symbol> burrows_wheeler_transform(
+    const std::vector<Symbol>& sequence) {
+  const int size = static_cast<int>(sequence.size());
+  BurrowsWheelerTransform<Symbol> result;
+  if (size == 0) return result;
+  std::vector<int> order(size), rank(size), next_rank(size);
+  std::iota(order.begin(), order.end(), 0);
+  std::map<Symbol, int> compressed;
+  for (const Symbol& symbol : sequence) compressed.emplace(symbol, 0);
+  int classes = 0;
+  for (auto& entry : compressed) entry.second = classes++;
+  for (int i = 0; i < size; ++i) rank[i] = compressed[sequence[i]];
+  for (int length = 1; length < size; length <<= 1) {
+    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) {
+      return std::pair<int, int>{rank[lhs], rank[(lhs + length) % size]} <
+             std::pair<int, int>{rank[rhs], rank[(rhs + length) % size]};
+    });
+    next_rank[order[0]] = 0;
+    for (int i = 1; i < size; ++i) {
+      const int lhs = order[i - 1], rhs = order[i];
+      next_rank[rhs] = next_rank[lhs] +
+          (std::pair<int, int>{rank[lhs], rank[(lhs + length) % size]} !=
+           std::pair<int, int>{rank[rhs], rank[(rhs + length) % size]});
+    }
+    rank.swap(next_rank);
+    if (rank[order.back()] == size - 1) break;
+  }
+  std::sort(order.begin(), order.end(), [&](int lhs, int rhs) {
+    return rank[lhs] < rank[rhs];
+  });
+  result.last_column.resize(size);
+  for (int row = 0; row < size; ++row) {
+    result.last_column[row] = sequence[(order[row] + size - 1) % size];
+    if (order[row] == 0) result.primary_index = row;
+  }
+  return result;
+}
+
+template <typename Symbol>
+std::vector<Symbol> inverse_burrows_wheeler_transform(
+    const std::vector<Symbol>& last_column, int primary_index) {
+  const int size = static_cast<int>(last_column.size());
+  if (primary_index < 0 || primary_index >= size) return {};
+  std::map<Symbol, int> frequency;
+  std::vector<int> occurrence_rank(size);
+  for (int i = 0; i < size; ++i) occurrence_rank[i] = frequency[last_column[i]]++;
+  std::map<Symbol, int> first;
+  int offset = 0;
+  for (const auto& entry : frequency) {
+    first[entry.first] = offset;
+    offset += entry.second;
+  }
+  std::vector<Symbol> result(size);
+  int row = primary_index;
+  for (int i = size - 1; i >= 0; --i) {
+    result[i] = last_column[row];
+    row = first[last_column[row]] + occurrence_rank[row];
+  }
+  return result;
+}
