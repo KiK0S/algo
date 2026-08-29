@@ -4840,6 +4840,10 @@ function defaultFftNttOptions(
   return {
     transforms: defaultFftNttTransforms(),
     includeConvolution: false,
+    nttValueMode: "int",
+    mintTypeExpression: "Mint",
+    copyNttInputs: true,
+    normalizeNttInputs: true,
     modulusExpression: "998244353",
     primitiveRootExpression: "3",
     names: planFftNttNames(analysis, extraReserved),
@@ -5173,7 +5177,40 @@ async function promptFftNttOptions(
 
   let modulusExpression = "998244353";
   let primitiveRootExpression = "3";
+  let nttValueMode: "int" | "mint" = "int";
+  let mintTypeExpression = "Mint";
+  let copyNttInputs = true;
+  let normalizeNttInputs = true;
   if (transforms.includes("ntt")) {
+    const valueModePick = await showExplainedQuickPick<
+      ValuePickItem<"int" | "mint">
+    >(
+      [
+        { label: "Raw integers", description: "Emit standalone modular arithmetic over vector<int>.", value: "int", picked: true },
+        { label: "Existing Mint", description: "Reuse an existing modular type and its arithmetic.", value: "mint" }
+      ],
+      {
+        title: "edulcni: fft_ntt",
+        placeHolder: "NTT coefficient type",
+        ignoreFocusOut: true
+      }
+    );
+    if (!valueModePick) {
+      return undefined;
+    }
+    nttValueMode = valueModePick.value;
+    if (nttValueMode === "mint") {
+      const mintType = await pickStringWithCustom(
+        "edulcni: fft_ntt",
+        "Modular coefficient type",
+        uniqueValues(["Mint", ...customValueTypeCandidates(analysis)]),
+        "C++ type, for example Mint"
+      );
+      if (mintType === undefined || mintType.trim() === "") {
+        return undefined;
+      }
+      mintTypeExpression = mintType.trim();
+    }
     const constantNames = analysis.constantSymbols.map((symbol) => symbol.name);
     const modulus = await pickStringWithCustom(
       "edulcni: fft_ntt",
@@ -5195,11 +5232,55 @@ async function promptFftNttOptions(
     }
     modulusExpression = modulus.trim();
     primitiveRootExpression = primitiveRoot.trim();
+
+    if (helperPick.value === "convolution") {
+      const inputHandlingPick = await showExplainedQuickPick<
+        ValuePickItem<"copy" | "reuse">
+      >(
+        [
+          { label: "Copy inputs", description: "Keep both source vectors unchanged and allocate padded work buffers.", value: "copy", picked: true },
+          { label: "Reuse inputs", description: "Resize and transform both vectors; move the result out of the first.", value: "reuse" }
+        ],
+        {
+          title: "edulcni: fft_ntt",
+          placeHolder: "Convolution input handling",
+          ignoreFocusOut: true
+        }
+      );
+      if (!inputHandlingPick) {
+        return undefined;
+      }
+      copyNttInputs = inputHandlingPick.value === "copy";
+
+      if (nttValueMode === "int") {
+        const normalizationPick = await showExplainedQuickPick<
+          ValuePickItem<"assume" | "normalize">
+        >(
+          [
+            { label: "Assume normalized", description: "Assume every coefficient is already in [0, mod).", value: "assume", picked: true },
+            { label: "Normalize inputs", description: "Reduce possibly negative or oversized coefficients modulo mod.", value: "normalize" }
+          ],
+          {
+            title: "edulcni: fft_ntt",
+            placeHolder: "Integer coefficient handling",
+            ignoreFocusOut: true
+          }
+        );
+        if (!normalizationPick) {
+          return undefined;
+        }
+        normalizeNttInputs = normalizationPick.value === "normalize";
+      }
+    }
   }
 
   return {
     transforms,
     includeConvolution: helperPick.value === "convolution",
+    nttValueMode,
+    mintTypeExpression,
+    copyNttInputs,
+    normalizeNttInputs,
     modulusExpression,
     primitiveRootExpression,
     names: planFftNttNames(analysis),

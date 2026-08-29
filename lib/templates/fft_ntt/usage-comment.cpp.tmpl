@@ -15,7 +15,12 @@ std::vector<std::complex<long double>> fa(n);
 {{fftTransformName}}(fa, true);
 {{/if}}
 {{#if includeNtt}}
+{{#if useMint}}
+std::vector<{{mintTypeExpression}}> fa(n);
+{{/if}}
+{{#unless useMint}}
 std::vector<int> fa(n);
+{{/unless}}
 {{nttTransformName}}(fa, false);
 {{nttTransformName}}(fa, true);
 {{/if}}

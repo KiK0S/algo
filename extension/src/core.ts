@@ -1533,6 +1533,7 @@ export interface SuffixArrayOptions {
 }
 
 export type FftNttTransform = "fft" | "ntt";
+export type NttValueMode = "int" | "mint";
 
 export interface FftNttNames {
   nextPowerName: string;
@@ -1548,6 +1549,10 @@ export interface FftNttNames {
 export interface FftNttOptions {
   transforms: FftNttTransform[];
   includeConvolution: boolean;
+  nttValueMode: NttValueMode;
+  mintTypeExpression: string;
+  copyNttInputs: boolean;
+  normalizeNttInputs: boolean;
   modulusExpression: string;
   primitiveRootExpression: string;
   names: FftNttNames;
@@ -7707,7 +7712,9 @@ function fftNttExports(
     }
   }
   if (transforms.has("ntt")) {
-    add(options.names.nttPowName);
+    if ((options.nttValueMode ?? "int") === "int") {
+      add(options.names.nttPowName);
+    }
     add(options.names.nttTransformName);
     if (options.includeConvolution) {
       add(options.names.convolutionNttName);
@@ -7720,10 +7727,14 @@ function renderFftNttUsage(
   options: FftNttOptions,
   transforms: Set<FftNttTransform>
 ): string {
+  const nttValueMode = options.nttValueMode ?? "int";
   return renderCodeTemplate("fft_ntt/usage-comment.cpp.tmpl", {
     includeFft: transforms.has("fft"),
     includeNtt: transforms.has("ntt"),
     includeConvolution: options.includeConvolution,
+    useMint: nttValueMode === "mint",
+    mintTypeExpression: options.mintTypeExpression || "Mint",
+    copyNttInputs: options.copyNttInputs ?? true,
     fftTransformName: options.names.fftTransformName,
     convolutionFftName: options.names.convolutionFftName,
     nttTransformName: options.names.nttTransformName,
@@ -7733,11 +7744,17 @@ function renderFftNttUsage(
 
 export function renderFftNttRecipe(options: FftNttOptions): RenderedRecipe {
   const transforms = fftNttTransformSet(options.transforms);
+  const nttValueMode = options.nttValueMode ?? "int";
   const names = options.names;
   let helpers = renderCodeTemplate("fft_ntt/helpers.hpp.tmpl", {
     includeFft: transforms.has("fft"),
     includeNtt: transforms.has("ntt"),
     includeConvolution: options.includeConvolution,
+    useIntNtt: nttValueMode === "int",
+    useMintNtt: nttValueMode === "mint",
+    mintTypeExpression: options.mintTypeExpression || "Mint",
+    copyNttInputs: options.copyNttInputs ?? true,
+    normalizeNttInputs: options.normalizeNttInputs ?? true,
     modulusExpression: options.modulusExpression,
     primitiveRootExpression: options.primitiveRootExpression
   });

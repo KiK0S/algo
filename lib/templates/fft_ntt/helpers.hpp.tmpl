@@ -96,6 +96,7 @@ inline std::vector<long long> convolution_fft_round(const std::vector<T>& a,
 {{/if}}
 {{/if}}
 {{#if includeNtt}}
+{{#if useIntNtt}}
 inline int ntt_pow(int a, long long e, int mod) {
   long long res = 1;
   long long base = a % mod;
@@ -111,9 +112,17 @@ inline int ntt_pow(int a, long long e, int mod) {
   }
   return static_cast<int>(res);
 }
+{{/if}}
 
+{{#if useIntNtt}}
 inline bool ntt_transform(std::vector<int>& a, bool invert = false,
                           int mod = {{modulusExpression}}, int primitive_root = {{primitiveRootExpression}}) {
+{{/if}}
+{{#if useMintNtt}}
+inline bool ntt_transform(std::vector<{{mintTypeExpression}}>& a, bool invert = false,
+                          int mod = {{modulusExpression}}, int primitive_root = {{primitiveRootExpression}}) {
+  using NttMint = {{mintTypeExpression}};
+{{/if}}
   const int n = static_cast<int>(a.size());
   if (n == 0) {
     return true;
@@ -126,13 +135,27 @@ inline bool ntt_transform(std::vector<int>& a, bool invert = false,
   EDULCNI_VIS(edulcni::live::array("ntt.values", a));
   EDULCNI_STEP("NTT bit-reversal completed");
   for (int len = 2; len <= n; len <<= 1) {
+{{#if useIntNtt}}
     int wlen = ntt_pow(primitive_root, (mod - 1) / len, mod);
     if (invert) {
       wlen = ntt_pow(wlen, mod - 2, mod);
     }
+{{/if}}
+{{#if useMintNtt}}
+    NttMint wlen = NttMint(primitive_root).pow((mod - 1) / len);
+    if (invert) {
+      wlen = wlen.inv();
+    }
+{{/if}}
     for (int i = 0; i < n; i += len) {
+{{#if useIntNtt}}
       long long w = 1;
+{{/if}}
+{{#if useMintNtt}}
+      NttMint w = NttMint(1);
+{{/if}}
       for (int j = 0; j < len / 2; ++j) {
+{{#if useIntNtt}}
         const int u = a[i + j];
         const int v = static_cast<int>(w * a[i + j + len / 2] % mod);
         int x = u + v;
@@ -146,6 +169,14 @@ inline bool ntt_transform(std::vector<int>& a, bool invert = false,
         a[i + j] = x;
         a[i + j + len / 2] = y;
         w = w * wlen % mod;
+{{/if}}
+{{#if useMintNtt}}
+        const NttMint u = a[i + j];
+        const NttMint v = a[i + j + len / 2] * w;
+        a[i + j] = u + v;
+        a[i + j + len / 2] = u - v;
+        w *= wlen;
+{{/if}}
       }
     }
     EDULCNI_VIS(edulcni::live::array("ntt.values", a));
@@ -153,16 +184,26 @@ inline bool ntt_transform(std::vector<int>& a, bool invert = false,
   }
 
   if (invert) {
+{{#if useIntNtt}}
     const int inv_n = ntt_pow(n, mod - 2, mod);
     for (int& x : a) {
       x = static_cast<int>(1LL * x * inv_n % mod);
     }
+{{/if}}
+{{#if useMintNtt}}
+    const NttMint inv_n = NttMint(n).inv();
+    for (NttMint& x : a) {
+      x *= inv_n;
+    }
+{{/if}}
   }
   return true;
 }
 {{#if includeConvolution}}
+{{#if copyNttInputs}}
 template <typename T>
-inline std::vector<int> convolution_ntt_int(const std::vector<T>& a,
+inline std::vector<{{#if useIntNtt}}int{{/if}}{{#if useMintNtt}}{{mintTypeExpression}}{{/if}}> convolution_ntt_int(
+                                            const std::vector<T>& a,
                                             const std::vector<T>& b,
                                             int mod = {{modulusExpression}},
                                             int primitive_root = {{primitiveRootExpression}}) {
@@ -171,28 +212,50 @@ inline std::vector<int> convolution_ntt_int(const std::vector<T>& a,
   }
   const int need = static_cast<int>(a.size() + b.size() - 1);
   const int n = fft_next_power_of_two(need);
+{{#if useIntNtt}}
   std::vector<int> fa(n), fb(n);
   for (int i = 0; i < static_cast<int>(a.size()); ++i) {
+{{#if normalizeNttInputs}}
     long long x = static_cast<long long>(a[i]) % mod;
     if (x < 0) {
       x += mod;
     }
     fa[i] = static_cast<int>(x);
+{{/if}}
+{{#unless normalizeNttInputs}}
+    fa[i] = static_cast<int>(a[i]);
+{{/unless}}
   }
   for (int i = 0; i < static_cast<int>(b.size()); ++i) {
+{{#if normalizeNttInputs}}
     long long x = static_cast<long long>(b[i]) % mod;
     if (x < 0) {
       x += mod;
     }
     fb[i] = static_cast<int>(x);
+{{/if}}
+{{#unless normalizeNttInputs}}
+    fb[i] = static_cast<int>(b[i]);
+{{/unless}}
   }
+{{/if}}
+{{#if useMintNtt}}
+  std::vector<{{mintTypeExpression}}> fa(n), fb(n);
+  std::copy(a.begin(), a.end(), fa.begin());
+  std::copy(b.begin(), b.end(), fb.begin());
+{{/if}}
 
   if (!ntt_transform(fa, false, mod, primitive_root) ||
       !ntt_transform(fb, false, mod, primitive_root)) {
     return {};
   }
   for (int i = 0; i < n; ++i) {
+{{#if useIntNtt}}
     fa[i] = static_cast<int>(1LL * fa[i] * fb[i] % mod);
+{{/if}}
+{{#if useMintNtt}}
+    fa[i] *= fb[i];
+{{/if}}
   }
   if (!ntt_transform(fa, true, mod, primitive_root)) {
     return {};
@@ -200,5 +263,49 @@ inline std::vector<int> convolution_ntt_int(const std::vector<T>& a,
   fa.resize(need);
   return fa;
 }
+{{/if}}
+{{#unless copyNttInputs}}
+inline std::vector<{{#if useIntNtt}}int{{/if}}{{#if useMintNtt}}{{mintTypeExpression}}{{/if}}> convolution_ntt_int(
+    std::vector<{{#if useIntNtt}}int{{/if}}{{#if useMintNtt}}{{mintTypeExpression}}{{/if}}>& a,
+    std::vector<{{#if useIntNtt}}int{{/if}}{{#if useMintNtt}}{{mintTypeExpression}}{{/if}}>& b,
+    int mod = {{modulusExpression}}, int primitive_root = {{primitiveRootExpression}}) {
+  if (a.empty() || b.empty()) {
+    return {};
+  }
+  const int need = static_cast<int>(a.size() + b.size() - 1);
+  const int n = fft_next_power_of_two(need);
+  a.resize(n);
+  b.resize(n);
+{{#if useIntNtt}}
+{{#if normalizeNttInputs}}
+  for (int& x : a) {
+    x %= mod;
+    if (x < 0) x += mod;
+  }
+  for (int& x : b) {
+    x %= mod;
+    if (x < 0) x += mod;
+  }
+{{/if}}
+{{/if}}
+  if (!ntt_transform(a, false, mod, primitive_root) ||
+      !ntt_transform(b, false, mod, primitive_root)) {
+    return {};
+  }
+  for (int i = 0; i < n; ++i) {
+{{#if useIntNtt}}
+    a[i] = static_cast<int>(1LL * a[i] * b[i] % mod);
+{{/if}}
+{{#if useMintNtt}}
+    a[i] *= b[i];
+{{/if}}
+  }
+  if (!ntt_transform(a, true, mod, primitive_root)) {
+    return {};
+  }
+  a.resize(need);
+  return std::move(a);
+}
+{{/unless}}
 {{/if}}
 {{/if}}
